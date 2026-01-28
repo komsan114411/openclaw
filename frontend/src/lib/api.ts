@@ -356,6 +356,25 @@ export const systemSettingsApi = {
     api.put('/system-settings/ai-toggle', { enabled }),
   // Floating Contact Button (public)
   getFloatingContact: () => api.get('/system-settings/floating-contact'),
+  // Slip Provider Settings (admin only)
+  getSlipProviderSettings: () => api.get('/system-settings/slip-provider-settings'),
+  updateSlipProviderSettings: (data: {
+    slipApiProvider?: string;
+    slipApiProviderSecondary?: string;
+    slipApiFallbackEnabled?: boolean;
+    slipProviderFailoverOrder?: string[];
+    slipApiKey?: string;
+    slipApiKeySecondary?: string;
+    slipApiKeyThunder?: string;
+    slipApiKeySlipMate?: string;
+    slipApiQuotaWarning?: boolean;
+    globalSlipVerificationEnabled?: boolean;
+  }) => api.put('/system-settings/slip-provider-settings', data),
+  getSlipProviderStatus: () => api.get('/system-settings/slip-provider-status'),
+  testSlipProvider: (provider: string, apiKey?: string) =>
+    api.post('/system-settings/test-slip-provider', { provider, apiKey }),
+  toggleGlobalSlip: (enabled: boolean) =>
+    api.put('/system-settings/slip-toggle', { enabled }),
 };
 
 // Slip Verification API
