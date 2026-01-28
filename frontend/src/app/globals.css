@@ -480,6 +480,23 @@
   padding-right: max(0px, env(safe-area-inset-right));
 }
 
+.safe-area-top {
+  padding-top: env(safe-area-inset-top, 0px);
+}
+
+.safe-area-bottom {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+/* Scrollbar utilities */
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
+}
+.scrollbar-none {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
 /* Mobile Table Responsive */
 .table-responsive {
   @apply w-full overflow-x-auto -mx-3 px-3 xs:-mx-4 xs:px-4;
