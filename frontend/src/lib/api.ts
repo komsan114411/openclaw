@@ -121,6 +121,7 @@ interface CreateLineAccountData {
   accessToken: string;
   description?: string;
   slipTemplateId?: string;
+  slipTemplateIds?: Partial<Record<'success' | 'duplicate' | 'error' | 'not_found', string>>;
   ownerId?: string;
 }
 
@@ -130,6 +131,7 @@ interface UpdateLineAccountData {
   accessToken?: string;
   description?: string;
   slipTemplateId?: string;
+  slipTemplateIds?: Partial<Record<'success' | 'duplicate' | 'error' | 'not_found', string>>;
   isActive?: boolean;
 }
 
