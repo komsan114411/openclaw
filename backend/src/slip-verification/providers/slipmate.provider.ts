@@ -47,6 +47,8 @@ export class SlipMateProvider implements SlipVerificationProvider {
       filename: 'slip.jpg',
       contentType: 'image/jpeg',
     });
+    // Explicitly disable duplicate allowance (check for duplicates)
+    formData.append('allowDuplicate', 'false');
 
     try {
       this.logger.log('[SLIPMATE] Sending verification request...');
@@ -61,6 +63,8 @@ export class SlipMateProvider implements SlipVerificationProvider {
           },
           timeout: this.TIMEOUT,
           maxContentLength: 15 * 1024 * 1024,
+          // Don't throw on 4xx responses - we handle them in normalizeResponse
+          validateStatus: (status) => status < 500,
         },
       );
 
@@ -156,13 +160,83 @@ export class SlipMateProvider implements SlipVerificationProvider {
   }
 
   private normalizeResponse(data: any, httpStatus: number = 200): NormalizedVerificationResult {
-    this.logger.log(`[SLIPMATE] Normalizing response: httpStatus=${httpStatus}, statusCode=${data.statusCode}`);
+    this.logger.log(`[SLIPMATE] Normalizing response: httpStatus=${httpStatus}, statusCode=${data?.statusCode}, code=${data?.code}`);
 
-    // SlipMate success response - HTTP 200 with slip data
-    // Response format: { transRef, transDate, transTime, amount, sender, receiver, ... }
+    // ===== DUPLICATE SLIP (HTTP 409 Conflict) =====
+    if (httpStatus === 409) {
+      this.logger.log('[SLIPMATE] Duplicate slip detected (HTTP 409)');
+      const slipData = data?.data || data || {};
+      return {
+        status: 'duplicate',
+        provider: SlipProvider.SLIPMATE,
+        message: 'สลิปนี้เคยถูกใช้แล้ว',
+        data: slipData.transRef ? this.extractSlipData(slipData) : undefined,
+        shouldFailover: false,
+      };
+    }
+
+    // ===== FORBIDDEN / NO CREDITS (HTTP 403) =====
+    if (httpStatus === 403) {
+      this.logger.warn('[SLIPMATE] Forbidden or no credits (HTTP 403)');
+      throw new ProviderUnavailableError(SlipProvider.SLIPMATE, 'Insufficient credits');
+    }
+
+    // ===== UNAUTHORIZED (HTTP 401) =====
+    if (httpStatus === 401) {
+      this.logger.warn('[SLIPMATE] Unauthorized (HTTP 401)');
+      throw new ProviderUnavailableError(SlipProvider.SLIPMATE, 'Invalid API key');
+    }
+
+    // ===== BAD REQUEST (HTTP 400) =====
+    if (httpStatus === 400) {
+      const message = data?.message || data?.error || '';
+      const code = data?.code || '';
+
+      // Check for duplicate in 400 response
+      if (code === 'DUPLICATE_SLIP' || message.toLowerCase().includes('duplicate')) {
+        this.logger.log('[SLIPMATE] Duplicate slip detected (400 + duplicate message)');
+        const slipData = data?.data || {};
+        return {
+          status: 'duplicate',
+          provider: SlipProvider.SLIPMATE,
+          message: 'สลิปนี้เคยถูกใช้แล้ว',
+          data: slipData.transRef ? this.extractSlipData(slipData) : undefined,
+          shouldFailover: false,
+        };
+      }
+
+      // Invalid QR or payload
+      if (message.toLowerCase().includes('qr') || message.toLowerCase().includes('invalid')) {
+        return {
+          status: 'error',
+          provider: SlipProvider.SLIPMATE,
+          message: 'ไม่สามารถอ่าน QR Code จากสลิปได้ กรุณาถ่ายรูปให้ชัดเจน',
+          shouldFailover: false,
+        };
+      }
+
+      return {
+        status: 'error',
+        provider: SlipProvider.SLIPMATE,
+        message: message || 'รูปแบบสลิปไม่ถูกต้อง',
+        shouldFailover: false,
+      };
+    }
+
+    // ===== NOT FOUND (HTTP 404) =====
+    if (httpStatus === 404) {
+      return {
+        status: 'not_found',
+        provider: SlipProvider.SLIPMATE,
+        message: 'ไม่พบข้อมูลสลิปในระบบธนาคาร',
+        shouldFailover: false,
+      };
+    }
+
+    // ===== SUCCESS (HTTP 200) =====
     if (httpStatus === 200) {
       // Check if it's a direct slip data response (not wrapped)
-      if (data.transRef) {
+      if (data?.transRef) {
         this.logger.log(`[SLIPMATE] Success (direct): transRef=${data.transRef}`);
         return {
           status: 'success',
@@ -174,8 +248,8 @@ export class SlipMateProvider implements SlipVerificationProvider {
       }
 
       // Check for wrapped response { data: {...} } or { statusCode: 200, data: {...} }
-      const statusCode = data.statusCode || data.status;
-      if ((statusCode === 200 || !statusCode) && data.data) {
+      const statusCode = data?.statusCode || data?.status;
+      if ((statusCode === 200 || !statusCode) && data?.data) {
         const slipData = data.data;
         this.logger.log(`[SLIPMATE] Success (wrapped): transRef=${slipData.transRef}`);
         return {
@@ -187,33 +261,36 @@ export class SlipMateProvider implements SlipVerificationProvider {
         };
       }
 
-      // Error in response body
-      if (data.error || data.message) {
-        this.logger.warn(`[SLIPMATE] Error in 200 response: ${data.error || data.message}`);
+      // Check for error in 200 response body
+      if (data?.error || (data?.message && !data?.transRef)) {
+        const errMsg = data.message || data.error;
+        // Check if it's actually a duplicate error in the body
+        if (errMsg.toLowerCase().includes('duplicate')) {
+          this.logger.log('[SLIPMATE] Duplicate slip in 200 response body');
+          return {
+            status: 'duplicate',
+            provider: SlipProvider.SLIPMATE,
+            message: 'สลิปนี้เคยถูกใช้แล้ว',
+            shouldFailover: false,
+          };
+        }
+
+        this.logger.warn(`[SLIPMATE] Error in 200 response: ${errMsg}`);
         return {
           status: 'error',
           provider: SlipProvider.SLIPMATE,
-          message: data.message || data.error || 'ไม่สามารถตรวจสอบสลิปได้',
+          message: errMsg || 'ไม่สามารถตรวจสอบสลิปได้',
           shouldFailover: false,
         };
       }
     }
 
-    // Not found
-    if (httpStatus === 404 || data.statusCode === 404) {
-      return {
-        status: 'not_found',
-        provider: SlipProvider.SLIPMATE,
-        message: 'ไม่พบข้อมูลสลิปในระบบธนาคาร',
-        shouldFailover: false,
-      };
-    }
-
-    // Other errors from response body
+    // ===== UNKNOWN STATUS =====
+    this.logger.warn(`[SLIPMATE] Unknown response status: ${httpStatus}`);
     return {
       status: 'error',
       provider: SlipProvider.SLIPMATE,
-      message: data.message || data.error || 'ไม่สามารถตรวจสอบสลิปได้',
+      message: data?.message || data?.error || 'ไม่สามารถตรวจสอบสลิปได้',
       shouldFailover: false,
     };
   }
