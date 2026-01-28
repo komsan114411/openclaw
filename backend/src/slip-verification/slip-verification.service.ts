@@ -240,8 +240,6 @@ export class SlipVerificationService {
 
       // Use Multi-Provider Manager if available (with Auto-Failover)
       if (this.slipVerificationManager) {
-        this.logger.log('[VERIFY] Using Multi-Provider Manager with Auto-Failover');
-
         const managerResult = await this.slipVerificationManager.verifySlip(imageData, {
           lineAccountId,
           lineUserId,
@@ -253,9 +251,8 @@ export class SlipVerificationService {
         // Convert NormalizedVerificationResult to SlipVerificationResult
         result = this.convertToSlipVerificationResult(managerResult);
 
-        this.logger.log(
-          `[VERIFY] Provider: ${managerResult.provider}, Status: ${result.status}, TransRef: ${result.data?.transRef || 'none'}`,
-        );
+        // Only log essential info (not provider - user shouldn't see)
+        this.logger.debug(`[VERIFY] Status: ${result.status}, TransRef: ${result.data?.transRef || 'none'}`);
       } else {
         // Fallback to legacy Thunder API (backward compatibility)
         this.logger.log('[VERIFY] Using legacy Thunder API (no manager)');
@@ -291,8 +288,13 @@ export class SlipVerificationService {
   /**
    * Convert NormalizedVerificationResult to SlipVerificationResult
    * เพื่อให้ format เข้ากันได้กับโค้ดเดิม
+   *
+   * IMPORTANT: ไม่รวม provider info เพื่อให้ผู้ใช้ไม่รู้ว่าใช้ provider ไหน
    */
   private convertToSlipVerificationResult(result: NormalizedVerificationResult): SlipVerificationResult {
+    // Log provider internally for debugging (not exposed to user)
+    this.logger.debug(`[CONVERT] Provider used: ${result.provider}`);
+
     return {
       status: result.status,
       message: result.message,
@@ -320,8 +322,7 @@ export class SlipVerificationService {
             ref2: result.data.ref2,
             ref3: result.data.ref3,
             rawData: result.data.rawData,
-            // Add provider info for debugging
-            _provider: result.provider,
+            // NOTE: ไม่รวม _provider - ผู้ใช้ไม่ควรรู้ว่าใช้ provider ไหน
           }
         : undefined,
     };

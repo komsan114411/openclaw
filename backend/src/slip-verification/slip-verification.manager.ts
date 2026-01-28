@@ -2,6 +2,7 @@
  * Slip Verification Manager
  *
  * จัดการการตรวจสอบสลิปจากหลาย Provider พร้อม Auto-Failover
+ * ออกแบบให้ผู้ใช้ไม่รู้สึกถึงการสลับ Provider
  */
 
 import { Injectable, Logger } from '@nestjs/common';
@@ -23,6 +24,14 @@ export interface VerificationContext {
   subscriptionId?: string;
 }
 
+export interface VerificationStats {
+  provider: SlipProvider;
+  duration: number;
+  success: boolean;
+  failoverUsed: boolean;
+  failoverFrom?: SlipProvider;
+}
+
 @Injectable()
 export class SlipVerificationManager {
   private readonly logger = new Logger(SlipVerificationManager.name);
@@ -38,89 +47,182 @@ export class SlipVerificationManager {
     this.providers.set(SlipProvider.SLIPMATE, this.slipMateProvider);
   }
 
+  // Track last verification stats (for monitoring)
+  private lastVerificationStats: VerificationStats | null = null;
+
   /**
    * ตรวจสอบสลิปด้วยระบบ Auto-Failover
+   * ออกแบบให้ผู้ใช้ไม่รู้สึกถึงการสลับ Provider
    *
    * @param imageData Buffer ของรูปภาพสลิป
    * @param context ข้อมูล context (optional)
-   * @returns ผลลัพธ์การตรวจสอบ
+   * @returns ผลลัพธ์การตรวจสอบ (format เดียวกันไม่ว่าจะใช้ provider ไหน)
    */
   async verifySlip(
     imageData: Buffer,
     context?: VerificationContext,
   ): Promise<NormalizedVerificationResult> {
+    const startTime = Date.now();
     const settings = await this.systemSettingsService.getDecryptedSettings();
 
     // Get failover order from settings
     const failoverOrder = this.getFailoverOrder(settings);
-    this.logger.log(`[MANAGER] Failover order: ${failoverOrder.join(' → ')}`);
+    this.logger.debug(`[MANAGER] Failover order: ${failoverOrder.join(' → ')}`);
 
     let lastResult: NormalizedVerificationResult | null = null;
-    let attemptedProviders: string[] = [];
+    let attemptedProviders: SlipProvider[] = [];
+    let successProvider: SlipProvider | null = null;
 
     for (const providerName of failoverOrder) {
       const provider = this.providers.get(providerName);
       if (!provider) {
-        this.logger.warn(`[MANAGER] Provider not found: ${providerName}`);
+        this.logger.debug(`[MANAGER] Provider not found: ${providerName}`);
         continue;
       }
 
       // Get API key for this provider
       const apiKey = this.getApiKeyForProvider(providerName, settings);
       if (!apiKey) {
-        this.logger.warn(`[MANAGER] No API key configured for: ${providerName}`);
+        this.logger.debug(`[MANAGER] No API key for: ${providerName}, skipping`);
         continue;
       }
 
       attemptedProviders.push(providerName);
-      this.logger.log(`[MANAGER] Trying provider: ${providerName}`);
+      const providerStartTime = Date.now();
 
       try {
-        const result = await provider.verify(imageData, apiKey);
+        // Try with retry for transient errors
+        const result = await this.verifyWithRetry(provider, imageData, apiKey, providerName);
         lastResult = result;
+
+        const providerDuration = Date.now() - providerStartTime;
 
         // Success, duplicate, or not_found → return immediately (no failover)
         if (result.status === 'success' || result.status === 'duplicate' || result.status === 'not_found') {
-          this.logger.log(`[MANAGER] ${providerName} returned: ${result.status}`);
+          successProvider = providerName;
 
-          // Log failover if it happened
+          // Log only for debugging (not visible to user)
           if (attemptedProviders.length > 1) {
             this.logger.log(
-              `[MANAGER] Failover successful: ${attemptedProviders.slice(0, -1).join(' → ')} (failed) → ${providerName} (success)`,
+              `[MANAGER] Failover: ${attemptedProviders.slice(0, -1).join('→')} (failed) → ${providerName} ✓ [${providerDuration}ms]`,
             );
+          } else {
+            this.logger.debug(`[MANAGER] ${providerName}: ${result.status} [${providerDuration}ms]`);
           }
 
-          return result;
+          // Track stats
+          this.lastVerificationStats = {
+            provider: providerName,
+            duration: Date.now() - startTime,
+            success: true,
+            failoverUsed: attemptedProviders.length > 1,
+            failoverFrom: attemptedProviders.length > 1 ? attemptedProviders[0] : undefined,
+          };
+
+          // Return result WITHOUT provider info (user shouldn't know)
+          return this.sanitizeResultForUser(result);
         }
 
         // Error with shouldFailover flag
         if (result.status === 'error' && result.shouldFailover) {
-          this.logger.warn(`[MANAGER] ${providerName} error with failover flag, trying next...`);
+          this.logger.debug(`[MANAGER] ${providerName} needs failover [${providerDuration}ms]`);
           continue;
         }
 
-        // Error without failover flag → return
-        return result;
+        // Error without failover flag → return (but sanitize)
+        return this.sanitizeResultForUser(result);
       } catch (error) {
+        const providerDuration = Date.now() - providerStartTime;
+
         if (error instanceof ProviderUnavailableError) {
-          this.logger.warn(`[MANAGER] ${providerName} unavailable: ${error.reason}, trying next...`);
+          this.logger.debug(`[MANAGER] ${providerName} unavailable: ${error.reason} [${providerDuration}ms]`);
           continue;
         }
 
-        // Unexpected error
-        this.logger.error(`[MANAGER] Unexpected error from ${providerName}:`, error);
-        throw error;
+        // Unexpected error - log but continue to next provider
+        this.logger.error(`[MANAGER] ${providerName} error [${providerDuration}ms]:`, error);
+        continue;
       }
     }
 
     // All providers failed
-    this.logger.error(`[MANAGER] All providers failed: ${attemptedProviders.join(', ')}`);
+    const totalDuration = Date.now() - startTime;
+    this.logger.warn(`[MANAGER] All providers failed [${totalDuration}ms]: ${attemptedProviders.join(', ')}`);
 
-    return lastResult ?? {
+    // Track stats
+    this.lastVerificationStats = {
+      provider: attemptedProviders[attemptedProviders.length - 1] || SlipProvider.THUNDER,
+      duration: totalDuration,
+      success: false,
+      failoverUsed: attemptedProviders.length > 1,
+    };
+
+    // Return generic error (don't expose which providers failed)
+    return {
       status: 'error',
-      provider: failoverOrder[0] || SlipProvider.THUNDER,
+      provider: SlipProvider.THUNDER, // Don't expose actual provider
       message: 'ไม่สามารถตรวจสอบสลิปได้ กรุณาลองใหม่อีกครั้ง',
     };
+  }
+
+  /**
+   * Verify with retry for transient errors
+   * ลองใหม่ 1 ครั้งก่อน failover (สำหรับ network glitch)
+   */
+  private async verifyWithRetry(
+    provider: SlipVerificationProvider,
+    imageData: Buffer,
+    apiKey: string,
+    providerName: SlipProvider,
+    maxRetries: number = 1,
+  ): Promise<NormalizedVerificationResult> {
+    let lastError: any;
+
+    for (let attempt = 0; attempt <= maxRetries; attempt++) {
+      try {
+        return await provider.verify(imageData, apiKey);
+      } catch (error) {
+        lastError = error;
+
+        // Only retry for transient errors
+        if (error instanceof ProviderUnavailableError) {
+          const isTransient = ['Timeout', 'Connection refused'].includes(error.reason);
+          if (isTransient && attempt < maxRetries) {
+            this.logger.debug(`[MANAGER] ${providerName} transient error, retrying... (${attempt + 1}/${maxRetries})`);
+            await this.delay(500); // Wait 500ms before retry
+            continue;
+          }
+        }
+
+        throw error;
+      }
+    }
+
+    throw lastError;
+  }
+
+  /**
+   * Remove provider-specific info from result (user shouldn't know which provider)
+   */
+  private sanitizeResultForUser(result: NormalizedVerificationResult): NormalizedVerificationResult {
+    // Remove provider from result - user shouldn't see this
+    const sanitized = { ...result };
+
+    // Keep provider for internal logging but it won't be exposed in final response
+    // The SlipVerificationService.convertToSlipVerificationResult will handle this
+
+    return sanitized;
+  }
+
+  /**
+   * Get last verification stats (for admin monitoring)
+   */
+  getLastVerificationStats(): VerificationStats | null {
+    return this.lastVerificationStats;
+  }
+
+  private delay(ms: number): Promise<void> {
+    return new Promise((resolve) => setTimeout(resolve, ms));
   }
 
   /**
