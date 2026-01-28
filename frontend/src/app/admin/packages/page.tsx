@@ -297,7 +297,7 @@ export default function AdminPackagesPage() {
                       )}
                     </div>
 
-                    <div className="bg-white/[0.02] border border-white/5 backdrop-blur-md p-6 sm:p-8 mb-10 rounded-[2rem] sm:rounded-[2.5rem] flex items-center justify-between shadow-inner">
+                    <div className="bg-white/[0.02] border border-white/5 backdrop-blur-md p-6 sm:p-8 mb-6 rounded-[2rem] sm:rounded-[2.5rem] flex items-center justify-between shadow-inner">
                       <div>
                         <p className="text-[9px] font-semibold text-slate-500 mb-2 text-center">โควต้าสลิป</p>
                         <p className="text-xl sm:text-2xl font-bold text-white leading-none tracking-tight text-center">{pkg.slipQuota.toLocaleString()}<span className="text-sm ml-1 opacity-40">รายการ</span></p>
@@ -308,6 +308,19 @@ export default function AdminPackagesPage() {
                         <p className="text-lg font-bold text-indigo-400 leading-none tracking-tight">{(pkg.aiQuota || 0).toLocaleString()}<span className="text-sm ml-1 opacity-40">ครั้ง</span></p>
                       </div>
                     </div>
+
+                    {/* Price per Slip */}
+                    {pkg.slipQuota > 0 && (
+                      <div className="bg-emerald-500/5 border border-emerald-500/10 backdrop-blur-md p-4 sm:p-5 mb-10 rounded-2xl sm:rounded-3xl">
+                        <div className="flex items-center justify-center gap-3">
+                          <span className="text-[10px] font-semibold text-slate-500">ราคาเฉลี่ย</span>
+                          <span className="text-xl sm:text-2xl font-black text-emerald-400">
+                            ฿{(pkg.price / pkg.slipQuota).toFixed(2)}
+                          </span>
+                          <span className="text-[10px] font-semibold text-slate-500">/ สลิป</span>
+                        </div>
+                      </div>
+                    )}
 
                     <div className="space-y-5 mb-12 flex-1">
                       <p className="text-[10px] font-semibold text-slate-500 flex items-center gap-3 justify-center">

@@ -270,6 +270,18 @@ export default function UserPackagesPage() {
                       </div>
                     </div>
                   </div>
+                  {/* Price per Slip */}
+                  {pkg.slipQuota > 0 && (
+                    <div className="mt-3 pt-3 border-t border-white/10">
+                      <div className="flex items-center justify-center gap-2">
+                        <span className="text-[10px] text-slate-400">เฉลี่ย</span>
+                        <span className="text-sm font-bold text-[#06C755]">
+                          ฿{(pkg.price / pkg.slipQuota).toFixed(2)}
+                        </span>
+                        <span className="text-[10px] text-slate-400">/ สลิป</span>
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 {/* Features */}
@@ -346,7 +358,14 @@ export default function UserPackagesPage() {
                     )}
                   </div>
                 </div>
-                <p className="text-2xl font-black text-[#06C755]">฿{selectedPackage.price.toLocaleString()}</p>
+                <div className="text-right">
+                  <p className="text-2xl font-black text-[#06C755]">฿{selectedPackage.price.toLocaleString()}</p>
+                  {selectedPackage.slipQuota > 0 && (
+                    <p className="text-[10px] text-slate-400 mt-1">
+                      เฉลี่ย <span className="text-emerald-400 font-bold">฿{(selectedPackage.price / selectedPackage.slipQuota).toFixed(2)}</span> / สลิป
+                    </p>
+                  )}
+                </div>
               </div>
             </div>
 
