@@ -339,28 +339,32 @@ export class SlipMateProvider implements SlipVerificationProvider {
     // { transRef, transDate, transTime, transDateTime, amount,
     //   sendingBank, sendingBankName, sendingBankLogo,
     //   receivingBank, receivingBankName, receivingBankLogo,
-    //   sender: { displayName, name, proxy, account },
-    //   receiver: { displayName, name, proxy, account },
+    //   sender: { displayName, name, proxy: {type, value}, account: {type, value} },
+    //   receiver: { displayName, name, proxy: {type, value}, account: {type, value} },
     //   ref1, ref2, ref3, ... }
 
-    // Handle both SlipMate format and Thunder-like format
     const sender = slipData.sender || {};
     const receiver = slipData.receiver || {};
 
     // Extract sender info - SlipMate uses displayName
     const senderName = sender.displayName || sender.name || sender.account?.name?.th || '';
-    const senderAccount = sender.account?.value || sender.proxy?.value || sender.account || '';
+    const senderAccountValue = sender.account?.value || sender.proxy?.value || sender.account || '';
 
     // Extract receiver info
     const receiverName = receiver.displayName || receiver.name || receiver.account?.name?.th || '';
     const receiverAccountValue = receiver.account?.value || receiver.proxy?.value || receiver.account || '';
 
-    // Extract bank info
-    const senderBankCode = slipData.sendingBank || sender.bank?.short || '';
-    const senderBankName = slipData.sendingBankName || sender.bank?.name || senderBankCode;
+    // Detect payment type (PromptPay, TrueMoney, etc.) for sender
+    const senderPaymentType = this.detectPaymentType(sender, {
+      short: slipData.sendingBank,
+      name: slipData.sendingBankName,
+    });
 
-    const receiverBankCode = slipData.receivingBank || receiver.bank?.short || '';
-    const receiverBankName = slipData.receivingBankName || receiver.bank?.name || receiverBankCode;
+    // Detect payment type for receiver
+    const receiverPaymentType = this.detectPaymentType(receiver, {
+      short: slipData.receivingBank,
+      name: slipData.receivingBankName,
+    });
 
     // Extract amount - handle both number and object format
     let amount = 0;
@@ -375,7 +379,7 @@ export class SlipMateProvider implements SlipVerificationProvider {
     // Extract date/time
     const transDateTime = slipData.transDateTime || slipData.transDate || slipData.date;
 
-    this.logger.log(`[SLIPMATE] Extracted: amount=${amount}, sender=${senderName}, receiver=${receiverName}`);
+    this.logger.log(`[SLIPMATE] Extracted: amount=${amount}, sender=${senderName}, senderBank=${senderPaymentType.bankCode}, receiver=${receiverName}, receiverBank=${receiverPaymentType.bankCode}`);
 
     return {
       transRef: slipData.transRef || '',
@@ -386,14 +390,14 @@ export class SlipMateProvider implements SlipVerificationProvider {
       // Sender
       senderName: senderName,
       senderNameEn: sender.name || '',
-      senderBank: senderBankName,
-      senderBankCode: senderBankCode,
-      senderAccount: senderAccount,
+      senderBank: senderPaymentType.bankName,
+      senderBankCode: senderPaymentType.bankCode,
+      senderAccount: senderAccountValue,
       // Receiver
       receiverName: receiverName,
       receiverNameEn: receiver.name || '',
-      receiverBank: receiverBankName,
-      receiverBankCode: receiverBankCode,
+      receiverBank: receiverPaymentType.bankName,
+      receiverBankCode: receiverPaymentType.bankCode,
       receiverAccount: receiverAccountValue,
       receiverAccountNumber: receiverAccountValue,
       // Additional
@@ -407,35 +411,50 @@ export class SlipMateProvider implements SlipVerificationProvider {
   }
 
   private detectPaymentType(account: any, bank: any): { bankName: string; bankCode: string } {
-    const proxyType = account.proxy?.type?.toUpperCase() || '';
-    const bankName = bank.name?.toLowerCase() || '';
-    const bankShort = bank.short?.toUpperCase() || '';
-    const accountNameTh = (account.name?.th || '').toLowerCase();
-    const accountNameEn = (account.name?.en || '').toLowerCase();
+    // SlipMate format: { displayName, name, proxy: {type, value}, account: {type, value} }
+    const proxyType = (account.proxy?.type || '').toUpperCase();
+    const proxyValue = account.proxy?.value || '';
+    const accountType = (account.account?.type || '').toUpperCase();
+    const bankName = (bank.name || '').toLowerCase();
+    const bankShort = (bank.short || '').toUpperCase();
+    const displayName = (account.displayName || '').toLowerCase();
+    const accountName = (account.name || '').toLowerCase();
+
+    this.logger.debug(`[SLIPMATE] detectPaymentType: proxyType=${proxyType}, accountType=${accountType}, bankShort=${bankShort}, bankName=${bankName}, displayName=${displayName}`);
 
     // TrueMoney Wallet detection
     if (
       proxyType === 'EWALLETID' ||
+      accountType === 'EWALLETID' ||
       bankName.includes('truemoney') ||
       bankName.includes('ทรูมันนี่') ||
       bankShort === 'TMN' ||
       bankShort === 'TRUEMONEY' ||
-      accountNameTh.includes('truemoney') ||
-      accountNameTh.includes('ทรูมันนี่') ||
-      accountNameEn.includes('truemoney')
+      displayName.includes('truemoney') ||
+      displayName.includes('ทรูมันนี่') ||
+      accountName.includes('truemoney')
     ) {
+      this.logger.debug('[SLIPMATE] Detected: TrueMoney');
       return { bankName: 'ทรูมันนี่ วอลเล็ท', bankCode: 'TRUEMONEY' };
     }
 
-    // PromptPay detection
-    if (account.proxy && (proxyType === 'MOBILE' || proxyType === 'NATID' || proxyType === 'BILLERID')) {
+    // PromptPay detection - check proxy type
+    if (proxyType === 'MOBILE' || proxyType === 'NATID' || proxyType === 'BILLERID' || proxyType === 'MSISDN') {
+      this.logger.debug('[SLIPMATE] Detected: PromptPay');
+      return { bankName: 'พร้อมเพย์', bankCode: 'PROMPTPAY' };
+    }
+
+    // PromptPay detection - check if proxy exists with value (phone number or ID)
+    if (proxyValue && (proxyValue.match(/^0\d{9}$/) || proxyValue.match(/^\d{13}$/))) {
+      this.logger.debug('[SLIPMATE] Detected: PromptPay (by proxy value pattern)');
       return { bankName: 'พร้อมเพย์', bankCode: 'PROMPTPAY' };
     }
 
     // Default: use bank info
+    this.logger.debug(`[SLIPMATE] Using default bank: ${bankShort || bankName}`);
     return {
-      bankName: bank.short || bank.name || '',
-      bankCode: bank.short || bank.id || '',
+      bankName: bankShort || bank.name || '',
+      bankCode: bankShort || bank.id || '',
     };
   }
 
