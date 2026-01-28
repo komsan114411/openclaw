@@ -82,7 +82,16 @@ export class SystemSettingsService {
     const result = { ...settings };
 
     // List of encrypted fields - all sensitive API keys should be encrypted
-    const secretFields = ['slipApiKey', 'aiApiKey', 'etherscanApiKey', 'bscscanApiKey', 'tronscanApiKey'];
+    const secretFields = [
+      'slipApiKey',
+      'slipApiKeySecondary',
+      'slipApiKeyThunder',
+      'slipApiKeySlipMate',
+      'aiApiKey',
+      'etherscanApiKey',
+      'bscscanApiKey',
+      'tronscanApiKey',
+    ];
 
     secretFields.forEach(field => {
       if (result[field]) {
@@ -120,8 +129,17 @@ export class SystemSettingsService {
         }
       }
 
-      // Encrypt all sensitive API keys including blockchain API keys
-      const secretFields = ['slipApiKey', 'aiApiKey', 'etherscanApiKey', 'bscscanApiKey', 'tronscanApiKey'];
+      // Encrypt all sensitive API keys including blockchain API keys and slip provider keys
+      const secretFields = [
+        'slipApiKey',
+        'slipApiKeySecondary',
+        'slipApiKeyThunder',
+        'slipApiKeySlipMate',
+        'aiApiKey',
+        'etherscanApiKey',
+        'bscscanApiKey',
+        'tronscanApiKey',
+      ];
 
       for (const field of secretFields) {
         if ((updates as any)[field]) {

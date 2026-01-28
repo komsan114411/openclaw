@@ -42,8 +42,8 @@ export class SlipMateProvider implements SlipVerificationProvider {
     }
 
     const formData = new FormData();
-    // SlipMate uses 'files' as the field name (not 'file')
-    formData.append('files', imageData, {
+    // SlipMate uses 'file' field name (same as Thunder)
+    formData.append('file', imageData, {
       filename: 'slip.jpg',
       contentType: 'image/jpeg',
     });
