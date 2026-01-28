@@ -7,6 +7,7 @@ import { Bank, BankSchema } from '../database/schemas/bank.schema';
 import { HealthModule } from '../health/health.module';
 import { TasksModule } from '../tasks/tasks.module';
 import { WalletModule } from '../wallet/wallet.module';
+import { SlipVerificationModule } from '../slip-verification/slip-verification.module';
 
 @Global()
 @Module({
@@ -19,6 +20,7 @@ import { WalletModule } from '../wallet/wallet.module';
     forwardRef(() => HealthModule),
     forwardRef(() => TasksModule),
     forwardRef(() => WalletModule),
+    forwardRef(() => SlipVerificationModule),
   ],
   providers: [SystemSettingsService],
   controllers: [SystemSettingsController],

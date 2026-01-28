@@ -26,6 +26,8 @@ import { HealthService } from '../health/health.service';
 import { TasksService } from '../tasks/tasks.service';
 import { Bank } from '../database/schemas/bank.schema';
 import { BlockchainVerificationService } from '../wallet/blockchain-verification.service';
+import { SlipVerificationService } from '../slip-verification/slip-verification.service';
+import { SlipProvider } from '../slip-verification/providers';
 
 @ApiTags('System Settings')
 @ApiBearerAuth()
@@ -43,6 +45,8 @@ export class SystemSettingsController {
     private tasksService?: TasksService,
     @InjectModel(Bank.name)
     private bankModel?: Model<Bank>,
+    @Optional() @Inject(forwardRef(() => SlipVerificationService))
+    private slipVerificationService?: SlipVerificationService,
   ) { }
 
   // ===============================
@@ -523,6 +527,154 @@ export class SystemSettingsController {
         ? body.enabled
           ? 'เปิดใช้งาน AI ทั้งระบบแล้ว'
           : 'ปิดใช้งาน AI ทั้งระบบแล้ว'
+        : 'ไม่สามารถบันทึกการตั้งค่าได้',
+    };
+  }
+
+  // ===============================
+  // SLIP PROVIDER SETTINGS ENDPOINTS
+  // ===============================
+
+  @Get('slip-provider-settings')
+  @UseGuards(SessionAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
+  @ApiOperation({ summary: 'Get slip provider settings (Admin only)' })
+  async getSlipProviderSettings() {
+    const settings = await this.settingsService.getSettings();
+
+    return {
+      success: true,
+      slipProviderSettings: {
+        // Primary provider
+        slipApiProvider: settings?.slipApiProvider || 'thunder',
+        // Secondary provider
+        slipApiProviderSecondary: settings?.slipApiProviderSecondary || '',
+        // Failover enabled
+        slipApiFallbackEnabled: settings?.slipApiFallbackEnabled ?? false,
+        // Failover order
+        slipProviderFailoverOrder: settings?.slipProviderFailoverOrder || ['thunder'],
+        // API key status (masked - ไม่แสดง key จริง)
+        hasThunderApiKey: !!(settings?.slipApiKey || settings?.slipApiKeyThunder),
+        hasSlipMateApiKey: !!(settings?.slipApiKeySecondary || settings?.slipApiKeySlipMate),
+        // Quota warning settings
+        slipApiQuotaWarning: settings?.slipApiQuotaWarning ?? true,
+        // Global slip verification enabled
+        globalSlipVerificationEnabled: settings?.globalSlipVerificationEnabled ?? true,
+      },
+      // List of available providers
+      availableProviders: this.slipVerificationService?.getAvailableProviders() || [SlipProvider.THUNDER],
+    };
+  }
+
+  @Put('slip-provider-settings')
+  @UseGuards(SessionAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
+  @ApiOperation({ summary: 'Update slip provider settings (Admin only)' })
+  async updateSlipProviderSettings(
+    @Body() updates: {
+      slipApiProvider?: string;
+      slipApiProviderSecondary?: string;
+      slipApiFallbackEnabled?: boolean;
+      slipProviderFailoverOrder?: string[];
+      slipApiKey?: string;
+      slipApiKeySecondary?: string;
+      slipApiKeyThunder?: string;
+      slipApiKeySlipMate?: string;
+      slipApiQuotaWarning?: boolean;
+      globalSlipVerificationEnabled?: boolean;
+    },
+    @CurrentUser() user: AuthUser,
+  ) {
+    const success = await this.settingsService.updateSettings(updates, user.userId);
+
+    return {
+      success,
+      message: success ? 'บันทึกการตั้งค่า Slip Provider สำเร็จ' : 'ไม่สามารถบันทึกการตั้งค่าได้',
+    };
+  }
+
+  @Get('slip-provider-status')
+  @UseGuards(SessionAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
+  @ApiOperation({ summary: 'Get status of all slip providers (Admin only)' })
+  async getSlipProviderStatus() {
+    if (!this.slipVerificationService) {
+      return {
+        success: false,
+        message: 'Slip Verification Service ไม่พร้อมใช้งาน',
+      };
+    }
+
+    const providerStatuses = await this.slipVerificationService.testAllProviders();
+
+    return {
+      success: true,
+      providers: providerStatuses,
+    };
+  }
+
+  @Post('test-slip-provider')
+  @UseGuards(SessionAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
+  @ApiOperation({ summary: 'Test a specific slip provider connection (Admin only)' })
+  async testSlipProvider(
+    @Body() body: { provider: string; apiKey?: string },
+  ) {
+    if (!this.slipVerificationService) {
+      return {
+        success: false,
+        message: 'Slip Verification Service ไม่พร้อมใช้งาน',
+      };
+    }
+
+    // Validate provider
+    const validProviders = Object.values(SlipProvider);
+    if (!validProviders.includes(body.provider as SlipProvider)) {
+      return {
+        success: false,
+        message: `Provider ไม่ถูกต้อง: ${body.provider} (รองรับ: ${validProviders.join(', ')})`,
+      };
+    }
+
+    // If custom API key provided, use it for testing
+    // Otherwise, the service will use the key from settings
+    if (body.apiKey && body.apiKey.length > 10 && !body.apiKey.includes('***')) {
+      // Test with provided API key (direct test)
+      this.logger.log(`Testing ${body.provider} with provided API key`);
+    }
+
+    const result = await this.slipVerificationService.testProviderConnection(
+      body.provider as SlipProvider,
+    );
+
+    return {
+      success: result.success,
+      provider: body.provider,
+      message: result.message,
+      remainingQuota: result.remainingQuota,
+      expiresAt: result.expiresAt,
+    };
+  }
+
+  @Put('slip-toggle')
+  @UseGuards(SessionAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
+  @ApiOperation({ summary: 'Toggle global slip verification (Admin only)' })
+  async toggleGlobalSlip(
+    @Body() body: { enabled: boolean },
+    @CurrentUser() user: AuthUser,
+  ) {
+    const success = await this.settingsService.updateSettings(
+      { globalSlipVerificationEnabled: body.enabled },
+      user.userId,
+    );
+
+    return {
+      success,
+      message: success
+        ? body.enabled
+          ? 'เปิดใช้งานตรวจสลิปทั้งระบบแล้ว'
+          : 'ปิดใช้งานตรวจสลิปทั้งระบบแล้ว'
         : 'ไม่สามารถบันทึกการตั้งค่าได้',
     };
   }
