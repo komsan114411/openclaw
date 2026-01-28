@@ -260,4 +260,64 @@ export class UsersService {
       regularUsers: Math.max(0, active - admins),
     };
   }
+
+  /**
+   * Get user growth data for chart (last 30 days)
+   */
+  async getUserGrowth(days: number = 30): Promise<{
+    date: string;
+    count: number;
+    total: number;
+  }[]> {
+    const startDate = new Date();
+    startDate.setDate(startDate.getDate() - days);
+    startDate.setHours(0, 0, 0, 0);
+
+    // Get all users created in the last N days grouped by date
+    const growthData = await this.userModel.aggregate([
+      {
+        $match: {
+          createdAt: { $gte: startDate },
+        },
+      },
+      {
+        $group: {
+          _id: {
+            $dateToString: { format: '%Y-%m-%d', date: '$createdAt' },
+          },
+          count: { $sum: 1 },
+        },
+      },
+      {
+        $sort: { _id: 1 },
+      },
+    ]);
+
+    // Get total users before start date
+    const totalBefore = await this.userModel.countDocuments({
+      createdAt: { $lt: startDate },
+    });
+
+    // Fill in missing dates and calculate cumulative total
+    const result: { date: string; count: number; total: number }[] = [];
+    let runningTotal = totalBefore;
+
+    for (let i = 0; i < days; i++) {
+      const date = new Date(startDate);
+      date.setDate(date.getDate() + i);
+      const dateStr = date.toISOString().split('T')[0];
+
+      const dayData = growthData.find((d) => d._id === dateStr);
+      const count = dayData?.count || 0;
+      runningTotal += count;
+
+      result.push({
+        date: dateStr,
+        count,
+        total: runningTotal,
+      });
+    }
+
+    return result;
+  }
 }

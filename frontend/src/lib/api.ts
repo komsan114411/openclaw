@@ -99,6 +99,7 @@ export const usersApi = {
   block: (id: string, reason?: string) => api.post(`/users/${id}/block`, { reason }),
   unblock: (id: string) => api.post(`/users/${id}/unblock`),
   getStatistics: () => api.get('/users/statistics'),
+  getGrowth: (days?: number) => api.get('/users/growth', { params: { days } }),
 };
 
 export const activityLogsApi = {

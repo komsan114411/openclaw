@@ -11,13 +11,30 @@ import { Badge } from '@/components/ui/Badge';
 import { Button, IconButton } from '@/components/ui/Button';
 import { Modal, ConfirmModal } from '@/components/ui/Modal';
 import { Input, Select, Switch } from '@/components/ui/Input';
-import { PageLoading } from '@/components/ui/Loading';
+import { PageLoading, Spinner } from '@/components/ui/Loading';
 import { cn } from '@/lib/utils';
+import {
+  AreaChart,
+  Area,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+} from 'recharts';
+
+interface GrowthData {
+  date: string;
+  count: number;
+  total: number;
+}
 
 export default function UsersPage() {
   const [users, setUsers] = useState<User[]>([]);
   const [packages, setPackages] = useState<Package[]>([]);
+  const [growthData, setGrowthData] = useState<GrowthData[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isLoadingGrowth, setIsLoadingGrowth] = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showGrantModal, setShowGrantModal] = useState(false);
@@ -71,9 +88,22 @@ export default function UsersPage() {
     }
   }, []);
 
+  const fetchGrowthData = useCallback(async () => {
+    setIsLoadingGrowth(true);
+    try {
+      const res = await usersApi.getGrowth(30);
+      setGrowthData(res.data.growth || []);
+    } catch (error) {
+      console.error('Error fetching growth data:', error);
+    } finally {
+      setIsLoadingGrowth(false);
+    }
+  }, []);
+
   useEffect(() => {
     fetchData();
-  }, [fetchData]);
+    fetchGrowthData();
+  }, [fetchData, fetchGrowthData]);
 
   const handleCreateUser = async () => {
     if (!formData.username || !formData.password) {
@@ -226,6 +256,118 @@ export default function UsersPage() {
           <StatCard title="ผู้ใช้ทั่วไป" value={users.filter(u => u.role === 'user' && !u.isBlocked).length} icon="💎" color="emerald" variant="glass" />
           <StatCard title="ถูกระงับ" value={users.filter(u => u.isBlocked).length} icon="⚠️" color="rose" variant="glass" />
         </div>
+
+        {/* User Growth Chart */}
+        <Card variant="glass" className="p-4 sm:p-6 lg:p-8">
+          <div className="flex items-center justify-between mb-6">
+            <div>
+              <h3 className="text-lg sm:text-xl font-bold text-white">การเติบโตผู้ใช้</h3>
+              <p className="text-xs text-slate-400 mt-1">ข้อมูลย้อนหลัง 30 วัน</p>
+            </div>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={fetchGrowthData}
+              isLoading={isLoadingGrowth}
+              className="text-slate-400 hover:text-white"
+            >
+              🔄 รีเฟรช
+            </Button>
+          </div>
+
+          {isLoadingGrowth ? (
+            <div className="h-[300px] flex items-center justify-center">
+              <Spinner size="lg" />
+            </div>
+          ) : growthData.length > 0 ? (
+            <div className="h-[300px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={growthData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+                  <defs>
+                    <linearGradient id="colorTotal" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#06C755" stopOpacity={0.3} />
+                      <stop offset="95%" stopColor="#06C755" stopOpacity={0} />
+                    </linearGradient>
+                    <linearGradient id="colorCount" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#8B5CF6" stopOpacity={0.3} />
+                      <stop offset="95%" stopColor="#8B5CF6" stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#ffffff10" />
+                  <XAxis
+                    dataKey="date"
+                    stroke="#64748b"
+                    fontSize={10}
+                    tickLine={false}
+                    axisLine={false}
+                    tickFormatter={(value) => {
+                      const date = new Date(value);
+                      return `${date.getDate()}/${date.getMonth() + 1}`;
+                    }}
+                  />
+                  <YAxis
+                    stroke="#64748b"
+                    fontSize={10}
+                    tickLine={false}
+                    axisLine={false}
+                    width={40}
+                  />
+                  <Tooltip
+                    contentStyle={{
+                      backgroundColor: '#0f172a',
+                      border: '1px solid #1e293b',
+                      borderRadius: '12px',
+                      fontSize: '12px',
+                    }}
+                    labelStyle={{ color: '#94a3b8' }}
+                    labelFormatter={(label) => {
+                      const date = new Date(label);
+                      return date.toLocaleDateString('th-TH', {
+                        year: 'numeric',
+                        month: 'short',
+                        day: 'numeric',
+                      });
+                    }}
+                  />
+                  <Area
+                    type="monotone"
+                    dataKey="total"
+                    stroke="#06C755"
+                    strokeWidth={2}
+                    fillOpacity={1}
+                    fill="url(#colorTotal)"
+                    name="total"
+                  />
+                  <Area
+                    type="monotone"
+                    dataKey="count"
+                    stroke="#8B5CF6"
+                    strokeWidth={2}
+                    fillOpacity={1}
+                    fill="url(#colorCount)"
+                    name="count"
+                  />
+                </AreaChart>
+              </ResponsiveContainer>
+            </div>
+          ) : (
+            <div className="h-[300px] flex items-center justify-center text-slate-500">
+              <p className="text-sm">ไม่มีข้อมูลการเติบโต</p>
+            </div>
+          )}
+
+          {/* Legend */}
+          <div className="flex items-center justify-center gap-6 mt-4 pt-4 border-t border-white/5">
+            <div className="flex items-center gap-2">
+              <div className="w-3 h-3 rounded-full bg-[#06C755]" />
+              <span className="text-xs text-slate-400">ผู้ใช้ทั้งหมด</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-3 h-3 rounded-full bg-violet-500" />
+              <span className="text-xs text-slate-400">ผู้ใช้ใหม่/วัน</span>
+            </div>
+          </div>
+        </Card>
 
         {/* User Registry Table & Mobile Cards */}
         <div className="space-y-6">

@@ -84,6 +84,18 @@ export class UsersController {
     };
   }
 
+  @Get('growth')
+  @Roles(UserRole.ADMIN)
+  @ApiOperation({ summary: 'Get user growth data for chart (Admin only)' })
+  async getUserGrowth(@Query('days') days?: string) {
+    const numDays = days ? parseInt(days, 10) : 30;
+    const growth = await this.usersService.getUserGrowth(numDays);
+    return {
+      success: true,
+      growth,
+    };
+  }
+
   @Get('me')
   @ApiOperation({ summary: 'Get current user profile' })
   async getProfile(@CurrentUser() user: AuthUser) {
