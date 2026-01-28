@@ -63,6 +63,34 @@ export class SystemSettingsController {
     };
   }
 
+  @Get('floating-contact')
+  @ApiOperation({ summary: 'Get floating contact button settings (public - no auth required)' })
+  async getFloatingContact() {
+    const settings = await this.settingsService.getSettings();
+
+    // Only return if enabled
+    if (!settings?.floatingContactEnabled) {
+      return {
+        success: true,
+        enabled: false,
+      };
+    }
+
+    return {
+      success: true,
+      enabled: true,
+      url: settings.floatingContactUrl || '',
+      iconUrl: settings.floatingContactIconUrl || '',
+      iconBase64: settings.floatingContactIconBase64 || '',
+      size: settings.floatingContactSize || 56,
+      bottom: settings.floatingContactBottom || 24,
+      right: settings.floatingContactRight || 24,
+      tooltip: settings.floatingContactTooltip || 'ติดต่อแอดมิน',
+      bgColor: settings.floatingContactBgColor || '#25D366',
+      showOnMobile: settings.floatingContactShowOnMobile ?? true,
+    };
+  }
+
   // ===============================
   // ADMIN ENDPOINTS
   // ===============================

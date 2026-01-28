@@ -299,6 +299,17 @@ interface UpdateSystemSettingsData {
   previewSenderBankCode?: string;
   previewReceiverBankCode?: string;
   previewAmount?: string;
+  // Floating Contact Button Settings
+  floatingContactEnabled?: boolean;
+  floatingContactUrl?: string;
+  floatingContactIconUrl?: string;
+  floatingContactIconBase64?: string;
+  floatingContactSize?: number;
+  floatingContactBottom?: number;
+  floatingContactRight?: number;
+  floatingContactTooltip?: string;
+  floatingContactBgColor?: string;
+  floatingContactShowOnMobile?: boolean;
 }
 
 interface AddBankAccountData {
@@ -341,6 +352,8 @@ export const systemSettingsApi = {
     api.put('/system-settings/ai-settings', data),
   toggleGlobalAi: (enabled: boolean) =>
     api.put('/system-settings/ai-toggle', { enabled }),
+  // Floating Contact Button (public)
+  getFloatingContact: () => api.get('/system-settings/floating-contact'),
 };
 
 // Slip Verification API

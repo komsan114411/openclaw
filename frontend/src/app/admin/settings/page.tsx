@@ -171,6 +171,20 @@ export default function SettingsPage() {
     slipAmountColor: '#1E3A5F',
   });
 
+  // Floating Contact Button Settings
+  const [floatingContactSettings, setFloatingContactSettings] = useState({
+    floatingContactEnabled: false,
+    floatingContactUrl: '',
+    floatingContactIconUrl: '',
+    floatingContactIconBase64: '',
+    floatingContactSize: 56,
+    floatingContactBottom: 24,
+    floatingContactRight: 24,
+    floatingContactTooltip: 'ติดต่อแอดมิน',
+    floatingContactBgColor: '#25D366',
+    floatingContactShowOnMobile: true,
+  });
+
   // Rate Limit Testing State
   const [rateLimitTestRunning, setRateLimitTestRunning] = useState(false);
   const [rateLimitTestResult, setRateLimitTestResult] = useState<any>(null);
@@ -247,6 +261,18 @@ export default function SettingsPage() {
         slipDuplicateColor: data.slipDuplicateColor || '#F59E0B',
         slipErrorColor: data.slipErrorColor || '#EF4444',
         slipAmountColor: data.slipAmountColor || '#1E3A5F',
+      });
+      setFloatingContactSettings({
+        floatingContactEnabled: data.floatingContactEnabled ?? false,
+        floatingContactUrl: data.floatingContactUrl || '',
+        floatingContactIconUrl: data.floatingContactIconUrl || '',
+        floatingContactIconBase64: data.floatingContactIconBase64 || '',
+        floatingContactSize: data.floatingContactSize || 56,
+        floatingContactBottom: data.floatingContactBottom || 24,
+        floatingContactRight: data.floatingContactRight || 24,
+        floatingContactTooltip: data.floatingContactTooltip || 'ติดต่อแอดมิน',
+        floatingContactBgColor: data.floatingContactBgColor || '#25D366',
+        floatingContactShowOnMobile: data.floatingContactShowOnMobile ?? true,
       });
     } catch (error) {
       console.error('Error fetching settings:', error);
@@ -2542,6 +2568,271 @@ export default function SettingsPage() {
                     >
                       บันทึกการตั้งค่า
                     </Button>
+                  </div>
+                </Card>
+
+                {/* Floating Contact Button Settings */}
+                <Card variant="glass" className="p-8 sm:p-10 rounded-[2.5rem] sm:rounded-[3rem]">
+                  <div className="flex flex-col sm:flex-row sm:items-center gap-6 mb-10">
+                    <div className="w-14 h-14 bg-green-500/10 rounded-2xl flex items-center justify-center text-2xl shadow-inner flex-shrink-0">💬</div>
+                    <div>
+                      <h2 className="text-xl sm:text-2xl font-black text-white uppercase tracking-tight">ปุ่มติดต่อแอดมิน</h2>
+                      <p className="text-xs sm:text-sm text-slate-500 font-bold uppercase tracking-widest">ปุ่มลอยมุมขวาล่างของหน้าจอ</p>
+                    </div>
+                  </div>
+
+                  <div className="space-y-8">
+                    {/* Enable Toggle */}
+                    <div className="flex items-center justify-between p-4 bg-white/[0.02] rounded-2xl border border-white/5">
+                      <div>
+                        <p className="text-sm font-bold text-white">เปิดใช้งานปุ่มติดต่อ</p>
+                        <p className="text-xs text-slate-500">แสดงปุ่มลอยที่มุมขวาล่างของทุกหน้า</p>
+                      </div>
+                      <Switch
+                        checked={floatingContactSettings.floatingContactEnabled}
+                        onChange={(checked) => setFloatingContactSettings({
+                          ...floatingContactSettings,
+                          floatingContactEnabled: checked
+                        })}
+                      />
+                    </div>
+
+                    {floatingContactSettings.floatingContactEnabled && (
+                      <>
+                        {/* URL */}
+                        <div>
+                          <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-2">
+                            ลิงก์ติดต่อ *
+                          </label>
+                          <Input
+                            value={floatingContactSettings.floatingContactUrl}
+                            onChange={(e) => setFloatingContactSettings({
+                              ...floatingContactSettings,
+                              floatingContactUrl: e.target.value
+                            })}
+                            placeholder="https://line.me/ti/p/@yourlineid"
+                            className="h-14 rounded-2xl bg-white/[0.03] border-white/10 text-white font-mono text-sm"
+                            hint="ลิงก์ LINE, เว็บไซต์, หรือเบอร์โทร (tel:021234567)"
+                          />
+                        </div>
+
+                        {/* Icon Upload */}
+                        <div>
+                          <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-2">
+                            ไอคอน/โลโก้ (ไม่บังคับ)
+                          </label>
+                          <div className="mb-4">
+                            <Input
+                              value={floatingContactSettings.floatingContactIconUrl}
+                              onChange={(e) => setFloatingContactSettings({
+                                ...floatingContactSettings,
+                                floatingContactIconUrl: e.target.value
+                              })}
+                              placeholder="https://example.com/icon.png"
+                              className="h-14 rounded-2xl bg-white/[0.03] border-white/10 text-white"
+                              hint="URL ของไอคอน (ต้องเป็น HTTPS)"
+                            />
+                          </div>
+                          <div className="flex items-center gap-4">
+                            <div
+                              className="w-16 h-16 rounded-full flex items-center justify-center overflow-hidden flex-shrink-0 shadow-lg"
+                              style={{ backgroundColor: floatingContactSettings.floatingContactBgColor }}
+                            >
+                              {floatingContactSettings.floatingContactIconUrl ? (
+                                <img
+                                  src={floatingContactSettings.floatingContactIconUrl}
+                                  alt="Icon"
+                                  className="w-12 h-12 object-cover rounded-full"
+                                  onError={(e) => {
+                                    (e.target as HTMLImageElement).style.display = 'none';
+                                  }}
+                                />
+                              ) : floatingContactSettings.floatingContactIconBase64 ? (
+                                <img
+                                  src={floatingContactSettings.floatingContactIconBase64}
+                                  alt="Icon"
+                                  className="w-12 h-12 object-cover rounded-full"
+                                />
+                              ) : (
+                                <svg viewBox="0 0 24 24" fill="white" className="w-7 h-7">
+                                  <path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H5.17L4 17.17V4h16v12z" />
+                                  <path d="M7 9h2v2H7zm4 0h2v2h-2zm4 0h2v2h-2z" />
+                                </svg>
+                              )}
+                            </div>
+                            <div className="flex-1 space-y-2">
+                              <input
+                                type="file"
+                                accept="image/png,image/jpeg,image/webp"
+                                onChange={(e) => {
+                                  const file = e.target.files?.[0];
+                                  if (file) {
+                                    if (file.size > 500 * 1024) {
+                                      toast.error('ไฟล์ต้องมีขนาดไม่เกิน 500KB');
+                                      return;
+                                    }
+                                    const reader = new FileReader();
+                                    reader.onload = (event) => {
+                                      setFloatingContactSettings({
+                                        ...floatingContactSettings,
+                                        floatingContactIconBase64: event.target?.result as string,
+                                      });
+                                    };
+                                    reader.readAsDataURL(file);
+                                  }
+                                }}
+                                className="hidden"
+                                id="floating-icon-upload"
+                              />
+                              <label
+                                htmlFor="floating-icon-upload"
+                                className="inline-flex items-center gap-2 px-4 py-2 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl cursor-pointer transition-colors text-sm text-white"
+                              >
+                                📤 อัปโหลดไอคอน
+                              </label>
+                              {floatingContactSettings.floatingContactIconBase64 && (
+                                <button
+                                  onClick={() => setFloatingContactSettings({
+                                    ...floatingContactSettings,
+                                    floatingContactIconBase64: '',
+                                  })}
+                                  className="ml-2 text-xs text-rose-400 hover:text-rose-300"
+                                >
+                                  ลบไอคอน
+                                </button>
+                              )}
+                              <p className="text-[10px] text-slate-500">PNG, JPG, WEBP (ไม่เกิน 500KB) - แนะนำขนาด 100x100px</p>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Tooltip & Background Color */}
+                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                          <div>
+                            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-2">
+                              ข้อความ Tooltip
+                            </label>
+                            <Input
+                              value={floatingContactSettings.floatingContactTooltip}
+                              onChange={(e) => setFloatingContactSettings({
+                                ...floatingContactSettings,
+                                floatingContactTooltip: e.target.value
+                              })}
+                              placeholder="ติดต่อแอดมิน"
+                              className="h-14 rounded-2xl bg-white/[0.03] border-white/10 text-white"
+                              hint="ข้อความที่แสดงเมื่อชี้เมาส์"
+                            />
+                          </div>
+                          <div>
+                            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-2">
+                              สีพื้นหลัง
+                            </label>
+                            <div className="flex items-center gap-3">
+                              <input
+                                type="color"
+                                value={floatingContactSettings.floatingContactBgColor}
+                                onChange={(e) => setFloatingContactSettings({
+                                  ...floatingContactSettings,
+                                  floatingContactBgColor: e.target.value
+                                })}
+                                className="w-14 h-14 rounded-xl border-2 border-white/10 cursor-pointer"
+                              />
+                              <Input
+                                value={floatingContactSettings.floatingContactBgColor}
+                                onChange={(e) => setFloatingContactSettings({
+                                  ...floatingContactSettings,
+                                  floatingContactBgColor: e.target.value
+                                })}
+                                className="h-14 rounded-xl bg-white/[0.03] border-white/10 text-white font-mono text-xs flex-1"
+                              />
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Size & Position */}
+                        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                          <div>
+                            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-2">
+                              ขนาดปุ่ม (px)
+                            </label>
+                            <Input
+                              type="number"
+                              value={floatingContactSettings.floatingContactSize}
+                              onChange={(e) => setFloatingContactSettings({
+                                ...floatingContactSettings,
+                                floatingContactSize: parseInt(e.target.value) || 56
+                              })}
+                              min={40}
+                              max={80}
+                              className="h-14 rounded-2xl bg-white/[0.03] border-white/10 text-white"
+                              hint="40-80px (แนะนำ 56)"
+                            />
+                          </div>
+                          <div>
+                            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-2">
+                              ระยะจากด้านล่าง (px)
+                            </label>
+                            <Input
+                              type="number"
+                              value={floatingContactSettings.floatingContactBottom}
+                              onChange={(e) => setFloatingContactSettings({
+                                ...floatingContactSettings,
+                                floatingContactBottom: parseInt(e.target.value) || 24
+                              })}
+                              min={8}
+                              max={100}
+                              className="h-14 rounded-2xl bg-white/[0.03] border-white/10 text-white"
+                              hint="8-100px"
+                            />
+                          </div>
+                          <div>
+                            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-2">
+                              ระยะจากด้านขวา (px)
+                            </label>
+                            <Input
+                              type="number"
+                              value={floatingContactSettings.floatingContactRight}
+                              onChange={(e) => setFloatingContactSettings({
+                                ...floatingContactSettings,
+                                floatingContactRight: parseInt(e.target.value) || 24
+                              })}
+                              min={8}
+                              max={100}
+                              className="h-14 rounded-2xl bg-white/[0.03] border-white/10 text-white"
+                              hint="8-100px"
+                            />
+                          </div>
+                        </div>
+
+                        {/* Mobile Toggle */}
+                        <div className="flex items-center justify-between p-4 bg-white/[0.02] rounded-2xl border border-white/5">
+                          <div>
+                            <p className="text-sm font-bold text-white">แสดงบนมือถือ</p>
+                            <p className="text-xs text-slate-500">แสดงปุ่มบนอุปกรณ์มือถือ</p>
+                          </div>
+                          <Switch
+                            checked={floatingContactSettings.floatingContactShowOnMobile}
+                            onChange={(checked) => setFloatingContactSettings({
+                              ...floatingContactSettings,
+                              floatingContactShowOnMobile: checked
+                            })}
+                          />
+                        </div>
+                      </>
+                    )}
+
+                    {/* Save Button */}
+                    <div className="mt-10 pt-8 border-t border-white/5 flex justify-end">
+                      <Button
+                        variant="primary"
+                        size="lg"
+                        className="px-10 h-16 rounded-2xl shadow-emerald-500/20 font-black tracking-widest uppercase text-[11px]"
+                        onClick={() => handleUpdate('floatingContact', floatingContactSettings)}
+                        isLoading={isSaving === 'floatingContact'}
+                      >
+                        บันทึกการตั้งค่า
+                      </Button>
+                    </div>
                   </div>
                 </Card>
               </motion.div>

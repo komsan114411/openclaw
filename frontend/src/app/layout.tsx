@@ -6,6 +6,7 @@ import { Toaster } from 'react-hot-toast';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import { ToastProvider } from '@/components/ui/Toast';
 import { AuthStateListener } from '@/components/AuthStateListener';
+import { FloatingContactButton } from '@/components/FloatingContactButton';
 
 const prompt = Prompt({
   subsets: ['latin', 'thai'],
@@ -59,6 +60,7 @@ export default function RootLayout({
             <ToastProvider>
               <AuthStateListener />
               {children}
+              <FloatingContactButton />
               <Toaster
                 position="top-right"
                 toastOptions={{

@@ -323,6 +323,70 @@ export class SystemSettings {
 
   @Prop()
   updatedBy: string;
+
+  // ===============================
+  // Floating Contact Button Settings
+  // ===============================
+
+  /**
+   * Enable floating contact button
+   */
+  @Prop({ default: false })
+  floatingContactEnabled: boolean;
+
+  /**
+   * Contact button URL (LINE, Website, etc.)
+   */
+  @Prop()
+  floatingContactUrl: string;
+
+  /**
+   * Custom icon/logo URL
+   */
+  @Prop()
+  floatingContactIconUrl: string;
+
+  /**
+   * Custom icon as base64 (uploaded)
+   */
+  @Prop()
+  floatingContactIconBase64: string;
+
+  /**
+   * Button size in pixels (default: 56)
+   */
+  @Prop({ default: 56 })
+  floatingContactSize: number;
+
+  /**
+   * Position from bottom in pixels (default: 24)
+   */
+  @Prop({ default: 24 })
+  floatingContactBottom: number;
+
+  /**
+   * Position from right in pixels (default: 24)
+   */
+  @Prop({ default: 24 })
+  floatingContactRight: number;
+
+  /**
+   * Tooltip text on hover
+   */
+  @Prop({ default: 'ติดต่อแอดมิน' })
+  floatingContactTooltip: string;
+
+  /**
+   * Background color (hex)
+   */
+  @Prop({ default: '#25D366' })
+  floatingContactBgColor: string;
+
+  /**
+   * Show on mobile devices
+   */
+  @Prop({ default: true })
+  floatingContactShowOnMobile: boolean;
 }
 
 export const SystemSettingsSchema = SchemaFactory.createForClass(SystemSettings);
