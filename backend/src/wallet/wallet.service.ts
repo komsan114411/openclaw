@@ -864,12 +864,16 @@ export class WalletService {
         }
 
         // Step 1: Acquire distributed lock to prevent concurrent purchases
+        // NOTE: Lock is USER-SPECIFIC - different users can purchase simultaneously
         const lockKey = `wallet:purchase:${userId}`;
+        this.logger.debug(`[PURCHASE] User ${userId} attempting to acquire lock: ${lockKey}`);
         const lockToken = await this.redisService.acquireLock(lockKey, 60); // Extended to 60s for safety
 
         if (!lockToken) {
+            this.logger.warn(`[PURCHASE] User ${userId} failed to acquire lock - already purchasing`);
             return { success: false, message: 'กำลังดำเนินการซื้อแพ็คเกจอยู่ กรุณารอสักครู่' };
         }
+        this.logger.debug(`[PURCHASE] User ${userId} acquired lock successfully`);
 
         // Start MongoDB session for transaction
         const session = await this.connection.startSession();

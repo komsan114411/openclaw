@@ -561,12 +561,16 @@ export class PaymentsService {
     }
 
     // STEP 3: Use distributed lock for additional safety (belt and suspenders)
+    // NOTE: Lock is PAYMENT-SPECIFIC, not USER-SPECIFIC - different users can verify simultaneously
     const lockKey = `payment:verify:${paymentId}`;
+    this.logger.debug(`[VERIFY] Attempting to acquire lock: ${lockKey}`);
     const lockToken = await this.redisService.acquireLock(lockKey, 120); // 120 second lock
 
     if (!lockToken) {
+      this.logger.warn(`[VERIFY] Failed to acquire lock for payment ${paymentId} - already being processed`);
       return { success: false, message: 'กำลังตรวจสอบสลิปอยู่ กรุณารอสักครู่' };
     }
+    this.logger.debug(`[VERIFY] Lock acquired for payment ${paymentId}`);
 
     let payment: PaymentDocument | null = null;
 
