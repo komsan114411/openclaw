@@ -346,13 +346,27 @@ export class SlipMateProvider implements SlipVerificationProvider {
     const sender = slipData.sender || {};
     const receiver = slipData.receiver || {};
 
+    // Helper to safely extract string value from account/proxy objects
+    const extractAccountValue = (obj: any): string => {
+      if (!obj) return '';
+      // If it's already a string, return it
+      if (typeof obj === 'string') return obj;
+      // If it's an object with value property, return the value
+      if (obj.value && typeof obj.value === 'string') return obj.value;
+      // If it's an object with account property (nested), extract from there
+      if (obj.account?.value && typeof obj.account.value === 'string') return obj.account.value;
+      // If it's an object with proxy property (nested), extract from there
+      if (obj.proxy?.value && typeof obj.proxy.value === 'string') return obj.proxy.value;
+      return '';
+    };
+
     // Extract sender info - SlipMate uses displayName
     const senderName = sender.displayName || sender.name || sender.account?.name?.th || '';
-    const senderAccountValue = sender.account?.value || sender.proxy?.value || sender.account || '';
+    const senderAccountValue = extractAccountValue(sender.account) || extractAccountValue(sender.proxy) || '';
 
     // Extract receiver info
     const receiverName = receiver.displayName || receiver.name || receiver.account?.name?.th || '';
-    const receiverAccountValue = receiver.account?.value || receiver.proxy?.value || receiver.account || '';
+    const receiverAccountValue = extractAccountValue(receiver.account) || extractAccountValue(receiver.proxy) || '';
 
     // Detect payment type (PromptPay, TrueMoney, etc.) for sender
     const senderPaymentType = this.detectPaymentType(sender, {
