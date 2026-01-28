@@ -7,6 +7,7 @@ import ErrorBoundary from '@/components/ErrorBoundary';
 import { ToastProvider } from '@/components/ui/Toast';
 import { AuthStateListener } from '@/components/AuthStateListener';
 import { FloatingContactButton } from '@/components/FloatingContactButton';
+import { AnnouncementBanner } from '@/components/AnnouncementBanner';
 
 const prompt = Prompt({
   subsets: ['latin', 'thai'],
@@ -59,6 +60,7 @@ export default function RootLayout({
           <Providers>
             <ToastProvider>
               <AuthStateListener />
+              <AnnouncementBanner />
               {children}
               <FloatingContactButton />
               <Toaster
