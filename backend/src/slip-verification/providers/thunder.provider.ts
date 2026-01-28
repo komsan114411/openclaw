@@ -140,10 +140,16 @@ export class ThunderProvider implements SlipVerificationProvider {
   private normalizeResponse(data: any, endpoint: string = '/v1/verify'): NormalizedVerificationResult {
     const isTrueWallet = endpoint.includes('truewallet');
 
+    // Log raw response for debugging
+    this.logger.log(`[THUNDER] Raw response from ${endpoint}: status=${data.status}, hasData=${!!data.data}`);
+    if (isTrueWallet && data.data) {
+      this.logger.log(`[THUNDER] TrueMoney raw data: ${JSON.stringify(data.data).substring(0, 500)}`);
+    }
+
     // Success case
     if (data.status === 200 && data.data) {
       const slipData = data.data;
-      this.logger.log(`[THUNDER] Success via ${endpoint}`);
+      this.logger.log(`[THUNDER] Success via ${endpoint}, isTrueWallet=${isTrueWallet}`);
       return {
         status: 'success',
         provider: SlipProvider.THUNDER,
@@ -155,8 +161,11 @@ export class ThunderProvider implements SlipVerificationProvider {
 
     // Duplicate case (status 400 with message "duplicate_slip")
     if (data.status === 400 && data.message === 'duplicate_slip') {
-      this.logger.log(`[THUNDER] Duplicate slip detected via ${endpoint}`);
+      this.logger.log(`[THUNDER] Duplicate slip detected via ${endpoint}, isTrueWallet=${isTrueWallet}`);
       const slipData = data.data || {};
+      if (isTrueWallet) {
+        this.logger.log(`[THUNDER] TrueMoney duplicate raw data: ${JSON.stringify(slipData).substring(0, 500)}`);
+      }
       return {
         status: 'duplicate',
         provider: SlipProvider.THUNDER,
@@ -221,14 +230,29 @@ export class ThunderProvider implements SlipVerificationProvider {
 
   /**
    * Extract slip data from TrueMoney Wallet response
-   * TrueMoney Wallet has different format than bank slips
+   * TrueMoney Wallet API response format:
+   * {
+   *   transactionId: string,
+   *   date: string,
+   *   amount: number,
+   *   sender: { name: string },
+   *   receiver: { name: string, phone: string }
+   * }
    */
   private extractTrueWalletSlipData(slipData: any): NormalizedSlipData {
-    // TrueMoney Wallet format:
-    // { transactionId, date, amount, senderName, receiverName, receiverMobileNumber }
     this.logger.log(`[THUNDER] Extracting TrueMoney Wallet data: ${JSON.stringify(slipData).substring(0, 500)}`);
 
     const amount = parseFloat(slipData.amount || 0);
+
+    // Extract sender info - TrueMoney uses nested sender.name
+    const senderName = slipData.sender?.name || slipData.senderName || '';
+    const senderPhone = slipData.sender?.phone || slipData.senderMobileNumber || '';
+
+    // Extract receiver info - TrueMoney uses nested receiver.name and receiver.phone
+    const receiverName = slipData.receiver?.name || slipData.receiverName || '';
+    const receiverPhone = slipData.receiver?.phone || slipData.receiverMobileNumber || '';
+
+    this.logger.log(`[THUNDER] TrueMoney data extracted: transRef=${slipData.transactionId}, amount=${amount}, sender=${senderName}, receiver=${receiverName}, phone=${receiverPhone}`);
 
     return {
       transRef: slipData.transactionId || slipData.transRef || '',
@@ -236,19 +260,19 @@ export class ThunderProvider implements SlipVerificationProvider {
       amountFormatted: this.formatAmount(amount),
       date: this.formatDate(slipData.date),
       time: this.formatTime(slipData.date),
-      // Sender - TrueMoney uses senderName directly
-      senderName: slipData.senderName || '',
+      // Sender - TrueMoney uses nested sender object
+      senderName: senderName,
       senderNameEn: '',
       senderBank: 'ทรูมันนี่ วอลเล็ท',
       senderBankCode: 'TRUEMONEY',
-      senderAccount: slipData.senderMobileNumber || '',
-      // Receiver - TrueMoney uses receiverName and receiverMobileNumber
-      receiverName: slipData.receiverName || '',
+      senderAccount: senderPhone,
+      // Receiver - TrueMoney uses nested receiver object
+      receiverName: receiverName,
       receiverNameEn: '',
       receiverBank: 'ทรูมันนี่ วอลเล็ท',
       receiverBankCode: 'TRUEMONEY',
-      receiverAccount: slipData.receiverMobileNumber || '',
-      receiverAccountNumber: slipData.receiverMobileNumber || '',
+      receiverAccount: receiverPhone,
+      receiverAccountNumber: receiverPhone,
       // Additional
       countryCode: 'TH',
       fee: slipData.fee ?? 0,
