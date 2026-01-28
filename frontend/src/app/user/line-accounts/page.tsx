@@ -1100,35 +1100,74 @@ export default function UserLineAccountsPage() {
                 รูปแบบสลิป (Template)
                 <span className="text-[10px] text-slate-500 font-normal">(ไม่บังคับ)</span>
               </label>
-              <select
-                value={formData.slipTemplateId}
-                onChange={(e) => setFormData({ ...formData, slipTemplateId: e.target.value })}
-                className="w-full h-14 px-4 bg-white/[0.03] border border-white/10 rounded-2xl text-white text-sm focus:outline-none focus:ring-2 focus:ring-[#06C755]/50"
-              >
-                <option value="">ใช้ค่าเริ่มต้นของระบบ</option>
-                {templates.filter(t => t.type === 'success').length > 0 && (
-                  <optgroup label="เทมเพลตสลิปถูกต้อง">
-                    {templates.filter(t => t.type === 'success').map((t) => (
-                      <option key={t._id} value={t._id}>
-                        {t.isGlobal ? '🌐 ' : ''}{t.name}
-                      </option>
-                    ))}
-                  </optgroup>
-                )}
-                {templates.filter(t => t.type === 'duplicate').length > 0 && (
-                  <optgroup label="เทมเพลตสลิปซ้ำ">
-                    {templates.filter(t => t.type === 'duplicate').map((t) => (
-                      <option key={t._id} value={t._id}>
-                        {t.isGlobal ? '🌐 ' : ''}{t.name}
-                      </option>
-                    ))}
-                  </optgroup>
-                )}
-              </select>
+              <div className="relative">
+                <select
+                  value={formData.slipTemplateId}
+                  onChange={(e) => setFormData({ ...formData, slipTemplateId: e.target.value })}
+                  className="w-full h-14 px-4 pr-10 bg-slate-800 border border-white/10 rounded-2xl text-white text-sm focus:outline-none focus:ring-2 focus:ring-[#06C755]/50 appearance-none cursor-pointer [&>option]:bg-slate-800 [&>option]:text-white [&>optgroup]:bg-slate-700 [&>optgroup]:text-slate-300 [&>optgroup]:font-semibold"
+                >
+                  <option value="" className="bg-slate-800 text-white">ใช้ค่าเริ่มต้นของระบบ</option>
+                  {templates.filter(t => t.type === 'success').length > 0 && (
+                    <optgroup label="✅ เทมเพลตสลิปถูกต้อง" className="bg-slate-700 text-emerald-400">
+                      {templates.filter(t => t.type === 'success').map((t) => (
+                        <option key={t._id} value={t._id} className="bg-slate-800 text-white py-2">
+                          {t.isGlobal ? '🌐 ' : '📄 '}{t.name}
+                        </option>
+                      ))}
+                    </optgroup>
+                  )}
+                  {templates.filter(t => t.type === 'duplicate').length > 0 && (
+                    <optgroup label="⚠️ เทมเพลตสลิปซ้ำ" className="bg-slate-700 text-amber-400">
+                      {templates.filter(t => t.type === 'duplicate').map((t) => (
+                        <option key={t._id} value={t._id} className="bg-slate-800 text-white py-2">
+                          {t.isGlobal ? '🌐 ' : '📄 '}{t.name}
+                        </option>
+                      ))}
+                    </optgroup>
+                  )}
+                  {templates.filter(t => t.type === 'error').length > 0 && (
+                    <optgroup label="❌ เทมเพลตสลิปผิดพลาด" className="bg-slate-700 text-red-400">
+                      {templates.filter(t => t.type === 'error').map((t) => (
+                        <option key={t._id} value={t._id} className="bg-slate-800 text-white py-2">
+                          {t.isGlobal ? '🌐 ' : '📄 '}{t.name}
+                        </option>
+                      ))}
+                    </optgroup>
+                  )}
+                  {templates.filter(t => t.type === 'not_found').length > 0 && (
+                    <optgroup label="🔍 เทมเพลตไม่พบสลิป" className="bg-slate-700 text-slate-400">
+                      {templates.filter(t => t.type === 'not_found').map((t) => (
+                        <option key={t._id} value={t._id} className="bg-slate-800 text-white py-2">
+                          {t.isGlobal ? '🌐 ' : '📄 '}{t.name}
+                        </option>
+                      ))}
+                    </optgroup>
+                  )}
+                </select>
+                {/* Custom dropdown arrow */}
+                <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none">
+                  <svg className="w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
+                </div>
+              </div>
               {formData.slipTemplateId && (
-                <p className="text-xs text-[#06C755] ml-1 flex items-center gap-1">
-                  <span>✓</span>
-                  {templates.find(t => t._id === formData.slipTemplateId)?.name || 'เทมเพลตที่เลือก'}
+                <div className="flex items-center gap-2 p-3 bg-[#06C755]/10 border border-[#06C755]/20 rounded-xl">
+                  <span className="text-[#06C755]">✓</span>
+                  <span className="text-sm text-[#06C755] font-medium">
+                    {templates.find(t => t._id === formData.slipTemplateId)?.name || 'เทมเพลตที่เลือก'}
+                  </span>
+                  <span className="text-xs text-slate-500 ml-auto">
+                    {templates.find(t => t._id === formData.slipTemplateId)?.type === 'success' && '(สลิปถูกต้อง)'}
+                    {templates.find(t => t._id === formData.slipTemplateId)?.type === 'duplicate' && '(สลิปซ้ำ)'}
+                    {templates.find(t => t._id === formData.slipTemplateId)?.type === 'error' && '(สลิปผิดพลาด)'}
+                    {templates.find(t => t._id === formData.slipTemplateId)?.type === 'not_found' && '(ไม่พบสลิป)'}
+                  </span>
+                </div>
+              )}
+              {!formData.slipTemplateId && templates.length > 0 && (
+                <p className="text-xs text-slate-500 ml-1">
+                  💡 เลือกเทมเพลตเพื่อกำหนดรูปแบบการแสดงผลสลิป หรือปล่อยว่างเพื่อใช้ค่าเริ่มต้น
                 </p>
               )}
             </div>
