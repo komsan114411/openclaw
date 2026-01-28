@@ -163,34 +163,55 @@ export class SlipMateProvider implements SlipVerificationProvider {
     // Log full response for debugging
     this.logger.log(`[SLIPMATE] Response: httpStatus=${httpStatus}, body=${JSON.stringify(data).substring(0, 1000)}`);
 
-    const statusCode = data?.statusCode ?? data?.status ?? data?.code;
+    const statusCode = data?.statusCode ?? data?.status;
     const message = data?.message || data?.error || '';
     const code = data?.code || '';
 
-    // ===== CHECK FOR DUPLICATE FIRST (Multiple ways SlipMate might return duplicate) =====
+    // ===== CHECK FOR DUPLICATE FIRST =====
+    // SlipMate API returns duplicate in these ways:
     // 1. HTTP 409 Conflict
     // 2. statusCode 409 in body
-    // 3. code === 'DUPLICATE_SLIP' or 'duplicate'
-    // 4. message contains 'duplicate'
-    // 5. success: false with duplicate indication
+    // 3. code === 'OPENAPI_FAILURE' with message "Transaction Reference already exist"
+    // 4. code === 'DUPLICATE_SLIP' or 'duplicate'
+    // 5. message contains 'duplicate' or 'already exist'
+    const messageStr = typeof message === 'string' ? message.toLowerCase() : '';
     const isDuplicate =
       httpStatus === 409 ||
       statusCode === 409 ||
+      (code === 'OPENAPI_FAILURE' && messageStr.includes('already exist')) ||
+      (code === 'OPENAPI_FAILURE' && messageStr.includes('transaction reference')) ||
       code === 'DUPLICATE_SLIP' ||
       code === 'duplicate' ||
       code === 'DUPLICATE' ||
-      (typeof message === 'string' && message.toLowerCase().includes('duplicate')) ||
+      messageStr.includes('duplicate') ||
+      messageStr.includes('already exist') ||
       data?.duplicate === true ||
       data?.isDuplicate === true;
 
     if (isDuplicate) {
       this.logger.log(`[SLIPMATE] Duplicate slip detected! httpStatus=${httpStatus}, statusCode=${statusCode}, code=${code}, message=${message}`);
-      const slipData = data?.data || data || {};
+
+      // Try to find slip data in response - SlipMate may include it in different locations
+      let slipData: any = null;
+
+      // Check if data contains slip info directly (transRef is the key indicator)
+      if (data?.transRef) {
+        slipData = data;
+      } else if (data?.data?.transRef) {
+        slipData = data.data;
+      } else if (data?.slip?.transRef) {
+        slipData = data.slip;
+      } else if (data?.slipData?.transRef) {
+        slipData = data.slipData;
+      }
+
+      this.logger.log(`[SLIPMATE] Duplicate slip data found: ${slipData ? 'YES' : 'NO'}, transRef=${slipData?.transRef || 'none'}`);
+
       return {
         status: 'duplicate',
         provider: SlipProvider.SLIPMATE,
         message: 'สลิปนี้เคยถูกใช้แล้ว',
-        data: slipData.transRef ? this.extractSlipData(slipData) : undefined,
+        data: slipData ? this.extractSlipData(slipData) : undefined,
         shouldFailover: false,
       };
     }
