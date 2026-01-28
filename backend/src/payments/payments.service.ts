@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException, BadRequestException, ConflictException, Inject, forwardRef, Logger } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
+import { createHash } from 'crypto';
 import { Payment, PaymentDocument, PaymentStatus, PaymentType } from '../database/schemas/payment.schema';
 import { CreditTransaction, CreditTransactionDocument, TransactionType, TransactionStatus } from '../database/schemas/credit-transaction.schema';
 import { PackagesService } from '../packages/packages.service';
@@ -12,6 +13,9 @@ import { ActivityActorRole } from '../database/schemas/activity-log.schema';
 import { EventBusService, EventNames, PaymentCompletedEvent } from '../core/events';
 import { isValidObjectId } from '../common/utils/validation.util';
 import { createActivityLogger } from '../common/utils/activity-logger.util';
+
+// Processing timeout: 3 minutes
+const PROCESSING_TIMEOUT_MS = 3 * 60 * 1000;
 
 @Injectable()
 export class PaymentsService {
@@ -34,6 +38,129 @@ export class PaymentsService {
   ) {
     // Initialize after all dependencies are injected
     this.logActivity = createActivityLogger(this.activityLogsService, this.logger, 'payment');
+  }
+
+  /**
+   * Compute SHA-256 hash of slip image for duplicate detection.
+   * This enables blocking duplicate slips BEFORE verification starts.
+   */
+  private computeSlipHash(slipImageData: Buffer): string {
+    return createHash('sha256').update(slipImageData).digest('hex');
+  }
+
+  /**
+   * Generate idempotency key for verification operation.
+   */
+  private generateVerificationIdempotencyKey(paymentId: string, slipHash: string): string {
+    return `verify:${paymentId}:${slipHash}:${Date.now()}`;
+  }
+
+  /**
+   * Check if a slip hash is already being processed or verified.
+   * This catches duplicates BEFORE calling Thunder API.
+   */
+  private async checkSlipHashDuplicate(slipHash: string, excludePaymentId?: string): Promise<{
+    isDuplicate: boolean;
+    existingPaymentId?: string;
+    status?: PaymentStatus;
+  }> {
+    const query: any = {
+      slipHash,
+      status: { $in: [PaymentStatus.PROCESSING, PaymentStatus.VERIFIED] },
+    };
+
+    if (excludePaymentId) {
+      query._id = { $ne: excludePaymentId };
+    }
+
+    const existing = await this.paymentModel.findOne(query).select('_id status').lean();
+
+    if (existing) {
+      return {
+        isDuplicate: true,
+        existingPaymentId: existing._id.toString(),
+        status: existing.status,
+      };
+    }
+
+    return { isDuplicate: false };
+  }
+
+  /**
+   * ATOMIC: Claim payment for processing.
+   * Returns null if payment is not in claimable state (already processing/verified/etc).
+   * This is the CRITICAL function that prevents race conditions.
+   */
+  private async claimPaymentForProcessing(
+    paymentId: string,
+    slipHash: string,
+  ): Promise<PaymentDocument | null> {
+    const idempotencyKey = this.generateVerificationIdempotencyKey(paymentId, slipHash);
+
+    // ATOMIC: Only one request can claim a PENDING payment
+    const claimed = await this.paymentModel.findOneAndUpdate(
+      {
+        _id: paymentId,
+        status: PaymentStatus.PENDING, // Only claim PENDING payments
+      },
+      {
+        status: PaymentStatus.PROCESSING,
+        processingStartedAt: new Date(),
+        slipHash,
+        verificationIdempotencyKey: idempotencyKey,
+      },
+      { new: true },
+    );
+
+    return claimed;
+  }
+
+  /**
+   * Release payment from PROCESSING back to PENDING.
+   * Used when verification fails or times out.
+   */
+  private async releasePaymentFromProcessing(
+    paymentId: string,
+    reason: string,
+  ): Promise<void> {
+    await this.paymentModel.findOneAndUpdate(
+      {
+        _id: paymentId,
+        status: PaymentStatus.PROCESSING,
+      },
+      {
+        status: PaymentStatus.PENDING,
+        processingStartedAt: null,
+        adminNotes: reason,
+      },
+    );
+    this.logger.log(`Released payment ${paymentId} from PROCESSING: ${reason}`);
+  }
+
+  /**
+   * Cleanup stuck PROCESSING payments.
+   * Payments stuck in PROCESSING for more than PROCESSING_TIMEOUT_MS are reset to PENDING.
+   */
+  async cleanupStuckProcessingPayments(): Promise<number> {
+    const cutoffTime = new Date(Date.now() - PROCESSING_TIMEOUT_MS);
+
+    const result = await this.paymentModel.updateMany(
+      {
+        status: PaymentStatus.PROCESSING,
+        processingStartedAt: { $lt: cutoffTime },
+      },
+      {
+        status: PaymentStatus.PENDING,
+        processingStartedAt: null,
+        adminNotes: 'ระบบรีเซ็ตอัตโนมัติ: การตรวจสอบหมดเวลา',
+      },
+    );
+
+    if (result.modifiedCount > 0) {
+      this.logger.warn(`Cleaned up ${result.modifiedCount} stuck PROCESSING payments`);
+    }
+
+    return result.modifiedCount;
   }
 
   /**
@@ -383,6 +510,24 @@ export class PaymentsService {
     }
   }
 
+  /**
+   * Verify slip payment with BULLETPROOF race condition protection.
+   *
+   * SECURITY FIX: Uses atomic claim-then-process pattern to prevent:
+   * 1. Same payment being verified twice simultaneously
+   * 2. Same slip being used for multiple payments simultaneously
+   * 3. Double quota grant from single payment
+   *
+   * Flow:
+   * 1. Compute slip hash for early duplicate detection
+   * 2. Check if slip hash is already being processed/verified (BEFORE API call)
+   * 3. ATOMIC: Claim payment by changing status PENDING → PROCESSING
+   * 4. If claim fails, payment is already being processed → return
+   * 5. Call Thunder API to verify slip
+   * 6. Check transRef duplicates (AFTER API call)
+   * 7. ATOMIC: Update payment to VERIFIED with quota grant
+   * 8. On any failure, release payment back to PENDING
+   */
   async verifySlipPayment(
     paymentId: string,
     slipImageData: Buffer,
@@ -395,41 +540,92 @@ export class PaymentsService {
       return { success: false, message: 'Invalid payment ID format' };
     }
 
-    // Use distributed lock to prevent concurrent verification of same payment
+    // STEP 1: Compute slip hash for duplicate detection
+    const slipHash = this.computeSlipHash(slipImageData);
+    this.logger.debug(`[VERIFY] Payment ${paymentId}, slipHash: ${slipHash.substring(0, 16)}...`);
+
+    // STEP 2: Check if this slip is already being processed or verified (EARLY CHECK)
+    // This catches duplicates BEFORE we even try to claim the payment
+    const slipHashCheck = await this.checkSlipHashDuplicate(slipHash, paymentId);
+    if (slipHashCheck.isDuplicate) {
+      this.logger.warn(
+        `[VERIFY BLOCKED] Slip hash duplicate detected: payment ${paymentId}, ` +
+        `existing payment ${slipHashCheck.existingPaymentId} (${slipHashCheck.status})`
+      );
+      return {
+        success: false,
+        message: slipHashCheck.status === PaymentStatus.VERIFIED
+          ? 'สลิปนี้เคยถูกใช้แล้ว'
+          : 'สลิปนี้กำลังถูกตรวจสอบอยู่ กรุณารอสักครู่',
+      };
+    }
+
+    // STEP 3: Use distributed lock for additional safety (belt and suspenders)
     const lockKey = `payment:verify:${paymentId}`;
-    const lockToken = await this.redisService.acquireLock(lockKey, 60); // 60 second lock for verification
+    const lockToken = await this.redisService.acquireLock(lockKey, 120); // 120 second lock
 
     if (!lockToken) {
       return { success: false, message: 'กำลังตรวจสอบสลิปอยู่ กรุณารอสักครู่' };
     }
 
+    let payment: PaymentDocument | null = null;
+
     try {
-      const payment = await this.paymentModel.findById(paymentId);
-      if (!payment) {
+      // STEP 4: Check payment exists and its current status
+      const existingPayment = await this.paymentModel.findById(paymentId);
+      if (!existingPayment) {
         throw new NotFoundException('Payment not found');
       }
 
-      // Prevent re-verification of already processed payments
-      if (payment.status === PaymentStatus.VERIFIED) {
+      // Handle already processed payments (idempotent)
+      if (existingPayment.status === PaymentStatus.VERIFIED) {
+        this.logger.log(`[VERIFY] Payment ${paymentId} already verified - idempotent success`);
         return { success: true, message: 'Payment already verified' };
       }
-      if (payment.status === PaymentStatus.REJECTED) {
+      if (existingPayment.status === PaymentStatus.REJECTED) {
         return { success: false, message: 'Payment was rejected' };
       }
+      if (existingPayment.status === PaymentStatus.PROCESSING) {
+        // Check if same slip hash
+        if (existingPayment.slipHash === slipHash) {
+          return { success: false, message: 'กำลังตรวจสอบสลิปอยู่ กรุณารอสักครู่' };
+        }
+        // Different slip for same payment that's already processing - shouldn't happen
+        return { success: false, message: 'รายการนี้กำลังถูกตรวจสอบอยู่' };
+      }
 
-      // Get system settings for bank accounts
+      // STEP 5: ATOMIC CLAIM - Change status from PENDING to PROCESSING
+      // This is the CRITICAL operation that prevents race conditions
+      payment = await this.claimPaymentForProcessing(paymentId, slipHash);
+
+      if (!payment) {
+        // Failed to claim - another request got there first OR status changed
+        const recheckPayment = await this.paymentModel.findById(paymentId);
+        if (recheckPayment?.status === PaymentStatus.VERIFIED) {
+          return { success: true, message: 'Payment already verified' };
+        }
+        if (recheckPayment?.status === PaymentStatus.PROCESSING) {
+          return { success: false, message: 'กำลังตรวจสอบสลิปอยู่ กรุณารอสักครู่' };
+        }
+        return { success: false, message: 'ไม่สามารถตรวจสอบรายการนี้ได้' };
+      }
+
+      this.logger.log(`[VERIFY] Claimed payment ${paymentId} for processing`);
+
+      // STEP 6: Get system settings for bank accounts
       const settings = await this.systemSettingsService.getSettings();
       const bankAccounts = settings?.paymentBankAccounts || [];
 
       if (bankAccounts.length === 0) {
         this.logger.warn('No bank accounts configured for payment verification');
+        await this.releasePaymentFromProcessing(paymentId, 'ยังไม่ได้ตั้งค่าบัญชีธนาคาร');
         return {
           success: false,
           message: 'ยังไม่ได้ตั้งค่าบัญชีธนาคารสำหรับรับชำระเงิน',
         };
       }
 
-      // Verify slip with Thunder API
+      // STEP 7: Verify slip with Thunder API
       const result = await this.slipVerificationService.verifySlip(
         slipImageData,
         'payment',
@@ -438,29 +634,40 @@ export class PaymentsService {
       );
 
       if (result.status === 'success' && result.data) {
-        // Check for duplicate transRef before processing
+        // STEP 8: Check for duplicate transRef (AFTER API call, using transRef)
         if (result.data.transRef) {
           const duplicateCheck = await this.checkDuplicateSlip(
             result.data.transRef,
-            payment.userId.toString(), // Exclude current user's own pending payments
+            payment.userId.toString(),
           );
 
           // Block if already verified by someone
           if (duplicateCheck.isDuplicate) {
-            payment.verificationResult = { duplicate: true, transRef: result.data.transRef };
-            payment.adminNotes = 'สลิปซ้ำ: เลขอ้างอิงนี้เคยถูกใช้แล้ว';
-            await payment.save();
+            await this.paymentModel.findByIdAndUpdate(paymentId, {
+              status: PaymentStatus.REJECTED,
+              verificationResult: { duplicate: true, transRef: result.data.transRef },
+              adminNotes: 'สลิปซ้ำ: เลขอ้างอิงนี้เคยถูกใช้แล้ว',
+              processingStartedAt: null,
+            });
             return {
               success: false,
               message: 'สลิปนี้เคยถูกใช้แล้ว',
             };
           }
 
-          // Also block if another user has pending payment with same slip
-          if (duplicateCheck.hasPendingFromOthers) {
-            payment.verificationResult = { duplicate: true, transRef: result.data.transRef, pendingConflict: true };
-            payment.adminNotes = 'สลิปซ้ำ: มีผู้ใช้รายอื่นกำลังใช้สลิปนี้';
-            await payment.save();
+          // Also block if another user has pending/processing payment with same slip
+          if (duplicateCheck.hasPendingFromOthers || duplicateCheck.hasProcessingFromOthers) {
+            await this.paymentModel.findByIdAndUpdate(paymentId, {
+              status: PaymentStatus.REJECTED,
+              verificationResult: {
+                duplicate: true,
+                transRef: result.data.transRef,
+                pendingConflict: duplicateCheck.hasPendingFromOthers,
+                processingConflict: duplicateCheck.hasProcessingFromOthers,
+              },
+              adminNotes: 'สลิปซ้ำ: มีผู้ใช้รายอื่นกำลังใช้สลิปนี้',
+              processingStartedAt: null,
+            });
             return {
               success: false,
               message: 'สลิปนี้กำลังถูกใช้โดยผู้อื่น กรุณาใช้สลิปอื่น',
@@ -509,11 +716,11 @@ export class PaymentsService {
         // All checks passed - auto approve
         if (accountMatched && amountMatched) {
           // BULLETPROOF: Set quotaGranted=true ATOMICALLY with status change
-          // This prevents race conditions where event is published but quotaGranted not set
+          // Payment is currently PROCESSING, change to VERIFIED
           const updateResult = await this.paymentModel.findOneAndUpdate(
             {
               _id: paymentId,
-              status: PaymentStatus.PENDING,
+              status: PaymentStatus.PROCESSING, // Must be PROCESSING (we claimed it)
               quotaGranted: { $ne: true }, // Prevent double-granting
             },
             {
@@ -523,6 +730,7 @@ export class PaymentsService {
               verificationResult: payment.verificationResult,
               transRef: payment.transRef,
               quotaGranted: true, // Set atomically with status change
+              processingStartedAt: null, // Clear processing timestamp
             },
             { new: true },
           );
@@ -563,8 +771,9 @@ export class PaymentsService {
               // Rollback payment status AND quotaGranted if event publishing fails
               this.logger.error(`Failed to publish event for payment ${paymentId}:`, error);
               await this.paymentModel.findByIdAndUpdate(paymentId, {
-                status: PaymentStatus.PENDING,
+                status: PaymentStatus.PENDING, // Revert to PENDING for retry
                 quotaGranted: false, // Reset quotaGranted on rollback
+                processingStartedAt: null,
                 adminNotes: 'ระบบอนุมัติแต่ publish event ไม่สำเร็จ รอตรวจสอบ',
               });
               return {
@@ -613,8 +822,13 @@ export class PaymentsService {
             ? `เลขบัญชีผู้รับไม่ถูกต้อง กรุณาโอนเงินไปยังบัญชีที่ระบบกำหนดเท่านั้น`
             : `ยอดเงินไม่ตรงกับราคาแพ็คเกจ (ต้องชำระ ฿${expectedAmount} แต่โอนมา ฿${actualAmount})`;
 
-          payment.adminNotes = failReason + '\n- รอตรวจสอบจากผู้ดูแลระบบ';
-          await payment.save();
+          // Revert status to PENDING for manual review
+          await this.paymentModel.findByIdAndUpdate(paymentId, {
+            status: PaymentStatus.PENDING,
+            processingStartedAt: null,
+            verificationResult: payment.verificationResult,
+            adminNotes: failReason + '\n- รอตรวจสอบจากผู้ดูแลระบบ',
+          });
 
           // Log activity: PAYMENT_REJECTED (verification failed)
           this.logActivity({
@@ -644,9 +858,15 @@ export class PaymentsService {
           };
         }
       } else if (result.status === 'duplicate') {
-        payment.verificationResult = { duplicate: true };
-        payment.adminNotes = 'สลิปซ้ำ: รอตรวจสอบจากผู้ดูแลระบบ';
-        await payment.save();
+        // Thunder API detected duplicate - REJECT the payment
+        await this.paymentModel.findByIdAndUpdate(paymentId, {
+          status: PaymentStatus.REJECTED,
+          verificationResult: { duplicate: true, source: 'thunder_api' },
+          adminNotes: 'สลิปซ้ำ: Thunder API ตรวจพบว่าสลิปนี้เคยถูกใช้แล้ว',
+          processingStartedAt: null,
+        });
+
+        this.logger.warn(`[VERIFY] Payment ${paymentId} rejected - duplicate detected by Thunder API`);
 
         return {
           success: false,
@@ -654,13 +874,27 @@ export class PaymentsService {
         };
       }
 
-      payment.verificationResult = { error: result.message };
-      await payment.save();
+      // Other verification failures - release back to PENDING for retry
+      await this.paymentModel.findByIdAndUpdate(paymentId, {
+        status: PaymentStatus.PENDING,
+        verificationResult: { error: result.message },
+        processingStartedAt: null,
+        adminNotes: `ตรวจสอบไม่สำเร็จ: ${result.message}`,
+      });
+
+      this.logger.warn(`[VERIFY] Payment ${paymentId} verification failed: ${result.message}`);
 
       return {
         success: false,
         message: result.message,
       };
+    } catch (error: any) {
+      // Unexpected error - release payment from PROCESSING if we claimed it
+      if (payment && payment.status === PaymentStatus.PROCESSING) {
+        this.logger.error(`[VERIFY] Unexpected error for payment ${paymentId}, releasing from PROCESSING:`, error);
+        await this.releasePaymentFromProcessing(paymentId, `ข้อผิดพลาดระบบ: ${error.message}`);
+      }
+      throw error;
     } finally {
       await this.redisService.releaseLock(lockKey, lockToken);
     }
@@ -682,10 +916,11 @@ export class PaymentsService {
 
     // STEP 1: Atomically claim the payment AND set quotaGranted=true
     // This prevents race conditions where two admins try to approve simultaneously
+    // Can approve PENDING or PROCESSING payments (PROCESSING may need manual approval if stuck)
     const payment = await this.paymentModel.findOneAndUpdate(
       {
         _id: paymentId,
-        status: PaymentStatus.PENDING,
+        status: { $in: [PaymentStatus.PENDING, PaymentStatus.PROCESSING] },
         quotaGranted: { $ne: true }, // Extra safety: ensure quota not already granted
       },
       {
@@ -694,6 +929,7 @@ export class PaymentsService {
         verifiedAt: new Date(),
         adminNotes: `อนุมัติโดย Admin: ${adminId}`,
         quotaGranted: true, // Set atomically with status change
+        processingStartedAt: null, // Clear processing timestamp
       },
       { new: true },
     );
@@ -813,16 +1049,17 @@ export class PaymentsService {
       throw new BadRequestException('Invalid payment ID format');
     }
 
-    // Use atomic operation
+    // Use atomic operation - can reject PENDING or PROCESSING payments
     const payment = await this.paymentModel.findOneAndUpdate(
       {
         _id: paymentId,
-        status: { $in: [PaymentStatus.PENDING] }, // Only reject pending payments
+        status: { $in: [PaymentStatus.PENDING, PaymentStatus.PROCESSING] },
       },
       {
         status: PaymentStatus.REJECTED,
         adminId,
         adminNotes: notes || 'ปฏิเสธโดย Admin',
+        processingStartedAt: null, // Clear processing timestamp
       },
       { new: true },
     );
@@ -928,18 +1165,19 @@ export class PaymentsService {
     isDuplicate: boolean;
     duplicateCount: number;
     hasPendingFromOthers: boolean;
+    hasProcessingFromOthers: boolean;
   }> {
     if (!transRef) {
-      return { isDuplicate: false, duplicateCount: 0, hasPendingFromOthers: false };
+      return { isDuplicate: false, duplicateCount: 0, hasPendingFromOthers: false, hasProcessingFromOthers: false };
     }
 
-    // Check for VERIFIED duplicates (definitely used)
-    const verifiedCount = await this.paymentModel.countDocuments({
+    // Check for VERIFIED or PROCESSING duplicates (definitely used or being processed)
+    const verifiedOrProcessingCount = await this.paymentModel.countDocuments({
       transRef,
-      status: PaymentStatus.VERIFIED,
+      status: { $in: [PaymentStatus.VERIFIED, PaymentStatus.PROCESSING] },
     });
 
-    // Also check for PENDING from OTHER users (potential fraud)
+    // Also check for PENDING/PROCESSING from OTHER users (potential fraud)
     const pendingFromOthersQuery: any = {
       transRef,
       status: PaymentStatus.PENDING,
@@ -949,10 +1187,20 @@ export class PaymentsService {
     }
     const pendingFromOthers = await this.paymentModel.countDocuments(pendingFromOthersQuery);
 
+    const processingFromOthersQuery: any = {
+      transRef,
+      status: PaymentStatus.PROCESSING,
+    };
+    if (excludeUserId) {
+      processingFromOthersQuery.userId = { $ne: excludeUserId };
+    }
+    const processingFromOthers = await this.paymentModel.countDocuments(processingFromOthersQuery);
+
     return {
-      isDuplicate: verifiedCount > 0,
-      duplicateCount: verifiedCount,
+      isDuplicate: verifiedOrProcessingCount > 0,
+      duplicateCount: verifiedOrProcessingCount,
       hasPendingFromOthers: pendingFromOthers > 0,
+      hasProcessingFromOthers: processingFromOthers > 0,
     };
   }
 

@@ -5,6 +5,7 @@ export type PaymentDocument = Payment & Document;
 
 export enum PaymentStatus {
   PENDING = 'pending',
+  PROCESSING = 'processing',  // Being verified - prevents concurrent verification
   VERIFIED = 'verified',
   REJECTED = 'rejected',
   FAILED = 'failed',
@@ -67,29 +68,75 @@ export class Payment {
    */
   @Prop()
   grantedSubscriptionId: string;
+
+  /**
+   * Timestamp when processing started.
+   * Used to detect and cleanup stuck PROCESSING payments.
+   */
+  @Prop()
+  processingStartedAt: Date;
+
+  /**
+   * Hash of slip image for quick duplicate detection.
+   * Computed before verification to enable early duplicate blocking.
+   */
+  @Prop({ index: true })
+  slipHash: string;
+
+  /**
+   * Idempotency key for verification operations.
+   * Prevents duplicate verification attempts.
+   */
+  @Prop({ index: true })
+  verificationIdempotencyKey: string;
 }
 
 export const PaymentSchema = SchemaFactory.createForClass(Payment);
 
 PaymentSchema.index({ userId: 1 });
 PaymentSchema.index({ status: 1 });
-// Prevent duplicate slip usage once verified.
-// NOTE: We avoid blocking PENDING because slips may be re-uploaded / re-verified.
+
+// CRITICAL: Prevent duplicate slip usage once verified OR being processed.
+// This blocks the same transRef from being used in multiple VERIFIED or PROCESSING payments.
 PaymentSchema.index(
   { transRef: 1 },
-  { unique: true, partialFilterExpression: { transRef: { $type: 'string' }, status: PaymentStatus.VERIFIED } },
+  {
+    unique: true,
+    partialFilterExpression: {
+      transRef: { $type: 'string' },
+      status: { $in: [PaymentStatus.VERIFIED, PaymentStatus.PROCESSING] }
+    },
+    name: 'unique_transref_verified_or_processing'
+  },
+);
+
+// CRITICAL: Prevent same slip hash from being processed simultaneously.
+// This catches duplicates BEFORE transRef is known (early detection).
+PaymentSchema.index(
+  { slipHash: 1 },
+  {
+    unique: true,
+    partialFilterExpression: {
+      slipHash: { $type: 'string' },
+      status: { $in: [PaymentStatus.PROCESSING] }
+    },
+    name: 'unique_sliphash_processing'
+  },
 );
 
 // Useful for querying user's pending payments by package
 PaymentSchema.index({ userId: 1, packageId: 1, status: 1, createdAt: -1 });
 
-// CRITICAL: Prevent duplicate pending payments for same user+package
-// This ensures a user can only have ONE pending payment per package at a time
+// CRITICAL: Prevent duplicate pending/processing payments for same user+package
+// This ensures a user can only have ONE pending OR processing payment per package at a time
 PaymentSchema.index(
   { userId: 1, packageId: 1 },
   {
     unique: true,
-    partialFilterExpression: { status: PaymentStatus.PENDING },
-    name: 'unique_pending_payment_per_user_package'
+    partialFilterExpression: { status: { $in: [PaymentStatus.PENDING, PaymentStatus.PROCESSING] } },
+    name: 'unique_pending_processing_payment_per_user_package'
   },
 );
+
+// Index for cleanup job: find stuck PROCESSING payments
+PaymentSchema.index({ status: 1, processingStartedAt: 1 });
