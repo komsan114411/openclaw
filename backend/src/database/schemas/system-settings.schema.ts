@@ -47,6 +47,22 @@ export class SystemSettings {
   @Prop({ default: true })
   slipApiQuotaWarning: boolean;
 
+  /**
+   * Failover order for slip providers
+   * Example: ['thunder', 'slipmate'] - try Thunder first, then SlipMate
+   */
+  @Prop({ type: [String], default: ['thunder'] })
+  slipProviderFailoverOrder: string[];
+
+  /**
+   * Specific API keys for each provider (alternative to slipApiKey/slipApiKeySecondary)
+   */
+  @Prop()
+  slipApiKeyThunder: string;
+
+  @Prop()
+  slipApiKeySlipMate: string;
+
   // AI Settings
   @Prop()
   aiApiKey: string;

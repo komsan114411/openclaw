@@ -8,6 +8,11 @@ import { SystemResponseTemplatesModule } from '../system-response-templates/syst
 import { SlipTemplatesModule } from '../slip-templates/slip-templates.module';
 import { BanksModule } from '../banks/banks.module';
 
+// Multi-Provider System
+import { ThunderProvider } from './providers/thunder.provider';
+import { SlipMateProvider } from './providers/slipmate.provider';
+import { SlipVerificationManager } from './slip-verification.manager';
+
 @Module({
   imports: [
     MongooseModule.forFeature([
@@ -19,8 +24,23 @@ import { BanksModule } from '../banks/banks.module';
     SlipTemplatesModule,
     BanksModule,
   ],
-  providers: [SlipVerificationService],
+  providers: [
+    // Slip Verification Providers
+    ThunderProvider,
+    SlipMateProvider,
+
+    // Manager (Auto-Failover)
+    SlipVerificationManager,
+
+    // Main Service
+    SlipVerificationService,
+  ],
   controllers: [SlipVerificationController],
-  exports: [SlipVerificationService],
+  exports: [
+    SlipVerificationService,
+    SlipVerificationManager,
+    ThunderProvider,
+    SlipMateProvider,
+  ],
 })
 export class SlipVerificationModule {}

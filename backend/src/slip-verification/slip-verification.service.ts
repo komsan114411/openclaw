@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, Optional } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import axios from 'axios';
@@ -16,6 +16,10 @@ import { SystemResponseType } from '../database/schemas/system-response-template
 import { SlipTemplatesService } from '../slip-templates/slip-templates.service';
 import { TemplateType } from '../database/schemas/slip-template.schema';
 import { BanksService } from '../banks/banks.service';
+
+// Multi-Provider System
+import { SlipVerificationManager } from './slip-verification.manager';
+import { NormalizedVerificationResult, SlipProvider } from './providers';
 
 export interface SlipVerificationResult {
   status: 'success' | 'duplicate' | 'error' | 'not_found';
@@ -48,6 +52,8 @@ export class SlipVerificationService {
     private systemResponseTemplatesService: SystemResponseTemplatesService,
     private slipTemplatesService: SlipTemplatesService,
     private banksService: BanksService,
+    // Multi-Provider Manager (Auto-Failover)
+    @Optional() private slipVerificationManager?: SlipVerificationManager,
   ) { }
 
   validateSlipImage(imageData: Buffer): { ok: boolean; message?: string } {
@@ -229,33 +235,96 @@ export class SlipVerificationService {
     messageId?: string,
     meta?: { ownerId?: string; subscriptionId?: string; reservationId?: string },
   ): Promise<SlipVerificationResult> {
-    // Use getDecryptedSettings to get actual API key, not masked version
-    const settings = await this.systemSettingsService.getDecryptedSettings();
-    const apiKey = settings?.slipApiKey;
-
-    if (!apiKey) {
-      return {
-        status: 'error',
-        message: 'ยังไม่ได้ตั้งค่า API Key สำหรับตรวจสอบสลิป',
-      };
-    }
-
     try {
-      const result = await this.verifyWithThunderAPI(imageData, apiKey);
+      let result: SlipVerificationResult;
 
-      this.logger.log(`Slip verification result: status=${result.status}, transRef=${result.data?.transRef || 'none'}`);
+      // Use Multi-Provider Manager if available (with Auto-Failover)
+      if (this.slipVerificationManager) {
+        this.logger.log('[VERIFY] Using Multi-Provider Manager with Auto-Failover');
+
+        const managerResult = await this.slipVerificationManager.verifySlip(imageData, {
+          lineAccountId,
+          lineUserId,
+          messageId,
+          ownerId: meta?.ownerId,
+          subscriptionId: meta?.subscriptionId,
+        });
+
+        // Convert NormalizedVerificationResult to SlipVerificationResult
+        result = this.convertToSlipVerificationResult(managerResult);
+
+        this.logger.log(
+          `[VERIFY] Provider: ${managerResult.provider}, Status: ${result.status}, TransRef: ${result.data?.transRef || 'none'}`,
+        );
+      } else {
+        // Fallback to legacy Thunder API (backward compatibility)
+        this.logger.log('[VERIFY] Using legacy Thunder API (no manager)');
+
+        const settings = await this.systemSettingsService.getDecryptedSettings();
+        const apiKey = settings?.slipApiKey;
+
+        if (!apiKey) {
+          return {
+            status: 'error',
+            message: 'ยังไม่ได้ตั้งค่า API Key สำหรับตรวจสอบสลิป',
+          };
+        }
+
+        result = await this.verifyWithThunderAPI(imageData, apiKey);
+
+        this.logger.log(`[VERIFY] Legacy result: status=${result.status}, transRef=${result.data?.transRef || 'none'}`);
+      }
 
       // Save to history
       await this.saveSlipHistory(lineAccountId, lineUserId, messageId, result, meta);
 
       return result;
     } catch (error) {
-      this.logger.error('Slip verification error:', error);
+      this.logger.error('[VERIFY] Slip verification error:', error);
       return {
         status: 'error',
         message: 'เกิดข้อผิดพลาดในการตรวจสอบสลิป',
       };
     }
+  }
+
+  /**
+   * Convert NormalizedVerificationResult to SlipVerificationResult
+   * เพื่อให้ format เข้ากันได้กับโค้ดเดิม
+   */
+  private convertToSlipVerificationResult(result: NormalizedVerificationResult): SlipVerificationResult {
+    return {
+      status: result.status,
+      message: result.message,
+      data: result.data
+        ? {
+            transRef: result.data.transRef,
+            amount: result.data.amount,
+            amountFormatted: result.data.amountFormatted,
+            date: result.data.date,
+            time: result.data.time,
+            senderName: result.data.senderName,
+            senderNameEn: result.data.senderNameEn,
+            senderBank: result.data.senderBank,
+            senderBankCode: result.data.senderBankCode,
+            senderAccount: result.data.senderAccount,
+            receiverName: result.data.receiverName,
+            receiverNameEn: result.data.receiverNameEn,
+            receiverBank: result.data.receiverBank,
+            receiverBankCode: result.data.receiverBankCode,
+            receiverAccount: result.data.receiverAccount,
+            receiverAccountNumber: result.data.receiverAccountNumber,
+            countryCode: result.data.countryCode,
+            fee: result.data.fee,
+            ref1: result.data.ref1,
+            ref2: result.data.ref2,
+            ref3: result.data.ref3,
+            rawData: result.data.rawData,
+            // Add provider info for debugging
+            _provider: result.provider,
+          }
+        : undefined,
+    };
   }
 
   private async verifyWithThunderAPI(
@@ -712,6 +781,9 @@ export class SlipVerificationService {
     }
   }
 
+  /**
+   * Test connection to Thunder API (legacy method - backward compatible)
+   */
   async testConnection(apiKey: string): Promise<{
     status: string;
     message: string;
@@ -744,6 +816,66 @@ export class SlipVerificationService {
         message: error.response?.data?.message || 'ไม่สามารถเชื่อมต่อ API ได้',
       };
     }
+  }
+
+  /**
+   * Test connection to a specific provider
+   * ใช้สำหรับทดสอบการเชื่อมต่อจาก Admin Dashboard
+   */
+  async testProviderConnection(provider: SlipProvider): Promise<{
+    success: boolean;
+    message: string;
+    remainingQuota?: number;
+    expiresAt?: string;
+  }> {
+    if (!this.slipVerificationManager) {
+      return {
+        success: false,
+        message: 'Multi-Provider Manager ไม่พร้อมใช้งาน',
+      };
+    }
+
+    return this.slipVerificationManager.testProviderConnection(provider);
+  }
+
+  /**
+   * Test connection to all providers
+   * ใช้สำหรับแสดงสถานะทุก Provider ใน Admin Dashboard
+   */
+  async testAllProviders(): Promise<
+    Array<{
+      provider: SlipProvider;
+      success: boolean;
+      message: string;
+      remainingQuota?: number;
+      expiresAt?: string;
+    }>
+  > {
+    if (!this.slipVerificationManager) {
+      return [
+        {
+          provider: SlipProvider.THUNDER,
+          success: false,
+          message: 'Multi-Provider Manager ไม่พร้อมใช้งาน',
+        },
+      ];
+    }
+
+    const results = await this.slipVerificationManager.testAllProviders();
+    return Array.from(results.entries()).map(([provider, result]) => ({
+      provider,
+      ...result,
+    }));
+  }
+
+  /**
+   * Get list of available providers
+   */
+  getAvailableProviders(): SlipProvider[] {
+    if (!this.slipVerificationManager) {
+      return [SlipProvider.THUNDER];
+    }
+    return this.slipVerificationManager.getAvailableProviders();
   }
 
   private async saveSlipHistory(
