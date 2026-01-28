@@ -272,6 +272,20 @@ export class SlipVerificationService {
         this.logger.log(`[VERIFY] Legacy result: status=${result.status}, transRef=${result.data?.transRef || 'none'}`);
       }
 
+      // Check for duplicate in our database (for providers that don't check duplicate themselves)
+      // This ensures we always have slip data even for duplicates
+      if (result.status === 'success' && result.data?.transRef) {
+        const isDuplicate = await this.checkDuplicateByTransRef(result.data.transRef);
+        if (isDuplicate) {
+          this.logger.log(`[VERIFY] Duplicate slip detected in database: transRef=${result.data.transRef}`);
+          result = {
+            ...result,
+            status: 'duplicate',
+            message: 'สลิปนี้เคยถูกใช้แล้ว',
+          };
+        }
+      }
+
       // Save to history
       await this.saveSlipHistory(lineAccountId, lineUserId, messageId, result, meta);
 
@@ -282,6 +296,26 @@ export class SlipVerificationService {
         status: 'error',
         message: 'เกิดข้อผิดพลาดในการตรวจสอบสลิป',
       };
+    }
+  }
+
+  /**
+   * Check if a slip with the same transRef already exists in database
+   * Used for providers that don't check duplicate themselves (e.g., SlipMate with allowDuplicate=true)
+   */
+  private async checkDuplicateByTransRef(transRef: string): Promise<boolean> {
+    if (!transRef) return false;
+
+    try {
+      const existingSlip = await this.slipHistoryModel.findOne({
+        transRef: transRef,
+        status: { $in: ['success', 'duplicate'] }, // Only count successful or duplicate slips
+      }).exec();
+
+      return !!existingSlip;
+    } catch (error) {
+      this.logger.error(`[DUPLICATE CHECK] Error checking duplicate: ${error}`);
+      return false;
     }
   }
 

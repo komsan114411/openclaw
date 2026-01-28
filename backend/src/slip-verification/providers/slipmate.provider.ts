@@ -47,8 +47,9 @@ export class SlipMateProvider implements SlipVerificationProvider {
       filename: 'slip.jpg',
       contentType: 'image/jpeg',
     });
-    // Explicitly disable duplicate allowance (check for duplicates)
-    formData.append('allowDuplicate', 'false');
+    // Allow duplicate to get full slip data - we check duplicate ourselves in database
+    // SlipMate returns 409 without slip data when allowDuplicate=false
+    formData.append('allowDuplicate', 'true');
 
     try {
       this.logger.log('[SLIPMATE] Sending verification request...');
