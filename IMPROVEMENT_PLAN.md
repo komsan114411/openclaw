@@ -31,7 +31,7 @@
 
 - ป้องกันการฉ้อโกงทางการเงิน
 - ข้อมูลมีความ Consistent มากขึ้น
-- ลด Memory Leak และปรับปรุง Performancegg
+- ลด Memory Leak และปรับปรุง Performanceggวิิ
 - ปรับปรุง User Experience
 - เพิ่มความปลอดภัยของระบบ
 
