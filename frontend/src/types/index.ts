@@ -250,7 +250,34 @@ export interface SlipTemplateListItem {
   isDefault?: boolean;
   isGlobal?: boolean;
   description?: string;
+  // Design fields for preview
+  primaryColor?: string;
+  secondaryColor?: string;
   headerText?: string;
+  footerText?: string;
+  // Display toggle fields
+  showAmount?: boolean;
+  showSender?: boolean;
+  showReceiver?: boolean;
+  showDate?: boolean;
+  showTime?: boolean;
+  showTransRef?: boolean;
+  showBankLogo?: boolean;
+  showFee?: boolean;
+  showSenderAccount?: boolean;
+  showReceiverAccount?: boolean;
+  // Advanced styling
+  themePreset?: string;
+  headerBackgroundColor?: string;
+  headerTextColor?: string;
+  headerIcon?: string;
+  amountColor?: string;
+  bodyBackgroundColor?: string;
+  cardBackgroundColor?: string;
+  showFooterBranding?: boolean;
+  footerBrandingText?: string;
+  footerBrandingName?: string;
+  layoutStyle?: string;
 }
 
 export interface WalletTransaction {

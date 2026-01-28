@@ -1407,25 +1407,33 @@ export default function UserLineAccountsPage() {
                     const template = templates.find(t => t._id === id);
                     if (!template) return null;
 
+                    // Use actual template data from API
+                    const defaultColorByType = {
+                      success: '#10b981',
+                      duplicate: '#f59e0b',
+                      error: '#ef4444',
+                      not_found: '#64748b',
+                    };
+
                     const previewTemplate: SlipTemplateForPreview = {
                       _id: template._id,
                       name: template.name,
                       type: template.type || 'success',
-                      primaryColor: template.type === 'duplicate' ? '#f59e0b' :
-                        template.type === 'error' ? '#ef4444' :
-                          template.type === 'not_found' ? '#64748b' : '#10b981',
+                      // Use template's actual color, or fall back to type-based default
+                      primaryColor: template.primaryColor || defaultColorByType[template.type] || '#10b981',
                       headerText: template.headerText,
-                      footerText: 'ขอบคุณที่ใช้บริการ',
-                      showAmount: true,
-                      showSender: true,
-                      showReceiver: true,
-                      showDate: true,
-                      showTime: true,
-                      showTransRef: true,
-                      showBankLogo: true,
-                      showFee: true,
-                      showSenderAccount: true,
-                      showReceiverAccount: true,
+                      footerText: template.footerText || 'ขอบคุณที่ใช้บริการ',
+                      // Use actual template display settings
+                      showAmount: template.showAmount ?? true,
+                      showSender: template.showSender ?? true,
+                      showReceiver: template.showReceiver ?? true,
+                      showDate: template.showDate ?? true,
+                      showTime: template.showTime ?? true,
+                      showTransRef: template.showTransRef ?? true,
+                      showBankLogo: template.showBankLogo ?? true,
+                      showFee: template.showFee ?? false,
+                      showSenderAccount: template.showSenderAccount ?? false,
+                      showReceiverAccount: template.showReceiverAccount ?? false,
                     };
 
                     return (
