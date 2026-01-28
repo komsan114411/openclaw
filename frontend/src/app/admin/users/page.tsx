@@ -33,6 +33,7 @@ export default function UsersPage() {
   const [users, setUsers] = useState<User[]>([]);
   const [packages, setPackages] = useState<Package[]>([]);
   const [growthData, setGrowthData] = useState<GrowthData[]>([]);
+  const [growthError, setGrowthError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isLoadingGrowth, setIsLoadingGrowth] = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -90,11 +91,14 @@ export default function UsersPage() {
 
   const fetchGrowthData = useCallback(async () => {
     setIsLoadingGrowth(true);
+    setGrowthError(null);
     try {
       const res = await usersApi.getGrowth(30);
+      console.log('Growth API response:', res.data);
       setGrowthData(res.data.growth || []);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error fetching growth data:', error);
+      setGrowthError(error?.response?.data?.message || error?.message || 'ไม่สามารถโหลดข้อมูลได้');
     } finally {
       setIsLoadingGrowth(false);
     }
@@ -278,6 +282,16 @@ export default function UsersPage() {
           {isLoadingGrowth ? (
             <div className="h-[300px] flex items-center justify-center">
               <Spinner size="lg" />
+            </div>
+          ) : growthError ? (
+            <div className="h-[300px] flex items-center justify-center text-rose-400">
+              <div className="text-center">
+                <p className="text-lg mb-2">⚠️ เกิดข้อผิดพลาด</p>
+                <p className="text-sm">{growthError}</p>
+                <Button variant="ghost" size="sm" onClick={fetchGrowthData} className="mt-4">
+                  ลองใหม่
+                </Button>
+              </div>
             </div>
           ) : growthData.length > 0 ? (
             <div className="h-[300px]">
