@@ -92,7 +92,7 @@ const defaultFormData: FormData = {
   backgroundColor: '#06C755',
   textColor: '#FFFFFF',
   priority: 0,
-  targetPages: ['all'],
+  targetPages: ['user'],
 };
 
 // Color presets for quick selection
@@ -317,12 +317,8 @@ export default function AnnouncementsPage() {
     return <Badge variant="success">แสดงอยู่</Badge>;
   };
 
-  const getTargetPageLabel = (pages: string[]) => {
-    if (pages.includes('all')) return 'ทุกหน้า';
-    if (pages.includes('public') && pages.includes('user')) return 'ทุกหน้า';
-    if (pages.includes('public')) return 'หน้าสาธารณะ';
-    if (pages.includes('user')) return 'หน้าผู้ใช้';
-    return 'ทุกหน้า';
+  const getTargetPageLabel = () => {
+    return 'หลังล็อกอิน';
   };
 
   // Filter announcements based on tab
@@ -495,7 +491,7 @@ export default function AnnouncementsPage() {
                             {announcement.displayType === 'banner' ? 'แบนเนอร์' : 'ป็อปอัพ'}
                           </Badge>
                           <Badge variant="outline" className="text-[10px]">
-                            {getTargetPageLabel(announcement.targetPages)}
+                            {getTargetPageLabel()}
                           </Badge>
                         </div>
                         {announcement.message && (
@@ -679,10 +675,9 @@ export default function AnnouncementsPage() {
                     onChange={(e) => setFormData({ ...formData, targetPages: [e.target.value] })}
                     className="w-full h-11 px-3 bg-slate-800 border border-slate-700 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
                   >
-                    <option value="all">ทุกหน้า</option>
-                    <option value="public">หน้าสาธารณะ</option>
-                    <option value="user">หน้าผู้ใช้</option>
+                    <option value="user">หน้าผู้ใช้ (หลังล็อกอิน)</option>
                   </select>
+                  <p className="text-xs text-slate-500 mt-1">* ประกาศจะแสดงเฉพาะหลังล็อกอินเท่านั้น</p>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-slate-300 mb-2">ลำดับความสำคัญ</label>
