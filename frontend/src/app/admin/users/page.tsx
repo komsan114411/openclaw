@@ -301,11 +301,11 @@ export default function UsersPage() {
               <ResponsiveContainer width="100%" height="100%">
                 <AreaChart data={growthData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
                   <defs>
-                    <linearGradient id="colorTotal" x1="0" y1="0" x2="0" y2="1">
+                    <linearGradient id="colorTotalUsers" x1="0" y1="0" x2="0" y2="1">
                       <stop offset="5%" stopColor="#06C755" stopOpacity={0.3} />
                       <stop offset="95%" stopColor="#06C755" stopOpacity={0} />
                     </linearGradient>
-                    <linearGradient id="colorCount" x1="0" y1="0" x2="0" y2="1">
+                    <linearGradient id="colorCountUsers" x1="0" y1="0" x2="0" y2="1">
                       <stop offset="5%" stopColor="#8B5CF6" stopOpacity={0.3} />
                       <stop offset="95%" stopColor="#8B5CF6" stopOpacity={0} />
                     </linearGradient>
@@ -352,7 +352,7 @@ export default function UsersPage() {
                     stroke="#06C755"
                     strokeWidth={2}
                     fillOpacity={1}
-                    fill="url(#colorTotal)"
+                    fill="url(#colorTotalUsers)"
                     name="total"
                   />
                   <Area
@@ -361,7 +361,7 @@ export default function UsersPage() {
                     stroke="#8B5CF6"
                     strokeWidth={2}
                     fillOpacity={1}
-                    fill="url(#colorCount)"
+                    fill="url(#colorCountUsers)"
                     name="count"
                   />
                 </AreaChart>
