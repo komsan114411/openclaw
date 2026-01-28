@@ -262,11 +262,14 @@ export default function UsersPage() {
         </div>
 
         {/* User Growth Chart */}
-        <Card variant="glass" className="p-4 sm:p-6 lg:p-8">
+        <Card variant="glass" className="p-4 sm:p-6 lg:p-8 mt-6">
           <div className="flex items-center justify-between mb-6">
             <div>
               <h3 className="text-lg sm:text-xl font-bold text-white">การเติบโตผู้ใช้</h3>
-              <p className="text-xs text-slate-400 mt-1">ข้อมูลย้อนหลัง 30 วัน</p>
+              <p className="text-xs text-slate-400 mt-1">
+                ข้อมูลย้อนหลัง 30 วัน |
+                สถานะ: {isLoadingGrowth ? 'กำลังโหลด...' : growthError ? 'Error' : `${growthData.length} รายการ`}
+              </p>
             </div>
             <Button
               variant="ghost"
