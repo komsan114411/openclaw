@@ -3,6 +3,7 @@ import { InjectModel, InjectConnection } from '@nestjs/mongoose';
 import { Model, Types, ClientSession, Connection } from 'mongoose';
 import { Wallet, WalletDocument } from '../database/schemas/wallet.schema';
 import { CreditTransaction, CreditTransactionDocument, TransactionType, TransactionStatus } from '../database/schemas/credit-transaction.schema';
+import { WalletOperationLog, WalletOperationLogDocument, WalletOperationType, WalletOperationStatus } from '../database/schemas/wallet-operation-log.schema';
 import { SlipVerificationService } from '../slip-verification/slip-verification.service';
 import { SystemSettingsService } from '../system-settings/system-settings.service';
 import { SubscriptionsService } from '../subscriptions/subscriptions.service';
@@ -17,6 +18,7 @@ export class WalletService {
     constructor(
         @InjectModel(Wallet.name) private walletModel: Model<WalletDocument>,
         @InjectModel(CreditTransaction.name) private transactionModel: Model<CreditTransactionDocument>,
+        @InjectModel(WalletOperationLog.name) private operationLogModel: Model<WalletOperationLogDocument>,
         @InjectConnection() private connection: Connection,
         @Inject(forwardRef(() => SlipVerificationService))
         private slipVerificationService: SlipVerificationService,
@@ -27,6 +29,155 @@ export class WalletService {
         private redisService: RedisService,
         private blockchainVerificationService: BlockchainVerificationService,
     ) { }
+
+    /**
+     * Generate idempotency key for an operation
+     */
+    private generateIdempotencyKey(
+        operationType: WalletOperationType,
+        userId: string,
+        uniqueId: string,
+    ): string {
+        return `${operationType}:${userId}:${uniqueId}`;
+    }
+
+    /**
+     * Check if an operation was already processed (idempotency check)
+     */
+    private async checkIdempotency(idempotencyKey: string): Promise<WalletOperationLogDocument | null> {
+        return this.operationLogModel.findOne({
+            idempotencyKey,
+            status: { $in: [WalletOperationStatus.COMMITTED, WalletOperationStatus.REFUNDED] },
+        });
+    }
+
+    /**
+     * Log operation start
+     */
+    private async logOperationStart(
+        idempotencyKey: string,
+        userId: string,
+        walletId: Types.ObjectId,
+        operationType: WalletOperationType,
+        amount: number,
+        balanceBefore: number,
+        description: string,
+        metadata?: Record<string, unknown>,
+    ): Promise<WalletOperationLogDocument> {
+        return this.operationLogModel.create({
+            idempotencyKey,
+            userId: new Types.ObjectId(userId),
+            walletId,
+            operationType,
+            status: WalletOperationStatus.STARTED,
+            amount,
+            balanceBefore,
+            description,
+            metadata,
+            startedAt: new Date(),
+            steps: [{
+                step: 'Operation started',
+                status: 'success',
+                timestamp: new Date(),
+            }],
+        });
+    }
+
+    /**
+     * Update operation log with step progress
+     */
+    private async logOperationStep(
+        logId: Types.ObjectId,
+        step: string,
+        status: 'pending' | 'success' | 'failed',
+        data?: Record<string, unknown>,
+        error?: string,
+    ): Promise<void> {
+        await this.operationLogModel.findByIdAndUpdate(logId, {
+            $push: {
+                steps: {
+                    step,
+                    status,
+                    timestamp: new Date(),
+                    data,
+                    error,
+                },
+            },
+        });
+    }
+
+    /**
+     * Mark operation as committed
+     */
+    private async logOperationCommit(
+        logId: Types.ObjectId,
+        balanceAfter: number,
+        transactionId?: Types.ObjectId,
+        subscriptionId?: Types.ObjectId,
+    ): Promise<void> {
+        await this.operationLogModel.findByIdAndUpdate(logId, {
+            status: WalletOperationStatus.COMMITTED,
+            balanceAfter,
+            transactionId,
+            subscriptionId,
+            committedAt: new Date(),
+            $push: {
+                steps: {
+                    step: 'Operation committed',
+                    status: 'success',
+                    timestamp: new Date(),
+                },
+            },
+        });
+    }
+
+    /**
+     * Mark operation as rolled back
+     */
+    private async logOperationRollback(
+        logId: Types.ObjectId,
+        errorMessage: string,
+        errorStack?: string,
+    ): Promise<void> {
+        await this.operationLogModel.findByIdAndUpdate(logId, {
+            status: WalletOperationStatus.ROLLED_BACK,
+            errorMessage,
+            errorStack: process.env.NODE_ENV !== 'production' ? errorStack : undefined,
+            rolledBackAt: new Date(),
+            $push: {
+                steps: {
+                    step: 'Operation rolled back',
+                    status: 'failed',
+                    timestamp: new Date(),
+                    error: errorMessage,
+                },
+            },
+        });
+    }
+
+    /**
+     * Mark operation as failed (needs manual intervention)
+     */
+    private async logOperationFailed(
+        logId: Types.ObjectId,
+        errorMessage: string,
+        errorStack?: string,
+    ): Promise<void> {
+        await this.operationLogModel.findByIdAndUpdate(logId, {
+            status: WalletOperationStatus.FAILED,
+            errorMessage,
+            errorStack: process.env.NODE_ENV !== 'production' ? errorStack : undefined,
+            failedAt: new Date(),
+            $push: {
+                steps: {
+                    step: 'Operation failed - needs manual review',
+                    status: 'failed',
+                    timestamp: new Date(),
+                    error: errorMessage,
+                },
+            },
+        });
+    }
 
 
 
@@ -250,35 +401,72 @@ export class WalletService {
                     return { success: false, message: 'ไม่สามารถอ่านยอดเงินจากสลิปได้' };
                 }
 
-                // Atomic update wallet and transaction
-                const newBalance = wallet.balance + depositAmount;
+                // CRITICAL FIX: Use MongoDB transaction for atomic wallet + transaction update
+                const depositSession = await this.connection.startSession();
+                let newBalance = 0;
 
-                await this.walletModel.findByIdAndUpdate(wallet._id, {
-                    $inc: {
-                        balance: depositAmount,
-                        totalDeposited: depositAmount,
-                    },
-                });
+                try {
+                    await depositSession.withTransaction(async () => {
+                        // Get fresh wallet balance within transaction
+                        const freshWallet = await this.walletModel
+                            .findById(wallet._id)
+                            .session(depositSession);
 
-                await this.transactionModel.findByIdAndUpdate(transaction._id, {
-                    amount: depositAmount,
-                    balanceAfter: newBalance,
-                    transRef: result.data.transRef,
-                    description: `เติมเครดิต ฿${depositAmount}`,
-                    status: TransactionStatus.COMPLETED,
-                    completedAt: new Date(),
-                    verificationResult: result.data,
-                });
+                        if (!freshWallet) {
+                            throw new Error('Wallet not found');
+                        }
 
-                this.logger.log(`User ${userId} deposited ฿${depositAmount}, new balance: ฿${newBalance}`);
+                        newBalance = freshWallet.balance + depositAmount;
 
-                return {
-                    success: true,
-                    message: `เติมเครดิตสำเร็จ ฿${depositAmount}`,
-                    amount: depositAmount,
-                    balance: newBalance,
-                    transactionId: transaction._id.toString(),
-                };
+                        // Update wallet atomically
+                        await this.walletModel.findByIdAndUpdate(
+                            wallet._id,
+                            {
+                                $inc: {
+                                    balance: depositAmount,
+                                    totalDeposited: depositAmount,
+                                },
+                            },
+                            { session: depositSession }
+                        );
+
+                        // Update transaction atomically
+                        await this.transactionModel.findByIdAndUpdate(
+                            transaction._id,
+                            {
+                                amount: depositAmount,
+                                balanceBefore: freshWallet.balance,
+                                balanceAfter: newBalance,
+                                transRef: result.data!.transRef,
+                                description: `เติมเครดิต ฿${depositAmount}`,
+                                status: TransactionStatus.COMPLETED,
+                                completedAt: new Date(),
+                                verificationResult: result.data!,
+                            },
+                            { session: depositSession }
+                        );
+                    });
+
+                    this.logger.log(`[ATOMIC] User ${userId} deposited ฿${depositAmount}, new balance: ฿${newBalance}`);
+
+                    return {
+                        success: true,
+                        message: `เติมเครดิตสำเร็จ ฿${depositAmount}`,
+                        amount: depositAmount,
+                        balance: newBalance,
+                        transactionId: transaction._id.toString(),
+                    };
+                } catch (txError) {
+                    this.logger.error(`Deposit transaction failed for user ${userId}:`, txError);
+                    // Mark transaction as failed
+                    await this.transactionModel.findByIdAndUpdate(transaction._id, {
+                        status: TransactionStatus.REJECTED,
+                        adminNotes: 'Transaction failed during commit',
+                    });
+                    return { success: false, message: 'เกิดข้อผิดพลาดในการเติมเครดิต กรุณาลองใหม่' };
+                } finally {
+                    await depositSession.endSession();
+                }
             } else if (result.status === 'duplicate') {
                 await this.transactionModel.findByIdAndUpdate(transaction._id, {
                     status: TransactionStatus.REJECTED,
@@ -522,58 +710,95 @@ export class WalletService {
                 this.logger.warn(`Rate fetch failed, using fallback: ${rateError.message}`);
             }
 
-            // Get wallet
-            const wallet = await this.getOrCreateWallet(userId);
-            const newBalance = wallet.balance + thbCredits;
+            // CRITICAL FIX: Use MongoDB transaction for atomic wallet + transaction creation
+            const usdtSession = await this.connection.startSession();
+            let newBalance = 0;
+            let transactionId = '';
 
-            // Create COMPLETED transaction record
-            await this.transactionModel.create({
-                userId: new Types.ObjectId(userId),
-                walletId: wallet._id,
-                type: TransactionType.DEPOSIT,
-                amount: thbCredits,
-                balanceBefore: wallet.balance,
-                balanceAfter: newBalance,
-                description: `เติมเงินผ่าน USDT - ${creditUsdtAmount} USDT`,
-                status: TransactionStatus.COMPLETED,
-                transRef: sanitizedTxHash,
-                metadata: {
-                    paymentMethod: 'usdt',
-                    transactionHash: sanitizedTxHash,
-                    usdtAmount: creditUsdtAmount, // What user entered (and was credited)
-                    actualUsdtAmount: actualAmount, // What blockchain shows (for audit)
-                    network,
-                    verificationResult,
+            try {
+                await usdtSession.withTransaction(async () => {
+                    // Get wallet within transaction
+                    let wallet = await this.walletModel
+                        .findOne({ userId: new Types.ObjectId(userId) })
+                        .session(usdtSession);
+
+                    if (!wallet) {
+                        // Create wallet within transaction if not exists
+                        [wallet] = await this.walletModel.create([{
+                            userId: new Types.ObjectId(userId),
+                            balance: 0,
+                            totalDeposited: 0,
+                            totalSpent: 0,
+                        }], { session: usdtSession });
+                    }
+
+                    newBalance = wallet.balance + thbCredits;
+
+                    // Create COMPLETED transaction record within transaction
+                    const [transaction] = await this.transactionModel.create([{
+                        userId: new Types.ObjectId(userId),
+                        walletId: wallet._id,
+                        type: TransactionType.DEPOSIT,
+                        amount: thbCredits,
+                        balanceBefore: wallet.balance,
+                        balanceAfter: newBalance,
+                        description: `เติมเงินผ่าน USDT - ${creditUsdtAmount} USDT`,
+                        status: TransactionStatus.COMPLETED,
+                        completedAt: new Date(),
+                        transRef: sanitizedTxHash,
+                        metadata: {
+                            paymentMethod: 'usdt',
+                            transactionHash: sanitizedTxHash,
+                            usdtAmount: creditUsdtAmount, // What user entered (and was credited)
+                            actualUsdtAmount: actualAmount, // What blockchain shows (for audit)
+                            network,
+                            verificationResult,
+                            thbCredits,
+                            fromAddress: verificationResult.fromAddress,
+                            toAddress: verificationResult.toAddress,
+                            verifiedAt: new Date(),
+                            // Security audit fields
+                            amountValidation: {
+                                userInput: usdtAmount,
+                                blockchainAmount: actualAmount,
+                                creditedAmount: creditUsdtAmount,
+                                tolerance: '1%',
+                            },
+                        },
+                    }], { session: usdtSession });
+
+                    transactionId = transaction._id.toString();
+
+                    // Update wallet balance within transaction
+                    await this.walletModel.findByIdAndUpdate(
+                        wallet._id,
+                        { $inc: { balance: thbCredits, totalDeposited: thbCredits } },
+                        { session: usdtSession }
+                    );
+                });
+
+                this.logger.log(`[ATOMIC] USDT deposit completed: userId=${userId}, txHash=${sanitizedTxHash}, credits=${thbCredits}`);
+
+                return {
+                    success: true,
+                    message: `✅ เติมเงินสำเร็จ! ได้รับ ${thbCredits.toLocaleString()} บาท`,
+                    status: 'approved',
+                    amount: actualAmount,
                     thbCredits,
-                    fromAddress: verificationResult.fromAddress,
-                    toAddress: verificationResult.toAddress,
-                    verifiedAt: new Date(),
-                    // Security audit fields
-                    amountValidation: {
-                        userInput: usdtAmount,
-                        blockchainAmount: actualAmount,
-                        creditedAmount: creditUsdtAmount,
-                        tolerance: '1%',
-                    },
-                },
-            });
-
-            // Update wallet balance
-            await this.walletModel.findByIdAndUpdate(wallet._id, {
-                $inc: { balance: thbCredits, totalDeposited: thbCredits },
-            });
-
-            this.logger.log(`USDT deposit completed: userId=${userId}, txHash=${sanitizedTxHash}, credits=${thbCredits}`);
-
-            return {
-                success: true,
-                message: `✅ เติมเงินสำเร็จ! ได้รับ ${thbCredits.toLocaleString()} บาท`,
-                status: 'approved',
-                amount: actualAmount,
-                thbCredits,
-            };
-        } catch (error: any) {
-            this.logger.error(`USDT deposit error for user ${userId}:`, error);
+                };
+            } catch (txError: unknown) {
+                const txErrorMsg = txError instanceof Error ? txError.message : 'Unknown transaction error';
+                this.logger.error(`[ATOMIC ROLLBACK] USDT deposit transaction failed: ${txErrorMsg}`);
+                return {
+                    success: false,
+                    message: 'เกิดข้อผิดพลาดในการบันทึกธุรกรรม กรุณาลองใหม่',
+                };
+            } finally {
+                await usdtSession.endSession();
+            }
+        } catch (error: unknown) {
+            const errorMsg = error instanceof Error ? error.message : 'Unknown error';
+            this.logger.error(`USDT deposit error for user ${userId}: ${errorMsg}`);
             return {
                 success: false,
                 message: 'เกิดข้อผิดพลาดในการเติมเงิน',
@@ -590,19 +815,25 @@ export class WalletService {
      * The entire operation (debit wallet + grant subscription) either
      * succeeds completely or fails completely with automatic rollback.
      *
+     * CRITICAL FIX: Now passes MongoDB session to subscriptions service
+     * to ensure all operations are part of the same transaction.
+     *
      * Flow:
-     * 1. Begin transaction
-     * 2. Check wallet balance (within transaction)
-     * 3. Deduct from wallet (within transaction)
-     * 4. Create transaction record (within transaction)
-     * 5. Grant subscription/credit (within transaction)
-     * 6. Commit transaction
-     * 7. On any error → automatic rollback, wallet unchanged
+     * 1. Check idempotency (prevent duplicate purchases)
+     * 2. Begin transaction
+     * 3. Check wallet balance (within transaction)
+     * 4. Deduct from wallet (within transaction)
+     * 5. Create transaction record (within transaction)
+     * 6. Grant subscription/credit (within transaction with session!)
+     * 7. Commit transaction
+     * 8. On any error → automatic rollback, wallet unchanged
      *
      * Safety features:
+     * - Idempotency key prevents duplicate operations
      * - Distributed lock prevents concurrent purchases
      * - MongoDB transaction ensures atomicity
-     * - Idempotent subscription granting (via paymentId)
+     * - Session passed to subscription service for full atomicity
+     * - Operation logging for audit trail
      * - Retry-safe: won't deduct money twice for same purchase
      */
     async purchasePackage(
@@ -610,10 +841,31 @@ export class WalletService {
         packageId: string,
         packageName: string,
         packagePrice: number,
+        requestId?: string, // Optional request ID for idempotency
     ): Promise<{ success: boolean; message: string; balance?: number; transactionId?: string }> {
-        // Step 0: Acquire distributed lock to prevent concurrent purchases
+        // Generate idempotency key
+        const uniqueId = requestId || `${packageId}-${Date.now()}`;
+        const idempotencyKey = this.generateIdempotencyKey(
+            WalletOperationType.PURCHASE,
+            userId,
+            uniqueId,
+        );
+
+        // Step 0: Check idempotency - prevent duplicate purchases
+        const existingOp = await this.checkIdempotency(idempotencyKey);
+        if (existingOp) {
+            this.logger.warn(`[IDEMPOTENT] Purchase already processed: ${idempotencyKey}`);
+            return {
+                success: true,
+                message: 'การซื้อแพ็คเกจนี้ถูกดำเนินการแล้ว',
+                balance: existingOp.balanceAfter,
+                transactionId: existingOp.transactionId?.toString(),
+            };
+        }
+
+        // Step 1: Acquire distributed lock to prevent concurrent purchases
         const lockKey = `wallet:purchase:${userId}`;
-        const lockToken = await this.redisService.acquireLock(lockKey, 30);
+        const lockToken = await this.redisService.acquireLock(lockKey, 60); // Extended to 60s for safety
 
         if (!lockToken) {
             return { success: false, message: 'กำลังดำเนินการซื้อแพ็คเกจอยู่ กรุณารอสักครู่' };
@@ -621,14 +873,16 @@ export class WalletService {
 
         // Start MongoDB session for transaction
         const session = await this.connection.startSession();
+        let operationLogId: Types.ObjectId | null = null;
 
         try {
             let transactionId: string = '';
             let newBalance: number = 0;
+            let subscriptionId: string = '';
 
             // Execute all operations within a transaction
             await session.withTransaction(async () => {
-                // Step 1: Get wallet (within transaction for consistency)
+                // Step 2: Get wallet (within transaction for consistency)
                 const wallet = await this.walletModel
                     .findOne({ userId: new Types.ObjectId(userId) })
                     .session(session);
@@ -637,7 +891,7 @@ export class WalletService {
                     throw new BadRequestException('ไม่พบกระเป๋าเงินของผู้ใช้');
                 }
 
-                // Step 2: Check balance (within transaction)
+                // Step 3: Check balance (within transaction)
                 if (wallet.balance < packagePrice) {
                     throw new BadRequestException(
                         `เครดิตไม่เพียงพอ (มี ฿${wallet.balance} ต้องการ ฿${packagePrice}) กรุณาเติมเครดิตเพิ่ม`
@@ -647,13 +901,32 @@ export class WalletService {
                 // Calculate new balance
                 newBalance = wallet.balance - packagePrice;
 
-                // Step 3: Create transaction record (PENDING status until subscription succeeds)
+                // Step 4: Create operation log (outside transaction for audit even on failure)
+                const operationLog = await this.logOperationStart(
+                    idempotencyKey,
+                    userId,
+                    wallet._id,
+                    WalletOperationType.PURCHASE,
+                    -packagePrice,
+                    wallet.balance,
+                    `ซื้อแพ็คเกจ: ${packageName}`,
+                    { packageId, packageName, packagePrice },
+                );
+                operationLogId = operationLog._id;
+
+                await this.logOperationStep(operationLogId, 'Balance verified', 'success', {
+                    currentBalance: wallet.balance,
+                    requiredAmount: packagePrice,
+                });
+
+                // Step 5: Create transaction record (PENDING status until subscription succeeds)
                 const [transaction] = await this.transactionModel.create(
                     [{
                         userId: new Types.ObjectId(userId),
                         walletId: wallet._id,
                         type: TransactionType.PURCHASE,
                         amount: -packagePrice,
+                        balanceBefore: wallet.balance,
                         balanceAfter: newBalance,
                         packageId: new Types.ObjectId(packageId),
                         description: `ซื้อแพ็คเกจ: ${packageName}`,
@@ -663,7 +936,11 @@ export class WalletService {
                 );
                 transactionId = transaction._id.toString();
 
-                // Step 4: Deduct from wallet (within transaction)
+                await this.logOperationStep(operationLogId, 'Transaction record created', 'success', {
+                    transactionId,
+                });
+
+                // Step 6: Deduct from wallet (within transaction)
                 await this.walletModel.findByIdAndUpdate(
                     wallet._id,
                     {
@@ -675,19 +952,32 @@ export class WalletService {
                     { session }
                 );
 
-                // Step 5: Grant subscription/credit (within transaction context)
-                // Note: addQuotaToExisting is already idempotent via paymentId
+                await this.logOperationStep(operationLogId, 'Wallet deducted', 'success', {
+                    deductedAmount: packagePrice,
+                    newBalance,
+                });
+
+                // Step 7: Grant subscription/credit (CRITICAL: Pass session for atomicity!)
+                // This is the key fix - now the subscription operation is part of the same transaction
                 const subscriptionResult = await this.subscriptionsService.addQuotaToExisting(
                     userId,
                     packageId,
                     transactionId, // Use transactionId as paymentId for idempotency
+                    session, // CRITICAL: Pass session to ensure atomicity!
                 );
 
                 if (!subscriptionResult.success) {
-                    throw new Error('Failed to grant subscription');
+                    throw new Error('Failed to grant subscription quota');
                 }
 
-                // Step 6: Update transaction to COMPLETED
+                subscriptionId = subscriptionResult.subscriptionId;
+
+                await this.logOperationStep(operationLogId, 'Subscription quota granted', 'success', {
+                    subscriptionId,
+                    alreadyProcessed: subscriptionResult.alreadyProcessed,
+                });
+
+                // Step 8: Update transaction to COMPLETED
                 await this.transactionModel.findByIdAndUpdate(
                     transaction._id,
                     {
@@ -697,12 +987,23 @@ export class WalletService {
                     { session }
                 );
 
+                await this.logOperationStep(operationLogId, 'Transaction marked complete', 'success');
+
                 this.logger.log(
-                    `[ATOMIC TX] User ${userId} purchased package ${packageId} for ฿${packagePrice}, new balance: ฿${newBalance}`
+                    `[ATOMIC TX] User ${userId} purchased package ${packageId} for ฿${packagePrice}, new balance: ฿${newBalance}, subscription: ${subscriptionId}`
                 );
             });
 
-            // Transaction committed successfully
+            // Transaction committed successfully - update operation log
+            if (operationLogId) {
+                await this.logOperationCommit(
+                    operationLogId,
+                    newBalance,
+                    new Types.ObjectId(transactionId),
+                    subscriptionId ? new Types.ObjectId(subscriptionId) : undefined,
+                );
+            }
+
             return {
                 success: true,
                 message: `ซื้อแพ็คเกจ ${packageName} สำเร็จ`,
@@ -713,7 +1014,14 @@ export class WalletService {
         } catch (error: unknown) {
             // Transaction automatically rolled back on error
             const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+            const errorStack = error instanceof Error ? error.stack : undefined;
+
             this.logger.error(`[ATOMIC TX ROLLBACK] Purchase failed for user ${userId}: ${errorMessage}`);
+
+            // Update operation log with rollback status
+            if (operationLogId) {
+                await this.logOperationRollback(operationLogId, errorMessage, errorStack);
+            }
 
             // Check if it's a balance error (user-friendly message)
             if (errorMessage.includes('เครดิตไม่เพียงพอ')) {
@@ -733,6 +1041,7 @@ export class WalletService {
 
     /**
      * Admin: Add bonus credits to user
+     * CRITICAL FIX: Now uses MongoDB transaction for atomicity
      */
     async addBonus(
         userId: string,
@@ -748,36 +1057,66 @@ export class WalletService {
             throw new BadRequestException('กำลังดำเนินการอยู่ กรุณารอสักครู่');
         }
 
+        const session = await this.connection.startSession();
+
         try {
-            const wallet = await this.getOrCreateWallet(userId);
-            const newBalance = wallet.balance + amount;
+            let newBalance = 0;
 
-            await this.transactionModel.create({
-                userId: new Types.ObjectId(userId),
-                walletId: wallet._id,
-                type: TransactionType.BONUS,
-                amount,
-                balanceAfter: newBalance,
-                description,
-                status: TransactionStatus.COMPLETED,
-                completedAt: new Date(),
-                processedBy: new Types.ObjectId(adminId),
+            await session.withTransaction(async () => {
+                // Get or create wallet within transaction
+                let wallet = await this.walletModel
+                    .findOne({ userId: new Types.ObjectId(userId) })
+                    .session(session);
+
+                if (!wallet) {
+                    [wallet] = await this.walletModel.create([{
+                        userId: new Types.ObjectId(userId),
+                        balance: 0,
+                        totalDeposited: 0,
+                        totalSpent: 0,
+                    }], { session });
+                }
+
+                newBalance = wallet.balance + amount;
+
+                // Create transaction record within DB transaction
+                await this.transactionModel.create([{
+                    userId: new Types.ObjectId(userId),
+                    walletId: wallet._id,
+                    type: TransactionType.BONUS,
+                    amount,
+                    balanceBefore: wallet.balance,
+                    balanceAfter: newBalance,
+                    description,
+                    status: TransactionStatus.COMPLETED,
+                    completedAt: new Date(),
+                    processedBy: new Types.ObjectId(adminId),
+                }], { session });
+
+                // Update wallet within DB transaction
+                await this.walletModel.findByIdAndUpdate(
+                    wallet._id,
+                    { $inc: { balance: amount, totalDeposited: amount } },
+                    { session }
+                );
             });
 
-            await this.walletModel.findByIdAndUpdate(wallet._id, {
-                $inc: { balance: amount, totalDeposited: amount },
-            });
-
-            this.logger.log(`Admin ${adminId} added ฿${amount} bonus to user ${userId}`);
+            this.logger.log(`[ATOMIC] Admin ${adminId} added ฿${amount} bonus to user ${userId}`);
 
             return { success: true, balance: newBalance };
+        } catch (error: unknown) {
+            const errorMsg = error instanceof Error ? error.message : 'Unknown error';
+            this.logger.error(`[ATOMIC ROLLBACK] Add bonus failed: ${errorMsg}`);
+            throw new BadRequestException('เกิดข้อผิดพลาดในการเพิ่มโบนัส กรุณาลองใหม่');
         } finally {
+            await session.endSession();
             await this.redisService.releaseLock(lockKey, lockToken);
         }
     }
 
     /**
      * Admin: Deduct credits from user (with balance check)
+     * CRITICAL FIX: Now uses MongoDB transaction for atomicity
      */
     async deductCredits(
         userId: string,
@@ -793,39 +1132,67 @@ export class WalletService {
             return { success: false, message: 'กำลังดำเนินการอยู่ กรุณารอสักครู่' };
         }
 
+        const session = await this.connection.startSession();
+
         try {
-            const wallet = await this.getOrCreateWallet(userId);
+            let newBalance = 0;
 
-            // Check if user has enough balance
-            if (wallet.balance < amount) {
-                return {
-                    success: false,
-                    message: `ไม่สามารถหักเครดิตได้ (มี ฿${wallet.balance} ต้องการหัก ฿${amount})`,
-                };
-            }
+            await session.withTransaction(async () => {
+                // Get wallet within transaction
+                const wallet = await this.walletModel
+                    .findOne({ userId: new Types.ObjectId(userId) })
+                    .session(session);
 
-            const newBalance = wallet.balance - amount;
+                if (!wallet) {
+                    throw new BadRequestException('ไม่พบกระเป๋าเงินของผู้ใช้');
+                }
 
-            await this.transactionModel.create({
-                userId: new Types.ObjectId(userId),
-                walletId: wallet._id,
-                type: TransactionType.ADJUSTMENT,
-                amount: -amount, // Negative for deduction
-                balanceAfter: newBalance,
-                description: `หักเครดิต: ${description}`,
-                status: TransactionStatus.COMPLETED,
-                completedAt: new Date(),
-                processedBy: new Types.ObjectId(adminId),
+                // Check if user has enough balance (within transaction for consistency)
+                if (wallet.balance < amount) {
+                    throw new BadRequestException(
+                        `ไม่สามารถหักเครดิตได้ (มี ฿${wallet.balance} ต้องการหัก ฿${amount})`
+                    );
+                }
+
+                newBalance = wallet.balance - amount;
+
+                // Create transaction record within DB transaction
+                await this.transactionModel.create([{
+                    userId: new Types.ObjectId(userId),
+                    walletId: wallet._id,
+                    type: TransactionType.ADJUSTMENT,
+                    amount: -amount, // Negative for deduction
+                    balanceBefore: wallet.balance,
+                    balanceAfter: newBalance,
+                    description: `หักเครดิต: ${description}`,
+                    status: TransactionStatus.COMPLETED,
+                    completedAt: new Date(),
+                    processedBy: new Types.ObjectId(adminId),
+                }], { session });
+
+                // Update wallet within DB transaction
+                await this.walletModel.findByIdAndUpdate(
+                    wallet._id,
+                    { $inc: { balance: -amount } },
+                    { session }
+                );
             });
 
-            await this.walletModel.findByIdAndUpdate(wallet._id, {
-                $inc: { balance: -amount },
-            });
-
-            this.logger.log(`Admin ${adminId} deducted ฿${amount} from user ${userId}`);
+            this.logger.log(`[ATOMIC] Admin ${adminId} deducted ฿${amount} from user ${userId}`);
 
             return { success: true, message: `หักเครดิต ฿${amount} สำเร็จ`, balance: newBalance };
+        } catch (error: unknown) {
+            const errorMsg = error instanceof Error ? error.message : 'Unknown error';
+            this.logger.error(`[ATOMIC ROLLBACK] Deduct credits failed: ${errorMsg}`);
+
+            // Return user-friendly message for balance errors
+            if (errorMsg.includes('ไม่สามารถหักเครดิตได้')) {
+                return { success: false, message: errorMsg };
+            }
+
+            return { success: false, message: 'เกิดข้อผิดพลาดในการหักเครดิต กรุณาลองใหม่' };
         } finally {
+            await session.endSession();
             await this.redisService.releaseLock(lockKey, lockToken);
         }
     }
@@ -1106,5 +1473,365 @@ export class WalletService {
                 createdAt: tx.createdAt,
             })),
         };
+    }
+
+    // ============================================
+    // ADMIN REFUND INTERFACE
+    // ============================================
+
+    /**
+     * Admin: Get failed operations that may need refund
+     * Returns operations that failed after money was deducted but before quota was granted
+     */
+    async getFailedOperations(
+        limit = 50,
+        offset = 0,
+    ): Promise<{
+        operations: any[];
+        total: number;
+    }> {
+        const [operations, total] = await Promise.all([
+            this.operationLogModel
+                .find({
+                    status: { $in: [WalletOperationStatus.FAILED, WalletOperationStatus.ROLLED_BACK] },
+                })
+                .sort({ createdAt: -1 })
+                .skip(offset)
+                .limit(limit)
+                .populate('userId', 'username email fullName')
+                .lean()
+                .exec(),
+            this.operationLogModel.countDocuments({
+                status: { $in: [WalletOperationStatus.FAILED, WalletOperationStatus.ROLLED_BACK] },
+            }),
+        ]);
+
+        return { operations, total };
+    }
+
+    /**
+     * Admin: Get operation log by ID for review
+     */
+    async getOperationLog(operationId: string): Promise<any | null> {
+        return this.operationLogModel
+            .findById(operationId)
+            .populate('userId', 'username email fullName')
+            .populate('transactionId')
+            .lean()
+            .exec();
+    }
+
+    /**
+     * Admin: Refund a failed purchase operation
+     *
+     * This method is used when:
+     * 1. Money was deducted from user's wallet
+     * 2. But quota grant failed
+     * 3. Transaction was rolled back but money may still be stuck
+     *
+     * The refund:
+     * 1. Creates a REFUND transaction
+     * 2. Adds money back to user's wallet
+     * 3. Updates operation log with refund info
+     *
+     * CRITICAL: This uses MongoDB transaction for atomicity
+     */
+    async refundFailedOperation(
+        operationId: string,
+        adminId: string,
+        reason: string,
+    ): Promise<{ success: boolean; message: string; refundTransactionId?: string }> {
+        // Validate operation ID
+        if (!Types.ObjectId.isValid(operationId)) {
+            return { success: false, message: 'ID การดำเนินการไม่ถูกต้อง' };
+        }
+
+        // Get the operation log
+        const operation = await this.operationLogModel.findById(operationId);
+        if (!operation) {
+            return { success: false, message: 'ไม่พบการดำเนินการ' };
+        }
+
+        // Only allow refund for failed or rolled back operations
+        if (![WalletOperationStatus.FAILED, WalletOperationStatus.ROLLED_BACK].includes(operation.status)) {
+            return { success: false, message: 'การดำเนินการนี้ไม่อยู่ในสถานะที่สามารถคืนเงินได้' };
+        }
+
+        // Check if already refunded
+        if (operation.refundInfo) {
+            return { success: false, message: 'การดำเนินการนี้ถูกคืนเงินแล้ว' };
+        }
+
+        // Only refund purchase operations (negative amounts)
+        if (operation.amount >= 0) {
+            return { success: false, message: 'ไม่สามารถคืนเงินสำหรับการดำเนินการนี้ (ไม่ใช่การหักเงิน)' };
+        }
+
+        const refundAmount = Math.abs(operation.amount);
+        const userId = operation.userId.toString();
+
+        // Use distributed lock
+        const lockKey = `wallet:refund:${userId}`;
+        const lockToken = await this.redisService.acquireLock(lockKey, 30);
+
+        if (!lockToken) {
+            return { success: false, message: 'กำลังดำเนินการอยู่ กรุณารอสักครู่' };
+        }
+
+        const session = await this.connection.startSession();
+
+        try {
+            let refundTransactionId = '';
+            let newBalance = 0;
+
+            await session.withTransaction(async () => {
+                // Get wallet within transaction
+                const wallet = await this.walletModel
+                    .findOne({ userId: new Types.ObjectId(userId) })
+                    .session(session);
+
+                if (!wallet) {
+                    throw new BadRequestException('ไม่พบกระเป๋าเงินของผู้ใช้');
+                }
+
+                newBalance = wallet.balance + refundAmount;
+
+                // Create refund transaction
+                const [refundTransaction] = await this.transactionModel.create([{
+                    userId: new Types.ObjectId(userId),
+                    walletId: wallet._id,
+                    type: TransactionType.REFUND,
+                    amount: refundAmount,
+                    balanceBefore: wallet.balance,
+                    balanceAfter: newBalance,
+                    description: `คืนเงิน: ${reason}`,
+                    status: TransactionStatus.COMPLETED,
+                    completedAt: new Date(),
+                    processedBy: new Types.ObjectId(adminId),
+                    metadata: {
+                        refundedOperationId: operationId,
+                        originalAmount: operation.amount,
+                        originalOperation: operation.operationType,
+                        refundReason: reason,
+                    },
+                }], { session });
+
+                refundTransactionId = refundTransaction._id.toString();
+
+                // Update wallet balance
+                await this.walletModel.findByIdAndUpdate(
+                    wallet._id,
+                    { $inc: { balance: refundAmount } },
+                    { session }
+                );
+            });
+
+            // Update operation log with refund info (outside transaction is OK since it's just logging)
+            await this.operationLogModel.findByIdAndUpdate(operationId, {
+                status: WalletOperationStatus.REFUNDED,
+                refundInfo: {
+                    refundedBy: new Types.ObjectId(adminId),
+                    refundedAt: new Date(),
+                    refundTransactionId: new Types.ObjectId(refundTransactionId),
+                    reason,
+                },
+                $push: {
+                    steps: {
+                        step: 'Refunded by admin',
+                        status: 'success',
+                        timestamp: new Date(),
+                        data: {
+                            refundAmount,
+                            newBalance,
+                            adminId,
+                            reason,
+                        },
+                    },
+                },
+            });
+
+            this.logger.log(
+                `[REFUND] Admin ${adminId} refunded ฿${refundAmount} to user ${userId} for operation ${operationId}`
+            );
+
+            return {
+                success: true,
+                message: `คืนเงิน ฿${refundAmount.toLocaleString()} สำเร็จ`,
+                refundTransactionId,
+            };
+        } catch (error: unknown) {
+            const errorMsg = error instanceof Error ? error.message : 'Unknown error';
+            this.logger.error(`[REFUND FAILED] Refund failed for operation ${operationId}: ${errorMsg}`);
+            return { success: false, message: 'เกิดข้อผิดพลาดในการคืนเงิน กรุณาลองใหม่' };
+        } finally {
+            await session.endSession();
+            await this.redisService.releaseLock(lockKey, lockToken);
+        }
+    }
+
+    /**
+     * Admin: Manual refund for any completed purchase transaction
+     *
+     * Use this when:
+     * 1. User purchased but package/quota has issues
+     * 2. User requests refund for valid reason
+     *
+     * This does NOT revoke the granted quota - admin should do that separately if needed
+     */
+    async refundTransaction(
+        transactionId: string,
+        adminId: string,
+        reason: string,
+    ): Promise<{ success: boolean; message: string; refundTransactionId?: string }> {
+        // Validate transaction ID
+        if (!Types.ObjectId.isValid(transactionId)) {
+            return { success: false, message: 'ID ธุรกรรมไม่ถูกต้อง' };
+        }
+
+        // Get the original transaction
+        const originalTx = await this.transactionModel.findById(transactionId);
+        if (!originalTx) {
+            return { success: false, message: 'ไม่พบธุรกรรม' };
+        }
+
+        // Only allow refund for completed purchase transactions
+        if (originalTx.status !== TransactionStatus.COMPLETED) {
+            return { success: false, message: 'ธุรกรรมนี้ไม่อยู่ในสถานะที่สามารถคืนเงินได้' };
+        }
+
+        if (originalTx.type !== TransactionType.PURCHASE) {
+            return { success: false, message: 'สามารถคืนเงินได้เฉพาะธุรกรรมการซื้อเท่านั้น' };
+        }
+
+        // Check if amount is negative (purchase)
+        if (originalTx.amount >= 0) {
+            return { success: false, message: 'ไม่สามารถคืนเงินสำหรับธุรกรรมนี้ได้' };
+        }
+
+        // Check if already refunded
+        const existingRefund = await this.transactionModel.findOne({
+            'metadata.refundedTransactionId': transactionId,
+            type: TransactionType.REFUND,
+        });
+
+        if (existingRefund) {
+            return { success: false, message: 'ธุรกรรมนี้ถูกคืนเงินแล้ว' };
+        }
+
+        const refundAmount = Math.abs(originalTx.amount);
+        const userId = originalTx.userId.toString();
+
+        // Use distributed lock
+        const lockKey = `wallet:refund:${userId}`;
+        const lockToken = await this.redisService.acquireLock(lockKey, 30);
+
+        if (!lockToken) {
+            return { success: false, message: 'กำลังดำเนินการอยู่ กรุณารอสักครู่' };
+        }
+
+        const session = await this.connection.startSession();
+
+        try {
+            let refundTransactionId = '';
+
+            await session.withTransaction(async () => {
+                // Get wallet within transaction
+                const wallet = await this.walletModel
+                    .findOne({ userId: new Types.ObjectId(userId) })
+                    .session(session);
+
+                if (!wallet) {
+                    throw new BadRequestException('ไม่พบกระเป๋าเงินของผู้ใช้');
+                }
+
+                const newBalance = wallet.balance + refundAmount;
+
+                // Create refund transaction
+                const [refundTransaction] = await this.transactionModel.create([{
+                    userId: new Types.ObjectId(userId),
+                    walletId: wallet._id,
+                    type: TransactionType.REFUND,
+                    amount: refundAmount,
+                    balanceBefore: wallet.balance,
+                    balanceAfter: newBalance,
+                    description: `คืนเงิน: ${reason}`,
+                    status: TransactionStatus.COMPLETED,
+                    completedAt: new Date(),
+                    processedBy: new Types.ObjectId(adminId),
+                    metadata: {
+                        refundedTransactionId: transactionId,
+                        originalAmount: originalTx.amount,
+                        originalDescription: originalTx.description,
+                        refundReason: reason,
+                    },
+                }], { session });
+
+                refundTransactionId = refundTransaction._id.toString();
+
+                // Update wallet balance
+                await this.walletModel.findByIdAndUpdate(
+                    wallet._id,
+                    { $inc: { balance: refundAmount } },
+                    { session }
+                );
+
+                // Update original transaction to mark as refunded
+                await this.transactionModel.findByIdAndUpdate(
+                    transactionId,
+                    {
+                        $set: {
+                            'metadata.refundedAt': new Date(),
+                            'metadata.refundedBy': adminId,
+                            'metadata.refundTransactionId': refundTransactionId,
+                            adminNotes: `คืนเงินแล้ว: ${reason}`,
+                        },
+                    },
+                    { session }
+                );
+            });
+
+            this.logger.log(
+                `[REFUND] Admin ${adminId} refunded transaction ${transactionId} - ฿${refundAmount} to user ${userId}`
+            );
+
+            return {
+                success: true,
+                message: `คืนเงิน ฿${refundAmount.toLocaleString()} สำเร็จ`,
+                refundTransactionId,
+            };
+        } catch (error: unknown) {
+            const errorMsg = error instanceof Error ? error.message : 'Unknown error';
+            this.logger.error(`[REFUND FAILED] Transaction refund failed: ${errorMsg}`);
+            return { success: false, message: 'เกิดข้อผิดพลาดในการคืนเงิน กรุณาลองใหม่' };
+        } finally {
+            await session.endSession();
+            await this.redisService.releaseLock(lockKey, lockToken);
+        }
+    }
+
+    /**
+     * Admin: Get refund history
+     */
+    async getRefundHistory(
+        limit = 50,
+        offset = 0,
+    ): Promise<{
+        transactions: any[];
+        total: number;
+    }> {
+        const [transactions, total] = await Promise.all([
+            this.transactionModel
+                .find({ type: TransactionType.REFUND })
+                .sort({ createdAt: -1 })
+                .skip(offset)
+                .limit(limit)
+                .populate('userId', 'username email fullName')
+                .populate('processedBy', 'username')
+                .lean()
+                .exec(),
+            this.transactionModel.countDocuments({ type: TransactionType.REFUND }),
+        ]);
+
+        return { transactions, total };
     }
 }

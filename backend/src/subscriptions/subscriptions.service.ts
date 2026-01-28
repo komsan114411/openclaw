@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException, BadRequestException, Inject, forwardRef, Logger } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
+import { Model, ClientSession } from 'mongoose';
 import { Subscription, SubscriptionDocument, SubscriptionStatus } from '../database/schemas/subscription.schema';
 import { PackagesService } from '../packages/packages.service';
 import { isValidObjectId } from '../common/utils/validation.util';
@@ -87,12 +87,17 @@ export class SubscriptionsService {
    * CRITICAL: This method is idempotent - calling it multiple times with the same paymentId
    * will only add quota once. This prevents double-granting from race conditions.
    *
+   * @param userId - User ID
+   * @param packageId - Package ID to add quota from
+   * @param paymentId - Unique payment/transaction ID for idempotency
+   * @param session - Optional MongoDB session for transaction support (CRITICAL for atomicity)
    * @returns Object with subscriptionId and whether the payment was already processed
    */
   async addQuotaToExisting(
     userId: string,
     packageId: string,
     paymentId: string,
+    session?: ClientSession,
   ): Promise<{ success: boolean; subscriptionId: string; alreadyProcessed: boolean }> {
     if (!paymentId) {
       throw new BadRequestException('Payment ID is required for quota tracking');
@@ -112,7 +117,7 @@ export class SubscriptionsService {
     const existingProcessed = await this.subscriptionModel.findOne({
       userId,
       processedPaymentIds: paymentId,
-    });
+    }).session(session || null);
 
     if (existingProcessed) {
       this.logger.warn(`Payment ${paymentId} already processed for user ${userId} - skipping duplicate`);
@@ -157,7 +162,7 @@ export class SubscriptionsService {
           },
         },
       ],
-      { new: true },
+      { new: true, session },
     );
 
     if (result) {
@@ -176,7 +181,7 @@ export class SubscriptionsService {
     const recheck = await this.subscriptionModel.findOne({
       userId,
       processedPaymentIds: paymentId,
-    });
+    }).session(session || null);
 
     if (recheck) {
       this.logger.warn(`Payment ${paymentId} was processed by another process - returning existing subscription`);
@@ -188,7 +193,7 @@ export class SubscriptionsService {
     }
 
     // No active subscription found, create new one with the paymentId tracked
-    const newSubscription = await this.createSubscriptionWithPayment(userId, packageId, paymentId);
+    const newSubscription = await this.createSubscriptionWithPayment(userId, packageId, paymentId, session);
     this.logger.log(`Created new subscription ${newSubscription._id} for user ${userId} (payment: ${paymentId})`);
     return {
       success: true,
@@ -224,11 +229,13 @@ export class SubscriptionsService {
 
   /**
    * Create a new subscription with payment tracking
+   * @param session - Optional MongoDB session for transaction support
    */
   private async createSubscriptionWithPayment(
     userId: string,
     packageId: string,
     paymentId: string,
+    session?: ClientSession,
   ): Promise<SubscriptionDocument> {
     const pkg = await this.packagesService.findById(packageId);
     if (!pkg) {
@@ -238,6 +245,26 @@ export class SubscriptionsService {
     const startDate = new Date();
     const endDate = new Date();
     endDate.setDate(endDate.getDate() + pkg.durationDays);
+
+    // When using session, we need to use create() with session option
+    if (session) {
+      const [subscription] = await this.subscriptionModel.create([{
+        userId,
+        packageId,
+        paymentId,
+        startDate,
+        endDate,
+        slipsQuota: pkg.slipQuota,
+        slipsUsed: 0,
+        slipsReserved: 0,
+        aiQuota: pkg.aiQuota || 0,
+        aiUsed: 0,
+        aiReserved: 0,
+        status: SubscriptionStatus.ACTIVE,
+        processedPaymentIds: [paymentId], // Track this payment immediately
+      }], { session });
+      return subscription;
+    }
 
     const subscription = new this.subscriptionModel({
       userId,

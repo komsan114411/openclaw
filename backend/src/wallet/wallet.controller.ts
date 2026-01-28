@@ -311,4 +311,131 @@ export class WalletController {
         const reason = body.reason ? this.sanitizeDescription(body.reason) : undefined;
         return this.walletService.rejectTransaction(id, req.user.userId, reason);
     }
+
+    // ==========================================
+    // Admin: Refund Interface
+    // ==========================================
+
+    /**
+     * Get failed operations that may need manual refund
+     */
+    @Get("admin/failed-operations")
+    @UseGuards(SessionAuthGuard, RolesGuard)
+    @Roles(UserRole.ADMIN)
+    async getFailedOperations(
+        @Query("limit") limit?: string,
+        @Query("offset") offset?: string,
+    ) {
+        const pagination = this.validatePagination(
+            limit ? parseInt(limit, 10) : 50,
+            offset ? parseInt(offset, 10) : 0,
+        );
+        const result = await this.walletService.getFailedOperations(
+            pagination.limit,
+            pagination.offset,
+        );
+        return { success: true, ...result };
+    }
+
+    /**
+     * Get operation log details for review
+     */
+    @Get("admin/operation/:id")
+    @UseGuards(SessionAuthGuard, RolesGuard)
+    @Roles(UserRole.ADMIN)
+    async getOperationLog(@Param("id") id: string) {
+        this.validateObjectId(id, "operationId");
+        const operation = await this.walletService.getOperationLog(id);
+        if (!operation) {
+            return { success: false, message: "ไม่พบการดำเนินการ" };
+        }
+        return { success: true, operation };
+    }
+
+    /**
+     * Refund a failed operation
+     * Used when money was deducted but quota grant failed
+     */
+    @Post("admin/operation/:id/refund")
+    @UseGuards(SessionAuthGuard, RolesGuard)
+    @Roles(UserRole.ADMIN)
+    @HttpCode(HttpStatus.OK)
+    async refundFailedOperation(
+        @Request() req: any,
+        @Param("id") id: string,
+        @Body() body: { reason: string },
+    ) {
+        this.validateObjectId(id, "operationId");
+
+        if (!body.reason || typeof body.reason !== "string") {
+            return { success: false, message: "กรุณาระบุเหตุผลในการคืนเงิน" };
+        }
+
+        const sanitizedReason = this.sanitizeDescription(body.reason);
+        if (sanitizedReason.length < 3) {
+            return { success: false, message: "เหตุผลต้องมีความยาวอย่างน้อย 3 ตัวอักษร" };
+        }
+
+        return this.walletService.refundFailedOperation(id, req.user.userId, sanitizedReason);
+    }
+
+    /**
+     * Refund a completed purchase transaction
+     * Used when user requests refund for valid reason
+     */
+    @Post("admin/transaction/:id/refund")
+    @UseGuards(SessionAuthGuard, RolesGuard)
+    @Roles(UserRole.ADMIN)
+    @HttpCode(HttpStatus.OK)
+    async refundTransaction(
+        @Request() req: any,
+        @Param("id") id: string,
+        @Body() body: { reason: string },
+    ) {
+        this.validateObjectId(id, "transactionId");
+
+        if (!body.reason || typeof body.reason !== "string") {
+            return { success: false, message: "กรุณาระบุเหตุผลในการคืนเงิน" };
+        }
+
+        const sanitizedReason = this.sanitizeDescription(body.reason);
+        if (sanitizedReason.length < 3) {
+            return { success: false, message: "เหตุผลต้องมีความยาวอย่างน้อย 3 ตัวอักษร" };
+        }
+
+        return this.walletService.refundTransaction(id, req.user.userId, sanitizedReason);
+    }
+
+    /**
+     * Get refund history
+     */
+    @Get("admin/refunds")
+    @UseGuards(SessionAuthGuard, RolesGuard)
+    @Roles(UserRole.ADMIN)
+    async getRefundHistory(
+        @Query("limit") limit?: string,
+        @Query("offset") offset?: string,
+    ) {
+        const pagination = this.validatePagination(
+            limit ? parseInt(limit, 10) : 50,
+            offset ? parseInt(offset, 10) : 0,
+        );
+        const result = await this.walletService.getRefundHistory(
+            pagination.limit,
+            pagination.offset,
+        );
+        return { success: true, ...result };
+    }
+
+    /**
+     * Audit user wallet balance against transaction history
+     */
+    @Get("admin/user/:userId/audit")
+    @UseGuards(SessionAuthGuard, RolesGuard)
+    @Roles(UserRole.ADMIN)
+    async auditUserWallet(@Param("userId") userId: string) {
+        this.validateObjectId(userId, "userId");
+        const auditResult = await this.walletService.auditWalletBalance(userId);
+        return { success: true, ...auditResult };
+    }
 }
