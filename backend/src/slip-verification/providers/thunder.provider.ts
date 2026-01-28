@@ -41,6 +41,39 @@ export class ThunderProvider implements SlipVerificationProvider {
       };
     }
 
+    // Try bank slip verification first
+    const bankResult = await this.verifyWithEndpoint(imageData, apiKey, '/v1/verify');
+
+    // If bank verification fails with specific errors, try TrueMoney Wallet endpoint
+    if (bankResult.status === 'error' || bankResult.status === 'not_found') {
+      const errorMsg = (bankResult.message || '').toLowerCase();
+      // Try TrueMoney endpoint if bank endpoint can't read QR or returns error
+      if (
+        errorMsg.includes('qr') ||
+        errorMsg.includes('invalid') ||
+        errorMsg.includes('ไม่พบ') ||
+        errorMsg.includes('ไม่สามารถ') ||
+        bankResult.status === 'not_found'
+      ) {
+        this.logger.log('[THUNDER] Bank endpoint failed, trying TrueMoney Wallet endpoint...');
+        const trueMoneyResult = await this.verifyWithEndpoint(imageData, apiKey, '/v1/verify/truewallet');
+
+        // If TrueMoney endpoint succeeds, return that result
+        if (trueMoneyResult.status === 'success' || trueMoneyResult.status === 'duplicate') {
+          this.logger.log('[THUNDER] TrueMoney Wallet endpoint succeeded');
+          return trueMoneyResult;
+        }
+      }
+    }
+
+    return bankResult;
+  }
+
+  private async verifyWithEndpoint(
+    imageData: Buffer,
+    apiKey: string,
+    endpoint: string,
+  ): Promise<NormalizedVerificationResult> {
     const formData = new FormData();
     formData.append('file', imageData, {
       filename: 'slip.jpg',
@@ -49,10 +82,10 @@ export class ThunderProvider implements SlipVerificationProvider {
     formData.append('checkDuplicate', 'true');
 
     try {
-      this.logger.log('[THUNDER] Sending verification request...');
+      this.logger.log(`[THUNDER] Sending request to ${endpoint}...`);
 
       const response = await axios.post(
-        `${this.BASE_URL}/v1/verify`,
+        `${this.BASE_URL}${endpoint}`,
         formData,
         {
           headers: {
@@ -64,7 +97,7 @@ export class ThunderProvider implements SlipVerificationProvider {
         },
       );
 
-      return this.normalizeResponse(response.data);
+      return this.normalizeResponse(response.data, endpoint);
     } catch (error: any) {
       return this.handleError(error);
     }
@@ -104,28 +137,31 @@ export class ThunderProvider implements SlipVerificationProvider {
     }
   }
 
-  private normalizeResponse(data: any): NormalizedVerificationResult {
+  private normalizeResponse(data: any, endpoint: string = '/v1/verify'): NormalizedVerificationResult {
+    const isTrueWallet = endpoint.includes('truewallet');
+
     // Success case
     if (data.status === 200 && data.data) {
       const slipData = data.data;
+      this.logger.log(`[THUNDER] Success via ${endpoint}`);
       return {
         status: 'success',
         provider: SlipProvider.THUNDER,
         message: 'ตรวจสอบสลิปสำเร็จ',
-        data: this.extractSlipData(slipData),
+        data: this.extractSlipData(slipData, isTrueWallet),
         shouldFailover: false,
       };
     }
 
     // Duplicate case (status 400 with message "duplicate_slip")
     if (data.status === 400 && data.message === 'duplicate_slip') {
-      this.logger.log('[THUNDER] Duplicate slip detected');
+      this.logger.log(`[THUNDER] Duplicate slip detected via ${endpoint}`);
       const slipData = data.data || {};
       return {
         status: 'duplicate',
         provider: SlipProvider.THUNDER,
         message: 'สลิปนี้เคยถูกใช้แล้ว',
-        data: this.extractSlipData(slipData),
+        data: this.extractSlipData(slipData, isTrueWallet),
         shouldFailover: false,
       };
     }
@@ -139,7 +175,13 @@ export class ThunderProvider implements SlipVerificationProvider {
     };
   }
 
-  private extractSlipData(slipData: any): NormalizedSlipData {
+  private extractSlipData(slipData: any, isTrueWallet: boolean = false): NormalizedSlipData {
+    // TrueMoney Wallet has different response format
+    if (isTrueWallet) {
+      return this.extractTrueWalletSlipData(slipData);
+    }
+
+    // Bank slip format
     const senderAccount = slipData.sender?.account || {};
     const receiverAccount = slipData.receiver?.account || {};
     const senderBank = slipData.sender?.bank || {};
@@ -169,6 +211,46 @@ export class ThunderProvider implements SlipVerificationProvider {
       receiverAccountNumber: receiverAccount.bank?.account || receiverAccount.proxy?.account || receiverAccount.proxy || '',
       // Additional
       countryCode: slipData.countryCode || 'TH',
+      fee: slipData.fee ?? 0,
+      ref1: slipData.ref1 || '',
+      ref2: slipData.ref2 || '',
+      ref3: slipData.ref3 || '',
+      rawData: slipData,
+    };
+  }
+
+  /**
+   * Extract slip data from TrueMoney Wallet response
+   * TrueMoney Wallet has different format than bank slips
+   */
+  private extractTrueWalletSlipData(slipData: any): NormalizedSlipData {
+    // TrueMoney Wallet format:
+    // { transactionId, date, amount, senderName, receiverName, receiverMobileNumber }
+    this.logger.log(`[THUNDER] Extracting TrueMoney Wallet data: ${JSON.stringify(slipData).substring(0, 500)}`);
+
+    const amount = parseFloat(slipData.amount || 0);
+
+    return {
+      transRef: slipData.transactionId || slipData.transRef || '',
+      amount: amount,
+      amountFormatted: this.formatAmount(amount),
+      date: this.formatDate(slipData.date),
+      time: this.formatTime(slipData.date),
+      // Sender - TrueMoney uses senderName directly
+      senderName: slipData.senderName || '',
+      senderNameEn: '',
+      senderBank: 'ทรูมันนี่ วอลเล็ท',
+      senderBankCode: 'TRUEMONEY',
+      senderAccount: slipData.senderMobileNumber || '',
+      // Receiver - TrueMoney uses receiverName and receiverMobileNumber
+      receiverName: slipData.receiverName || '',
+      receiverNameEn: '',
+      receiverBank: 'ทรูมันนี่ วอลเล็ท',
+      receiverBankCode: 'TRUEMONEY',
+      receiverAccount: slipData.receiverMobileNumber || '',
+      receiverAccountNumber: slipData.receiverMobileNumber || '',
+      // Additional
+      countryCode: 'TH',
       fee: slipData.fee ?? 0,
       ref1: slipData.ref1 || '',
       ref2: slipData.ref2 || '',
