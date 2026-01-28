@@ -336,7 +336,8 @@ export class LineWebhookController {
     let replyTokenUsed = false;
 
     // Helper to safely send message (handles reply token expiration and Flex fallback)
-    const safeSendMessage = async (messages: any[], useReply = false) => {
+    // Default to useReply=true to save LINE message quota (Reply is FREE, Push costs quota)
+    const safeSendMessage = async (messages: any[], useReply = true) => {
       // Log message details for debugging
       this.logger.log(`[SLIP] safeSendMessage called: useReply=${useReply}, messageCount=${messages.length}`);
       if (messages.length > 0) {
