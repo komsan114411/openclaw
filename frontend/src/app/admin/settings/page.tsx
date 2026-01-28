@@ -1047,169 +1047,81 @@ export default function SettingsPage() {
                   </div>
                 </Card>
 
-                {/* Slip Provider Management - Multi-Provider */}
+                {/* Slip Provider Management - Simplified */}
                 <Card variant="glass" className="p-8 sm:p-10 rounded-[2.5rem] sm:rounded-[3rem]">
-                  <div className="flex flex-col sm:flex-row sm:items-center gap-6 mb-10">
+                  <div className="flex flex-col sm:flex-row sm:items-center gap-6 mb-8">
                     <div className="w-14 h-14 bg-purple-500/10 rounded-2xl flex items-center justify-center text-2xl shadow-inner flex-shrink-0">⚡</div>
                     <div className="flex-1">
-                      <h2 className="text-xl sm:text-2xl font-black text-white uppercase tracking-tight">Slip API Provider</h2>
-                      <p className="text-xs sm:text-sm text-slate-500 font-bold uppercase tracking-widest">จัดการ API สำหรับตรวจสอบสลิป</p>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <span className="text-xs text-slate-400">Auto-Failover</span>
-                      <Switch
-                        checked={slipProviderSettings.slipApiFallbackEnabled}
-                        onChange={(checked) => {
-                          setSlipProviderSettings(prev => ({ ...prev, slipApiFallbackEnabled: checked }));
-                          handleSaveSlipProviderSettings({ slipApiFallbackEnabled: checked });
-                        }}
-                      />
+                      <h2 className="text-xl sm:text-2xl font-black text-white uppercase tracking-tight">Slip API</h2>
+                      <p className="text-xs sm:text-sm text-slate-500 font-bold uppercase tracking-widest">ตรวจสอบสลิปโอนเงิน</p>
                     </div>
                   </div>
 
-                  {/* Info Box */}
-                  <div className="mb-8 p-4 rounded-2xl bg-indigo-500/10 border border-indigo-500/20">
-                    <div className="flex items-start gap-3">
-                      <span className="text-indigo-400 text-lg">💡</span>
-                      <div>
-                        <p className="text-sm font-semibold text-indigo-400">Multi-Provider System</p>
-                        <p className="text-xs text-slate-400 mt-1">
-                          ระบบจะใช้ Provider หลักก่อน หาก quota หมดหรือเกิดข้อผิดพลาด จะสลับไปใช้ Provider สำรองโดยอัตโนมัติ (ผู้ใช้ไม่รู้สึกถึงการสลับ)
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Provider Selection */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-                    <div>
-                      <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2">Provider หลัก</label>
-                      <Select
-                        value={slipProviderSettings.slipApiProvider}
-                        onChange={(e) => {
-                          const newPrimary = e.target.value;
-                          setSlipProviderSettings(prev => ({
-                            ...prev,
-                            slipApiProvider: newPrimary,
-                            slipProviderFailoverOrder: [newPrimary, ...(prev.slipProviderFailoverOrder.filter(p => p !== newPrimary))],
-                          }));
-                        }}
-                        options={[
-                          { value: 'thunder', label: '⚡ Thunder API (thunder.in.th)' },
-                          { value: 'slipmate', label: '🎯 SlipMate API (slipmate.ai)' },
-                        ]}
-                        className="h-14 rounded-2xl bg-white/[0.03] border-white/10"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2">Provider สำรอง</label>
-                      <Select
-                        value={slipProviderSettings.slipApiProviderSecondary || 'none'}
-                        onChange={(e) => {
-                          const newSecondary = e.target.value === 'none' ? '' : e.target.value;
-                          setSlipProviderSettings(prev => ({
-                            ...prev,
-                            slipApiProviderSecondary: newSecondary,
-                          }));
-                        }}
-                        options={[
-                          { value: 'none', label: '— ไม่ใช้ Provider สำรอง —' },
-                          { value: 'thunder', label: '⚡ Thunder API' },
-                          { value: 'slipmate', label: '🎯 SlipMate API' },
-                        ].filter(opt => opt.value === 'none' || opt.value !== slipProviderSettings.slipApiProvider)}
-                        className="h-14 rounded-2xl bg-white/[0.03] border-white/10"
-                        disabled={!slipProviderSettings.slipApiFallbackEnabled}
-                      />
-                    </div>
-                  </div>
-
-                  <Button
-                    fullWidth
-                    size="lg"
-                    className="rounded-2xl h-14 font-black uppercase tracking-widest text-[11px] mb-10"
-                    onClick={() => handleSaveSlipProviderSettings({
-                      slipApiProvider: slipProviderSettings.slipApiProvider,
-                      slipApiProviderSecondary: slipProviderSettings.slipApiProviderSecondary,
-                      slipProviderFailoverOrder: slipProviderSettings.slipApiFallbackEnabled && slipProviderSettings.slipApiProviderSecondary
-                        ? [slipProviderSettings.slipApiProvider, slipProviderSettings.slipApiProviderSecondary]
-                        : [slipProviderSettings.slipApiProvider],
-                    })}
-                    isLoading={isSaving === 'slip_provider'}
-                  >
-                    บันทึกการตั้งค่า Provider
-                  </Button>
-
-                  {/* Provider Cards */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {/* Provider Cards - Simplified */}
+                  <div className="space-y-6">
                     {/* Thunder Provider */}
                     <div className={cn(
-                      "p-6 rounded-2xl border transition-all",
+                      "p-5 rounded-2xl border transition-all",
                       slipProviderSettings.slipApiProvider === 'thunder'
-                        ? "bg-purple-500/10 border-purple-500/30"
+                        ? "bg-purple-500/10 border-purple-500/30 ring-2 ring-purple-500/20"
                         : "bg-white/[0.02] border-white/10"
                     )}>
-                      <div className="flex items-center justify-between mb-4">
-                        <div className="flex items-center gap-3">
-                          <span className="text-2xl">⚡</span>
-                          <div>
-                            <h3 className="font-black text-white">Thunder API</h3>
-                            <p className="text-[10px] text-slate-500 uppercase tracking-widest">thunder.in.th</p>
-                          </div>
-                        </div>
-                        <div className="flex flex-col items-end gap-1">
+                      <div className="flex items-center gap-4">
+                        {/* Radio Button */}
+                        <button
+                          onClick={() => {
+                            setSlipProviderSettings(prev => ({ ...prev, slipApiProvider: 'thunder' }));
+                            handleSaveSlipProviderSettings({ slipApiProvider: 'thunder' });
+                          }}
+                          className={cn(
+                            "w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all flex-shrink-0",
+                            slipProviderSettings.slipApiProvider === 'thunder'
+                              ? "border-purple-500 bg-purple-500"
+                              : "border-slate-500"
+                          )}
+                        >
                           {slipProviderSettings.slipApiProvider === 'thunder' && (
-                            <Badge variant="purple" size="sm" className="text-[8px]">PRIMARY</Badge>
+                            <div className="w-2 h-2 rounded-full bg-white" />
                           )}
-                          {slipProviderSettings.slipApiProviderSecondary === 'thunder' && (
-                            <Badge variant="outline" size="sm" className="text-[8px]">BACKUP</Badge>
-                          )}
-                          <Badge
-                            variant={slipProviderSettings.hasThunderApiKey ? "emerald" : "outline"}
-                            size="sm"
-                            className="text-[8px]"
-                          >
-                            {slipProviderSettings.hasThunderApiKey ? "เชื่อมต่อแล้ว" : "ยังไม่ตั้งค่า"}
-                          </Badge>
+                        </button>
+
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2">
+                            <span className="text-xl">⚡</span>
+                            <span className="font-black text-white">Thunder API</span>
+                            {slipProviderSettings.hasThunderApiKey && (
+                              <Badge variant="emerald" size="sm" className="text-[8px]">✓</Badge>
+                            )}
+                          </div>
+                          <p className="text-[10px] text-slate-500">thunder.in.th</p>
                         </div>
+
+                        {/* Status */}
+                        {providerStatus.thunder?.remainingQuota !== undefined && (
+                          <div className="text-right">
+                            <div className="text-sm font-bold text-emerald-400">{providerStatus.thunder.remainingQuota.toLocaleString()}</div>
+                            <div className="text-[10px] text-slate-500">quota</div>
+                          </div>
+                        )}
                       </div>
 
-                      {/* Quota Status */}
-                      {providerStatus.thunder && (
-                        <div className={cn(
-                          "mb-4 p-3 rounded-xl text-xs",
-                          providerStatus.thunder.success ? "bg-emerald-500/10 text-emerald-400" : "bg-red-500/10 text-red-400"
-                        )}>
-                          {providerStatus.thunder.success ? (
-                            <>
-                              <div className="font-bold">✓ {providerStatus.thunder.message}</div>
-                              {providerStatus.thunder.remainingQuota !== undefined && (
-                                <div className="mt-1">เหลือ {providerStatus.thunder.remainingQuota.toLocaleString()} quota</div>
-                              )}
-                              {providerStatus.thunder.expiresAt && (
-                                <div className="text-slate-400">หมดอายุ: {new Date(providerStatus.thunder.expiresAt).toLocaleDateString('th-TH')}</div>
-                              )}
-                            </>
-                          ) : (
-                            <div>✗ {providerStatus.thunder.message}</div>
-                          )}
-                        </div>
-                      )}
-
-                      <Input
-                        type="password"
-                        label="API Key"
-                        placeholder="ใส่ Thunder API Key..."
-                        value={slipApiKeyThunder}
-                        onChange={(e) => setSlipApiKeyThunder(e.target.value)}
-                        className="h-12 rounded-xl bg-white/[0.03] border-white/10 text-white font-mono mb-4"
-                      />
-
-                      <div className="flex gap-3">
+                      {/* API Key Input - Show only if selected or has key */}
+                      <div className="mt-4 flex gap-3">
+                        <Input
+                          type="password"
+                          placeholder="ใส่ Thunder API Key..."
+                          value={slipApiKeyThunder}
+                          onChange={(e) => setSlipApiKeyThunder(e.target.value)}
+                          className="h-11 rounded-xl bg-white/[0.03] border-white/10 text-white font-mono flex-1"
+                        />
                         <Button
                           variant="primary"
                           size="sm"
-                          className="flex-1 rounded-xl font-black text-[9px]"
-                          onClick={() => handleSaveSlipProviderSettings({ slipApiKeyThunder: slipApiKeyThunder })}
+                          className="rounded-xl px-4 font-black text-[10px]"
+                          onClick={() => {
+                            handleSaveSlipProviderSettings({ slipApiKeyThunder: slipApiKeyThunder });
+                            setSlipApiKeyThunder('');
+                          }}
                           isLoading={isSaving === 'slip_provider'}
                           disabled={!slipApiKeyThunder}
                         >
@@ -1218,7 +1130,7 @@ export default function SettingsPage() {
                         <Button
                           variant="ghost"
                           size="sm"
-                          className="flex-1 rounded-xl font-black text-[9px] border border-white/10"
+                          className="rounded-xl px-4 font-black text-[10px] border border-white/10"
                           onClick={() => handleTestSlipProvider('thunder')}
                           isLoading={testingThunder}
                         >
@@ -1229,70 +1141,67 @@ export default function SettingsPage() {
 
                     {/* SlipMate Provider */}
                     <div className={cn(
-                      "p-6 rounded-2xl border transition-all",
+                      "p-5 rounded-2xl border transition-all",
                       slipProviderSettings.slipApiProvider === 'slipmate'
-                        ? "bg-blue-500/10 border-blue-500/30"
+                        ? "bg-blue-500/10 border-blue-500/30 ring-2 ring-blue-500/20"
                         : "bg-white/[0.02] border-white/10"
                     )}>
-                      <div className="flex items-center justify-between mb-4">
-                        <div className="flex items-center gap-3">
-                          <span className="text-2xl">🎯</span>
-                          <div>
-                            <h3 className="font-black text-white">SlipMate API</h3>
-                            <p className="text-[10px] text-slate-500 uppercase tracking-widest">slipmate.ai</p>
-                          </div>
-                        </div>
-                        <div className="flex flex-col items-end gap-1">
+                      <div className="flex items-center gap-4">
+                        {/* Radio Button */}
+                        <button
+                          onClick={() => {
+                            setSlipProviderSettings(prev => ({ ...prev, slipApiProvider: 'slipmate' }));
+                            handleSaveSlipProviderSettings({ slipApiProvider: 'slipmate' });
+                          }}
+                          className={cn(
+                            "w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all flex-shrink-0",
+                            slipProviderSettings.slipApiProvider === 'slipmate'
+                              ? "border-blue-500 bg-blue-500"
+                              : "border-slate-500"
+                          )}
+                        >
                           {slipProviderSettings.slipApiProvider === 'slipmate' && (
-                            <Badge variant="blue" size="sm" className="text-[8px]">PRIMARY</Badge>
+                            <div className="w-2 h-2 rounded-full bg-white" />
                           )}
-                          {slipProviderSettings.slipApiProviderSecondary === 'slipmate' && (
-                            <Badge variant="outline" size="sm" className="text-[8px]">BACKUP</Badge>
-                          )}
-                          <Badge
-                            variant={slipProviderSettings.hasSlipMateApiKey ? "emerald" : "outline"}
-                            size="sm"
-                            className="text-[8px]"
-                          >
-                            {slipProviderSettings.hasSlipMateApiKey ? "เชื่อมต่อแล้ว" : "ยังไม่ตั้งค่า"}
-                          </Badge>
+                        </button>
+
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2">
+                            <span className="text-xl">🎯</span>
+                            <span className="font-black text-white">SlipMate API</span>
+                            {slipProviderSettings.hasSlipMateApiKey && (
+                              <Badge variant="emerald" size="sm" className="text-[8px]">✓</Badge>
+                            )}
+                          </div>
+                          <p className="text-[10px] text-slate-500">slipmate.ai</p>
                         </div>
+
+                        {/* Status */}
+                        {providerStatus.slipmate?.remainingQuota !== undefined && (
+                          <div className="text-right">
+                            <div className="text-sm font-bold text-emerald-400">{providerStatus.slipmate.remainingQuota.toLocaleString()}</div>
+                            <div className="text-[10px] text-slate-500">quota</div>
+                          </div>
+                        )}
                       </div>
 
-                      {/* Quota Status */}
-                      {providerStatus.slipmate && (
-                        <div className={cn(
-                          "mb-4 p-3 rounded-xl text-xs",
-                          providerStatus.slipmate.success ? "bg-emerald-500/10 text-emerald-400" : "bg-red-500/10 text-red-400"
-                        )}>
-                          {providerStatus.slipmate.success ? (
-                            <>
-                              <div className="font-bold">✓ {providerStatus.slipmate.message}</div>
-                              {providerStatus.slipmate.remainingQuota !== undefined && (
-                                <div className="mt-1">เหลือ {providerStatus.slipmate.remainingQuota.toLocaleString()} quota</div>
-                              )}
-                            </>
-                          ) : (
-                            <div>✗ {providerStatus.slipmate.message}</div>
-                          )}
-                        </div>
-                      )}
-
-                      <Input
-                        type="password"
-                        label="API Key"
-                        placeholder="ใส่ SlipMate API Key..."
-                        value={slipApiKeySlipMate}
-                        onChange={(e) => setSlipApiKeySlipMate(e.target.value)}
-                        className="h-12 rounded-xl bg-white/[0.03] border-white/10 text-white font-mono mb-4"
-                      />
-
-                      <div className="flex gap-3">
+                      {/* API Key Input */}
+                      <div className="mt-4 flex gap-3">
+                        <Input
+                          type="password"
+                          placeholder="ใส่ SlipMate API Key..."
+                          value={slipApiKeySlipMate}
+                          onChange={(e) => setSlipApiKeySlipMate(e.target.value)}
+                          className="h-11 rounded-xl bg-white/[0.03] border-white/10 text-white font-mono flex-1"
+                        />
                         <Button
                           variant="primary"
                           size="sm"
-                          className="flex-1 rounded-xl font-black text-[9px]"
-                          onClick={() => handleSaveSlipProviderSettings({ slipApiKeySlipMate: slipApiKeySlipMate })}
+                          className="rounded-xl px-4 font-black text-[10px]"
+                          onClick={() => {
+                            handleSaveSlipProviderSettings({ slipApiKeySlipMate: slipApiKeySlipMate });
+                            setSlipApiKeySlipMate('');
+                          }}
                           isLoading={isSaving === 'slip_provider'}
                           disabled={!slipApiKeySlipMate}
                         >
@@ -1301,7 +1210,7 @@ export default function SettingsPage() {
                         <Button
                           variant="ghost"
                           size="sm"
-                          className="flex-1 rounded-xl font-black text-[9px] border border-white/10"
+                          className="rounded-xl px-4 font-black text-[10px] border border-white/10"
                           onClick={() => handleTestSlipProvider('slipmate')}
                           isLoading={testingSlipMate}
                         >
@@ -1311,8 +1220,46 @@ export default function SettingsPage() {
                     </div>
                   </div>
 
+                  {/* Auto-Failover Section - Simple Toggle */}
+                  <div className="mt-6 p-4 rounded-2xl bg-white/[0.02] border border-white/10">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <span className="text-lg">🔄</span>
+                        <div>
+                          <div className="font-bold text-white text-sm">สลับอัตโนมัติ (Auto-Failover)</div>
+                          <div className="text-[10px] text-slate-500">หาก Provider หลัก quota หมด จะสลับไปใช้ตัวสำรองอัตโนมัติ</div>
+                        </div>
+                      </div>
+                      <Switch
+                        checked={slipProviderSettings.slipApiFallbackEnabled}
+                        onChange={(checked) => {
+                          const secondary = slipProviderSettings.slipApiProvider === 'thunder' ? 'slipmate' : 'thunder';
+                          setSlipProviderSettings(prev => ({
+                            ...prev,
+                            slipApiFallbackEnabled: checked,
+                            slipApiProviderSecondary: checked ? secondary : '',
+                          }));
+                          handleSaveSlipProviderSettings({
+                            slipApiFallbackEnabled: checked,
+                            slipApiProviderSecondary: checked ? secondary : '',
+                            slipProviderFailoverOrder: checked
+                              ? [slipProviderSettings.slipApiProvider, secondary]
+                              : [slipProviderSettings.slipApiProvider],
+                          });
+                        }}
+                      />
+                    </div>
+                    {slipProviderSettings.slipApiFallbackEnabled && (
+                      <div className="mt-3 pt-3 border-t border-white/10 text-xs text-slate-400">
+                        ลำดับการใช้งาน: <span className="text-white font-bold">{slipProviderSettings.slipApiProvider === 'thunder' ? 'Thunder' : 'SlipMate'}</span>
+                        {' → '}
+                        <span className="text-slate-300">{slipProviderSettings.slipApiProvider === 'thunder' ? 'SlipMate' : 'Thunder'}</span>
+                      </div>
+                    )}
+                  </div>
+
                   {/* Refresh Status Button */}
-                  <div className="mt-6 flex justify-center">
+                  <div className="mt-4 flex justify-center">
                     <Button
                       variant="ghost"
                       size="sm"
@@ -1320,7 +1267,7 @@ export default function SettingsPage() {
                       onClick={fetchSlipProviderStatus}
                       isLoading={loadingProviderStatus}
                     >
-                      🔄 รีเฟรชสถานะ Provider
+                      🔄 รีเฟรชสถานะ
                     </Button>
                   </div>
                 </Card>
