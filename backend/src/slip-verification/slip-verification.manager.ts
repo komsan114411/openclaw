@@ -65,9 +65,13 @@ export class SlipVerificationManager {
     const startTime = Date.now();
     const settings = await this.systemSettingsService.getDecryptedSettings();
 
+    // Log settings for debugging
+    this.logger.log(`[MANAGER] Settings: provider=${settings?.slipApiProvider}, failback=${settings?.slipApiFallbackEnabled}, secondary=${settings?.slipApiProviderSecondary}`);
+    this.logger.log(`[MANAGER] API Keys: thunder=${settings?.slipApiKeyThunder ? 'SET' : 'NONE'}, slipmate=${settings?.slipApiKeySlipMate ? 'SET' : 'NONE'}, slipApiKey=${settings?.slipApiKey ? 'SET' : 'NONE'}`);
+
     // Get failover order from settings
     const failoverOrder = this.getFailoverOrder(settings);
-    this.logger.debug(`[MANAGER] Failover order: ${failoverOrder.join(' → ')}`);
+    this.logger.log(`[MANAGER] Failover order: ${failoverOrder.join(' → ')}`);
 
     let lastResult: NormalizedVerificationResult | null = null;
     let attemptedProviders: SlipProvider[] = [];
@@ -296,27 +300,33 @@ export class SlipVerificationManager {
 
   /**
    * Get failover order from settings
+   * ใช้ slipApiProvider เป็นหลัก และ slipApiProviderSecondary เมื่อเปิด failover
    */
   private getFailoverOrder(settings: any): SlipProvider[] {
-    // Check if custom failover order is set
-    if (settings.slipProviderFailoverOrder && Array.isArray(settings.slipProviderFailoverOrder)) {
-      return settings.slipProviderFailoverOrder as SlipProvider[];
-    }
-
-    // Build failover order from primary/secondary settings
     const order: SlipProvider[] = [];
 
-    // Primary provider
+    // Primary provider - ใช้ slipApiProvider เสมอ
     const primary = (settings.slipApiProvider || 'thunder') as SlipProvider;
     if (this.providers.has(primary)) {
       order.push(primary);
     }
 
-    // Secondary provider (if failover is enabled)
-    if (settings.slipApiFallbackEnabled && settings.slipApiProviderSecondary) {
-      const secondary = settings.slipApiProviderSecondary as SlipProvider;
-      if (this.providers.has(secondary) && !order.includes(secondary)) {
-        order.push(secondary);
+    // Secondary provider - เพิ่มเมื่อ failover เปิดและมี provider สำรอง
+    if (settings.slipApiFallbackEnabled) {
+      // ถ้ามี slipApiProviderSecondary ให้ใช้
+      if (settings.slipApiProviderSecondary) {
+        const secondary = settings.slipApiProviderSecondary as SlipProvider;
+        if (this.providers.has(secondary) && !order.includes(secondary)) {
+          order.push(secondary);
+        }
+      } else {
+        // ถ้าไม่มี secondary แต่เปิด failover ให้เพิ่ม provider อื่นที่ไม่ใช่ primary
+        const allProviders = Array.from(this.providers.keys());
+        for (const p of allProviders) {
+          if (!order.includes(p)) {
+            order.push(p);
+          }
+        }
       }
     }
 
@@ -325,24 +335,39 @@ export class SlipVerificationManager {
       order.push(SlipProvider.THUNDER);
     }
 
+    this.logger.debug(`[MANAGER] Provider order: ${order.join(' → ')} (failover=${settings.slipApiFallbackEnabled})`);
     return order;
   }
 
   /**
    * Get API key for a specific provider
+   * ให้ความสำคัญกับ key ใหม่ก่อน แล้วค่อย fallback ไป key เก่า
    */
   private getApiKeyForProvider(provider: SlipProvider, settings: any): string | null {
+    let apiKey: string | null = null;
+
     switch (provider) {
       case SlipProvider.THUNDER:
-        // Thunder uses slipApiKey (primary) or slipApiKeyThunder
-        return settings.slipApiKey || settings.slipApiKeyThunder || null;
+        // ใช้ slipApiKeyThunder ก่อน แล้วค่อย fallback ไป slipApiKey (เก่า)
+        apiKey = settings.slipApiKeyThunder || settings.slipApiKey || null;
+        break;
 
       case SlipProvider.SLIPMATE:
-        // SlipMate uses slipApiKeySecondary or slipApiKeySlipMate
-        return settings.slipApiKeySecondary || settings.slipApiKeySlipMate || null;
+        // ใช้ slipApiKeySlipMate ก่อน แล้วค่อย fallback ไป slipApiKeySecondary (เก่า)
+        apiKey = settings.slipApiKeySlipMate || settings.slipApiKeySecondary || null;
+        break;
 
       default:
         return null;
     }
+
+    // Log for debugging
+    if (apiKey) {
+      this.logger.debug(`[MANAGER] API key found for ${provider}: ${apiKey.substring(0, 8)}...`);
+    } else {
+      this.logger.warn(`[MANAGER] No API key found for ${provider}`);
+    }
+
+    return apiKey;
   }
 }
