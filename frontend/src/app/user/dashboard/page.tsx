@@ -209,11 +209,8 @@ export default function UserDashboard() {
           />
         </div>
 
-        {/* MAIN CONTENT GRID */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6 mt-6">
-
-          {/* LEFT COLUMN - Subscription & Quota */}
-          <div className="lg:col-span-2 space-y-4 sm:space-y-6">
+        {/* MAIN CONTENT */}
+        <div className="space-y-4 sm:space-y-6 mt-6">
 
             {/* Current Subscription Card */}
             {subscription ? (
@@ -395,63 +392,6 @@ export default function UserDashboard() {
                 )}
               </div>
             </Card>
-          </div>
-
-          {/* RIGHT COLUMN - Quick Actions Only */}
-          <div className="space-y-4 sm:space-y-6">
-            {/* Quick Actions */}
-            <Card className="bg-gradient-to-br from-[#06C755]/10 to-slate-950 border border-[#06C755]/20" variant="glass">
-              <div className="p-4 sm:p-6">
-                <h3 className="text-lg font-bold text-white mb-4">ทางลัด</h3>
-                <div className="grid grid-cols-2 gap-3">
-                  <Link href="/user/packages" className="block">
-                    <div className="p-4 bg-white/[0.03] rounded-xl border border-white/5 hover:bg-white/[0.06] transition-colors text-center">
-                      <span className="text-2xl block mb-2">📦</span>
-                      <span className="text-xs font-semibold text-slate-300">ซื้อแพ็คเกจ</span>
-                    </div>
-                  </Link>
-                  <Link href="/user/line-accounts" className="block">
-                    <div className="p-4 bg-white/[0.03] rounded-xl border border-white/5 hover:bg-white/[0.06] transition-colors text-center">
-                      <span className="text-2xl block mb-2">💬</span>
-                      <span className="text-xs font-semibold text-slate-300">จัดการบัญชี</span>
-                    </div>
-                  </Link>
-                  <Link href="/user/wallet" className="block">
-                    <div className="p-4 bg-white/[0.03] rounded-xl border border-white/5 hover:bg-white/[0.06] transition-colors text-center">
-                      <span className="text-2xl block mb-2">💵</span>
-                      <span className="text-xs font-semibold text-slate-300">เติมเครดิต</span>
-                    </div>
-                  </Link>
-                  <Link href="/user/templates" className="block">
-                    <div className="p-4 bg-white/[0.03] rounded-xl border border-white/5 hover:bg-white/[0.06] transition-colors text-center">
-                      <span className="text-2xl block mb-2">📝</span>
-                      <span className="text-xs font-semibold text-slate-300">เทมเพลต</span>
-                    </div>
-                  </Link>
-                </div>
-              </div>
-            </Card>
-
-            {/* Help Card */}
-            <Card className="bg-slate-950 border border-white/5" variant="glass">
-              <div className="p-4 sm:p-6">
-                <div className="flex items-start gap-4">
-                  <div className="w-12 h-12 bg-[#06C755]/10 rounded-xl flex items-center justify-center flex-shrink-0">
-                    <span className="text-2xl">💡</span>
-                  </div>
-                  <div className="flex-1">
-                    <h4 className="text-sm font-bold text-white mb-1">ต้องการความช่วยเหลือ?</h4>
-                    <p className="text-xs text-slate-400 mb-3">ดูคู่มือการใช้งานหรือติดต่อทีมซัพพอร์ต</p>
-                    <Link href="/user/chat">
-                      <Button variant="outline" size="sm" className="text-xs">
-                        💬 แชทกับทีมงาน
-                      </Button>
-                    </Link>
-                  </div>
-                </div>
-              </div>
-            </Card>
-          </div>
         </div>
       </div>
     </DashboardLayout>
