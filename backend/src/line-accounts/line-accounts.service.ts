@@ -72,12 +72,20 @@ export class LineAccountsService {
       throw new BadRequestException('Channel ID นี้มีอยู่ในระบบแล้ว');
     }
 
-    // Validate template ownership if provided
+    // Validate template ownership and get template type if provided
+    let templateType: string | null = null;
     if (dto.slipTemplateId) {
-      const isValid = await this.validateTemplateOwnership(dto.slipTemplateId, ownerId);
-      if (!isValid) {
+      const template = await this.slipTemplateModel.findById(dto.slipTemplateId).select({ ownerId: 1, isGlobal: 1, type: 1 }).lean().exec();
+      if (!template) {
+        throw new ForbiddenException('เทมเพลตนี้ไม่มีอยู่ในระบบ');
+      }
+      // Check ownership: must be owner OR template is global
+      const isOwner = template.ownerId?.toString() === ownerId;
+      const isGlobal = template.isGlobal === true;
+      if (!isOwner && !isGlobal) {
         throw new ForbiddenException('เทมเพลตนี้ไม่ใช่ของคุณหรือไม่มีอยู่ในระบบ');
       }
+      templateType = template.type || 'success';
     }
 
     // Generate unique webhook slug
@@ -96,12 +104,21 @@ export class LineAccountsService {
     // Extract slipTemplateId from dto and put it in settings
     const { slipTemplateId, ...restDto } = dto;
 
+    // Build settings with proper slipTemplateIds structure
+    const settings: any = {};
+    if (slipTemplateId && templateType) {
+      // Store in both legacy field and new per-type field for compatibility
+      settings.slipTemplateId = slipTemplateId;
+      settings.slipTemplateIds = { [templateType]: slipTemplateId };
+      this.logger.log(`[CREATE] Storing template ${slipTemplateId} for type ${templateType}`);
+    }
+
     const account = new this.lineAccountModel({
       ...restDto,
       ownerId,
       webhookSlug,
       isActive: true,
-      settings: slipTemplateId ? { slipTemplateId } : {},
+      settings,
     });
 
     return account.save();
@@ -213,25 +230,61 @@ export class LineAccountsService {
       throw new NotFoundException('LINE account not found');
     }
 
-    // Validate template ownership if slipTemplateId is provided
+    // Validate template ownership and update settings if slipTemplateId is provided
     if (dto.slipTemplateId !== undefined) {
       const userIdToCheck = ownerId || account.ownerId;
+
       if (dto.slipTemplateId) {
-        const isValid = await this.validateTemplateOwnership(dto.slipTemplateId, userIdToCheck);
-        if (!isValid) {
+        // Get the template to find its type
+        const template = await this.slipTemplateModel.findById(dto.slipTemplateId)
+          .select({ ownerId: 1, isGlobal: 1, type: 1 }).lean().exec();
+
+        if (!template) {
+          throw new ForbiddenException('เทมเพลตนี้ไม่มีอยู่ในระบบ');
+        }
+
+        // Check ownership: must be owner OR template is global
+        const isOwner = template.ownerId?.toString() === userIdToCheck;
+        const isGlobal = template.isGlobal === true;
+        if (!isOwner && !isGlobal) {
           throw new ForbiddenException('เทมเพลตนี้ไม่ใช่ของคุณหรือไม่มีอยู่ในระบบ');
         }
-        // Update settings.slipTemplateId
-        account.settings = { ...account.settings, slipTemplateId: dto.slipTemplateId };
+
+        const templateType = template.type || 'success';
+
+        // Get current settings
+        const currentSettings = (account.settings as any) || {};
+        const currentTemplateIds = currentSettings.slipTemplateIds || {};
+
+        // Update both legacy field and new per-type field
+        account.settings = {
+          ...currentSettings,
+          slipTemplateId: dto.slipTemplateId,
+          slipTemplateIds: {
+            ...currentTemplateIds,
+            [templateType]: dto.slipTemplateId,
+          },
+        };
+
+        this.logger.log(`[UPDATE] Storing template ${dto.slipTemplateId} for type ${templateType}`);
       } else {
         // If null/empty is passed, clear the template selection
-        account.settings = { ...account.settings, slipTemplateId: '' };
+        const currentSettings = (account.settings as any) || {};
+        account.settings = {
+          ...currentSettings,
+          slipTemplateId: '',
+          slipTemplateIds: {},
+        };
+        this.logger.log(`[UPDATE] Cleared template selection for account ${id}`);
       }
     }
 
     // Remove slipTemplateId from dto before assigning (it's handled in settings)
     const { slipTemplateId, ...restDto } = dto;
     Object.assign(account, restDto);
+
+    // Mark settings as modified for Mongoose to detect nested changes
+    account.markModified('settings');
     await account.save();
 
     // Invalidate cache
