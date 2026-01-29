@@ -589,6 +589,42 @@ export const walletApi = {
 };
 
 
+// LINE Session API (Admin Only)
+export const lineSessionApi = {
+  // Get active session for a LINE account
+  getSession: (lineAccountId: string) =>
+    api.get(`/admin/line-session/${lineAccountId}`),
+
+  // Set keys manually
+  setKeys: (lineAccountId: string, data: {
+    xLineAccess: string;
+    xHmac: string;
+    userAgent?: string;
+    lineVersion?: string;
+    extractedFrom?: string;
+  }) => api.post(`/admin/line-session/${lineAccountId}/keys`, data),
+
+  // Parse keys from CURL command
+  parseCurl: (lineAccountId: string, curlCommand: string) =>
+    api.post(`/admin/line-session/${lineAccountId}/parse-curl`, { curlCommand }),
+
+  // Copy keys from another account
+  copyKeys: (lineAccountId: string, sourceAccountId: string) =>
+    api.post(`/admin/line-session/${lineAccountId}/copy-keys`, { sourceAccountId }),
+
+  // Get key history
+  getHistory: (lineAccountId: string, limit?: number) =>
+    api.get(`/admin/line-session/${lineAccountId}/history`, { params: { limit } }),
+
+  // Get health status
+  getHealth: (lineAccountId: string) =>
+    api.get(`/admin/line-session/${lineAccountId}/health`),
+
+  // Trigger manual relogin
+  triggerRelogin: (lineAccountId: string, reason?: string) =>
+    api.post(`/admin/line-session/${lineAccountId}/relogin`, { reason }),
+};
+
 // Rate Limit API (Admin Only)
 export const rateLimitApi = {
   // Get statistics

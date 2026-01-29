@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback, useRef } from 'react';
 import DashboardLayout from '@/components/layout/DashboardLayout';
-import { lineAccountsApi, usersApi, systemSettingsApi } from '@/lib/api';
+import { lineAccountsApi, usersApi, systemSettingsApi, lineSessionApi } from '@/lib/api';
 import { LineAccount, User } from '@/types';
 import toast from 'react-hot-toast';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -35,7 +35,14 @@ import {
   RefreshCw,
   Wifi,
   WifiOff,
-  Loader2
+  Loader2,
+  Key,
+  Clock,
+  CheckCircle,
+  XCircle,
+  AlertCircle,
+  Terminal,
+  History
 } from 'lucide-react';
 
 interface ExtendedLineAccount extends LineAccount {
@@ -63,6 +70,7 @@ export default function AdminLineAccountsPage() {
   const [showSettingsModal, setShowSettingsModal] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showDisableConfirm, setShowDisableConfirm] = useState(false);
+  const [showSessionModal, setShowSessionModal] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
   const [publicBaseUrl, setPublicBaseUrl] = useState<string>('');
@@ -70,6 +78,28 @@ export default function AdminLineAccountsPage() {
 
   // Connection status tracking
   const [connectionStatus, setConnectionStatus] = useState<Record<string, ConnectionStatusInfo>>({});
+
+  // LINE Session state
+  const [sessionData, setSessionData] = useState<{
+    session: any | null;
+    health: any | null;
+    history: any[];
+    isLoading: boolean;
+  }>({
+    session: null,
+    health: null,
+    history: [],
+    isLoading: false,
+  });
+  const [sessionKeyForm, setSessionKeyForm] = useState({
+    xLineAccess: '',
+    xHmac: '',
+    userAgent: '',
+    lineVersion: '',
+    curlCommand: '',
+    extractedFrom: 'manual',
+  });
+  const [sessionTab, setSessionTab] = useState<'keys' | 'curl' | 'history'>('keys');
 
   const [formData, setFormData] = useState({
     accountName: '',
@@ -396,6 +426,117 @@ export default function AdminLineAccountsPage() {
     toast.success('คัดลอก Webhook URL แล้ว');
   };
 
+  // LINE Session functions
+  const fetchSessionData = async (accountId: string) => {
+    setSessionData(prev => ({ ...prev, isLoading: true }));
+    try {
+      const [sessionRes, healthRes, historyRes] = await Promise.allSettled([
+        lineSessionApi.getSession(accountId),
+        lineSessionApi.getHealth(accountId),
+        lineSessionApi.getHistory(accountId, 10),
+      ]);
+
+      setSessionData({
+        session: sessionRes.status === 'fulfilled' ? sessionRes.value.data : null,
+        health: healthRes.status === 'fulfilled' ? healthRes.value.data : null,
+        history: historyRes.status === 'fulfilled' ? historyRes.value.data?.history || [] : [],
+        isLoading: false,
+      });
+    } catch (error) {
+      setSessionData(prev => ({ ...prev, isLoading: false }));
+      toast.error('ไม่สามารถโหลดข้อมูล Session ได้');
+    }
+  };
+
+  const openSessionModal = async (account: ExtendedLineAccount) => {
+    setSelectedAccount(account);
+    setShowSessionModal(true);
+    setSessionTab('keys');
+    setSessionKeyForm({
+      xLineAccess: '',
+      xHmac: '',
+      userAgent: '',
+      lineVersion: '',
+      curlCommand: '',
+      extractedFrom: 'manual',
+    });
+    await fetchSessionData(account._id);
+  };
+
+  const handleSetKeys = async () => {
+    if (!selectedAccount) return;
+    if (!sessionKeyForm.xLineAccess || !sessionKeyForm.xHmac) {
+      toast.error('กรุณากรอก xLineAccess และ xHmac');
+      return;
+    }
+
+    setIsProcessing(true);
+    try {
+      await lineSessionApi.setKeys(selectedAccount._id, {
+        xLineAccess: sessionKeyForm.xLineAccess,
+        xHmac: sessionKeyForm.xHmac,
+        userAgent: sessionKeyForm.userAgent || undefined,
+        lineVersion: sessionKeyForm.lineVersion || undefined,
+        extractedFrom: sessionKeyForm.extractedFrom || 'manual',
+      });
+      toast.success('บันทึก Keys สำเร็จ');
+      await fetchSessionData(selectedAccount._id);
+      setSessionKeyForm(prev => ({ ...prev, xLineAccess: '', xHmac: '' }));
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || 'ไม่สามารถบันทึก Keys ได้');
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const handleParseCurl = async () => {
+    if (!selectedAccount) return;
+    if (!sessionKeyForm.curlCommand) {
+      toast.error('กรุณาวาง CURL command');
+      return;
+    }
+
+    setIsProcessing(true);
+    try {
+      const res = await lineSessionApi.parseCurl(selectedAccount._id, sessionKeyForm.curlCommand);
+      toast.success('แยก Keys จาก CURL สำเร็จ');
+      await fetchSessionData(selectedAccount._id);
+      setSessionKeyForm(prev => ({ ...prev, curlCommand: '' }));
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || 'ไม่สามารถแยก Keys จาก CURL ได้');
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const handleTriggerRelogin = async () => {
+    if (!selectedAccount) return;
+
+    setIsProcessing(true);
+    try {
+      await lineSessionApi.triggerRelogin(selectedAccount._id, 'manual');
+      toast.success('กำลังดำเนินการ Relogin');
+      await fetchSessionData(selectedAccount._id);
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || 'ไม่สามารถ Relogin ได้');
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const getHealthStatusBadge = (status: string) => {
+    switch (status) {
+      case 'healthy':
+        return <Badge className="bg-emerald-500/10 text-emerald-400 border-emerald-500/20">Healthy</Badge>;
+      case 'unhealthy':
+        return <Badge className="bg-amber-500/10 text-amber-400 border-amber-500/20">Unhealthy</Badge>;
+      case 'expired':
+        return <Badge className="bg-rose-500/10 text-rose-400 border-rose-500/20">Expired</Badge>;
+      default:
+        return <Badge className="bg-slate-500/10 text-slate-400 border-slate-500/20">Unknown</Badge>;
+    }
+  };
+
   const filteredAccounts = accounts.filter(acc =>
     acc.accountName.toLowerCase().includes(searchTerm.toLowerCase()) ||
     acc.channelId.includes(searchTerm) ||
@@ -579,6 +720,7 @@ export default function AdminLineAccountsPage() {
                       <td className="px-8 py-6 text-right">
                         <div className="flex gap-2 justify-end opacity-0 group-hover:opacity-100 transition-all duration-300 translate-x-4 group-hover:translate-x-0">
                           <IconButton variant="ghost" size="sm" className="rounded-xl h-10 w-10 text-slate-500 hover:text-white hover:bg-white/5" onClick={() => { setSelectedAccount(account); setShowDetailModal(true); }}><Eye className="w-4 h-4" /></IconButton>
+                          <IconButton variant="ghost" size="sm" className="rounded-xl h-10 w-10 text-cyan-400 hover:bg-cyan-400/10" onClick={() => openSessionModal(account)} title="Session & Keys"><Key className="w-4 h-4" /></IconButton>
                           <IconButton variant="ghost" size="sm" className="rounded-xl h-10 w-10 text-emerald-500 hover:bg-emerald-500/10" onClick={() => openSettingsModal(account)}><Settings className="w-4 h-4" /></IconButton>
                           <IconButton variant="ghost" size="sm" className="rounded-xl h-10 w-10 text-blue-400 hover:bg-blue-400/10" onClick={() => openEditModal(account)}><Edit className="w-4 h-4" /></IconButton>
                           <IconButton variant="ghost" size="sm" className={cn("rounded-xl h-10 w-10 transition-all", account.isActive ? "text-amber-500 hover:bg-amber-500/10" : "text-emerald-500 hover:bg-emerald-500/10")} onClick={() => handleToggleActive(account)}><Power className="w-4 h-4" /></IconButton>
@@ -655,8 +797,9 @@ export default function AdminLineAccountsPage() {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-4 gap-2 bg-white/[0.03] p-2 rounded-2xl border border-white/5">
+                <div className="grid grid-cols-5 gap-2 bg-white/[0.03] p-2 rounded-2xl border border-white/5">
                   <IconButton variant="ghost" size="sm" className="flex-1 h-10 rounded-xl" onClick={() => { setSelectedAccount(account); setShowDetailModal(true); }}><Eye className="w-4 h-4 text-slate-500" /></IconButton>
+                  <IconButton variant="ghost" size="sm" className="flex-1 h-10 rounded-xl text-cyan-400 hover:bg-cyan-400/10" onClick={() => openSessionModal(account)}><Key className="w-4 h-4" /></IconButton>
                   <IconButton variant="ghost" size="sm" className="flex-1 h-10 rounded-xl text-emerald-500 hover:bg-emerald-500/10" onClick={() => openSettingsModal(account)}><Settings className="w-4 h-4" /></IconButton>
                   <IconButton variant="ghost" size="sm" className="flex-1 h-10 rounded-xl text-blue-400 hover:bg-blue-400/10" onClick={() => openEditModal(account)}><Edit className="w-4 h-4" /></IconButton>
                   <IconButton variant="ghost" size="sm" className="flex-1 h-10 rounded-xl text-rose-500 hover:bg-rose-500/10" onClick={() => { setSelectedAccount(account); setShowDeleteConfirm(true); }}><Trash2 className="w-4 h-4" /></IconButton>
@@ -940,6 +1083,261 @@ export default function AdminLineAccountsPage() {
               <Button variant="ghost" className="flex-1 h-14 rounded-2xl font-black uppercase tracking-widest text-[10px]" onClick={() => setShowDetailModal(false)}>ปิดหน้าต่าง</Button>
               <Button variant="secondary" className="flex-1 h-14 rounded-2xl font-black uppercase tracking-widest text-[10px]" onClick={() => openEditModal(selectedAccount)}>แก้ไขโครงร่าง</Button>
               <Button variant="danger" className="flex-1 h-14 rounded-2xl font-black uppercase tracking-widest text-[10px] bg-rose-50 text-rose-600 hover:bg-rose-600 hover:text-white border-none" onClick={() => setShowDeleteConfirm(true)}>ถอนรากบัญชี</Button>
+            </div>
+          </div>
+        )}
+      </Modal>
+
+      {/* Session & Keys Modal */}
+      <Modal isOpen={showSessionModal} onClose={() => !isProcessing && setShowSessionModal(false)} title={`Session & Keys: ${selectedAccount?.accountName}`} size="xl">
+        {selectedAccount && (
+          <div className="space-y-8 pt-4 max-h-[75vh] overflow-y-auto px-2 custom-scrollbar pb-6">
+            {/* Session Status Header */}
+            <div className="p-6 bg-slate-900 text-white rounded-[2rem] relative overflow-hidden">
+              <div className="absolute top-0 right-0 w-48 h-48 bg-cyan-500/10 rounded-full blur-[60px] -mr-24 -mt-24 pointer-events-none" />
+              <div className="relative z-10">
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center gap-3">
+                    <div className="w-12 h-12 rounded-xl bg-cyan-500/20 flex items-center justify-center">
+                      <Key className="w-6 h-6 text-cyan-400" />
+                    </div>
+                    <div>
+                      <p className="text-[10px] font-black text-cyan-400 uppercase tracking-widest">LINE Session Status</p>
+                      <p className="text-white font-bold">{selectedAccount.accountName}</p>
+                    </div>
+                  </div>
+                  {sessionData.isLoading ? (
+                    <Spinner size="sm" />
+                  ) : sessionData.health ? (
+                    getHealthStatusBadge(sessionData.health.status)
+                  ) : (
+                    <Badge className="bg-slate-500/10 text-slate-400 border-slate-500/20">No Session</Badge>
+                  )}
+                </div>
+
+                {sessionData.session && (
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4">
+                    <div className="bg-white/5 rounded-xl p-3">
+                      <p className="text-[9px] font-bold text-white/40 uppercase tracking-widest mb-1">Status</p>
+                      <p className="text-sm font-bold text-white">{sessionData.session.status || 'N/A'}</p>
+                    </div>
+                    <div className="bg-white/5 rounded-xl p-3">
+                      <p className="text-[9px] font-bold text-white/40 uppercase tracking-widest mb-1">Last Check</p>
+                      <p className="text-sm font-bold text-white">
+                        {sessionData.session.lastCheckedAt
+                          ? new Date(sessionData.session.lastCheckedAt).toLocaleString('th-TH')
+                          : 'Never'}
+                      </p>
+                    </div>
+                    <div className="bg-white/5 rounded-xl p-3">
+                      <p className="text-[9px] font-bold text-white/40 uppercase tracking-widest mb-1">Failures</p>
+                      <p className="text-sm font-bold text-white">{sessionData.session.consecutiveFailures || 0}</p>
+                    </div>
+                    <div className="bg-white/5 rounded-xl p-3">
+                      <p className="text-[9px] font-bold text-white/40 uppercase tracking-widest mb-1">Extracted From</p>
+                      <p className="text-sm font-bold text-white truncate">{sessionData.session.extractedFrom || 'N/A'}</p>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Tab Navigation */}
+            <div className="flex gap-2 p-1 bg-slate-100 rounded-2xl">
+              <button
+                onClick={() => setSessionTab('keys')}
+                className={cn(
+                  "flex-1 py-3 px-4 rounded-xl text-xs font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2",
+                  sessionTab === 'keys' ? "bg-white shadow-sm text-slate-900" : "text-slate-500 hover:text-slate-700"
+                )}
+              >
+                <Key className="w-4 h-4" /> Keys
+              </button>
+              <button
+                onClick={() => setSessionTab('curl')}
+                className={cn(
+                  "flex-1 py-3 px-4 rounded-xl text-xs font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2",
+                  sessionTab === 'curl' ? "bg-white shadow-sm text-slate-900" : "text-slate-500 hover:text-slate-700"
+                )}
+              >
+                <Terminal className="w-4 h-4" /> CURL
+              </button>
+              <button
+                onClick={() => setSessionTab('history')}
+                className={cn(
+                  "flex-1 py-3 px-4 rounded-xl text-xs font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2",
+                  sessionTab === 'history' ? "bg-white shadow-sm text-slate-900" : "text-slate-500 hover:text-slate-700"
+                )}
+              >
+                <History className="w-4 h-4" /> History
+              </button>
+            </div>
+
+            {/* Keys Tab */}
+            {sessionTab === 'keys' && (
+              <div className="space-y-6">
+                <div className="p-6 bg-slate-50 rounded-[2rem] space-y-4">
+                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4">Set Keys Manually</p>
+                  <div className="space-y-4">
+                    <Input
+                      label="X-Line-Access Token"
+                      placeholder="eyJhbGciOiJIUzI1NiJ9..."
+                      value={sessionKeyForm.xLineAccess}
+                      onChange={(e) => setSessionKeyForm(prev => ({ ...prev, xLineAccess: e.target.value }))}
+                      className="font-mono text-sm"
+                    />
+                    <Input
+                      label="X-Hmac"
+                      placeholder="HMAC signature..."
+                      value={sessionKeyForm.xHmac}
+                      onChange={(e) => setSessionKeyForm(prev => ({ ...prev, xHmac: e.target.value }))}
+                      className="font-mono text-sm"
+                    />
+                    <div className="grid grid-cols-2 gap-4">
+                      <Input
+                        label="User Agent (Optional)"
+                        placeholder="LINE/13.0.0..."
+                        value={sessionKeyForm.userAgent}
+                        onChange={(e) => setSessionKeyForm(prev => ({ ...prev, userAgent: e.target.value }))}
+                        className="text-sm"
+                      />
+                      <Input
+                        label="LINE Version (Optional)"
+                        placeholder="13.0.0"
+                        value={sessionKeyForm.lineVersion}
+                        onChange={(e) => setSessionKeyForm(prev => ({ ...prev, lineVersion: e.target.value }))}
+                        className="text-sm"
+                      />
+                    </div>
+                  </div>
+                  <div className="flex gap-3 pt-4">
+                    <Button
+                      variant="primary"
+                      onClick={handleSetKeys}
+                      isLoading={isProcessing}
+                      className="flex-1 h-12 rounded-xl font-bold"
+                    >
+                      Save Keys
+                    </Button>
+                    <Button
+                      variant="outline"
+                      onClick={handleTriggerRelogin}
+                      isLoading={isProcessing}
+                      className="h-12 rounded-xl font-bold"
+                    >
+                      <RefreshCw className="w-4 h-4 mr-2" /> Relogin
+                    </Button>
+                  </div>
+                </div>
+
+                {/* Current Keys Display */}
+                {sessionData.session && sessionData.session.xLineAccess && (
+                  <div className="p-6 bg-emerald-50 rounded-[2rem] border border-emerald-200">
+                    <p className="text-[10px] font-black text-emerald-600 uppercase tracking-widest mb-4">Current Keys</p>
+                    <div className="space-y-3">
+                      <div>
+                        <p className="text-[9px] font-bold text-emerald-500 uppercase mb-1">X-Line-Access</p>
+                        <p className="font-mono text-xs text-emerald-700 bg-white/50 p-2 rounded-lg break-all">
+                          {sessionData.session.xLineAccess.substring(0, 30)}...
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-[9px] font-bold text-emerald-500 uppercase mb-1">X-Hmac</p>
+                        <p className="font-mono text-xs text-emerald-700 bg-white/50 p-2 rounded-lg break-all">
+                          {sessionData.session.xHmac.substring(0, 30)}...
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* CURL Tab */}
+            {sessionTab === 'curl' && (
+              <div className="space-y-6">
+                <div className="p-6 bg-slate-900 text-white rounded-[2rem]">
+                  <p className="text-[10px] font-black text-cyan-400 uppercase tracking-widest mb-4">Extract Keys from CURL</p>
+                  <p className="text-xs text-white/60 mb-4">
+                    วาง CURL command จาก Browser DevTools (Network tab) ที่มี X-Line-Access header
+                  </p>
+                  <Textarea
+                    placeholder={`curl 'https://api.line.me/...' \\
+  -H 'X-Line-Access: eyJhbGciOiJIUzI1NiJ9...' \\
+  -H 'X-Hmac: abc123...'`}
+                    value={sessionKeyForm.curlCommand}
+                    onChange={(e) => setSessionKeyForm(prev => ({ ...prev, curlCommand: e.target.value }))}
+                    rows={8}
+                    className="font-mono text-sm bg-white/5 border-white/10 text-white rounded-xl"
+                  />
+                  <Button
+                    variant="primary"
+                    onClick={handleParseCurl}
+                    isLoading={isProcessing}
+                    className="w-full mt-4 h-12 rounded-xl font-bold bg-cyan-500 hover:bg-cyan-600"
+                  >
+                    <Terminal className="w-4 h-4 mr-2" /> Extract & Save Keys
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            {/* History Tab */}
+            {sessionTab === 'history' && (
+              <div className="space-y-4">
+                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-2">Key Extraction History</p>
+                {sessionData.history.length === 0 ? (
+                  <div className="p-8 bg-slate-50 rounded-[2rem] text-center">
+                    <History className="w-12 h-12 text-slate-300 mx-auto mb-3" />
+                    <p className="text-sm text-slate-500">No history found</p>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {sessionData.history.map((item: any, index: number) => (
+                      <div key={item._id || index} className="p-4 bg-slate-50 rounded-xl border border-slate-100">
+                        <div className="flex items-center justify-between mb-2">
+                          <Badge className={cn(
+                            "text-[9px] font-bold",
+                            item.eventType === 'key_set' && "bg-emerald-100 text-emerald-700",
+                            item.eventType === 'key_expired' && "bg-rose-100 text-rose-700",
+                            item.eventType === 'relogin' && "bg-amber-100 text-amber-700"
+                          )}>
+                            {item.eventType}
+                          </Badge>
+                          <span className="text-[9px] text-slate-400">
+                            {new Date(item.createdAt).toLocaleString('th-TH')}
+                          </span>
+                        </div>
+                        <p className="text-xs text-slate-600">{item.extractedFrom || 'Manual'}</p>
+                        {item.xLineAccess && (
+                          <p className="font-mono text-[10px] text-slate-400 mt-1 truncate">
+                            {item.xLineAccess.substring(0, 40)}...
+                          </p>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+            <div className="flex gap-4 pt-6 border-t border-slate-100">
+              <Button
+                variant="ghost"
+                className="flex-1 h-12 rounded-xl font-bold"
+                onClick={() => setShowSessionModal(false)}
+                disabled={isProcessing}
+              >
+                Close
+              </Button>
+              <Button
+                variant="secondary"
+                className="h-12 rounded-xl font-bold"
+                onClick={() => fetchSessionData(selectedAccount._id)}
+                disabled={sessionData.isLoading}
+              >
+                <RefreshCw className={cn("w-4 h-4 mr-2", sessionData.isLoading && "animate-spin")} /> Refresh
+              </Button>
             </div>
           </div>
         )}
