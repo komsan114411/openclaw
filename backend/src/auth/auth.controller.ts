@@ -158,11 +158,13 @@ export class AuthController {
   async changePassword(
     @CurrentUser() user: AuthUser,
     @Body() changePasswordDto: ChangePasswordDto,
+    @Req() req: Request,
   ) {
-    await this.authService.changePassword(user.userId, changePasswordDto);
+    const currentSessionId = req.cookies?.session_id;
+    await this.authService.changePassword(user.userId, changePasswordDto, currentSessionId);
     return {
       success: true,
-      message: 'Password changed successfully',
+      message: 'Password changed successfully. Other sessions have been invalidated.',
     };
   }
 

@@ -43,9 +43,23 @@ export class AuthService {
     try {
       const adminExists = await this.userModel.findOne({ username: 'admin' });
       if (!adminExists) {
-        // Generate secure random password
-        const randomPassword = crypto.randomBytes(16).toString('base64').slice(0, 20);
-        const hashedPassword = await bcrypt.hash(randomPassword, 12);
+        // SECURITY: Use environment variable for initial password, or generate random
+        // Never log the actual password
+        const initialPassword = process.env.ADMIN_INITIAL_PASSWORD;
+        let password: string;
+        let forceChange = true;
+
+        if (initialPassword && initialPassword.length >= 8) {
+          password = initialPassword;
+          this.logger.log('Using ADMIN_INITIAL_PASSWORD from environment variable');
+        } else {
+          // Generate secure random password - admin must use password reset flow
+          password = crypto.randomBytes(16).toString('base64').slice(0, 20);
+          this.logger.warn('No ADMIN_INITIAL_PASSWORD set - random password generated');
+          this.logger.warn('Admin must use password reset flow to set password');
+        }
+
+        const hashedPassword = await bcrypt.hash(password, 12);
 
         await this.userModel.create({
           username: 'admin',
@@ -53,23 +67,12 @@ export class AuthService {
           role: UserRole.ADMIN,
           email: 'admin@system.local',
           fullName: 'System Administrator',
-          forcePasswordChange: true,
+          forcePasswordChange: forceChange,
           isActive: true,
         });
 
-        // SECURITY: Only log password to console (never write to file)
-        // In production, use environment variable or secret manager instead
-        this.logger.warn('═════════════════════════════════════════════════════════════');
-        this.logger.warn('🔐 DEFAULT ADMIN ACCOUNT CREATED');
-        this.logger.warn('');
-        this.logger.warn('   Username: admin');
-        this.logger.warn(`   Password: ${randomPassword}`);
-        this.logger.warn('');
-        this.logger.warn('   ⚠️  IMPORTANT SECURITY NOTICES:');
-        this.logger.warn('   1. Change this password IMMEDIATELY after first login');
-        this.logger.warn('   2. This password is shown ONLY ONCE in server logs');
-        this.logger.warn('   3. Clear your terminal/logs after noting the password');
-        this.logger.warn('═════════════════════════════════════════════════════════════');
+        this.logger.log('Default admin account created with username: admin');
+        this.logger.log('Password change is required on first login');
       }
     } catch (error) {
       this.logger.error('Error creating default admin:', error);
@@ -302,7 +305,7 @@ export class AuthService {
     };
   }
 
-  async changePassword(userId: string, dto: ChangePasswordDto): Promise<void> {
+  async changePassword(userId: string, dto: ChangePasswordDto, currentSessionId?: string): Promise<void> {
     const user = await this.userModel.findById(userId);
     if (!user) {
       throw new BadRequestException('ไม่พบบัญชีผู้ใช้ กรุณาเข้าสู่ระบบใหม่');
@@ -322,6 +325,22 @@ export class AuthService {
         updatedAt: new Date(),
       },
     );
+
+    // SECURITY: Invalidate all sessions except the current one after password change
+    // This ensures any compromised sessions are terminated
+    if (currentSessionId) {
+      // Invalidate all OTHER sessions, keep current one
+      const sessions = await this.sessionModel.find({ userId, sessionId: { $ne: currentSessionId } });
+      for (const session of sessions) {
+        await this.redisService.deleteSession(session.sessionId);
+      }
+      await this.sessionModel.deleteMany({ userId, sessionId: { $ne: currentSessionId } });
+      this.logger.log(`Invalidated ${sessions.length} other sessions after password change for user ${userId}`);
+    } else {
+      // Invalidate ALL sessions if no current session provided
+      await this.invalidateUserSessions(userId);
+      this.logger.log(`Invalidated all sessions after password change for user ${userId}`);
+    }
   }
 
   async validateToken(token: string): Promise<JwtPayload | null> {
