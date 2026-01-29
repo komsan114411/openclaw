@@ -9,6 +9,9 @@ import {
   UseInterceptors,
   UploadedFile,
   Req,
+  NotFoundException,
+  ForbiddenException,
+  BadRequestException,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiConsumes } from '@nestjs/swagger';
@@ -21,6 +24,7 @@ import { AuthUser } from '../auth/auth.service';
 import { UserRole } from '../database/schemas/user.schema';
 import { PaymentStatus, PaymentType } from '../database/schemas/payment.schema';
 import { CreatePaymentDto, SubmitSlipDto, SubmitUsdtDto, RejectPaymentDto, PaymentTypeDto } from './dto/create-payment.dto';
+import { ParseObjectIdPipe } from '../common/pipes/parse-object-id.pipe';
 
 @ApiTags('Payments')
 @ApiBearerAuth()
@@ -60,7 +64,7 @@ export class PaymentsController {
     @Req() req: any,
   ) {
     if (!file) {
-      return { success: false, message: 'กรุณาอัปโหลดรูปสลิป' };
+      throw new BadRequestException('กรุณาอัปโหลดรูปสลิป');
     }
 
     // Enhanced file validation with magic byte checking
@@ -69,13 +73,13 @@ export class PaymentsController {
 
     // Basic MIME type check
     if (!file.mimetype?.startsWith('image/') || size <= 0 || size > maxBytes) {
-      return { success: false, message: 'ไฟล์สลิปไม่ถูกต้อง (รองรับรูปภาพและต้องไม่เกิน 5MB)' };
+      throw new BadRequestException('ไฟล์สลิปไม่ถูกต้อง (รองรับรูปภาพและต้องไม่เกิน 5MB)');
     }
 
     // Magic byte validation to prevent MIME type spoofing
     const buffer = file.buffer;
     if (!buffer || buffer.length < 4) {
-      return { success: false, message: 'ไฟล์สลิปไม่ถูกต้อง' };
+      throw new BadRequestException('ไฟล์สลิปไม่ถูกต้อง');
     }
 
     // Check file signatures (magic bytes)
@@ -87,7 +91,7 @@ export class PaymentsController {
       buffer[8] === 0x57 && buffer[9] === 0x45 && buffer[10] === 0x42 && buffer[11] === 0x50;
 
     if (!isJPEG && !isPNG && !isGIF && !isWEBP) {
-      return { success: false, message: 'รองรับเฉพาะไฟล์รูปภาพ JPEG, PNG, GIF, WEBP เท่านั้น' };
+      throw new BadRequestException('รองรับเฉพาะไฟล์รูปภาพ JPEG, PNG, GIF, WEBP เท่านั้น');
     }
 
     // If paymentId is provided, update the existing payment (no new row)
@@ -157,7 +161,7 @@ export class PaymentsController {
   @Get('check-eligibility/:packageId')
   @ApiOperation({ summary: 'Check if user can purchase a package' })
   async checkPurchaseEligibility(
-    @Param('packageId') packageId: string,
+    @Param('packageId', ParseObjectIdPipe) packageId: string,
     @CurrentUser() user: AuthUser,
   ) {
     const result = await this.paymentsService.canUserPurchase(user.userId, packageId);
@@ -170,18 +174,18 @@ export class PaymentsController {
   @Get(':id')
   @ApiOperation({ summary: 'Get payment by ID' })
   async findOne(
-    @Param('id') id: string,
+    @Param('id', ParseObjectIdPipe) id: string,
     @CurrentUser() user: AuthUser,
   ) {
     const payment = await this.paymentsService.findById(id);
     if (!payment) {
-      return { success: false, message: 'Payment not found' };
+      throw new NotFoundException('ไม่พบรายการชำระเงิน');
     }
 
-    // Check ownership for non-admin (handle both ObjectId and string)
-    const paymentUserId = payment.userId?.toString() || payment.userId;
+    // Check ownership for non-admin
+    const paymentUserId = payment.userId?.toString();
     if (user.role !== UserRole.ADMIN && paymentUserId !== user.userId) {
-      return { success: false, message: 'Access denied' };
+      throw new NotFoundException('ไม่พบรายการชำระเงิน');
     }
 
     return {
@@ -195,13 +199,22 @@ export class PaymentsController {
   @Roles(UserRole.ADMIN)
   @ApiOperation({ summary: 'Approve payment (Admin only)' })
   async approve(
-    @Param('id') id: string,
+    @Param('id', ParseObjectIdPipe) id: string,
     @CurrentUser() user: AuthUser,
   ) {
+    const payment = await this.paymentsService.findById(id);
+    if (!payment) {
+      throw new NotFoundException('ไม่พบรายการชำระเงิน');
+    }
+
     const success = await this.paymentsService.approvePayment(id, user.userId);
+    if (!success) {
+      throw new BadRequestException('ไม่สามารถอนุมัติได้ (สถานะไม่ถูกต้อง)');
+    }
+
     return {
-      success,
-      message: success ? 'อนุมัติการชำระเงินสำเร็จ' : 'ไม่สามารถอนุมัติได้',
+      success: true,
+      message: 'อนุมัติการชำระเงินสำเร็จ',
     };
   }
 
@@ -210,18 +223,28 @@ export class PaymentsController {
   @Roles(UserRole.ADMIN)
   @ApiOperation({ summary: 'Reject payment (Admin only)' })
   async reject(
-    @Param('id') id: string,
+    @Param('id', ParseObjectIdPipe) id: string,
     @Body() body: RejectPaymentDto,
     @CurrentUser() user: AuthUser,
   ) {
+    const payment = await this.paymentsService.findById(id);
+    if (!payment) {
+      throw new NotFoundException('ไม่พบรายการชำระเงิน');
+    }
+
     const success = await this.paymentsService.rejectPayment(
       id,
       user.userId,
       body.notes,
     );
+
+    if (!success) {
+      throw new BadRequestException('ไม่สามารถปฏิเสธได้ (สถานะไม่ถูกต้อง)');
+    }
+
     return {
-      success,
-      message: success ? 'ปฏิเสธการชำระเงินแล้ว' : 'ไม่สามารถปฏิเสธได้',
+      success: true,
+      message: 'ปฏิเสธการชำระเงินแล้ว',
     };
   }
 }

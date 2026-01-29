@@ -8,6 +8,8 @@ import {
   Param,
   Query,
   UseGuards,
+  NotFoundException,
+  ForbiddenException,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { LineAccountsService } from './line-accounts.service';
@@ -19,6 +21,7 @@ import { Roles } from '../auth/decorators/roles.decorator';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { AuthUser } from '../auth/auth.service';
 import { UserRole } from '../database/schemas/user.schema';
+import { ParseObjectIdPipe } from '../common/pipes/parse-object-id.pipe';
 
 @ApiTags('LINE Accounts')
 @ApiBearerAuth()
@@ -126,17 +129,19 @@ export class LineAccountsController {
   @Get(':id')
   @ApiOperation({ summary: 'Get LINE account by ID' })
   async findOne(
-    @Param('id') id: string,
+    @Param('id', ParseObjectIdPipe) id: string,
     @CurrentUser() user: AuthUser,
   ) {
     const account = await this.lineAccountsService.findById(id);
+
+    // SECURITY: Return same error whether not found or no access (prevents enumeration)
     if (!account) {
-      return { success: false, message: 'ไม่พบบัญชี LINE' };
+      throw new NotFoundException('ไม่พบบัญชี LINE');
     }
 
-    // Check ownership for non-admin
-    if (user.role !== UserRole.ADMIN && account.ownerId !== user.userId) {
-      return { success: false, message: 'ไม่มีสิทธิ์เข้าถึง' };
+    // Check ownership for non-admin (convert to string for comparison)
+    if (user.role !== UserRole.ADMIN && account.ownerId?.toString() !== user.userId) {
+      throw new NotFoundException('ไม่พบบัญชี LINE');
     }
 
     return {
@@ -148,18 +153,18 @@ export class LineAccountsController {
   @Put(':id')
   @ApiOperation({ summary: 'Update LINE account' })
   async update(
-    @Param('id') id: string,
+    @Param('id', ParseObjectIdPipe) id: string,
     @Body() dto: UpdateLineAccountDto,
     @CurrentUser() user: AuthUser,
   ) {
     const account = await this.lineAccountsService.findById(id);
     if (!account) {
-      return { success: false, message: 'Account not found' };
+      throw new NotFoundException('ไม่พบบัญชี LINE');
     }
 
     // Check ownership for non-admin
-    if (user.role !== UserRole.ADMIN && account.ownerId !== user.userId) {
-      return { success: false, message: 'Access denied' };
+    if (user.role !== UserRole.ADMIN && account.ownerId?.toString() !== user.userId) {
+      throw new ForbiddenException('ไม่มีสิทธิ์แก้ไขบัญชีนี้');
     }
 
     const updated = await this.lineAccountsService.update(id, dto, user.userId);
@@ -173,17 +178,17 @@ export class LineAccountsController {
   @Put(':id/settings')
   @ApiOperation({ summary: 'Update LINE account settings' })
   async updateSettings(
-    @Param('id') id: string,
-    @Body() settings: any,
+    @Param('id', ParseObjectIdPipe) id: string,
+    @Body() settings: Record<string, unknown>,
     @CurrentUser() user: AuthUser,
   ) {
     const account = await this.lineAccountsService.findById(id);
     if (!account) {
-      return { success: false, message: 'Account not found' };
+      throw new NotFoundException('ไม่พบบัญชี LINE');
     }
 
-    if (user.role !== UserRole.ADMIN && account.ownerId !== user.userId) {
-      return { success: false, message: 'Access denied' };
+    if (user.role !== UserRole.ADMIN && account.ownerId?.toString() !== user.userId) {
+      throw new ForbiddenException('ไม่มีสิทธิ์แก้ไขการตั้งค่านี้');
     }
 
     await this.lineAccountsService.updateSettings(id, settings);
@@ -196,16 +201,16 @@ export class LineAccountsController {
   @Delete(':id')
   @ApiOperation({ summary: 'Delete LINE account' })
   async delete(
-    @Param('id') id: string,
+    @Param('id', ParseObjectIdPipe) id: string,
     @CurrentUser() user: AuthUser,
   ) {
     const account = await this.lineAccountsService.findById(id);
     if (!account) {
-      return { success: false, message: 'Account not found' };
+      throw new NotFoundException('ไม่พบบัญชี LINE');
     }
 
-    if (user.role !== UserRole.ADMIN && account.ownerId !== user.userId) {
-      return { success: false, message: 'Access denied' };
+    if (user.role !== UserRole.ADMIN && account.ownerId?.toString() !== user.userId) {
+      throw new ForbiddenException('ไม่มีสิทธิ์ลบบัญชีนี้');
     }
 
     await this.lineAccountsService.delete(id);
@@ -218,16 +223,16 @@ export class LineAccountsController {
   @Post(':id/regenerate-webhook')
   @ApiOperation({ summary: 'Regenerate webhook URL' })
   async regenerateWebhook(
-    @Param('id') id: string,
+    @Param('id', ParseObjectIdPipe) id: string,
     @CurrentUser() user: AuthUser,
   ) {
     const account = await this.lineAccountsService.findById(id);
     if (!account) {
-      return { success: false, message: 'Account not found' };
+      throw new NotFoundException('ไม่พบบัญชี LINE');
     }
 
-    if (user.role !== UserRole.ADMIN && account.ownerId !== user.userId) {
-      return { success: false, message: 'Access denied' };
+    if (user.role !== UserRole.ADMIN && account.ownerId?.toString() !== user.userId) {
+      throw new ForbiddenException('ไม่มีสิทธิ์สร้าง Webhook URL ใหม่');
     }
 
     const newSlug = await this.lineAccountsService.regenerateWebhookSlug(id);
@@ -241,18 +246,18 @@ export class LineAccountsController {
   @Get(':id/chat-history')
   @ApiOperation({ summary: 'Get chat history' })
   async getChatHistory(
-    @Param('id') id: string,
+    @Param('id', ParseObjectIdPipe) id: string,
     @Query('userId') userId: string,
     @Query('limit') limit: number = 50,
     @CurrentUser() user: AuthUser,
   ) {
     const account = await this.lineAccountsService.findById(id);
     if (!account) {
-      return { success: false, message: 'Account not found' };
+      throw new NotFoundException('ไม่พบบัญชี LINE');
     }
 
-    if (user.role !== UserRole.ADMIN && account.ownerId !== user.userId) {
-      return { success: false, message: 'Access denied' };
+    if (user.role !== UserRole.ADMIN && account.ownerId?.toString() !== user.userId) {
+      throw new ForbiddenException('ไม่มีสิทธิ์ดูประวัติแชท');
     }
 
     const messages = await this.lineAccountsService.getChatHistory(id, userId, limit);
@@ -265,16 +270,16 @@ export class LineAccountsController {
   @Post(':id/test-connection')
   @ApiOperation({ summary: 'Test LINE channel connection' })
   async testConnection(
-    @Param('id') id: string,
+    @Param('id', ParseObjectIdPipe) id: string,
     @CurrentUser() user: AuthUser,
   ) {
     const account = await this.lineAccountsService.findById(id);
     if (!account) {
-      return { success: false, message: 'Account not found' };
+      throw new NotFoundException('ไม่พบบัญชี LINE');
     }
 
-    if (user.role !== UserRole.ADMIN && account.ownerId !== user.userId) {
-      return { success: false, message: 'Access denied' };
+    if (user.role !== UserRole.ADMIN && account.ownerId?.toString() !== user.userId) {
+      throw new ForbiddenException('ไม่มีสิทธิ์ทดสอบการเชื่อมต่อ');
     }
 
     const result = await this.lineAccountsService.testConnection(account.accessToken);

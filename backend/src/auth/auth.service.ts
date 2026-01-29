@@ -43,8 +43,10 @@ export class AuthService {
     try {
       const adminExists = await this.userModel.findOne({ username: 'admin' });
       if (!adminExists) {
-        const randomPassword = crypto.randomBytes(12).toString('base64').slice(0, 16);
+        // Generate secure random password
+        const randomPassword = crypto.randomBytes(16).toString('base64').slice(0, 20);
         const hashedPassword = await bcrypt.hash(randomPassword, 12);
+
         await this.userModel.create({
           username: 'admin',
           password: hashedPassword,
@@ -54,19 +56,20 @@ export class AuthService {
           forcePasswordChange: true,
           isActive: true,
         });
-        this.logger.warn('═══════════════════════════════════════════════════');
-        this.logger.warn('🔐 DEFAULT ADMIN CREATED');
-        this.logger.warn('   Username: admin');
-        this.logger.warn('   Password: [HIDDEN - Check ADMIN_INITIAL_PASSWORD.txt]');
-        this.logger.warn('   ⚠️ CHANGE PASSWORD IMMEDIATELY ON FIRST LOGIN');
-        this.logger.warn('═══════════════════════════════════════════════════');
 
-        // Write password to secure file (should be deleted after first login)
-        const fs = require('fs');
-        const path = require('path');
-        const passwordFile = path.join(process.cwd(), 'ADMIN_INITIAL_PASSWORD.txt');
-        fs.writeFileSync(passwordFile, `Initial Admin Password: ${randomPassword}\n\nDELETE THIS FILE AFTER FIRST LOGIN!`, 'utf8');
-        this.logger.warn(`   📄 Password saved to: ${passwordFile}`);
+        // SECURITY: Only log password to console (never write to file)
+        // In production, use environment variable or secret manager instead
+        this.logger.warn('═════════════════════════════════════════════════════════════');
+        this.logger.warn('🔐 DEFAULT ADMIN ACCOUNT CREATED');
+        this.logger.warn('');
+        this.logger.warn('   Username: admin');
+        this.logger.warn(`   Password: ${randomPassword}`);
+        this.logger.warn('');
+        this.logger.warn('   ⚠️  IMPORTANT SECURITY NOTICES:');
+        this.logger.warn('   1. Change this password IMMEDIATELY after first login');
+        this.logger.warn('   2. This password is shown ONLY ONCE in server logs');
+        this.logger.warn('   3. Clear your terminal/logs after noting the password');
+        this.logger.warn('═════════════════════════════════════════════════════════════');
       }
     } catch (error) {
       this.logger.error('Error creating default admin:', error);
@@ -83,33 +86,40 @@ export class AuthService {
     return user;
   }
 
+  // Generic error message to prevent username enumeration
+  private readonly INVALID_CREDENTIALS_MSG = 'ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง';
+  private readonly ACCOUNT_ISSUE_MSG = 'ไม่สามารถเข้าสู่ระบบได้ กรุณาติดต่อผู้ดูแลระบบ';
+
+  // Simulate bcrypt timing to prevent timing attacks
+  private async fakePasswordCheck(): Promise<void> {
+    await bcrypt.hash('dummy_password_timing_safe', 12);
+  }
+
   async login(loginDto: LoginDto): Promise<{
     accessToken: string;
     sessionId: string;
     user: AuthUser;
   }> {
-    // Check if user exists first (without other conditions)
+    // SECURITY: Use generic error messages to prevent username enumeration
     const userExists = await this.userModel.findOne({ username: loginDto.username });
 
     if (!userExists) {
-      throw new UnauthorizedException('ไม่พบบัญชีผู้ใช้นี้ในระบบ กรุณาตรวจสอบชื่อผู้ใช้หรือสมัครสมาชิกใหม่');
+      // Simulate password check to prevent timing attacks
+      await this.fakePasswordCheck();
+      throw new UnauthorizedException(this.INVALID_CREDENTIALS_MSG);
     }
 
-    // Check if user is blocked
-    if (userExists.isBlocked) {
-      const reason = userExists.blockedReason || 'ไม่ระบุเหตุผล';
-      throw new UnauthorizedException(`บัญชีของคุณถูกระงับการใช้งาน เหตุผล: ${reason} กรุณาติดต่อผู้ดูแลระบบ`);
-    }
-
-    // Check if user is inactive
-    if (!userExists.isActive) {
-      throw new UnauthorizedException('บัญชีของคุณถูกปิดใช้งาน กรุณาติดต่อผู้ดูแลระบบเพื่อเปิดใช้งานอีกครั้ง');
-    }
-
-    // Validate password
+    // Validate password first before checking other conditions
     const isPasswordValid = await bcrypt.compare(loginDto.password, userExists.password);
     if (!isPasswordValid) {
-      throw new UnauthorizedException('รหัสผ่านไม่ถูกต้อง กรุณาตรวจสอบและลองใหม่อีกครั้ง');
+      throw new UnauthorizedException(this.INVALID_CREDENTIALS_MSG);
+    }
+
+    // After password is validated, check account status
+    // Use generic message to not reveal specific account issues
+    if (userExists.isBlocked || !userExists.isActive) {
+      this.logger.warn(`Blocked/inactive user attempted login: ${loginDto.username}`);
+      throw new UnauthorizedException(this.ACCOUNT_ISSUE_MSG);
     }
 
     const user = userExists;

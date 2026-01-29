@@ -18,6 +18,7 @@ import { Model } from 'mongoose';
 import { SystemSettingsService } from './system-settings.service';
 import { SessionAuthGuard } from '../auth/guards/session-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
+import { RateLimitGuard, RateLimit } from '../common/guards/rate-limit.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { AuthUser, AuthService } from '../auth/auth.service';
@@ -51,9 +52,12 @@ export class SystemSettingsController {
 
   // ===============================
   // PUBLIC ENDPOINTS (No Auth Required)
+  // Rate limited to prevent abuse
   // ===============================
 
   @Get('access-status')
+  @UseGuards(RateLimitGuard)
+  @RateLimit({ limit: 60, windowSeconds: 60, keyPrefix: 'public:access-status' })
   @ApiOperation({ summary: 'Get system access status (public - no auth required)' })
   async getAccessStatus() {
     const settings = await this.settingsService.getSettings();
@@ -68,6 +72,8 @@ export class SystemSettingsController {
   }
 
   @Get('floating-contact')
+  @UseGuards(RateLimitGuard)
+  @RateLimit({ limit: 60, windowSeconds: 60, keyPrefix: 'public:floating-contact' })
   @ApiOperation({ summary: 'Get floating contact button settings (public - no auth required)' })
   async getFloatingContact() {
     const settings = await this.settingsService.getSettings();

@@ -36,15 +36,30 @@ async function bootstrap() {
       next();
     });
 
-    // Enable CORS with configurable origins
-    const corsOrigins = process.env.CORS_ORIGINS
+    // Enable CORS with strict origin validation
+    const allowedOrigins = process.env.CORS_ORIGINS
       ? process.env.CORS_ORIGINS.split(',').map(o => o.trim())
-      : true; // Allow all in development
+      : ['http://localhost:3000']; // Default to localhost only in development
 
     app.enableCors({
-      origin: corsOrigins,
+      origin: (origin, callback) => {
+        // Allow requests with no origin (mobile apps, Postman, server-to-server)
+        if (!origin) {
+          callback(null, true);
+          return;
+        }
+
+        // Check if origin is in allowed list
+        if (allowedOrigins.includes(origin) ||
+            allowedOrigins.some(allowed => origin.endsWith(allowed.replace('https://', '.').replace('http://', '.')))) {
+          callback(null, true);
+        } else {
+          logger.warn(`CORS blocked request from origin: ${origin}`);
+          callback(new Error('Not allowed by CORS'));
+        }
+      },
       credentials: true,
-      allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin', 'X-Request-Id'],
+      allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin', 'X-Request-Id', 'X-CSRF-Token'],
       methods: ['GET', 'HEAD', 'PUT', 'PATCH', 'POST', 'DELETE', 'OPTIONS'],
     });
 
@@ -80,7 +95,7 @@ async function bootstrap() {
     logger.log(`🚀 Server running on port ${port}`);
     logger.log(`📚 Swagger docs at /api/docs`);
     logger.log(`🌐 Frontend served from /public`);
-    logger.log(`🌍 CORS enabled for all origins`);
+    logger.log(`🌍 CORS enabled for: ${allowedOrigins.join(', ')}`);
   } catch (error) {
     logger.error(`❌ Failed to start server: ${error.message}`);
     process.exit(1);

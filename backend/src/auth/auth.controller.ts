@@ -62,13 +62,16 @@ export class AuthController {
       }
     }
 
-    // Set session cookie
+    // Set session cookie with security best practices
+    const isProduction = process.env.NODE_ENV === 'production';
     res.cookie('session_id', result.sessionId, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      // Allow cookie in production deployments where frontend/backend may be on different origins
-      sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+      secure: isProduction, // HTTPS only in production
+      // Use 'lax' for better CSRF protection while allowing normal navigation
+      // 'strict' would break OAuth redirects and external links
+      sameSite: 'lax',
       maxAge: 24 * 60 * 60 * 1000, // 24 hours
+      path: '/',
     });
 
     return {
@@ -104,8 +107,9 @@ export class AuthController {
     res.cookie('session_id', result.sessionId, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
-      sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+      sameSite: 'lax',
       maxAge: 24 * 60 * 60 * 1000,
+      path: '/',
     });
 
     return {
