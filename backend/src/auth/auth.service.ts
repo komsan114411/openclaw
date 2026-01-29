@@ -43,20 +43,17 @@ export class AuthService {
     try {
       const adminExists = await this.userModel.findOne({ username: 'admin' });
       if (!adminExists) {
-        // SECURITY: Use environment variable for initial password, or generate random
-        // Never log the actual password
+        // Use environment variable for initial password, or default to 'admin123'
         const initialPassword = process.env.ADMIN_INITIAL_PASSWORD;
         let password: string;
-        let forceChange = true;
 
-        if (initialPassword && initialPassword.length >= 8) {
+        if (initialPassword && initialPassword.length >= 6) {
           password = initialPassword;
           this.logger.log('Using ADMIN_INITIAL_PASSWORD from environment variable');
         } else {
-          // Generate secure random password - admin must use password reset flow
-          password = crypto.randomBytes(16).toString('base64').slice(0, 20);
-          this.logger.warn('No ADMIN_INITIAL_PASSWORD set - random password generated');
-          this.logger.warn('Admin must use password reset flow to set password');
+          // Default password if env var not set
+          password = 'admin123';
+          this.logger.log('Using default admin password (please change after first login)');
         }
 
         const hashedPassword = await bcrypt.hash(password, 12);
@@ -67,7 +64,7 @@ export class AuthService {
           role: UserRole.ADMIN,
           email: 'admin@system.local',
           fullName: 'System Administrator',
-          forcePasswordChange: forceChange,
+          forcePasswordChange: true,
           isActive: true,
         });
 
