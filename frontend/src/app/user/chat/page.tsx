@@ -680,19 +680,19 @@ function UserChatContent() {
           {selectedUser ? (
             <>
               {/* Chat Header - LINE OA Style */}
-              <div className="h-14 lg:h-16 px-2 lg:px-4 flex items-center justify-between border-b border-white/5 bg-[#06C755] lg:bg-[#0d0d0d] flex-shrink-0 safe-area-top">
+              <div className="h-[56px] lg:h-16 px-2 lg:px-4 flex items-center justify-between border-b border-white/5 bg-[#06C755] lg:bg-[#0d0d0d] flex-shrink-0 safe-area-top">
                 <div className="flex items-center gap-2 lg:gap-3 flex-1 min-w-0">
-                  {/* Back button - Large and visible on mobile */}
+                  {/* Back button - Always visible on mobile */}
                   <button
                     onClick={handleBackToList}
-                    className="lg:hidden flex items-center gap-1 px-2 py-2 -ml-1 text-white hover:bg-white/20 rounded-xl transition-all duration-200 active:scale-95 active:bg-white/30"
+                    className="flex lg:hidden items-center gap-1 min-w-[70px] h-10 px-2 text-white bg-white/10 hover:bg-white/20 rounded-full transition-all duration-200 active:scale-95"
                   >
-                    <ArrowLeft className="w-6 h-6" />
-                    <span className="text-sm font-medium">แชท</span>
+                    <ArrowLeft className="w-5 h-5 flex-shrink-0" />
+                    <span className="text-sm font-semibold">กลับ</span>
                   </button>
 
                   {/* User info */}
-                  <div className="w-10 h-10 lg:w-11 lg:h-11 rounded-full bg-white/20 lg:bg-gradient-to-br lg:from-slate-600 lg:to-slate-700 overflow-hidden flex-shrink-0 ring-2 ring-white/30 lg:ring-0 transition-transform duration-200 hover:scale-105">
+                  <div className="w-9 h-9 lg:w-11 lg:h-11 rounded-full bg-white/20 lg:bg-gradient-to-br lg:from-slate-600 lg:to-slate-700 overflow-hidden flex-shrink-0 ring-2 ring-white/30 lg:ring-0">
                     {selectedUser.lineUserPicture ? (
                       <img src={selectedUser.lineUserPicture} alt="" className="w-full h-full object-cover" />
                     ) : (
