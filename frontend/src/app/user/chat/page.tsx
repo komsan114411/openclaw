@@ -674,21 +674,21 @@ function UserChatContent() {
         <div className={cn(
           "flex-1 flex flex-col bg-[#0a0a0a] transition-all duration-300 ease-out",
           showMobileChat
-            ? "fixed inset-0 z-50 lg:static translate-x-0 opacity-100"
+            ? "fixed inset-0 z-50 pt-16 md:pt-0 lg:static lg:pt-0 translate-x-0 opacity-100"
             : "hidden lg:flex lg:translate-x-0 translate-x-full opacity-0"
         )}>
           {selectedUser ? (
             <>
               {/* Chat Header - LINE OA Style */}
-              <div className="h-[56px] lg:h-16 px-2 lg:px-4 flex items-center justify-between border-b border-white/5 bg-[#06C755] lg:bg-[#0d0d0d] flex-shrink-0 safe-area-top">
-                <div className="flex items-center gap-2 lg:gap-3 flex-1 min-w-0">
-                  {/* Back button - Always visible on mobile */}
+              <div className="h-[60px] lg:h-16 px-3 lg:px-4 flex items-center justify-between border-b border-white/5 bg-[#06C755] lg:bg-[#0d0d0d] flex-shrink-0">
+                <div className="flex items-center gap-3 lg:gap-3 flex-1 min-w-0">
+                  {/* Back button - Always visible on mobile/tablet, hidden on desktop */}
                   <button
                     onClick={handleBackToList}
-                    className="flex lg:hidden items-center gap-1 min-w-[70px] h-10 px-2 text-white bg-white/10 hover:bg-white/20 rounded-full transition-all duration-200 active:scale-95"
+                    className="flex lg:hidden items-center justify-center gap-1.5 min-w-[80px] h-11 px-3 text-white bg-white/20 hover:bg-white/30 rounded-xl border border-white/20 shadow-lg transition-all duration-200 active:scale-95"
                   >
-                    <ArrowLeft className="w-5 h-5 flex-shrink-0" />
-                    <span className="text-sm font-semibold">กลับ</span>
+                    <ArrowLeft className="w-5 h-5 flex-shrink-0" strokeWidth={2.5} />
+                    <span className="text-sm font-bold">กลับ</span>
                   </button>
 
                   {/* User info */}
