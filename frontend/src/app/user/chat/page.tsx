@@ -487,8 +487,8 @@ function UserChatContent() {
       <div className="h-[calc(100dvh-80px)] lg:h-[calc(100vh-80px)] flex bg-[#0a0a0a]">
         {/* Sidebar - Chat List */}
         <div className={cn(
-          "w-full lg:w-[340px] xl:w-[380px] flex-shrink-0 flex flex-col border-r border-white/5 bg-[#0d0d0d]",
-          showMobileChat && "hidden lg:flex"
+          "w-full lg:w-[340px] xl:w-[380px] flex-shrink-0 flex flex-col border-r border-white/5 bg-[#0d0d0d] transition-all duration-300 ease-out",
+          showMobileChat ? "hidden lg:flex" : "flex"
         )}>
           {/* Header with Title & Account Selector */}
           <div className="safe-area-top">
@@ -623,7 +623,7 @@ function UserChatContent() {
                         ));
                       }}
                       className={cn(
-                        "w-full flex items-center gap-3 p-4 hover:bg-white/[0.03] transition-colors border-b border-white/[0.02]",
+                        "w-full flex items-center gap-3 p-4 hover:bg-white/[0.05] transition-all duration-200 border-b border-white/[0.02] active:scale-[0.98] active:bg-white/[0.08]",
                         isActive && "bg-white/[0.05]"
                       )}
                     >
@@ -670,26 +670,29 @@ function UserChatContent() {
           </div>
         </div>
 
-        {/* Chat Area */}
+        {/* Chat Area - Slide Animation */}
         <div className={cn(
-          "flex-1 flex flex-col bg-[#0a0a0a]",
-          showMobileChat ? "fixed inset-0 z-50 lg:static" : "hidden lg:flex"
+          "flex-1 flex flex-col bg-[#0a0a0a] transition-all duration-300 ease-out",
+          showMobileChat
+            ? "fixed inset-0 z-50 lg:static translate-x-0 opacity-100"
+            : "hidden lg:flex lg:translate-x-0 translate-x-full opacity-0"
         )}>
           {selectedUser ? (
             <>
               {/* Chat Header - LINE OA Style */}
-              <div className="h-14 lg:h-16 px-1 sm:px-2 lg:px-4 flex items-center justify-between border-b border-white/5 bg-[#06C755] lg:bg-[#0d0d0d] flex-shrink-0 safe-area-top">
-                <div className="flex items-center gap-1 sm:gap-2 lg:gap-3 flex-1 min-w-0">
-                  {/* Back button - LINE style */}
+              <div className="h-14 lg:h-16 px-2 lg:px-4 flex items-center justify-between border-b border-white/5 bg-[#06C755] lg:bg-[#0d0d0d] flex-shrink-0 safe-area-top">
+                <div className="flex items-center gap-2 lg:gap-3 flex-1 min-w-0">
+                  {/* Back button - Large and visible on mobile */}
                   <button
                     onClick={handleBackToList}
-                    className="lg:hidden w-10 h-10 flex items-center justify-center text-white hover:bg-white/20 rounded-full transition-colors active:scale-95"
+                    className="lg:hidden flex items-center gap-1 px-2 py-2 -ml-1 text-white hover:bg-white/20 rounded-xl transition-all duration-200 active:scale-95 active:bg-white/30"
                   >
                     <ArrowLeft className="w-6 h-6" />
+                    <span className="text-sm font-medium">แชท</span>
                   </button>
 
                   {/* User info */}
-                  <div className="w-10 h-10 lg:w-11 lg:h-11 rounded-full bg-white/20 lg:bg-gradient-to-br lg:from-slate-600 lg:to-slate-700 overflow-hidden flex-shrink-0 ring-2 ring-white/30 lg:ring-0">
+                  <div className="w-10 h-10 lg:w-11 lg:h-11 rounded-full bg-white/20 lg:bg-gradient-to-br lg:from-slate-600 lg:to-slate-700 overflow-hidden flex-shrink-0 ring-2 ring-white/30 lg:ring-0 transition-transform duration-200 hover:scale-105">
                     {selectedUser.lineUserPicture ? (
                       <img src={selectedUser.lineUserPicture} alt="" className="w-full h-full object-cover" />
                     ) : (
@@ -770,7 +773,7 @@ function UserChatContent() {
                 <div
                   ref={messagesContainerRef}
                   onScroll={handleScroll}
-                  className="absolute inset-0 overflow-y-auto px-3 lg:px-4 py-4 touch-pan-y overscroll-contain"
+                  className="absolute inset-0 overflow-y-auto px-3 lg:px-4 py-4 touch-pan-y overscroll-contain scroll-smooth"
                   style={{ WebkitOverflowScrolling: 'touch' }}
                 >
                   {loadingMessages ? (
