@@ -399,17 +399,27 @@ function UserChatContent() {
       if (res.data?.success) {
         // Refresh messages
         await fetchMessages(selectedUser.lineUserId);
-        toast.success('ส่งข้อความสำเร็จ');
       } else {
         // Restore message if failed
         setNewMessage(messageToSend);
-        toast.error(res.data?.message || res.data?.error || 'ไม่สามารถส่งข้อความได้');
+        const errorMsg = res.data?.message || res.data?.error || 'ไม่สามารถส่งข้อความได้';
+        // Check for LINE API limit error
+        if (errorMsg.includes('monthly limit') || errorMsg.includes('limit')) {
+          toast.error('LINE OA ถึงโควต้าข้อความรายเดือนแล้ว กรุณาอัพเกรดแพลน LINE Official Account');
+        } else {
+          toast.error(errorMsg);
+        }
       }
     } catch (err: any) {
       // Restore message if failed
       setNewMessage(messageToSend);
       const errorMsg = err.response?.data?.message || err.response?.data?.error || err.message || 'ไม่สามารถส่งข้อความได้';
-      toast.error(errorMsg);
+      // Check for LINE API limit error
+      if (errorMsg.includes('monthly limit') || errorMsg.includes('limit')) {
+        toast.error('LINE OA ถึงโควต้าข้อความรายเดือนแล้ว กรุณาอัพเกรดแพลน LINE Official Account');
+      } else {
+        toast.error(errorMsg);
+      }
       console.error('Send message error:', err);
     } finally {
       setSending(false);
@@ -480,30 +490,44 @@ function UserChatContent() {
           "w-full lg:w-[340px] xl:w-[380px] flex-shrink-0 flex flex-col border-r border-white/5 bg-[#0d0d0d]",
           showMobileChat && "hidden lg:flex"
         )}>
-          {/* Header with Account Selector */}
-          <div className="p-4 border-b border-white/5">
+          {/* Header with Title & Account Selector */}
+          <div className="safe-area-top">
+            {/* Title Bar */}
+            <div className="px-4 py-3 flex items-center justify-between">
+              <h1 className="text-xl font-bold text-white">แชท</h1>
+              <div className="flex items-center gap-2 text-xs text-slate-500">
+                <div className="w-2 h-2 rounded-full bg-[#06C755]" />
+                {users.filter(u => u.unreadCount > 0).length > 0 && (
+                  <span className="text-[#06C755] font-semibold">
+                    {users.filter(u => u.unreadCount > 0).length} ยังไม่อ่าน
+                  </span>
+                )}
+              </div>
+            </div>
+
             {/* Account Dropdown */}
-            <div className="relative mb-3">
-              <button
-                onClick={() => setShowAccountDropdown(!showAccountDropdown)}
-                className="w-full flex items-center justify-between p-3 rounded-xl bg-white/[0.03] hover:bg-white/[0.05] border border-white/5 transition-colors"
-              >
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-full bg-[#06C755] flex items-center justify-center">
-                    <MessageCircle className="w-5 h-5 text-white" />
+            <div className="px-4 pb-3">
+              <div className="relative">
+                <button
+                  onClick={() => setShowAccountDropdown(!showAccountDropdown)}
+                  className="w-full flex items-center justify-between p-2.5 rounded-xl bg-white/[0.03] hover:bg-white/[0.05] border border-white/5 transition-colors"
+                >
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-9 h-9 rounded-full bg-[#06C755] flex items-center justify-center">
+                      <MessageCircle className="w-4 h-4 text-white" />
+                    </div>
+                    <div className="text-left">
+                      <p className="text-sm font-semibold text-white truncate max-w-[180px]">
+                        {activeAccount?.accountName || 'เลือกบัญชี'}
+                      </p>
+                      <p className="text-[10px] text-slate-500">{allAccounts.length} บัญชี LINE OA</p>
+                    </div>
                   </div>
-                  <div className="text-left">
-                    <p className="text-sm font-semibold text-white truncate max-w-[180px]">
-                      {activeAccount?.accountName || 'เลือกบัญชี'}
-                    </p>
-                    <p className="text-[10px] text-slate-500">{allAccounts.length} บัญชี</p>
-                  </div>
-                </div>
-                <ChevronDown className={cn(
-                  "w-4 h-4 text-slate-400 transition-transform",
-                  showAccountDropdown && "rotate-180"
-                )} />
-              </button>
+                  <ChevronDown className={cn(
+                    "w-4 h-4 text-slate-400 transition-transform",
+                    showAccountDropdown && "rotate-180"
+                  )} />
+                </button>
 
               {/* Dropdown */}
               {showAccountDropdown && (
@@ -536,10 +560,11 @@ function UserChatContent() {
                   ))}
                 </div>
               )}
+              </div>
             </div>
 
             {/* Search & Filter */}
-            <div className="flex gap-2">
+            <div className="px-4 pb-3 flex gap-2">
               <div className="relative flex-1">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
                 <input
@@ -547,14 +572,14 @@ function UserChatContent() {
                   placeholder="ค้นหาผู้ใช้"
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full h-10 pl-10 pr-4 bg-white/[0.03] border border-white/5 rounded-full text-sm text-white placeholder:text-slate-500 focus:outline-none focus:border-[#06C755]/50 transition-colors"
+                  className="w-full h-10 pl-10 pr-4 bg-white/[0.05] border border-white/5 rounded-full text-sm text-white placeholder:text-slate-500 focus:outline-none focus:border-[#06C755]/50 transition-colors"
                 />
               </div>
               <button
                 onClick={() => setFilterUnread(!filterUnread)}
                 className={cn(
                   "w-10 h-10 rounded-full flex items-center justify-center transition-colors",
-                  filterUnread ? "bg-[#06C755] text-white" : "bg-white/[0.03] text-slate-400 hover:bg-white/[0.05]"
+                  filterUnread ? "bg-[#06C755] text-white" : "bg-white/[0.05] text-slate-400 hover:bg-white/[0.08]"
                 )}
                 title="กรองเฉพาะยังไม่อ่าน"
               >
@@ -562,6 +587,8 @@ function UserChatContent() {
               </button>
             </div>
           </div>
+
+          <div className="h-px bg-white/5" />
 
           {/* Chat List */}
           <div className="flex-1 overflow-y-auto overscroll-contain">
@@ -650,45 +677,48 @@ function UserChatContent() {
         )}>
           {selectedUser ? (
             <>
-              {/* Chat Header */}
-              <div className="h-14 lg:h-16 px-2 lg:px-4 flex items-center justify-between border-b border-white/5 bg-[#0d0d0d] flex-shrink-0 safe-area-top">
-                <div className="flex items-center gap-2 lg:gap-3 flex-1 min-w-0">
-                  {/* Back button - Always visible on mobile */}
+              {/* Chat Header - LINE OA Style */}
+              <div className="h-14 lg:h-16 px-1 sm:px-2 lg:px-4 flex items-center justify-between border-b border-white/5 bg-[#06C755] lg:bg-[#0d0d0d] flex-shrink-0 safe-area-top">
+                <div className="flex items-center gap-1 sm:gap-2 lg:gap-3 flex-1 min-w-0">
+                  {/* Back button - LINE style */}
                   <button
                     onClick={handleBackToList}
-                    className="lg:hidden w-10 h-10 flex items-center justify-center text-white hover:bg-white/10 rounded-full transition-colors active:scale-95"
+                    className="lg:hidden w-10 h-10 flex items-center justify-center text-white hover:bg-white/20 rounded-full transition-colors active:scale-95"
                   >
                     <ArrowLeft className="w-6 h-6" />
                   </button>
 
                   {/* User info */}
-                  <div className="w-9 h-9 lg:w-10 lg:h-10 rounded-full bg-gradient-to-br from-slate-600 to-slate-700 overflow-hidden flex-shrink-0">
+                  <div className="w-10 h-10 lg:w-11 lg:h-11 rounded-full bg-white/20 lg:bg-gradient-to-br lg:from-slate-600 lg:to-slate-700 overflow-hidden flex-shrink-0 ring-2 ring-white/30 lg:ring-0">
                     {selectedUser.lineUserPicture ? (
                       <img src={selectedUser.lineUserPicture} alt="" className="w-full h-full object-cover" />
                     ) : (
-                      <div className="w-full h-full flex items-center justify-center text-white font-bold text-sm lg:text-base">
+                      <div className="w-full h-full flex items-center justify-center text-white font-bold text-base">
                         {(selectedUser.lineUserName || '?').charAt(0).toUpperCase()}
                       </div>
                     )}
                   </div>
                   <div className="min-w-0 flex-1">
-                    <p className="font-semibold text-white text-sm lg:text-base truncate">{selectedUser.lineUserName || 'ไม่ระบุชื่อ'}</p>
-                    <p className="text-[10px] text-[#06C755]">ออนไลน์</p>
+                    <p className="font-bold text-white text-sm lg:text-base truncate">{selectedUser.lineUserName || 'ไม่ระบุชื่อ'}</p>
+                    <div className="flex items-center gap-1.5">
+                      <div className="w-2 h-2 rounded-full bg-white lg:bg-[#06C755] animate-pulse" />
+                      <p className="text-[11px] text-white/80 lg:text-[#06C755]">ออนไลน์</p>
+                    </div>
                   </div>
                 </div>
 
-                <div className="flex items-center gap-1">
+                <div className="flex items-center">
                   {/* Message search toggle */}
                   <button
                     onClick={() => setShowMessageSearch(!showMessageSearch)}
                     className={cn(
-                      "w-9 h-9 lg:w-10 lg:h-10 rounded-full flex items-center justify-center transition-colors",
-                      showMessageSearch ? "bg-[#06C755] text-white" : "hover:bg-white/5 text-slate-400"
+                      "w-10 h-10 rounded-full flex items-center justify-center transition-colors",
+                      showMessageSearch ? "bg-white/30 lg:bg-[#06C755] text-white" : "hover:bg-white/20 lg:hover:bg-white/5 text-white lg:text-slate-400"
                     )}
                   >
                     <Search className="w-5 h-5" />
                   </button>
-                  <button className="w-9 h-9 lg:w-10 lg:h-10 rounded-full hover:bg-white/5 flex items-center justify-center text-slate-400 transition-colors">
+                  <button className="w-10 h-10 rounded-full hover:bg-white/20 lg:hover:bg-white/5 flex items-center justify-center text-white lg:text-slate-400 transition-colors">
                     <MoreVertical className="w-5 h-5" />
                   </button>
                 </div>
@@ -879,8 +909,8 @@ function UserChatContent() {
                 </div>
               </div>
 
-              {/* Input Area */}
-              <div className="px-3 lg:px-4 py-2 lg:py-3 border-t border-white/5 bg-[#0d0d0d] flex-shrink-0 safe-area-bottom">
+              {/* Input Area - LINE Style */}
+              <div className="px-2 sm:px-3 lg:px-4 py-2 lg:py-3 border-t border-white/5 bg-[#0d0d0d] flex-shrink-0 safe-area-bottom">
                 <div className="flex items-end gap-2 max-w-3xl mx-auto">
                   {/* Input */}
                   <div className="flex-1 relative">
@@ -894,8 +924,8 @@ function UserChatContent() {
                           handleSendMessage();
                         }
                       }}
-                      placeholder="พิมพ์ข้อความ..."
-                      className="w-full min-h-[44px] max-h-[120px] px-4 py-3 bg-white/[0.05] border border-white/10 rounded-3xl text-white text-sm lg:text-[15px] placeholder:text-slate-500 focus:outline-none focus:border-[#06C755]/50 resize-none transition-colors"
+                      placeholder="Aa"
+                      className="w-full min-h-[42px] max-h-[120px] px-4 py-2.5 bg-white/[0.08] border border-white/10 rounded-full text-white text-sm lg:text-[15px] placeholder:text-slate-500 focus:outline-none focus:border-[#06C755]/50 focus:bg-white/[0.1] resize-none transition-all"
                       rows={1}
                       disabled={sending}
                     />
@@ -906,16 +936,16 @@ function UserChatContent() {
                     onClick={handleSendMessage}
                     disabled={sending || !newMessage.trim()}
                     className={cn(
-                      "w-11 h-11 rounded-full flex items-center justify-center transition-all flex-shrink-0",
+                      "w-10 h-10 rounded-full flex items-center justify-center transition-all flex-shrink-0 mb-0.5",
                       newMessage.trim()
-                        ? "bg-[#06C755] text-white hover:bg-[#05a347] active:scale-95"
-                        : "bg-white/5 text-slate-500"
+                        ? "bg-[#06C755] text-white hover:bg-[#05a347] active:scale-90 shadow-lg shadow-[#06C755]/30"
+                        : "bg-transparent text-slate-500"
                     )}
                   >
                     {sending ? (
                       <Spinner size="sm" />
                     ) : (
-                      <Send className="w-5 h-5" />
+                      <Send className={cn("w-5 h-5 transition-transform", newMessage.trim() && "translate-x-0.5")} />
                     )}
                   </button>
                 </div>
