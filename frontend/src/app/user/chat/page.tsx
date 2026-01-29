@@ -16,11 +16,14 @@ import {
   ChevronDown,
   Send,
   MoreVertical,
-  Phone,
+  X,
   Image as ImageIcon,
   Smile,
   Check,
-  CheckCheck
+  CheckCheck,
+  ArrowLeft,
+  Filter,
+  MessageCircle
 } from 'lucide-react';
 
 interface ChatUser {
@@ -106,11 +109,14 @@ function UserChatContent() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [newMessage, setNewMessage] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
+  const [messageSearchTerm, setMessageSearchTerm] = useState('');
+  const [showMessageSearch, setShowMessageSearch] = useState(false);
   const [loadingUsers, setLoadingUsers] = useState(true);
   const [loadingMessages, setLoadingMessages] = useState(false);
   const [sending, setSending] = useState(false);
   const [showMobileChat, setShowMobileChat] = useState(false);
   const [showAccountDropdown, setShowAccountDropdown] = useState(false);
+  const [filterUnread, setFilterUnread] = useState(false);
 
   // Refs
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -166,6 +172,14 @@ function UserChatContent() {
     router.replace(`/user/chat?accountId=${newAccountId}`);
   };
 
+  // Handle back to chat list (mobile)
+  const handleBackToList = () => {
+    setSelectedUser(null);
+    setShowMobileChat(false);
+    setShowMessageSearch(false);
+    setMessageSearchTerm('');
+  };
+
   // Get active account object
   const activeAccount = allAccounts.find(acc => acc._id === activeAccountId);
 
@@ -182,7 +196,12 @@ function UserChatContent() {
     socketRef.current = socket;
 
     socket.on('connect', () => {
+      console.log('Chat socket connected');
       socket.emit('subscribe_chat', { lineAccountId: activeAccountId });
+    });
+
+    socket.on('connect_error', (err) => {
+      console.error('Socket connection error:', err);
     });
 
     socket.on('message_received', (data: any) => {
@@ -365,20 +384,33 @@ function UserChatContent() {
 
   const handleSendMessage = async () => {
     if (!activeAccountId || !selectedUser || !newMessage.trim() || sending) return;
+
+    const messageToSend = newMessage.trim();
     setSending(true);
+
+    // Clear input immediately for better UX
+    setNewMessage('');
+    if (textareaRef.current) {
+      textareaRef.current.style.height = '44px';
+    }
+
     try {
-      const res = await chatMessagesApi.sendMessage(activeAccountId, selectedUser.lineUserId, newMessage.trim());
+      const res = await chatMessagesApi.sendMessage(activeAccountId, selectedUser.lineUserId, messageToSend);
       if (res.data?.success) {
-        setNewMessage('');
-        if (textareaRef.current) {
-          textareaRef.current.style.height = '44px';
-        }
+        // Refresh messages
         await fetchMessages(selectedUser.lineUserId);
+        toast.success('ส่งข้อความสำเร็จ');
       } else {
-        toast.error(res.data?.error || 'ไม่สามารถส่งข้อความได้');
+        // Restore message if failed
+        setNewMessage(messageToSend);
+        toast.error(res.data?.message || res.data?.error || 'ไม่สามารถส่งข้อความได้');
       }
     } catch (err: any) {
-      toast.error(err.response?.data?.message || 'ไม่สามารถส่งข้อความได้');
+      // Restore message if failed
+      setNewMessage(messageToSend);
+      const errorMsg = err.response?.data?.message || err.response?.data?.error || err.message || 'ไม่สามารถส่งข้อความได้';
+      toast.error(errorMsg);
+      console.error('Send message error:', err);
     } finally {
       setSending(false);
     }
@@ -392,9 +424,18 @@ function UserChatContent() {
     textarea.style.height = Math.min(textarea.scrollHeight, 120) + 'px';
   };
 
+  // Filter users
   const filteredUsers = users.filter((u) => {
-    const hay = `${u.lineUserName || ''} ${u.lineUserId}`.toLowerCase();
-    return hay.includes(searchTerm.toLowerCase());
+    const matchesSearch = !searchTerm ||
+      `${u.lineUserName || ''} ${u.lineUserId}`.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesUnread = !filterUnread || u.unreadCount > 0;
+    return matchesSearch && matchesUnread;
+  });
+
+  // Filter messages by search term
+  const filteredMessages = messages.filter((msg) => {
+    if (!messageSearchTerm) return true;
+    return msg.messageText?.toLowerCase().includes(messageSearchTerm.toLowerCase());
   });
 
   // Loading state
@@ -413,9 +454,7 @@ function UserChatContent() {
         <div className="h-[calc(100dvh-80px)] flex items-center justify-center">
           <EmptyState
             icon={<div className="w-20 h-20 rounded-full bg-[#06C755]/10 flex items-center justify-center">
-              <svg className="w-10 h-10 text-[#06C755]" fill="currentColor" viewBox="0 0 24 24">
-                <path d="M12 2C6.48 2 2 5.58 2 10c0 2.03.94 3.89 2.5 5.29V20l3.88-2.13c1.09.27 2.28.41 3.62.41 5.52 0 10-3.58 10-8s-4.48-8-10-8z"/>
-              </svg>
+              <MessageCircle className="w-10 h-10 text-[#06C755]" />
             </div>}
             title="ยังไม่มีบัญชี LINE"
             description="เพิ่มบัญชี LINE OA เพื่อเริ่มใช้งานแชท"
@@ -451,9 +490,7 @@ function UserChatContent() {
               >
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 rounded-full bg-[#06C755] flex items-center justify-center">
-                    <svg className="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 24 24">
-                      <path d="M12 2C6.48 2 2 5.58 2 10c0 2.03.94 3.89 2.5 5.29V20l3.88-2.13c1.09.27 2.28.41 3.62.41 5.52 0 10-3.58 10-8s-4.48-8-10-8z"/>
-                    </svg>
+                    <MessageCircle className="w-5 h-5 text-white" />
                   </div>
                   <div className="text-left">
                     <p className="text-sm font-semibold text-white truncate max-w-[180px]">
@@ -470,7 +507,7 @@ function UserChatContent() {
 
               {/* Dropdown */}
               {showAccountDropdown && (
-                <div className="absolute top-full left-0 right-0 mt-2 bg-[#1a1a1a] border border-white/10 rounded-xl shadow-2xl z-50 overflow-hidden">
+                <div className="absolute top-full left-0 right-0 mt-2 bg-[#1a1a1a] border border-white/10 rounded-xl shadow-2xl z-50 overflow-hidden max-h-60 overflow-y-auto">
                   {allAccounts.map((acc) => (
                     <button
                       key={acc._id}
@@ -484,18 +521,16 @@ function UserChatContent() {
                         "w-8 h-8 rounded-full flex items-center justify-center",
                         acc._id === activeAccountId ? "bg-[#06C755]" : "bg-white/10"
                       )}>
-                        <svg className="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 24 24">
-                          <path d="M12 2C6.48 2 2 5.58 2 10c0 2.03.94 3.89 2.5 5.29V20l3.88-2.13c1.09.27 2.28.41 3.62.41 5.52 0 10-3.58 10-8s-4.48-8-10-8z"/>
-                        </svg>
+                        <MessageCircle className="w-4 h-4 text-white" />
                       </div>
                       <span className={cn(
-                        "text-sm font-medium truncate",
+                        "text-sm font-medium truncate flex-1 text-left",
                         acc._id === activeAccountId ? "text-[#06C755]" : "text-white"
                       )}>
                         {acc.accountName || 'บัญชี LINE'}
                       </span>
                       {acc._id === activeAccountId && (
-                        <Check className="w-4 h-4 text-[#06C755] ml-auto" />
+                        <Check className="w-4 h-4 text-[#06C755]" />
                       )}
                     </button>
                   ))}
@@ -503,21 +538,33 @@ function UserChatContent() {
               )}
             </div>
 
-            {/* Search */}
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
-              <input
-                type="text"
-                placeholder="ค้นหา"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full h-10 pl-10 pr-4 bg-white/[0.03] border border-white/5 rounded-full text-sm text-white placeholder:text-slate-500 focus:outline-none focus:border-[#06C755]/50 transition-colors"
-              />
+            {/* Search & Filter */}
+            <div className="flex gap-2">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
+                <input
+                  type="text"
+                  placeholder="ค้นหาผู้ใช้"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="w-full h-10 pl-10 pr-4 bg-white/[0.03] border border-white/5 rounded-full text-sm text-white placeholder:text-slate-500 focus:outline-none focus:border-[#06C755]/50 transition-colors"
+                />
+              </div>
+              <button
+                onClick={() => setFilterUnread(!filterUnread)}
+                className={cn(
+                  "w-10 h-10 rounded-full flex items-center justify-center transition-colors",
+                  filterUnread ? "bg-[#06C755] text-white" : "bg-white/[0.03] text-slate-400 hover:bg-white/[0.05]"
+                )}
+                title="กรองเฉพาะยังไม่อ่าน"
+              >
+                <Filter className="w-4 h-4" />
+              </button>
             </div>
           </div>
 
           {/* Chat List */}
-          <div className="flex-1 overflow-y-auto">
+          <div className="flex-1 overflow-y-auto overscroll-contain">
             {loadingUsers ? (
               <div className="flex items-center justify-center py-20">
                 <Spinner size="lg" />
@@ -525,12 +572,14 @@ function UserChatContent() {
             ) : filteredUsers.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-20 px-4 text-center">
                 <div className="w-16 h-16 rounded-full bg-white/5 flex items-center justify-center mb-4">
-                  <svg className="w-8 h-8 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-                  </svg>
+                  <MessageCircle className="w-8 h-8 text-slate-500" />
                 </div>
-                <p className="text-white font-medium mb-1">ยังไม่มีแชท</p>
-                <p className="text-slate-500 text-sm">รอข้อความจากลูกค้า</p>
+                <p className="text-white font-medium mb-1">
+                  {filterUnread ? 'ไม่มีข้อความที่ยังไม่อ่าน' : 'ยังไม่มีแชท'}
+                </p>
+                <p className="text-slate-500 text-sm">
+                  {filterUnread ? 'คุณอ่านข้อความทั้งหมดแล้ว' : 'รอข้อความจากลูกค้า'}
+                </p>
               </div>
             ) : (
               <div>
@@ -542,7 +591,6 @@ function UserChatContent() {
                       onClick={() => {
                         setSelectedUser(user);
                         setShowMobileChat(true);
-                        // Clear unread count
                         setUsers(prev => prev.map(u =>
                           u.lineUserId === user.lineUserId ? { ...u, unreadCount: 0 } : u
                         ));
@@ -563,7 +611,6 @@ function UserChatContent() {
                             </div>
                           )}
                         </div>
-                        {/* Online indicator */}
                         <div className="absolute bottom-0 right-0 w-3.5 h-3.5 bg-[#06C755] rounded-full border-2 border-[#0d0d0d]" />
                       </div>
 
@@ -604,44 +651,78 @@ function UserChatContent() {
           {selectedUser ? (
             <>
               {/* Chat Header */}
-              <div className="h-16 px-4 flex items-center justify-between border-b border-white/5 bg-[#0d0d0d] flex-shrink-0 safe-area-top">
-                <div className="flex items-center gap-3">
-                  {/* Back button (mobile) */}
+              <div className="h-14 lg:h-16 px-2 lg:px-4 flex items-center justify-between border-b border-white/5 bg-[#0d0d0d] flex-shrink-0 safe-area-top">
+                <div className="flex items-center gap-2 lg:gap-3 flex-1 min-w-0">
+                  {/* Back button - Always visible on mobile */}
                   <button
-                    onClick={() => {
-                      setSelectedUser(null);
-                      setShowMobileChat(false);
-                    }}
-                    className="lg:hidden w-10 h-10 -ml-2 flex items-center justify-center text-slate-400 hover:text-white transition-colors"
+                    onClick={handleBackToList}
+                    className="lg:hidden w-10 h-10 flex items-center justify-center text-white hover:bg-white/10 rounded-full transition-colors active:scale-95"
                   >
-                    <ChevronLeft className="w-6 h-6" />
+                    <ArrowLeft className="w-6 h-6" />
                   </button>
 
                   {/* User info */}
-                  <div className="w-10 h-10 rounded-full bg-gradient-to-br from-slate-600 to-slate-700 overflow-hidden flex-shrink-0">
+                  <div className="w-9 h-9 lg:w-10 lg:h-10 rounded-full bg-gradient-to-br from-slate-600 to-slate-700 overflow-hidden flex-shrink-0">
                     {selectedUser.lineUserPicture ? (
                       <img src={selectedUser.lineUserPicture} alt="" className="w-full h-full object-cover" />
                     ) : (
-                      <div className="w-full h-full flex items-center justify-center text-white font-bold">
+                      <div className="w-full h-full flex items-center justify-center text-white font-bold text-sm lg:text-base">
                         {(selectedUser.lineUserName || '?').charAt(0).toUpperCase()}
                       </div>
                     )}
                   </div>
-                  <div>
-                    <p className="font-semibold text-white">{selectedUser.lineUserName || 'ไม่ระบุชื่อ'}</p>
+                  <div className="min-w-0 flex-1">
+                    <p className="font-semibold text-white text-sm lg:text-base truncate">{selectedUser.lineUserName || 'ไม่ระบุชื่อ'}</p>
                     <p className="text-[10px] text-[#06C755]">ออนไลน์</p>
                   </div>
                 </div>
 
                 <div className="flex items-center gap-1">
-                  <button className="w-10 h-10 rounded-full hover:bg-white/5 flex items-center justify-center text-slate-400 transition-colors">
-                    <Phone className="w-5 h-5" />
+                  {/* Message search toggle */}
+                  <button
+                    onClick={() => setShowMessageSearch(!showMessageSearch)}
+                    className={cn(
+                      "w-9 h-9 lg:w-10 lg:h-10 rounded-full flex items-center justify-center transition-colors",
+                      showMessageSearch ? "bg-[#06C755] text-white" : "hover:bg-white/5 text-slate-400"
+                    )}
+                  >
+                    <Search className="w-5 h-5" />
                   </button>
-                  <button className="w-10 h-10 rounded-full hover:bg-white/5 flex items-center justify-center text-slate-400 transition-colors">
+                  <button className="w-9 h-9 lg:w-10 lg:h-10 rounded-full hover:bg-white/5 flex items-center justify-center text-slate-400 transition-colors">
                     <MoreVertical className="w-5 h-5" />
                   </button>
                 </div>
               </div>
+
+              {/* Message Search Bar */}
+              {showMessageSearch && (
+                <div className="px-4 py-2 bg-[#0d0d0d] border-b border-white/5">
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
+                    <input
+                      type="text"
+                      placeholder="ค้นหาข้อความ..."
+                      value={messageSearchTerm}
+                      onChange={(e) => setMessageSearchTerm(e.target.value)}
+                      autoFocus
+                      className="w-full h-10 pl-10 pr-10 bg-white/[0.05] border border-white/10 rounded-full text-sm text-white placeholder:text-slate-500 focus:outline-none focus:border-[#06C755]/50"
+                    />
+                    {messageSearchTerm && (
+                      <button
+                        onClick={() => setMessageSearchTerm('')}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    )}
+                  </div>
+                  {messageSearchTerm && (
+                    <p className="text-xs text-slate-500 mt-2">
+                      พบ {filteredMessages.length} ข้อความ
+                    </p>
+                  )}
+                </div>
+              )}
 
               {/* Messages */}
               <div className="flex-1 overflow-hidden relative">
@@ -659,35 +740,46 @@ function UserChatContent() {
                 <div
                   ref={messagesContainerRef}
                   onScroll={handleScroll}
-                  className="absolute inset-0 overflow-y-auto px-4 py-4 touch-pan-y overscroll-contain"
+                  className="absolute inset-0 overflow-y-auto px-3 lg:px-4 py-4 touch-pan-y overscroll-contain"
                   style={{ WebkitOverflowScrolling: 'touch' }}
                 >
                   {loadingMessages ? (
                     <div className="flex items-center justify-center h-full">
                       <Spinner size="lg" />
                     </div>
-                  ) : messages.length === 0 ? (
+                  ) : filteredMessages.length === 0 ? (
                     <div className="flex flex-col items-center justify-center h-full text-center">
                       <div className="w-20 h-20 rounded-full bg-white/5 flex items-center justify-center mb-4">
-                        <svg className="w-10 h-10 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-                        </svg>
+                        <MessageCircle className="w-10 h-10 text-slate-500" />
                       </div>
-                      <p className="text-slate-500 text-sm">เริ่มการสนทนา</p>
+                      <p className="text-slate-500 text-sm">
+                        {messageSearchTerm ? 'ไม่พบข้อความที่ค้นหา' : 'เริ่มการสนทนา'}
+                      </p>
                     </div>
                   ) : (
                     <div className="space-y-1 max-w-3xl mx-auto">
-                      {messages.map((msg, index) => {
-                        const prevMsg = index > 0 ? messages[index - 1] : null;
+                      {filteredMessages.map((msg, index) => {
+                        const prevMsg = index > 0 ? filteredMessages[index - 1] : null;
                         const showDate = shouldShowDateSeparator(msg, prevMsg);
                         const isOut = msg.direction === 'out';
                         const imageUrl = msg.messageType === 'image' && msg.messageId
                           ? chatMessagesApi.getImage(activeAccountId, msg.messageId)
                           : null;
 
-                        // Check if same sender as previous (for grouping)
                         const sameSender = prevMsg && prevMsg.direction === msg.direction;
-                        const isLastInGroup = index === messages.length - 1 || messages[index + 1]?.direction !== msg.direction;
+                        const isLastInGroup = index === filteredMessages.length - 1 || filteredMessages[index + 1]?.direction !== msg.direction;
+
+                        // Highlight search term
+                        const highlightText = (text: string) => {
+                          if (!messageSearchTerm) return text;
+                          const regex = new RegExp(`(${messageSearchTerm})`, 'gi');
+                          const parts = text.split(regex);
+                          return parts.map((part, i) =>
+                            regex.test(part) ? (
+                              <mark key={i} className="bg-yellow-500/50 text-white rounded px-0.5">{part}</mark>
+                            ) : part
+                          );
+                        };
 
                         return (
                           <div key={msg._id}>
@@ -709,7 +801,7 @@ function UserChatContent() {
                               {/* Avatar for incoming messages */}
                               {!isOut && (
                                 <div className={cn(
-                                  "w-8 h-8 rounded-full overflow-hidden flex-shrink-0",
+                                  "w-7 h-7 lg:w-8 lg:h-8 rounded-full overflow-hidden flex-shrink-0",
                                   !isLastInGroup && "invisible"
                                 )}>
                                   {selectedUser.lineUserPicture ? (
@@ -723,12 +815,12 @@ function UserChatContent() {
                               )}
 
                               <div className={cn(
-                                "flex flex-col max-w-[75%] sm:max-w-[65%]",
+                                "flex flex-col max-w-[80%] sm:max-w-[70%]",
                                 isOut ? "items-end" : "items-start"
                               )}>
                                 {/* Message Bubble */}
                                 <div className={cn(
-                                  "relative px-4 py-2.5 rounded-2xl",
+                                  "relative px-3 lg:px-4 py-2 lg:py-2.5 rounded-2xl",
                                   isOut
                                     ? "bg-[#06C755] text-white rounded-br-md"
                                     : "bg-[#1a1a1a] text-white rounded-bl-md"
@@ -738,7 +830,7 @@ function UserChatContent() {
                                       <img
                                         src={imageUrl}
                                         alt="รูปภาพ"
-                                        className="max-w-[240px] rounded-lg cursor-pointer hover:opacity-90 transition-opacity"
+                                        className="max-w-[200px] lg:max-w-[240px] rounded-lg cursor-pointer hover:opacity-90 transition-opacity"
                                         onClick={() => window.open(imageUrl, '_blank')}
                                         onLoad={() => {
                                           if (isAtBottomRef.current) scrollToBottom();
@@ -756,8 +848,8 @@ function UserChatContent() {
                                       <span className="text-sm">[สติกเกอร์]</span>
                                     </div>
                                   ) : (
-                                    <p className="text-[15px] leading-relaxed whitespace-pre-wrap break-words">
-                                      {msg.messageText}
+                                    <p className="text-sm lg:text-[15px] leading-relaxed whitespace-pre-wrap break-words">
+                                      {highlightText(msg.messageText || '')}
                                     </p>
                                   )}
                                 </div>
@@ -788,15 +880,8 @@ function UserChatContent() {
               </div>
 
               {/* Input Area */}
-              <div className="px-4 py-3 border-t border-white/5 bg-[#0d0d0d] flex-shrink-0 safe-area-bottom">
+              <div className="px-3 lg:px-4 py-2 lg:py-3 border-t border-white/5 bg-[#0d0d0d] flex-shrink-0 safe-area-bottom">
                 <div className="flex items-end gap-2 max-w-3xl mx-auto">
-                  {/* Action buttons */}
-                  <div className="flex items-center gap-1 pb-1">
-                    <button className="w-10 h-10 rounded-full hover:bg-white/5 flex items-center justify-center text-slate-400 transition-colors">
-                      <ImageIcon className="w-5 h-5" />
-                    </button>
-                  </div>
-
                   {/* Input */}
                   <div className="flex-1 relative">
                     <textarea
@@ -809,8 +894,8 @@ function UserChatContent() {
                           handleSendMessage();
                         }
                       }}
-                      placeholder="พิมพ์ข้อความ"
-                      className="w-full min-h-[44px] max-h-[120px] px-4 py-3 bg-white/[0.05] border border-white/10 rounded-3xl text-white text-[15px] placeholder:text-slate-500 focus:outline-none focus:border-[#06C755]/50 resize-none transition-colors"
+                      placeholder="พิมพ์ข้อความ..."
+                      className="w-full min-h-[44px] max-h-[120px] px-4 py-3 bg-white/[0.05] border border-white/10 rounded-3xl text-white text-sm lg:text-[15px] placeholder:text-slate-500 focus:outline-none focus:border-[#06C755]/50 resize-none transition-colors"
                       rows={1}
                       disabled={sending}
                     />
@@ -823,7 +908,7 @@ function UserChatContent() {
                     className={cn(
                       "w-11 h-11 rounded-full flex items-center justify-center transition-all flex-shrink-0",
                       newMessage.trim()
-                        ? "bg-[#06C755] text-white hover:bg-[#05a347]"
+                        ? "bg-[#06C755] text-white hover:bg-[#05a347] active:scale-95"
                         : "bg-white/5 text-slate-500"
                     )}
                   >
@@ -841,9 +926,7 @@ function UserChatContent() {
             <div className="flex-1 flex items-center justify-center">
               <div className="text-center">
                 <div className="w-24 h-24 rounded-full bg-white/5 flex items-center justify-center mx-auto mb-4">
-                  <svg className="w-12 h-12 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-                  </svg>
+                  <MessageCircle className="w-12 h-12 text-slate-500" />
                 </div>
                 <p className="text-white font-medium mb-1">เลือกแชทเพื่อเริ่มสนทนา</p>
                 <p className="text-slate-500 text-sm">เลือกผู้ใช้จากรายการด้านซ้าย</p>
