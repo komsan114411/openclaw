@@ -16,6 +16,7 @@ import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { SystemSettingsService } from './system-settings.service';
+import { UpdateSystemSettingsDto } from './dto/update-settings.dto';
 import { SessionAuthGuard } from '../auth/guards/session-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { RateLimitGuard, RateLimit } from '../common/guards/rate-limit.guard';
@@ -230,7 +231,7 @@ export class SystemSettingsController {
   @Roles(UserRole.ADMIN)
   @ApiOperation({ summary: 'Update system settings (Admin only)' })
   async updateSettings(
-    @Body() updates: any,
+    @Body() updates: UpdateSystemSettingsDto,
     @CurrentUser() user: AuthUser,
   ) {
     const success = await this.settingsService.updateSettings(updates, user.userId);
@@ -372,7 +373,7 @@ export class SystemSettingsController {
   @Roles(UserRole.ADMIN)
   @ApiOperation({ summary: 'Update message settings (Admin only)' })
   async updateMessageSettings(
-    @Body() updates: any,
+    @Body() updates: UpdateSystemSettingsDto,
     @CurrentUser() user: AuthUser,
   ) {
     const success = await this.settingsService.updateSettings(updates, user.userId);

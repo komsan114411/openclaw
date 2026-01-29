@@ -18,6 +18,7 @@ import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { UserRole } from '../database/schemas/user.schema';
 import { BanksService } from './banks.service';
+import { ParseObjectIdPipe } from '../common/pipes/parse-object-id.pipe';
 
 @Controller()
 export class BanksController {
@@ -98,7 +99,7 @@ export class BanksController {
   @UseGuards(SessionAuthGuard, RolesGuard)
   @Roles(UserRole.ADMIN)
   async updateBank(
-    @Param('id') id: string,
+    @Param('id', ParseObjectIdPipe) id: string,
     @Body()
     body: {
       name?: string;
@@ -138,7 +139,7 @@ export class BanksController {
   @Roles(UserRole.ADMIN)
   @UseInterceptors(FileInterceptor('logo'))
   async uploadBankLogo(
-    @Param('id') id: string,
+    @Param('id', ParseObjectIdPipe) id: string,
     @UploadedFile() file: Express.Multer.File,
   ) {
     if (!file) {

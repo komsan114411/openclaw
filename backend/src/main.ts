@@ -20,9 +20,18 @@ async function bootstrap() {
 
     // Security headers
     app.use(helmet({
-      contentSecurityPolicy: false, // Disable CSP for API
-      crossOriginEmbedderPolicy: false, // Allow embedding
+      contentSecurityPolicy: false, // Disable CSP for API (frontend handles CSP)
+      crossOriginEmbedderPolicy: false, // Allow embedding for API responses
       crossOriginResourcePolicy: { policy: 'cross-origin' },
+      // Enable important security headers
+      xFrameOptions: { action: 'deny' }, // Prevent clickjacking
+      xContentTypeOptions: true, // Prevent MIME sniffing
+      referrerPolicy: { policy: 'strict-origin-when-cross-origin' },
+      hsts: {
+        maxAge: 31536000, // 1 year
+        includeSubDomains: true,
+        preload: true,
+      },
     }));
 
     // Increase body size limit for base64 image uploads (10MB)
