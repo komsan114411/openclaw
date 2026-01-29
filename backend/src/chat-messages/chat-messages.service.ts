@@ -276,7 +276,9 @@ export class ChatMessagesService {
   }
 
   /**
-   * Send message to LINE user via Push API
+   * Send message to LINE user
+   * Strategy: Try Reply API first (FREE, unlimited) if we have a recent replyToken,
+   * then fall back to Push API if needed (has monthly limits)
    */
   async sendMessageToUser(
     lineAccountId: string,
@@ -293,8 +295,66 @@ export class ChatMessagesService {
       throw new BadRequestException('LINE Channel Access Token not configured');
     }
 
+    // Strategy 1: Try Reply API first (FREE, unlimited)
+    // Reply tokens are valid for about 1 minute after message received
+    const REPLY_TOKEN_VALIDITY_MS = 55 * 1000; // 55 seconds to be safe
+    const recentMessage = await this.chatMessageModel.findOne({
+      lineAccountId: new Types.ObjectId(lineAccountId),
+      lineUserId,
+      direction: MessageDirection.IN,
+      replyToken: { $exists: true, $ne: null },
+      createdAt: { $gte: new Date(Date.now() - REPLY_TOKEN_VALIDITY_MS) },
+    }).sort({ createdAt: -1 });
+
+    if (recentMessage?.replyToken) {
+      try {
+        this.logger.log(`Trying Reply API for user ${lineUserId} (FREE method)`);
+        await axios.post(
+          'https://api.line.me/v2/bot/message/reply',
+          {
+            replyToken: recentMessage.replyToken,
+            messages: [{ type: 'text', text: message }],
+          },
+          {
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${lineAccount.accessToken}`,
+            },
+          },
+        );
+
+        // Clear used replyToken to prevent reuse
+        await this.chatMessageModel.updateOne(
+          { _id: recentMessage._id },
+          { $unset: { replyToken: 1 } },
+        );
+
+        // Save outgoing message
+        await this.saveOutgoingMessage({
+          lineAccountId,
+          lineUserId,
+          messageType: MessageType.TEXT,
+          messageText: message,
+          sentBy,
+        });
+
+        this.logger.log(`Reply API success for user ${lineUserId} (FREE)`);
+        return { success: true };
+      } catch (replyError: any) {
+        this.logger.warn(`Reply API failed, falling back to Push API:`, replyError.response?.data?.message || replyError.message);
+        // Clear invalid replyToken
+        await this.chatMessageModel.updateOne(
+          { _id: recentMessage._id },
+          { $unset: { replyToken: 1 } },
+        );
+        // Continue to Push API fallback
+      }
+    }
+
+    // Strategy 2: Fall back to Push API (has monthly limits)
     try {
-      const response = await axios.post(
+      this.logger.log(`Using Push API for user ${lineUserId} (may use monthly quota)`);
+      await axios.post(
         'https://api.line.me/v2/bot/message/push',
         {
           to: lineUserId,
