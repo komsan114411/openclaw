@@ -30,6 +30,7 @@ import { AnnouncementsModule } from './announcements/announcements.module';
 import { EventBusModule } from './core/events';
 import { SecurityModule } from './utils/security.module';
 import { RateLimitModule } from './common/rate-limit.module';
+import { LineSessionModule } from './line-session/line-session.module';
 
 @Module({
   imports: [
@@ -114,6 +115,10 @@ import { RateLimitModule } from './common/rate-limit.module';
     WalletModule,
     RateLimitModule,
     AnnouncementsModule,
+
+    // LINE Session Management (Standalone Module)
+    // ลบได้ง่าย: ลบ folder src/line-session/ และลบบรรทัดนี้
+    LineSessionModule,
   ],
 })
 export class AppModule { }
