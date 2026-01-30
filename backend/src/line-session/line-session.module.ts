@@ -4,12 +4,15 @@ import { MongooseModule } from '@nestjs/mongoose';
 // Schemas
 import { LineSession, LineSessionSchema } from './schemas/line-session.schema';
 import { LineKeyHistory, LineKeyHistorySchema } from './schemas/line-key-history.schema';
+import { BankList, BankListSchema } from './schemas/bank-list.schema';
+import { LineMessage, LineMessageSchema } from './schemas/line-message.schema';
 
 // Services
 import { KeyStorageService } from './services/key-storage.service';
 import { SessionHealthService } from './services/session-health.service';
 import { ReloginSchedulerService } from './services/relogin-scheduler.service';
 import { LineAutomationService } from './services/line-automation.service';
+import { MessageFetchService } from './services/message-fetch.service';
 
 // Controller
 import { LineSessionController } from './line-session.controller';
@@ -46,6 +49,8 @@ import { ConfigModule } from '@nestjs/config';
     MongooseModule.forFeature([
       { name: LineSession.name, schema: LineSessionSchema },
       { name: LineKeyHistory.name, schema: LineKeyHistorySchema },
+      { name: BankList.name, schema: BankListSchema },
+      { name: LineMessage.name, schema: LineMessageSchema },
     ]),
     // EventBus for publishing/subscribing to events
     EventBusModule,
@@ -58,12 +63,14 @@ import { ConfigModule } from '@nestjs/config';
     SessionHealthService,
     ReloginSchedulerService,
     LineAutomationService,
+    MessageFetchService,
   ],
   exports: [
     KeyStorageService,
     SessionHealthService,
     ReloginSchedulerService,
     LineAutomationService,
+    MessageFetchService,
   ],
 })
 export class LineSessionModule {}

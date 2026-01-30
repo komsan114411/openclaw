@@ -649,6 +649,45 @@ export const lineSessionApi = {
   // Check if credentials saved
   hasCredentials: (lineAccountId: string) =>
     api.get(`/admin/line-session/${lineAccountId}/credentials`),
+
+  // === Bank Configuration ===
+
+  // Get available banks
+  getBanks: () =>
+    api.get('/admin/line-session/banks'),
+
+  // Configure bank for account
+  setBank: (lineAccountId: string, data: {
+    bankCode: string;
+    bankName: string;
+    accountNumber?: string;
+    chatMid?: string;
+  }) => api.post(`/admin/line-session/${lineAccountId}/bank`, data),
+
+  // Get bank configuration
+  getBank: (lineAccountId: string) =>
+    api.get(`/admin/line-session/${lineAccountId}/bank`),
+
+  // === Message Fetching ===
+
+  // Fetch messages from LINE
+  fetchMessages: (lineAccountId: string) =>
+    api.post(`/admin/line-session/${lineAccountId}/messages/fetch`),
+
+  // Get messages
+  getMessages: (lineAccountId: string, params?: {
+    limit?: number;
+    offset?: number;
+    type?: string;
+    startDate?: string;
+    endDate?: string;
+  }) => api.get(`/admin/line-session/${lineAccountId}/messages`, { params }),
+
+  // Get transaction summary
+  getTransactionSummary: (lineAccountId: string, startDate?: string, endDate?: string) =>
+    api.get(`/admin/line-session/${lineAccountId}/messages/summary`, {
+      params: { startDate, endDate },
+    }),
 };
 
 // Rate Limit API (Admin Only)

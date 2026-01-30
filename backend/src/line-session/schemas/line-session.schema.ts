@@ -36,6 +36,37 @@ export class LineSession {
   linePassword: string;
 
   /**
+   * รหัสธนาคาร (e.g., '014' = SCB, '030' = GSB, '004' = KBANK)
+   */
+  @Prop()
+  bankCode: string;
+
+  /**
+   * ชื่อธนาคาร
+   */
+  @Prop()
+  bankName: string;
+
+  /**
+   * เลขบัญชีธนาคาร
+   */
+  @Prop()
+  accountNumber: string;
+
+  /**
+   * ChatMid - ID ของ chat กับ LINE OA ธนาคาร
+   * ใช้สำหรับดึงข้อความ
+   */
+  @Prop()
+  chatMid: string;
+
+  /**
+   * ยอดเงินคงเหลือล่าสุด
+   */
+  @Prop({ default: '0' })
+  balance: string;
+
+  /**
    * LINE Access Token
    * ใช้สำหรับ authenticate กับ LINE API
    */

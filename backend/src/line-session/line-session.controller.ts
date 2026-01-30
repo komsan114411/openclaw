@@ -25,7 +25,12 @@ import { KeyStorageService } from './services/key-storage.service';
 import { SessionHealthService, HealthStatus } from './services/session-health.service';
 import { ReloginSchedulerService } from './services/relogin-scheduler.service';
 import { LineAutomationService, LoginStatus } from './services/line-automation.service';
+import { MessageFetchService, BankCodes } from './services/message-fetch.service';
 import { SetKeysDto, CopyKeysDto, ParseCurlDto, TriggerLoginDto } from './dto/set-keys.dto';
+import { InjectModel } from '@nestjs/mongoose';
+import { Model } from 'mongoose';
+import { BankList, BankListDocument, DEFAULT_BANKS } from './schemas/bank-list.schema';
+import { LineSession, LineSessionDocument } from './schemas/line-session.schema';
 
 @ApiTags('LINE Session')
 @ApiBearerAuth()
@@ -40,7 +45,26 @@ export class LineSessionController {
     private sessionHealthService: SessionHealthService,
     private reloginSchedulerService: ReloginSchedulerService,
     private lineAutomationService: LineAutomationService,
-  ) {}
+    private messageFetchService: MessageFetchService,
+    @InjectModel(BankList.name)
+    private bankListModel: Model<BankListDocument>,
+    @InjectModel(LineSession.name)
+    private lineSessionModel: Model<LineSessionDocument>,
+  ) {
+    // Initialize default banks on startup
+    this.initializeDefaultBanks();
+  }
+
+  /**
+   * Initialize default bank list if empty
+   */
+  private async initializeDefaultBanks() {
+    const count = await this.bankListModel.countDocuments();
+    if (count === 0) {
+      await this.bankListModel.insertMany(DEFAULT_BANKS);
+      this.logger.log('Default bank list initialized');
+    }
+  }
 
   // ================================
   // KEY MANAGEMENT
@@ -464,6 +488,173 @@ export class LineSessionController {
       success: true,
       hasCredentials: !!credentials,
       email: credentials?.email ? credentials.email.substring(0, 3) + '***' : null,
+    };
+  }
+
+  // ================================
+  // BANK MANAGEMENT
+  // ================================
+
+  /**
+   * Get list of supported banks
+   */
+  @Get('banks')
+  @ApiOperation({ summary: 'Get list of supported banks' })
+  async getBankList() {
+    const banks = await this.bankListModel.find({ isActive: true }).sort({ bankNameEn: 1 });
+
+    return {
+      success: true,
+      banks: banks.map((b) => ({
+        id: b._id,
+        bankCode: b.bankCode,
+        bankNameTh: b.bankNameTh,
+        bankNameEn: b.bankNameEn,
+        bankSwift: b.bankSwift,
+        bankImg: b.bankImg,
+        reLoginAtMins: b.reLoginAtMins,
+      })),
+    };
+  }
+
+  /**
+   * Configure bank for a LINE Account
+   */
+  @Post(':lineAccountId/bank')
+  @ApiOperation({ summary: 'Configure bank for LINE Account' })
+  async configureBank(
+    @Param('lineAccountId') lineAccountId: string,
+    @Body() dto: { bankCode: string; accountNumber?: string; chatMid?: string },
+  ) {
+    const bank = await this.bankListModel.findOne({ bankCode: dto.bankCode });
+    if (!bank) {
+      throw new BadRequestException('Invalid bank code');
+    }
+
+    await this.lineSessionModel.updateOne(
+      { lineAccountId, isActive: true },
+      {
+        $set: {
+          bankCode: dto.bankCode,
+          bankName: bank.bankNameEn,
+          accountNumber: dto.accountNumber,
+          chatMid: dto.chatMid || bank.defaultChatMid,
+        },
+      },
+      { upsert: true },
+    );
+
+    return {
+      success: true,
+      message: `Bank ${bank.bankNameEn} configured for account`,
+    };
+  }
+
+  /**
+   * Get bank configuration for a LINE Account
+   */
+  @Get(':lineAccountId/bank')
+  @ApiOperation({ summary: 'Get bank configuration' })
+  async getBankConfig(@Param('lineAccountId') lineAccountId: string) {
+    const session = await this.lineSessionModel.findOne({
+      lineAccountId,
+      isActive: true,
+    });
+
+    if (!session) {
+      return {
+        success: true,
+        configured: false,
+        bank: null,
+      };
+    }
+
+    return {
+      success: true,
+      configured: !!session.bankCode,
+      bank: session.bankCode
+        ? {
+            bankCode: session.bankCode,
+            bankName: session.bankName,
+            accountNumber: session.accountNumber,
+            chatMid: session.chatMid,
+            balance: session.balance,
+          }
+        : null,
+    };
+  }
+
+  // ================================
+  // MESSAGE FETCHING
+  // ================================
+
+  /**
+   * Fetch messages manually
+   */
+  @Post(':lineAccountId/messages/fetch')
+  @ApiOperation({ summary: 'Fetch messages from LINE' })
+  async fetchMessages(@Param('lineAccountId') lineAccountId: string) {
+    const result = await this.messageFetchService.fetchMessages(lineAccountId);
+
+    return result;
+  }
+
+  /**
+   * Get messages for a LINE Account
+   */
+  @Get(':lineAccountId/messages')
+  @ApiOperation({ summary: 'Get messages' })
+  async getMessages(
+    @Param('lineAccountId') lineAccountId: string,
+    @Query('limit') limit?: number,
+    @Query('offset') offset?: number,
+    @Query('type') transactionType?: string,
+    @Query('startDate') startDate?: string,
+    @Query('endDate') endDate?: string,
+  ) {
+    const result = await this.messageFetchService.getMessages(lineAccountId, {
+      limit: limit || 50,
+      offset: offset || 0,
+      transactionType,
+      startDate: startDate ? new Date(startDate) : undefined,
+      endDate: endDate ? new Date(endDate) : undefined,
+    });
+
+    return {
+      success: true,
+      total: result.total,
+      messages: result.messages.map((m) => ({
+        id: m._id,
+        messageId: m.messageId,
+        text: m.text,
+        transactionType: m.transactionType,
+        amount: m.amount,
+        balance: m.balance,
+        messageDate: m.messageDate,
+        bankCode: m.bankCode,
+      })),
+    };
+  }
+
+  /**
+   * Get transaction summary
+   */
+  @Get(':lineAccountId/messages/summary')
+  @ApiOperation({ summary: 'Get transaction summary' })
+  async getTransactionSummary(
+    @Param('lineAccountId') lineAccountId: string,
+    @Query('startDate') startDate?: string,
+    @Query('endDate') endDate?: string,
+  ) {
+    const summary = await this.messageFetchService.getTransactionSummary(
+      lineAccountId,
+      startDate ? new Date(startDate) : undefined,
+      endDate ? new Date(endDate) : undefined,
+    );
+
+    return {
+      success: true,
+      summary,
     };
   }
 

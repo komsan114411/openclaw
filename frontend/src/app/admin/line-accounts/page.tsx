@@ -46,7 +46,12 @@ import {
   LogIn,
   Mail,
   Lock,
-  Zap
+  Zap,
+  Building2,
+  Wallet,
+  TrendingUp,
+  TrendingDown,
+  Download
 } from 'lucide-react';
 
 interface ExtendedLineAccount extends LineAccount {
@@ -103,7 +108,7 @@ export default function AdminLineAccountsPage() {
     curlCommand: '',
     extractedFrom: 'manual',
   });
-  const [sessionTab, setSessionTab] = useState<'login' | 'keys' | 'curl' | 'history'>('login');
+  const [sessionTab, setSessionTab] = useState<'login' | 'keys' | 'curl' | 'history' | 'bank'>('login');
 
   // Auto Login state
   const [loginForm, setLoginForm] = useState({
@@ -120,6 +125,29 @@ export default function AdminLineAccountsPage() {
     pinCode: undefined,
     error: undefined,
     isLoading: false,
+  });
+
+  // Bank configuration state
+  const [bankData, setBankData] = useState<{
+    banks: any[];
+    currentBank: any | null;
+    messages: any[];
+    summary: any | null;
+    isLoading: boolean;
+    isFetching: boolean;
+  }>({
+    banks: [],
+    currentBank: null,
+    messages: [],
+    summary: null,
+    isLoading: false,
+    isFetching: false,
+  });
+  const [bankForm, setBankForm] = useState({
+    bankCode: '',
+    bankName: '',
+    accountNumber: '',
+    chatMid: '',
   });
 
   const [formData, setFormData] = useState({
@@ -469,6 +497,84 @@ export default function AdminLineAccountsPage() {
     }
   };
 
+  // Fetch bank data
+  const fetchBankData = async (accountId: string) => {
+    setBankData(prev => ({ ...prev, isLoading: true }));
+    try {
+      const [banksRes, currentBankRes, messagesRes, summaryRes] = await Promise.allSettled([
+        lineSessionApi.getBanks(),
+        lineSessionApi.getBank(accountId),
+        lineSessionApi.getMessages(accountId, { limit: 20 }),
+        lineSessionApi.getTransactionSummary(accountId),
+      ]);
+
+      const banks = banksRes.status === 'fulfilled' ? banksRes.value.data?.banks || [] : [];
+      const currentBank = currentBankRes.status === 'fulfilled' ? currentBankRes.value.data : null;
+      const messages = messagesRes.status === 'fulfilled' ? messagesRes.value.data?.messages || [] : [];
+      const summary = summaryRes.status === 'fulfilled' ? summaryRes.value.data : null;
+
+      setBankData({
+        banks,
+        currentBank,
+        messages,
+        summary,
+        isLoading: false,
+        isFetching: false,
+      });
+
+      // Set form data from current bank
+      if (currentBank) {
+        setBankForm({
+          bankCode: currentBank.bankCode || '',
+          bankName: currentBank.bankName || '',
+          accountNumber: currentBank.accountNumber || '',
+          chatMid: currentBank.chatMid || '',
+        });
+      }
+    } catch (error) {
+      setBankData(prev => ({ ...prev, isLoading: false }));
+    }
+  };
+
+  // Save bank configuration
+  const handleSaveBank = async () => {
+    if (!selectedAccount) return;
+    if (!bankForm.bankCode) {
+      toast.error('กรุณาเลือกธนาคาร');
+      return;
+    }
+
+    setIsProcessing(true);
+    try {
+      await lineSessionApi.setBank(selectedAccount._id, {
+        bankCode: bankForm.bankCode,
+        bankName: bankForm.bankName,
+        accountNumber: bankForm.accountNumber || undefined,
+        chatMid: bankForm.chatMid || undefined,
+      });
+      toast.success('บันทึกการตั้งค่าธนาคารสำเร็จ');
+      await fetchBankData(selectedAccount._id);
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || 'ไม่สามารถบันทึกได้');
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  // Fetch messages manually
+  const handleFetchMessages = async () => {
+    if (!selectedAccount) return;
+    setBankData(prev => ({ ...prev, isFetching: true }));
+    try {
+      const res = await lineSessionApi.fetchMessages(selectedAccount._id);
+      toast.success(`ดึงข้อความสำเร็จ: ${res.data.newMessages || 0} ข้อความใหม่`);
+      await fetchBankData(selectedAccount._id);
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || 'ไม่สามารถดึงข้อความได้');
+      setBankData(prev => ({ ...prev, isFetching: false }));
+    }
+  };
+
   const openSessionModal = async (account: ExtendedLineAccount) => {
     setSelectedAccount(account);
     setShowSessionModal(true);
@@ -481,7 +587,16 @@ export default function AdminLineAccountsPage() {
       curlCommand: '',
       extractedFrom: 'manual',
     });
-    await fetchSessionData(account._id);
+    setBankForm({
+      bankCode: '',
+      bankName: '',
+      accountNumber: '',
+      chatMid: '',
+    });
+    await Promise.all([
+      fetchSessionData(account._id),
+      fetchBankData(account._id),
+    ]);
   };
 
   const handleSetKeys = async () => {
@@ -1282,6 +1397,15 @@ export default function AdminLineAccountsPage() {
               >
                 <History className="w-4 h-4" /> History
               </button>
+              <button
+                onClick={() => setSessionTab('bank')}
+                className={cn(
+                  "flex-1 py-3 px-4 rounded-xl text-xs font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2",
+                  sessionTab === 'bank' ? "bg-white shadow-sm text-slate-900" : "text-slate-500 hover:text-slate-700"
+                )}
+              >
+                <Building2 className="w-4 h-4" /> Bank
+              </button>
             </div>
 
             {/* Login Tab */}
@@ -1537,6 +1661,184 @@ export default function AdminLineAccountsPage() {
                     ))}
                   </div>
                 )}
+              </div>
+            )}
+
+            {/* Bank Tab */}
+            {sessionTab === 'bank' && (
+              <div className="space-y-6">
+                {/* Bank Configuration */}
+                <div className="p-6 bg-gradient-to-br from-emerald-500 to-teal-600 text-white rounded-[2rem] relative overflow-hidden">
+                  <div className="absolute top-0 right-0 w-48 h-48 bg-white/10 rounded-full blur-[60px] -mr-24 -mt-24 pointer-events-none" />
+                  <div className="relative z-10">
+                    <div className="flex items-center gap-3 mb-6">
+                      <div className="w-12 h-12 rounded-xl bg-white/20 flex items-center justify-center">
+                        <Building2 className="w-6 h-6 text-white" />
+                      </div>
+                      <div>
+                        <p className="text-[10px] font-black text-white/70 uppercase tracking-widest">Bank Configuration</p>
+                        <p className="text-white font-bold">Select Bank to Monitor</p>
+                      </div>
+                    </div>
+
+                    <div className="space-y-4">
+                      <div>
+                        <label className="text-[10px] font-bold text-white/70 uppercase tracking-widest mb-2 block">Bank</label>
+                        <select
+                          value={bankForm.bankCode}
+                          onChange={(e) => {
+                            const bank = bankData.banks.find((b: any) => b.bankCode === e.target.value);
+                            setBankForm(prev => ({
+                              ...prev,
+                              bankCode: e.target.value,
+                              bankName: bank?.bankNameTh || bank?.bankNameEn || '',
+                            }));
+                          }}
+                          className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-xl text-white focus:outline-none focus:border-white/40"
+                          disabled={bankData.isLoading}
+                        >
+                          <option value="" className="text-slate-900">-- Select Bank --</option>
+                          {bankData.banks.map((bank: any) => (
+                            <option key={bank.bankCode} value={bank.bankCode} className="text-slate-900">
+                              {bank.bankNameTh || bank.bankNameEn} ({bank.bankCode})
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <label className="text-[10px] font-bold text-white/70 uppercase tracking-widest mb-2 block">Account Number (Optional)</label>
+                          <input
+                            type="text"
+                            placeholder="123-4-56789-0"
+                            value={bankForm.accountNumber}
+                            onChange={(e) => setBankForm(prev => ({ ...prev, accountNumber: e.target.value }))}
+                            className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-xl text-white placeholder-white/50 focus:outline-none focus:border-white/40"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[10px] font-bold text-white/70 uppercase tracking-widest mb-2 block">Chat MID (for message fetch)</label>
+                          <input
+                            type="text"
+                            placeholder="u1234567890abcdef..."
+                            value={bankForm.chatMid}
+                            onChange={(e) => setBankForm(prev => ({ ...prev, chatMid: e.target.value }))}
+                            className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-xl text-white placeholder-white/50 focus:outline-none focus:border-white/40"
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    <Button
+                      variant="primary"
+                      onClick={handleSaveBank}
+                      isLoading={isProcessing}
+                      disabled={isProcessing || !bankForm.bankCode}
+                      className="w-full mt-6 h-14 rounded-xl font-bold bg-white text-emerald-600 hover:bg-white/90"
+                    >
+                      Save Bank Configuration
+                    </Button>
+                  </div>
+                </div>
+
+                {/* Transaction Summary */}
+                {bankData.summary && (
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="p-6 bg-emerald-50 rounded-[2rem] border border-emerald-200">
+                      <div className="flex items-center gap-3 mb-4">
+                        <div className="w-10 h-10 rounded-xl bg-emerald-100 flex items-center justify-center">
+                          <TrendingUp className="w-5 h-5 text-emerald-600" />
+                        </div>
+                        <div>
+                          <p className="text-[9px] font-bold text-emerald-500 uppercase tracking-widest">Deposits</p>
+                          <p className="text-lg font-black text-emerald-700">{bankData.summary.deposits?.count || 0} txn</p>
+                        </div>
+                      </div>
+                      <p className="text-2xl font-black text-emerald-600">
+                        {Number(bankData.summary.deposits?.total || 0).toLocaleString('th-TH', { style: 'currency', currency: 'THB' })}
+                      </p>
+                    </div>
+                    <div className="p-6 bg-rose-50 rounded-[2rem] border border-rose-200">
+                      <div className="flex items-center gap-3 mb-4">
+                        <div className="w-10 h-10 rounded-xl bg-rose-100 flex items-center justify-center">
+                          <TrendingDown className="w-5 h-5 text-rose-600" />
+                        </div>
+                        <div>
+                          <p className="text-[9px] font-bold text-rose-500 uppercase tracking-widest">Withdrawals</p>
+                          <p className="text-lg font-black text-rose-700">{bankData.summary.withdrawals?.count || 0} txn</p>
+                        </div>
+                      </div>
+                      <p className="text-2xl font-black text-rose-600">
+                        {Number(bankData.summary.withdrawals?.total || 0).toLocaleString('th-TH', { style: 'currency', currency: 'THB' })}
+                      </p>
+                    </div>
+                  </div>
+                )}
+
+                {/* Fetch Messages */}
+                <div className="flex items-center justify-between p-4 bg-slate-50 rounded-xl">
+                  <div>
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Messages from Bank OA</p>
+                    <p className="text-sm text-slate-600">{bankData.messages.length} messages loaded</p>
+                  </div>
+                  <Button
+                    variant="secondary"
+                    onClick={handleFetchMessages}
+                    isLoading={bankData.isFetching}
+                    disabled={bankData.isFetching || !sessionData.session?.xLineAccess}
+                    className="h-10 rounded-xl font-bold"
+                  >
+                    <Download className="w-4 h-4 mr-2" /> Fetch Now
+                  </Button>
+                </div>
+
+                {/* Recent Messages */}
+                <div className="space-y-3">
+                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-2">Recent Messages</p>
+                  {bankData.messages.length === 0 ? (
+                    <div className="p-8 bg-slate-50 rounded-[2rem] text-center">
+                      <Wallet className="w-12 h-12 text-slate-300 mx-auto mb-3" />
+                      <p className="text-sm text-slate-500">No messages yet</p>
+                      <p className="text-xs text-slate-400 mt-1">Configure bank and fetch messages to see transactions</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-2 max-h-[300px] overflow-y-auto custom-scrollbar">
+                      {bankData.messages.map((msg: any, index: number) => (
+                        <div key={msg._id || index} className="p-4 bg-slate-50 rounded-xl border border-slate-100">
+                          <div className="flex items-center justify-between mb-2">
+                            <Badge className={cn(
+                              "text-[9px] font-bold",
+                              msg.transactionType === 'deposit' && "bg-emerald-100 text-emerald-700",
+                              msg.transactionType === 'withdraw' && "bg-rose-100 text-rose-700",
+                              msg.transactionType === 'transfer' && "bg-blue-100 text-blue-700",
+                              msg.transactionType === 'unknown' && "bg-slate-100 text-slate-600"
+                            )}>
+                              {msg.transactionType || 'unknown'}
+                            </Badge>
+                            <span className="text-[9px] text-slate-400">
+                              {msg.messageDate ? new Date(msg.messageDate).toLocaleString('th-TH') : '-'}
+                            </span>
+                          </div>
+                          <div className="flex items-center justify-between">
+                            <p className="text-xs text-slate-600 truncate flex-1 mr-4">{msg.text?.substring(0, 60) || 'No text'}</p>
+                            {msg.amount && (
+                              <p className={cn(
+                                "text-sm font-bold",
+                                msg.transactionType === 'deposit' ? "text-emerald-600" : "text-rose-600"
+                              )}>
+                                {msg.transactionType === 'deposit' ? '+' : '-'}{Number(msg.amount).toLocaleString()} THB
+                              </p>
+                            )}
+                          </div>
+                          {msg.balance && (
+                            <p className="text-[10px] text-slate-400 mt-1">Balance: {Number(msg.balance).toLocaleString()} THB</p>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </div>
             )}
 
