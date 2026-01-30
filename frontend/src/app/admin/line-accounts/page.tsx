@@ -42,7 +42,11 @@ import {
   XCircle,
   AlertCircle,
   Terminal,
-  History
+  History,
+  LogIn,
+  Mail,
+  Lock,
+  Zap
 } from 'lucide-react';
 
 interface ExtendedLineAccount extends LineAccount {
@@ -99,7 +103,24 @@ export default function AdminLineAccountsPage() {
     curlCommand: '',
     extractedFrom: 'manual',
   });
-  const [sessionTab, setSessionTab] = useState<'keys' | 'curl' | 'history'>('keys');
+  const [sessionTab, setSessionTab] = useState<'login' | 'keys' | 'curl' | 'history'>('login');
+
+  // Auto Login state
+  const [loginForm, setLoginForm] = useState({
+    email: '',
+    password: '',
+  });
+  const [loginStatus, setLoginStatus] = useState<{
+    status: string;
+    pinCode?: string;
+    error?: string;
+    isLoading: boolean;
+  }>({
+    status: 'idle',
+    pinCode: undefined,
+    error: undefined,
+    isLoading: false,
+  });
 
   const [formData, setFormData] = useState({
     accountName: '',
@@ -534,6 +555,87 @@ export default function AdminLineAccountsPage() {
         return <Badge className="bg-rose-500/10 text-rose-400 border-rose-500/20">Expired</Badge>;
       default:
         return <Badge className="bg-slate-500/10 text-slate-400 border-slate-500/20">Unknown</Badge>;
+    }
+  };
+
+  // Auto Login handlers
+  const handleStartLogin = async () => {
+    if (!selectedAccount) return;
+    if (!loginForm.email || !loginForm.password) {
+      toast.error('Please enter email and password');
+      return;
+    }
+
+    setLoginStatus(prev => ({ ...prev, isLoading: true, status: 'initializing', error: undefined }));
+
+    try {
+      const res = await lineSessionApi.startLogin(
+        selectedAccount._id,
+        loginForm.email,
+        loginForm.password
+      );
+
+      const data = res.data;
+      setLoginStatus({
+        status: data.status || 'unknown',
+        pinCode: data.pinCode,
+        error: data.error,
+        isLoading: false,
+      });
+
+      if (data.success) {
+        toast.success('Login successful');
+        await fetchSessionData(selectedAccount._id);
+      } else if (data.pinCode) {
+        toast(`PIN Code: ${data.pinCode} - Please verify on your mobile device`);
+      } else if (data.error) {
+        toast.error(data.error);
+      }
+    } catch (error: any) {
+      const errorMsg = error.response?.data?.message || 'Login failed';
+      setLoginStatus(prev => ({
+        ...prev,
+        isLoading: false,
+        status: 'failed',
+        error: errorMsg,
+      }));
+      toast.error(errorMsg);
+    }
+  };
+
+  const handleCancelLogin = async () => {
+    if (!selectedAccount) return;
+
+    try {
+      await lineSessionApi.cancelLogin(selectedAccount._id);
+      setLoginStatus({
+        status: 'idle',
+        pinCode: undefined,
+        error: undefined,
+        isLoading: false,
+      });
+      toast('Login cancelled');
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || 'Failed to cancel login');
+    }
+  };
+
+  const getLoginStatusBadge = (status: string) => {
+    switch (status) {
+      case 'success':
+        return <Badge className="bg-emerald-500/10 text-emerald-400 border-emerald-500/20">Success</Badge>;
+      case 'failed':
+        return <Badge className="bg-rose-500/10 text-rose-400 border-rose-500/20">Failed</Badge>;
+      case 'waiting_pin':
+      case 'pin_displayed':
+        return <Badge className="bg-amber-500/10 text-amber-400 border-amber-500/20">Waiting PIN</Badge>;
+      case 'initializing':
+      case 'launching_browser':
+      case 'loading_extension':
+      case 'entering_credentials':
+        return <Badge className="bg-blue-500/10 text-blue-400 border-blue-500/20">In Progress</Badge>;
+      default:
+        return <Badge className="bg-slate-500/10 text-slate-400 border-slate-500/20">Idle</Badge>;
     }
   };
 
@@ -1145,6 +1247,15 @@ export default function AdminLineAccountsPage() {
             {/* Tab Navigation */}
             <div className="flex gap-2 p-1 bg-slate-100 rounded-2xl">
               <button
+                onClick={() => setSessionTab('login')}
+                className={cn(
+                  "flex-1 py-3 px-4 rounded-xl text-xs font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2",
+                  sessionTab === 'login' ? "bg-white shadow-sm text-slate-900" : "text-slate-500 hover:text-slate-700"
+                )}
+              >
+                <LogIn className="w-4 h-4" /> Login
+              </button>
+              <button
                 onClick={() => setSessionTab('keys')}
                 className={cn(
                   "flex-1 py-3 px-4 rounded-xl text-xs font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2",
@@ -1172,6 +1283,114 @@ export default function AdminLineAccountsPage() {
                 <History className="w-4 h-4" /> History
               </button>
             </div>
+
+            {/* Login Tab */}
+            {sessionTab === 'login' && (
+              <div className="space-y-6">
+                {/* Login Form */}
+                <div className="p-6 bg-gradient-to-br from-blue-500 to-indigo-600 text-white rounded-[2rem] relative overflow-hidden">
+                  <div className="absolute top-0 right-0 w-48 h-48 bg-white/10 rounded-full blur-[60px] -mr-24 -mt-24 pointer-events-none" />
+                  <div className="relative z-10">
+                    <div className="flex items-center justify-between mb-6">
+                      <div className="flex items-center gap-3">
+                        <div className="w-12 h-12 rounded-xl bg-white/20 flex items-center justify-center">
+                          <Zap className="w-6 h-6 text-white" />
+                        </div>
+                        <div>
+                          <p className="text-[10px] font-black text-white/70 uppercase tracking-widest">Auto Login</p>
+                          <p className="text-white font-bold">Login with Email & Password</p>
+                        </div>
+                      </div>
+                      {getLoginStatusBadge(loginStatus.status)}
+                    </div>
+
+                    <div className="space-y-4">
+                      <div className="relative">
+                        <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-white/50" />
+                        <input
+                          type="email"
+                          placeholder="LINE Email"
+                          value={loginForm.email}
+                          onChange={(e) => setLoginForm(prev => ({ ...prev, email: e.target.value }))}
+                          className="w-full pl-12 pr-4 py-4 bg-white/10 border border-white/20 rounded-xl text-white placeholder-white/50 focus:outline-none focus:border-white/40"
+                          disabled={loginStatus.isLoading}
+                        />
+                      </div>
+                      <div className="relative">
+                        <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-white/50" />
+                        <input
+                          type="password"
+                          placeholder="LINE Password"
+                          value={loginForm.password}
+                          onChange={(e) => setLoginForm(prev => ({ ...prev, password: e.target.value }))}
+                          className="w-full pl-12 pr-4 py-4 bg-white/10 border border-white/20 rounded-xl text-white placeholder-white/50 focus:outline-none focus:border-white/40"
+                          disabled={loginStatus.isLoading}
+                        />
+                      </div>
+                    </div>
+
+                    <div className="flex gap-3 mt-6">
+                      <Button
+                        variant="primary"
+                        onClick={handleStartLogin}
+                        isLoading={loginStatus.isLoading}
+                        disabled={loginStatus.isLoading || !loginForm.email || !loginForm.password}
+                        className="flex-1 h-14 rounded-xl font-bold bg-white text-blue-600 hover:bg-white/90"
+                      >
+                        <LogIn className="w-5 h-5 mr-2" /> Start Login
+                      </Button>
+                      {loginStatus.isLoading && (
+                        <Button
+                          variant="outline"
+                          onClick={handleCancelLogin}
+                          className="h-14 rounded-xl font-bold border-white/30 text-white hover:bg-white/10"
+                        >
+                          Cancel
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* PIN Code Display */}
+                {loginStatus.pinCode && (
+                  <div className="p-6 bg-amber-50 rounded-[2rem] border-2 border-amber-200">
+                    <div className="text-center">
+                      <p className="text-[10px] font-black text-amber-600 uppercase tracking-widest mb-2">PIN Code</p>
+                      <div className="flex items-center justify-center gap-2">
+                        {loginStatus.pinCode.split('').map((digit, i) => (
+                          <span key={i} className="w-12 h-14 flex items-center justify-center text-2xl font-black text-amber-700 bg-white rounded-xl border-2 border-amber-300 shadow-sm">
+                            {digit}
+                          </span>
+                        ))}
+                      </div>
+                      <p className="text-sm text-amber-600 mt-4">Please verify this PIN on your mobile LINE app</p>
+                    </div>
+                  </div>
+                )}
+
+                {/* Error Display */}
+                {loginStatus.error && (
+                  <div className="p-4 bg-rose-50 rounded-xl border border-rose-200">
+                    <div className="flex items-center gap-3">
+                      <XCircle className="w-5 h-5 text-rose-500" />
+                      <p className="text-sm text-rose-700">{loginStatus.error}</p>
+                    </div>
+                  </div>
+                )}
+
+                {/* Status Info */}
+                <div className="p-4 bg-slate-50 rounded-xl">
+                  <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-2">How it works</p>
+                  <ol className="text-xs text-slate-600 space-y-1 list-decimal list-inside">
+                    <li>Enter your LINE email and password</li>
+                    <li>System will open a browser and login to LINE</li>
+                    <li>A 6-digit PIN will appear - verify it on your phone</li>
+                    <li>After verification, keys will be captured automatically</li>
+                  </ol>
+                </div>
+              </div>
+            )}
 
             {/* Keys Tab */}
             {sessionTab === 'keys' && (

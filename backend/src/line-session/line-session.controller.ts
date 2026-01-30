@@ -24,7 +24,8 @@ import { ParseObjectIdPipe } from '../common/pipes/parse-object-id.pipe';
 import { KeyStorageService } from './services/key-storage.service';
 import { SessionHealthService, HealthStatus } from './services/session-health.service';
 import { ReloginSchedulerService } from './services/relogin-scheduler.service';
-import { SetKeysDto, CopyKeysDto, ParseCurlDto } from './dto/set-keys.dto';
+import { LineAutomationService, LoginStatus } from './services/line-automation.service';
+import { SetKeysDto, CopyKeysDto, ParseCurlDto, TriggerLoginDto } from './dto/set-keys.dto';
 
 @ApiTags('LINE Session')
 @ApiBearerAuth()
@@ -38,6 +39,7 @@ export class LineSessionController {
     private keyStorageService: KeyStorageService,
     private sessionHealthService: SessionHealthService,
     private reloginSchedulerService: ReloginSchedulerService,
+    private lineAutomationService: LineAutomationService,
   ) {}
 
   // ================================
@@ -324,6 +326,144 @@ export class LineSessionController {
     return {
       success: true,
       message: 'Queue cleared',
+    };
+  }
+
+  // ================================
+  // AUTO LOGIN (Puppeteer)
+  // ================================
+
+  /**
+   * Get automation status
+   */
+  @Get('automation/status')
+  @ApiOperation({ summary: 'Get automation service status' })
+  async getAutomationStatus() {
+    return {
+      success: true,
+      ...this.lineAutomationService.getStatus(),
+    };
+  }
+
+  /**
+   * Save LINE credentials for auto login
+   */
+  @Post(':lineAccountId/credentials')
+  @ApiOperation({ summary: 'Save LINE credentials for auto login' })
+  async saveCredentials(
+    @Param('lineAccountId') lineAccountId: string,
+    @Body() dto: TriggerLoginDto,
+  ) {
+    await this.lineAutomationService.saveCredentials(
+      lineAccountId,
+      dto.email,
+      dto.password,
+    );
+
+    return {
+      success: true,
+      message: 'Credentials saved successfully',
+    };
+  }
+
+  /**
+   * Start auto login process
+   * This will launch browser, enter credentials, and wait for PIN
+   */
+  @Post(':lineAccountId/login')
+  @ApiOperation({ summary: 'Start auto login with Puppeteer' })
+  async startAutoLogin(
+    @Param('lineAccountId') lineAccountId: string,
+    @Body() dto: TriggerLoginDto,
+  ) {
+    if (!this.lineAutomationService.isAutomationAvailable()) {
+      return {
+        success: false,
+        message: 'Automation not available. Puppeteer is not installed.',
+        installCommand: 'npm install puppeteer puppeteer-extra puppeteer-extra-plugin-stealth',
+      };
+    }
+
+    // Save credentials if provided
+    if (dto.email && dto.password) {
+      await this.lineAutomationService.saveCredentials(
+        lineAccountId,
+        dto.email,
+        dto.password,
+      );
+    }
+
+    // Start login process (async - will emit events via WebSocket)
+    const result = await this.lineAutomationService.startLogin(
+      lineAccountId,
+      dto.email,
+      dto.password,
+    );
+
+    return {
+      success: result.success,
+      status: result.status,
+      pinCode: result.pinCode,
+      error: result.error,
+      message: result.success
+        ? 'Login successful'
+        : result.pinCode
+        ? 'PIN code displayed - please verify on your mobile device'
+        : result.error || 'Login failed',
+    };
+  }
+
+  /**
+   * Get login status
+   */
+  @Get(':lineAccountId/login/status')
+  @ApiOperation({ summary: 'Get current login status' })
+  async getLoginStatus(@Param('lineAccountId') lineAccountId: string) {
+    const worker = this.lineAutomationService.getWorkerStatus(lineAccountId);
+
+    if (!worker) {
+      return {
+        success: true,
+        hasActiveLogin: false,
+        status: LoginStatus.IDLE,
+      };
+    }
+
+    return {
+      success: true,
+      hasActiveLogin: true,
+      status: worker.status,
+      pinCode: worker.pinCode,
+      error: worker.error,
+    };
+  }
+
+  /**
+   * Cancel ongoing login
+   */
+  @Delete(':lineAccountId/login')
+  @ApiOperation({ summary: 'Cancel ongoing login process' })
+  async cancelLogin(@Param('lineAccountId') lineAccountId: string) {
+    await this.lineAutomationService.cancelLogin(lineAccountId);
+
+    return {
+      success: true,
+      message: 'Login cancelled',
+    };
+  }
+
+  /**
+   * Check if credentials are saved
+   */
+  @Get(':lineAccountId/credentials')
+  @ApiOperation({ summary: 'Check if credentials are saved' })
+  async hasCredentials(@Param('lineAccountId') lineAccountId: string) {
+    const credentials = await this.lineAutomationService.getCredentials(lineAccountId);
+
+    return {
+      success: true,
+      hasCredentials: !!credentials,
+      email: credentials?.email ? credentials.email.substring(0, 3) + '***' : null,
     };
   }
 

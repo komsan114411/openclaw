@@ -23,6 +23,19 @@ export class LineSession {
   lineAccountId: string;
 
   /**
+   * LINE Email สำหรับ auto login
+   */
+  @Prop()
+  lineEmail: string;
+
+  /**
+   * LINE Password (encrypted)
+   * ใช้ AES encryption
+   */
+  @Prop()
+  linePassword: string;
+
+  /**
    * LINE Access Token
    * ใช้สำหรับ authenticate กับ LINE API
    */

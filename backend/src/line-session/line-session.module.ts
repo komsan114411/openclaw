@@ -9,12 +9,14 @@ import { LineKeyHistory, LineKeyHistorySchema } from './schemas/line-key-history
 import { KeyStorageService } from './services/key-storage.service';
 import { SessionHealthService } from './services/session-health.service';
 import { ReloginSchedulerService } from './services/relogin-scheduler.service';
+import { LineAutomationService } from './services/line-automation.service';
 
 // Controller
 import { LineSessionController } from './line-session.controller';
 
 // Import EventBusModule from core
 import { EventBusModule } from '../core/events';
+import { ConfigModule } from '@nestjs/config';
 
 /**
  * LINE Session Module
@@ -47,17 +49,21 @@ import { EventBusModule } from '../core/events';
     ]),
     // EventBus for publishing/subscribing to events
     EventBusModule,
+    // Config for encryption keys
+    ConfigModule,
   ],
   controllers: [LineSessionController],
   providers: [
     KeyStorageService,
     SessionHealthService,
     ReloginSchedulerService,
+    LineAutomationService,
   ],
   exports: [
     KeyStorageService,
     SessionHealthService,
     ReloginSchedulerService,
+    LineAutomationService,
   ],
 })
 export class LineSessionModule {}

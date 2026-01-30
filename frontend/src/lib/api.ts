@@ -623,6 +623,32 @@ export const lineSessionApi = {
   // Trigger manual relogin
   triggerRelogin: (lineAccountId: string, reason?: string) =>
     api.post(`/admin/line-session/${lineAccountId}/relogin`, { reason }),
+
+  // === Auto Login (Puppeteer) ===
+
+  // Get automation status
+  getAutomationStatus: () =>
+    api.get('/admin/line-session/automation/status'),
+
+  // Save LINE credentials
+  saveCredentials: (lineAccountId: string, email: string, password: string) =>
+    api.post(`/admin/line-session/${lineAccountId}/credentials`, { email, password }),
+
+  // Start auto login
+  startLogin: (lineAccountId: string, email: string, password: string) =>
+    api.post(`/admin/line-session/${lineAccountId}/login`, { email, password }),
+
+  // Get login status
+  getLoginStatus: (lineAccountId: string) =>
+    api.get(`/admin/line-session/${lineAccountId}/login/status`),
+
+  // Cancel login
+  cancelLogin: (lineAccountId: string) =>
+    api.delete(`/admin/line-session/${lineAccountId}/login`),
+
+  // Check if credentials saved
+  hasCredentials: (lineAccountId: string) =>
+    api.get(`/admin/line-session/${lineAccountId}/credentials`),
 };
 
 // Rate Limit API (Admin Only)
