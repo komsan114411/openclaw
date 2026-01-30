@@ -1,10 +1,11 @@
-import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
+import { Injectable, Logger, OnModuleInit, Inject, forwardRef } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { Cron } from '@nestjs/schedule';
 import { LineSession, LineSessionDocument } from '../schemas/line-session.schema';
 import { KeyStorageService } from './key-storage.service';
 import { EventBusService } from '../../core/events';
+import { LineAutomationService, LoginStatus } from './line-automation.service';
 
 export interface ReloginJob {
   lineAccountId: string;
@@ -29,6 +30,8 @@ export class ReloginSchedulerService implements OnModuleInit {
     private lineSessionModel: Model<LineSessionDocument>,
     private keyStorageService: KeyStorageService,
     private eventBusService: EventBusService,
+    @Inject(forwardRef(() => LineAutomationService))
+    private lineAutomationService: LineAutomationService,
   ) {}
 
   /**
@@ -196,7 +199,7 @@ export class ReloginSchedulerService implements OnModuleInit {
 
   /**
    * Execute relogin สำหรับ LINE Account
-   * NOTE: ต้อง implement LINE login logic จริงที่นี่
+   * ใช้ LineAutomationService สำหรับ Puppeteer login
    */
   private async executeRelogin(job: ReloginJob): Promise<void> {
     this.logger.log(`Executing relogin for ${job.lineAccountId}, reason: ${job.reason}`);
@@ -207,27 +210,87 @@ export class ReloginSchedulerService implements OnModuleInit {
       { status: 'relogin_in_progress' },
     );
 
-    // TODO: Implement actual LINE login logic here
-    // This would involve:
-    // 1. Get LINE credentials from somewhere (line_accounts collection)
-    // 2. Launch Puppeteer with LINE extension
-    // 3. Perform login
-    // 4. Extract keys
-    // 5. Save new keys
+    // Check if automation is available
+    if (!this.lineAutomationService.isAutomationAvailable()) {
+      this.logger.warn('Puppeteer not available, cannot auto-relogin');
 
-    // For now, emit an event that can be handled elsewhere
-    this.eventBusService.publish({
-      eventName: 'line-session.relogin-requested' as any,
-      occurredAt: new Date(),
-      lineAccountId: job.lineAccountId,
-      reason: job.reason,
-    });
+      // Emit event for manual handling
+      this.eventBusService.publish({
+        eventName: 'line-session.relogin-requested' as any,
+        occurredAt: new Date(),
+        lineAccountId: job.lineAccountId,
+        reason: job.reason,
+        message: 'Puppeteer not available - manual login required',
+      });
 
-    // Mark as pending manual relogin (until actual implementation)
-    await this.lineSessionModel.updateOne(
-      { lineAccountId: job.lineAccountId, isActive: true },
-      { status: 'pending_relogin' },
-    );
+      await this.lineSessionModel.updateOne(
+        { lineAccountId: job.lineAccountId, isActive: true },
+        { status: 'pending_relogin' },
+      );
+      return;
+    }
+
+    // Check if credentials are saved
+    const credentials = await this.lineAutomationService.getCredentials(job.lineAccountId);
+    if (!credentials) {
+      this.logger.warn(`No credentials found for ${job.lineAccountId}, cannot auto-relogin`);
+
+      this.eventBusService.publish({
+        eventName: 'line-session.relogin-requested' as any,
+        occurredAt: new Date(),
+        lineAccountId: job.lineAccountId,
+        reason: job.reason,
+        message: 'No credentials saved - manual login required',
+      });
+
+      await this.lineSessionModel.updateOne(
+        { lineAccountId: job.lineAccountId, isActive: true },
+        { status: 'pending_relogin' },
+      );
+      return;
+    }
+
+    // Execute auto login
+    this.logger.log(`Starting auto-login for ${job.lineAccountId}`);
+    const result = await this.lineAutomationService.startLogin(job.lineAccountId);
+
+    if (result.success) {
+      this.logger.log(`Auto-relogin successful for ${job.lineAccountId}`);
+
+      await this.lineSessionModel.updateOne(
+        { lineAccountId: job.lineAccountId, isActive: true },
+        {
+          status: 'active',
+          lastCheckResult: 'valid',
+          consecutiveFailures: 0,
+        },
+      );
+    } else if (result.status === LoginStatus.PIN_DISPLAYED && result.pinCode) {
+      // PIN displayed - waiting for user verification
+      this.logger.log(`PIN displayed for ${job.lineAccountId}: ${result.pinCode}`);
+
+      this.eventBusService.publish({
+        eventName: 'line-session.pin-required' as any,
+        occurredAt: new Date(),
+        lineAccountId: job.lineAccountId,
+        pinCode: result.pinCode,
+      });
+
+      await this.lineSessionModel.updateOne(
+        { lineAccountId: job.lineAccountId, isActive: true },
+        { status: 'waiting_pin' },
+      );
+    } else {
+      // Login failed
+      this.logger.error(`Auto-relogin failed for ${job.lineAccountId}: ${result.error}`);
+
+      await this.lineSessionModel.updateOne(
+        { lineAccountId: job.lineAccountId, isActive: true },
+        { status: 'relogin_failed' },
+      );
+
+      throw new Error(result.error || 'Auto-relogin failed');
+    }
   }
 
   /**
