@@ -688,6 +688,48 @@ export const lineSessionApi = {
     api.get(`/admin/line-session/${lineAccountId}/messages/summary`, {
       params: { startDate, endDate },
     }),
+
+  // === Enhanced Automation (GSB-like features) ===
+
+  // Get enhanced automation status
+  getEnhancedStatus: () =>
+    api.get('/admin/line-session/enhanced/status'),
+
+  // Get worker pool status
+  getWorkerPoolStatus: () =>
+    api.get('/admin/line-session/enhanced/pool'),
+
+  // Get login coordinator statistics
+  getCoordinatorStats: () =>
+    api.get('/admin/line-session/enhanced/coordinator'),
+
+  // Start enhanced login
+  startEnhancedLogin: (lineAccountId: string, email?: string, password?: string, source?: 'manual' | 'auto' | 'relogin') =>
+    api.post(`/admin/line-session/${lineAccountId}/enhanced-login`, { email, password, source }),
+
+  // Get enhanced login status
+  getEnhancedLoginStatus: (lineAccountId: string) =>
+    api.get(`/admin/line-session/${lineAccountId}/enhanced-login/status`),
+
+  // Cancel enhanced login
+  cancelEnhancedLogin: (lineAccountId: string) =>
+    api.delete(`/admin/line-session/${lineAccountId}/enhanced-login`),
+
+  // Get cooldown info
+  getCooldownInfo: (lineAccountId: string) =>
+    api.get(`/admin/line-session/${lineAccountId}/cooldown`),
+
+  // Reset cooldown
+  resetCooldown: (lineAccountId: string) =>
+    api.post(`/admin/line-session/${lineAccountId}/reset-cooldown`),
+
+  // Get login history
+  getLoginHistory: (lineAccountId: string, limit?: number) =>
+    api.get(`/admin/line-session/${lineAccountId}/login-history`, { params: { limit } }),
+
+  // Close worker
+  closeWorker: (lineAccountId: string) =>
+    api.delete(`/admin/line-session/${lineAccountId}/worker`),
 };
 
 // Rate Limit API (Admin Only)

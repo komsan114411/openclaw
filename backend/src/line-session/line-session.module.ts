@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
+import { EventEmitterModule } from '@nestjs/event-emitter';
 
 // Schemas
 import { LineSession, LineSessionSchema } from './schemas/line-session.schema';
@@ -7,12 +8,17 @@ import { LineKeyHistory, LineKeyHistorySchema } from './schemas/line-key-history
 import { BankList, BankListSchema } from './schemas/bank-list.schema';
 import { LineMessage, LineMessageSchema } from './schemas/line-message.schema';
 
-// Services
+// Services (Original)
 import { KeyStorageService } from './services/key-storage.service';
 import { SessionHealthService } from './services/session-health.service';
 import { ReloginSchedulerService } from './services/relogin-scheduler.service';
 import { LineAutomationService } from './services/line-automation.service';
 import { MessageFetchService } from './services/message-fetch.service';
+
+// Services (Enhanced - GSB-like features)
+import { WorkerPoolService } from './services/worker-pool.service';
+import { LoginCoordinatorService } from './services/login-coordinator.service';
+import { EnhancedAutomationService } from './services/enhanced-automation.service';
 
 // Controller
 import { LineSessionController } from './line-session.controller';
@@ -54,23 +60,35 @@ import { ConfigModule } from '@nestjs/config';
     ]),
     // EventBus for publishing/subscribing to events
     EventBusModule,
+    // EventEmitter for enhanced services
+    EventEmitterModule.forRoot(),
     // Config for encryption keys
     ConfigModule,
   ],
   controllers: [LineSessionController],
   providers: [
+    // Original services
     KeyStorageService,
     SessionHealthService,
     ReloginSchedulerService,
     LineAutomationService,
     MessageFetchService,
+    // Enhanced services (GSB-like features)
+    WorkerPoolService,
+    LoginCoordinatorService,
+    EnhancedAutomationService,
   ],
   exports: [
+    // Original services
     KeyStorageService,
     SessionHealthService,
     ReloginSchedulerService,
     LineAutomationService,
     MessageFetchService,
+    // Enhanced services
+    WorkerPoolService,
+    LoginCoordinatorService,
+    EnhancedAutomationService,
   ],
 })
 export class LineSessionModule {}

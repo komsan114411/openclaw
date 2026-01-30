@@ -26,6 +26,10 @@ import { SessionHealthService, HealthStatus } from './services/session-health.se
 import { ReloginSchedulerService } from './services/relogin-scheduler.service';
 import { LineAutomationService, LoginStatus } from './services/line-automation.service';
 import { MessageFetchService, BankCodes } from './services/message-fetch.service';
+// Enhanced services (GSB-like features)
+import { EnhancedAutomationService, EnhancedLoginStatus } from './services/enhanced-automation.service';
+import { WorkerPoolService } from './services/worker-pool.service';
+import { LoginCoordinatorService } from './services/login-coordinator.service';
 import { SetKeysDto, CopyKeysDto, ParseCurlDto, TriggerLoginDto } from './dto/set-keys.dto';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
@@ -46,6 +50,10 @@ export class LineSessionController {
     private reloginSchedulerService: ReloginSchedulerService,
     private lineAutomationService: LineAutomationService,
     private messageFetchService: MessageFetchService,
+    // Enhanced services (GSB-like features)
+    private enhancedAutomationService: EnhancedAutomationService,
+    private workerPoolService: WorkerPoolService,
+    private loginCoordinatorService: LoginCoordinatorService,
     @InjectModel(BankList.name)
     private bankListModel: Model<BankListDocument>,
     @InjectModel(LineSession.name)
@@ -701,5 +709,146 @@ export class LineSessionController {
     }
 
     return result;
+  }
+
+  // ================================
+  // ENHANCED AUTOMATION (GSB-like)
+  // ================================
+
+  /**
+   * Get enhanced automation status
+   */
+  @Get('enhanced/status')
+  @ApiOperation({ summary: 'Get enhanced automation status' })
+  async getEnhancedStatus() {
+    return {
+      success: true,
+      ...this.enhancedAutomationService.getStatus(),
+    };
+  }
+
+  /**
+   * Get worker pool status
+   */
+  @Get('enhanced/pool')
+  @ApiOperation({ summary: 'Get worker pool status' })
+  async getWorkerPoolStatus() {
+    return {
+      success: true,
+      ...this.workerPoolService.getPoolStatus(),
+    };
+  }
+
+  /**
+   * Get login coordinator statistics
+   */
+  @Get('enhanced/coordinator')
+  @ApiOperation({ summary: 'Get login coordinator statistics' })
+  async getCoordinatorStats() {
+    return {
+      success: true,
+      statistics: this.loginCoordinatorService.getStatistics(),
+      activeRequests: this.loginCoordinatorService.getAllActiveRequests(),
+    };
+  }
+
+  /**
+   * Start enhanced login (with full GSB-like features)
+   */
+  @Post(':lineAccountId/enhanced-login')
+  @ApiOperation({ summary: 'Start enhanced login with GSB-like features' })
+  async startEnhancedLogin(
+    @Param('lineAccountId') lineAccountId: string,
+    @Body() body: { email?: string; password?: string; source?: 'manual' | 'auto' | 'relogin' },
+  ) {
+    const result = await this.enhancedAutomationService.startLogin(
+      lineAccountId,
+      body.email,
+      body.password,
+      body.source || 'manual',
+    );
+
+    return result;
+  }
+
+  /**
+   * Get enhanced login status for account
+   */
+  @Get(':lineAccountId/enhanced-login/status')
+  @ApiOperation({ summary: 'Get enhanced login status' })
+  async getEnhancedLoginStatus(@Param('lineAccountId') lineAccountId: string) {
+    const status = this.enhancedAutomationService.getWorkerStatus(lineAccountId);
+    return {
+      success: true,
+      ...status,
+    };
+  }
+
+  /**
+   * Cancel enhanced login
+   */
+  @Delete(':lineAccountId/enhanced-login')
+  @ApiOperation({ summary: 'Cancel enhanced login' })
+  async cancelEnhancedLogin(@Param('lineAccountId') lineAccountId: string) {
+    await this.enhancedAutomationService.cancelLogin(lineAccountId);
+    return {
+      success: true,
+      message: 'Login cancelled',
+    };
+  }
+
+  /**
+   * Get cooldown info for account
+   */
+  @Get(':lineAccountId/cooldown')
+  @ApiOperation({ summary: 'Get cooldown info' })
+  async getCooldownInfo(@Param('lineAccountId') lineAccountId: string) {
+    const info = this.loginCoordinatorService.getCooldownInfo(lineAccountId);
+    return {
+      success: true,
+      ...info,
+    };
+  }
+
+  /**
+   * Reset cooldown for account (manual override)
+   */
+  @Post(':lineAccountId/reset-cooldown')
+  @ApiOperation({ summary: 'Reset cooldown for account' })
+  async resetCooldown(@Param('lineAccountId') lineAccountId: string) {
+    this.loginCoordinatorService.resetCooldown(lineAccountId);
+    return {
+      success: true,
+      message: 'Cooldown reset',
+    };
+  }
+
+  /**
+   * Get login history for account
+   */
+  @Get(':lineAccountId/login-history')
+  @ApiOperation({ summary: 'Get login request history' })
+  async getLoginHistory(
+    @Param('lineAccountId') lineAccountId: string,
+    @Query('limit') limit?: number,
+  ) {
+    const history = this.loginCoordinatorService.getRequestHistory(lineAccountId, limit || 10);
+    return {
+      success: true,
+      history,
+    };
+  }
+
+  /**
+   * Close worker for account
+   */
+  @Delete(':lineAccountId/worker')
+  @ApiOperation({ summary: 'Close worker/browser for account' })
+  async closeWorker(@Param('lineAccountId') lineAccountId: string) {
+    await this.workerPoolService.closeWorker(lineAccountId);
+    return {
+      success: true,
+      message: 'Worker closed',
+    };
   }
 }
