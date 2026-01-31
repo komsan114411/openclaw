@@ -41,4 +41,7 @@ RUN mkdir -p /app/dist/extensions/line
 
 EXPOSE 4000
 
+# Increase Node.js memory limit (default is too low)
+ENV NODE_OPTIONS="--max-old-space-size=4096"
+
 CMD ["node", "dist/main"]
