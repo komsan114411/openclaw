@@ -15,6 +15,7 @@ import { SessionHealthService } from './services/session-health.service';
 import { ReloginSchedulerService } from './services/relogin-scheduler.service';
 import { LineAutomationService } from './services/line-automation.service';
 import { MessageFetchService } from './services/message-fetch.service';
+import { BankListService } from './services/bank-list.service';
 
 // Services (Enhanced - GSB-like features)
 import { WorkerPoolService } from './services/worker-pool.service';
@@ -81,6 +82,7 @@ import { ConfigModule } from '@nestjs/config';
     ReloginSchedulerService,
     LineAutomationService,
     MessageFetchService,
+    BankListService,
     // Enhanced services (GSB-like features)
     WorkerPoolService,
     LoginCoordinatorService,
@@ -95,6 +97,7 @@ import { ConfigModule } from '@nestjs/config';
     ReloginSchedulerService,
     LineAutomationService,
     MessageFetchService,
+    BankListService,
     // Enhanced services
     WorkerPoolService,
     LoginCoordinatorService,

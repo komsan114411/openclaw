@@ -3,7 +3,7 @@
 import { useEffect, useState, memo } from 'react';
 import Link from 'next/link';
 import DashboardLayout from '@/components/layout/DashboardLayout';
-import { lineAccountsApi, systemSettingsApi, banksApi, lineSessionUserApi } from '@/lib/api';
+import { lineAccountsApi, systemSettingsApi, banksApi } from '@/lib/api';
 import { LineAccount, SlipTemplateListItem, Bank } from '@/types';
 import toast from 'react-hot-toast';
 import { motion } from 'framer-motion';
@@ -35,13 +35,6 @@ import {
   FileText,
   Brain,
   Ban,
-  Key,
-  LogIn,
-  Mail,
-  Lock,
-  Copy,
-  Clock,
-  Zap,
 } from 'lucide-react';
 
 // Extended SlipTemplate interface for preview
@@ -351,49 +344,6 @@ export default function UserLineAccountsPage() {
   const [globalAiEnabled, setGlobalAiEnabled] = useState<boolean>(true);
   const [allowedAiModels, setAllowedAiModels] = useState<string[]>([]);
 
-  // LINE Session Login state
-  const [showLoginModal, setShowLoginModal] = useState(false);
-  const [loginAccountId, setLoginAccountId] = useState<string | null>(null);
-  const [loginForm, setLoginForm] = useState({ email: '', password: '', bankCode: '' });
-  const [loginStatus, setLoginStatus] = useState<{
-    status: string;
-    pinCode?: string;
-    error?: string;
-    isLoading: boolean;
-    keys?: { xLineAccess: string; xHmac: string };
-    chatMid?: string;
-    sessionReused?: boolean;
-  }>({
-    status: 'idle',
-    isLoading: false,
-  });
-  const [showKeysModal, setShowKeysModal] = useState(false);
-  const [keysData, setKeysData] = useState<{
-    xLineAccess: string;
-    xHmac: string;
-    chatMid?: string;
-  } | null>(null);
-
-  // LINE Banks for session setup
-  interface LineBank {
-    bankCode: string;
-    bankNameTh: string;
-    bankNameEn: string;
-    bankImg?: string;
-  }
-  const [lineBanks, setLineBanks] = useState<LineBank[]>([]);
-
-  const fetchLineBanks = async () => {
-    try {
-      const res = await lineSessionUserApi.getBanks();
-      if (res.data?.banks) {
-        setLineBanks(res.data.banks);
-      }
-    } catch {
-      // Ignore
-    }
-  };
-
   const fetchAiSettings = async () => {
     try {
       const res = await systemSettingsApi.getAiSettings();
@@ -411,7 +361,6 @@ export default function UserLineAccountsPage() {
     fetchBanks();
     fetchPreviewConfig();
     fetchAiSettings();
-    fetchLineBanks();
   }, []);
 
   // Auto-check all connections when accounts are loaded
@@ -784,217 +733,6 @@ export default function UserLineAccountsPage() {
     toast.success('คัดลอก Webhook URL แล้ว');
   };
 
-  // LINE Session Login handlers
-  const openLoginModal = (accountId: string) => {
-    setLoginAccountId(accountId);
-    setLoginForm({ email: '', password: '', bankCode: '' });
-    setLoginStatus({ status: 'idle', isLoading: false });
-    setShowLoginModal(true);
-  };
-
-  const handleStartLogin = async () => {
-    if (!loginAccountId || !loginForm.email || !loginForm.password) {
-      toast.error('กรุณากรอก Email และ Password');
-      return;
-    }
-
-    if (!loginForm.bankCode) {
-      toast.error('กรุณาเลือกธนาคาร');
-      return;
-    }
-
-    setLoginStatus(prev => ({
-      ...prev,
-      isLoading: true,
-      status: 'requesting',
-      error: undefined,
-      pinCode: undefined,
-    }));
-
-    try {
-      // Use setupSession API which saves credentials and bank
-      const res = await lineSessionUserApi.setupSession(loginAccountId, {
-        email: loginForm.email,
-        password: loginForm.password,
-        bankCode: loginForm.bankCode,
-      });
-
-      const data = res.data;
-
-      if (data.status === 'cooldown') {
-        const seconds = Math.ceil((data.cooldownRemainingMs || 0) / 1000);
-        setLoginStatus(prev => ({
-          ...prev,
-          isLoading: false,
-          status: 'cooldown',
-          error: `กรุณารอ ${seconds} วินาที`,
-        }));
-        toast.error(`Cooldown: กรุณารอ ${seconds} วินาที`);
-        return;
-      }
-
-      setLoginStatus(prev => ({
-        ...prev,
-        status: data.status || 'unknown',
-        pinCode: data.pinCode,
-        error: data.error,
-        keys: data.keys,
-        chatMid: data.chatMid,
-        sessionReused: data.sessionReused,
-        isLoading: !data.success && data.status !== 'failed',
-      }));
-
-      if (data.success) {
-        if (data.sessionReused) {
-          toast.success('ใช้ Session เดิม - คัดลอก Keys สำเร็จ');
-        } else {
-          toast.success('เข้าสู่ระบบสำเร็จ - ได้รับ Keys แล้ว');
-        }
-        // Show keys
-        if (data.keys) {
-          setKeysData({
-            xLineAccess: data.keys.xLineAccess,
-            xHmac: data.keys.xHmac,
-            chatMid: data.chatMid,
-          });
-          setShowKeysModal(true);
-        }
-        setShowLoginModal(false);
-      } else if (data.pinCode) {
-        toast(`รหัส PIN: ${data.pinCode} - กรุณายืนยันบนมือถือ`);
-        pollLoginStatus(loginAccountId);
-      } else if (data.error) {
-        toast.error(data.error);
-      }
-    } catch (error: unknown) {
-      const err = error as { response?: { data?: { message?: string } } };
-      const errorMsg = err.response?.data?.message || 'เข้าสู่ระบบล้มเหลว';
-      setLoginStatus(prev => ({
-        ...prev,
-        isLoading: false,
-        status: 'failed',
-        error: errorMsg,
-      }));
-      toast.error(errorMsg);
-    }
-  };
-
-  const pollLoginStatus = async (lineAccountId: string) => {
-    const maxAttempts = 60;
-    let attempts = 0;
-
-    const poll = async () => {
-      if (attempts >= maxAttempts) {
-        setLoginStatus(prev => ({
-          ...prev,
-          isLoading: false,
-          status: 'failed',
-          error: 'หมดเวลา - กรุณาลองใหม่',
-        }));
-        return;
-      }
-
-      attempts++;
-
-      try {
-        const res = await lineSessionUserApi.getEnhancedLoginStatus(lineAccountId);
-        const data = res.data;
-
-        if (data.worker) {
-          setLoginStatus(prev => ({
-            ...prev,
-            pinCode: data.worker.pinCode || prev.pinCode,
-          }));
-        }
-
-        if (data.worker?.state === 'ready' && data.worker?.hasKeys) {
-          setLoginStatus(prev => ({
-            ...prev,
-            isLoading: false,
-            status: 'success',
-          }));
-          toast.success('เข้าสู่ระบบสำเร็จ - ได้รับ Keys แล้ว');
-
-          // Fetch full keys and show
-          const keysRes = await lineSessionUserApi.getFullKeys(lineAccountId);
-          if (keysRes.data?.success && keysRes.data?.keys) {
-            setKeysData({
-              xLineAccess: keysRes.data.keys.xLineAccess,
-              xHmac: keysRes.data.keys.xHmac,
-              chatMid: keysRes.data.keys.chatMid,
-            });
-            setShowKeysModal(true);
-          }
-          setShowLoginModal(false);
-          return;
-        }
-
-        if (data.worker?.state === 'error' || data.worker?.state === 'closed') {
-          setLoginStatus(prev => ({
-            ...prev,
-            isLoading: false,
-            status: 'failed',
-            error: data.worker?.error || 'เข้าสู่ระบบล้มเหลว',
-          }));
-          return;
-        }
-
-        setTimeout(poll, 2000);
-      } catch {
-        setTimeout(poll, 2000);
-      }
-    };
-
-    poll();
-  };
-
-  const handleCancelLogin = async () => {
-    if (!loginAccountId) return;
-
-    try {
-      await lineSessionUserApi.cancelEnhancedLogin(loginAccountId);
-      setLoginStatus({
-        status: 'idle',
-        isLoading: false,
-      });
-      toast('ยกเลิกการเข้าสู่ระบบแล้ว');
-    } catch (error: unknown) {
-      const err = error as { response?: { data?: { message?: string } } };
-      toast.error(err.response?.data?.message || 'ไม่สามารถยกเลิกได้');
-    }
-  };
-
-  const copyToClipboard = (text: string, label: string) => {
-    navigator.clipboard.writeText(text);
-    toast.success(`คัดลอก ${label} แล้ว`);
-  };
-
-  const getLoginStatusBadge = (status: string) => {
-    switch (status) {
-      case 'success':
-        return <Badge className="bg-emerald-500/10 text-emerald-400 border-emerald-500/20">สำเร็จ</Badge>;
-      case 'failed':
-        return <Badge className="bg-rose-500/10 text-rose-400 border-rose-500/20">ล้มเหลว</Badge>;
-      case 'cooldown':
-        return <Badge className="bg-orange-500/10 text-orange-400 border-orange-500/20">รอสักครู่</Badge>;
-      case 'waiting_pin':
-      case 'pin_displayed':
-        return <Badge className="bg-amber-500/10 text-amber-400 border-amber-500/20">รอยืนยัน PIN</Badge>;
-      case 'requesting':
-      case 'initializing':
-      case 'launching_browser':
-      case 'loading_extension':
-      case 'checking_session':
-      case 'entering_credentials':
-      case 'verifying':
-      case 'extracting_keys':
-      case 'triggering_messages':
-        return <Badge className="bg-blue-500/10 text-blue-400 border-blue-500/20">กำลังดำเนินการ</Badge>;
-      default:
-        return <Badge className="bg-slate-500/10 text-slate-400 border-slate-500/20">พร้อม</Badge>;
-    }
-  };
-
   return (
     <DashboardLayout>
       <div className="section-gap animate-fade pb-10">
@@ -1273,21 +1011,13 @@ export default function UserLineAccountsPage() {
                       </div>
                     </div>
 
-                    <div className="grid grid-cols-3 gap-2 sm:gap-3 pt-3 sm:pt-4 border-t border-white/5">
+                    <div className="grid grid-cols-2 gap-2 sm:gap-3 pt-3 sm:pt-4 border-t border-white/5">
                       <Button
                         variant="primary"
                         className="h-9 sm:h-10 rounded-lg sm:rounded-xl font-semibold text-xs bg-[#06C755] hover:bg-[#05B048] transition-all"
                         onClick={() => window.open(`/user/chat?accountId=${account._id}`, '_self')}
                       >
                         แชท
-                      </Button>
-                      <Button
-                        variant="outline"
-                        className="h-9 sm:h-10 rounded-lg sm:rounded-xl font-semibold text-xs border-emerald-500/30 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 transition-all"
-                        onClick={() => openLoginModal(account._id)}
-                        leftIcon={<Zap className="w-3 h-3 sm:w-4 sm:h-4" />}
-                      >
-                        ดึง Keys
                       </Button>
                       <Button
                         variant="outline"
@@ -2133,230 +1863,6 @@ export default function UserLineAccountsPage() {
             </Button>
           </div>
         </div>
-      </Modal>
-
-      {/* LINE Session Login Modal */}
-      <Modal
-        isOpen={showLoginModal}
-        onClose={() => !loginStatus.isLoading && setShowLoginModal(false)}
-        title="เข้าสู่ระบบ LINE"
-        subtitle="ใช้ Email และ Password ของบัญชี LINE เพื่อดึง Keys อัตโนมัติ"
-        size="md"
-      >
-        <div className="space-y-6">
-          {/* Login Form */}
-          <div className="p-6 bg-gradient-to-br from-blue-500 to-indigo-600 text-white rounded-2xl relative overflow-hidden">
-            <div className="absolute top-0 right-0 w-48 h-48 bg-white/10 rounded-full blur-[60px] -mr-24 -mt-24 pointer-events-none" />
-            <div className="relative z-10">
-              <div className="flex items-center justify-between mb-6">
-                <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 rounded-xl bg-white/20 flex items-center justify-center">
-                    <Zap className="w-6 h-6 text-white" />
-                  </div>
-                  <div>
-                    <p className="text-[10px] font-bold text-white/70 uppercase tracking-widest">Auto Login</p>
-                    <p className="text-white font-bold">ดึง Keys อัตโนมัติ</p>
-                  </div>
-                </div>
-                {getLoginStatusBadge(loginStatus.status)}
-              </div>
-
-              <div className="space-y-4">
-                <div className="relative">
-                  <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-white/50" />
-                  <input
-                    type="email"
-                    placeholder="LINE Email"
-                    value={loginForm.email}
-                    onChange={(e) => setLoginForm(prev => ({ ...prev, email: e.target.value }))}
-                    className="w-full pl-12 pr-4 py-4 bg-white/10 border border-white/20 rounded-xl text-white placeholder-white/50 focus:outline-none focus:border-white/40"
-                    disabled={loginStatus.isLoading}
-                  />
-                </div>
-                <div className="relative">
-                  <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-white/50" />
-                  <input
-                    type="password"
-                    placeholder="LINE Password"
-                    value={loginForm.password}
-                    onChange={(e) => setLoginForm(prev => ({ ...prev, password: e.target.value }))}
-                    className="w-full pl-12 pr-4 py-4 bg-white/10 border border-white/20 rounded-xl text-white placeholder-white/50 focus:outline-none focus:border-white/40"
-                    disabled={loginStatus.isLoading}
-                  />
-                </div>
-                <div className="relative">
-                  <Building2 className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-white/50" />
-                  <select
-                    value={loginForm.bankCode}
-                    onChange={(e) => setLoginForm(prev => ({ ...prev, bankCode: e.target.value }))}
-                    className="w-full pl-12 pr-4 py-4 bg-white/10 border border-white/20 rounded-xl text-white focus:outline-none focus:border-white/40 appearance-none"
-                    disabled={loginStatus.isLoading}
-                  >
-                    <option value="" className="text-slate-800">-- เลือกธนาคาร --</option>
-                    {lineBanks.map((bank) => (
-                      <option key={bank.bankCode} value={bank.bankCode} className="text-slate-800">
-                        {bank.bankNameTh}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-
-              <div className="flex gap-3 mt-6">
-                <Button
-                  variant="primary"
-                  onClick={handleStartLogin}
-                  disabled={loginStatus.isLoading || !loginForm.email || !loginForm.password || !loginForm.bankCode}
-                  className="flex-1 h-14 rounded-xl font-bold bg-white text-blue-600 hover:bg-white/90"
-                >
-                  {loginStatus.isLoading ? (
-                    <>
-                      <Loader2 className="w-5 h-5 mr-2 animate-spin" /> กำลังดำเนินการ...
-                    </>
-                  ) : (
-                    <>
-                      <LogIn className="w-5 h-5 mr-2" /> เริ่มเข้าสู่ระบบ
-                    </>
-                  )}
-                </Button>
-                {loginStatus.isLoading && (
-                  <Button
-                    variant="outline"
-                    onClick={handleCancelLogin}
-                    className="h-14 rounded-xl font-bold border-white/30 text-white hover:bg-white/10"
-                  >
-                    ยกเลิก
-                  </Button>
-                )}
-              </div>
-            </div>
-          </div>
-
-          {/* PIN Code Display */}
-          {loginStatus.pinCode && (
-            <div className="p-6 bg-amber-50 dark:bg-amber-900/20 rounded-2xl border-2 border-amber-200 dark:border-amber-700">
-              <div className="text-center">
-                <p className="text-[10px] font-bold text-amber-600 dark:text-amber-400 uppercase tracking-widest mb-2">รหัส PIN</p>
-                <div className="flex items-center justify-center gap-2">
-                  {loginStatus.pinCode.split('').map((digit, i) => (
-                    <span key={i} className="w-12 h-14 flex items-center justify-center text-2xl font-bold text-amber-700 dark:text-amber-300 bg-white dark:bg-slate-800 rounded-xl border-2 border-amber-300 dark:border-amber-600 shadow-sm">
-                      {digit}
-                    </span>
-                  ))}
-                </div>
-                <p className="text-sm text-amber-600 dark:text-amber-400 mt-4">กรุณายืนยัน PIN นี้บนแอป LINE ในมือถือของคุณ</p>
-              </div>
-            </div>
-          )}
-
-          {/* Error Display */}
-          {loginStatus.error && (
-            <div className="p-4 bg-rose-50 dark:bg-rose-900/20 rounded-xl border border-rose-200 dark:border-rose-700">
-              <div className="flex items-center gap-3">
-                <XCircle className="w-5 h-5 text-rose-500" />
-                <p className="text-sm text-rose-700 dark:text-rose-300">{loginStatus.error}</p>
-              </div>
-            </div>
-          )}
-
-          {/* Info */}
-          <div className="p-4 bg-slate-50 dark:bg-slate-800/50 rounded-xl">
-            <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-2">ขั้นตอนการทำงาน</p>
-            <ol className="text-xs text-slate-600 dark:text-slate-400 space-y-1 list-decimal list-inside">
-              <li>กรอก Email และ Password ของ LINE</li>
-              <li>ระบบจะเปิด Browser และเข้าสู่ระบบ LINE</li>
-              <li>รหัส PIN 6 หลักจะปรากฏ - ยืนยันบนมือถือ</li>
-              <li>หลังยืนยัน Keys จะถูกดึงโดยอัตโนมัติ</li>
-            </ol>
-          </div>
-        </div>
-      </Modal>
-
-      {/* Keys Display Modal */}
-      <Modal
-        isOpen={showKeysModal}
-        onClose={() => setShowKeysModal(false)}
-        title="LINE Keys"
-        subtitle="คัดลอก Keys สำหรับใช้งาน API"
-        size="md"
-      >
-        {keysData && (
-          <div className="space-y-4">
-            {/* Success Banner */}
-            <div className="p-4 bg-emerald-50 dark:bg-emerald-900/20 rounded-xl border border-emerald-200 dark:border-emerald-700">
-              <div className="flex items-center gap-3">
-                <CheckCircle2 className="w-6 h-6 text-emerald-500" />
-                <div>
-                  <p className="font-bold text-emerald-700 dark:text-emerald-300">ได้รับ Keys สำเร็จ</p>
-                  <p className="text-xs text-emerald-600 dark:text-emerald-400">คัดลอก Keys ด้านล่างเพื่อใช้งาน</p>
-                </div>
-              </div>
-            </div>
-
-            {/* X-Line-Access */}
-            <div className="p-4 bg-slate-50 dark:bg-slate-800 rounded-xl">
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-xs font-bold text-slate-500 uppercase">X-Line-Access</span>
-                <button
-                  onClick={() => copyToClipboard(keysData.xLineAccess, 'X-Line-Access')}
-                  className="text-xs font-semibold text-blue-500 hover:text-blue-600 flex items-center gap-1"
-                >
-                  <Copy className="w-3 h-3" /> คัดลอก
-                </button>
-              </div>
-              <p className="font-mono text-xs text-slate-700 dark:text-slate-300 break-all bg-white dark:bg-slate-900 p-3 rounded-lg border border-slate-200 dark:border-slate-700">
-                {keysData.xLineAccess.substring(0, 50)}...
-              </p>
-            </div>
-
-            {/* X-Hmac */}
-            <div className="p-4 bg-slate-50 dark:bg-slate-800 rounded-xl">
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-xs font-bold text-slate-500 uppercase">X-Hmac</span>
-                <button
-                  onClick={() => copyToClipboard(keysData.xHmac, 'X-Hmac')}
-                  className="text-xs font-semibold text-blue-500 hover:text-blue-600 flex items-center gap-1"
-                >
-                  <Copy className="w-3 h-3" /> คัดลอก
-                </button>
-              </div>
-              <p className="font-mono text-xs text-slate-700 dark:text-slate-300 break-all bg-white dark:bg-slate-900 p-3 rounded-lg border border-slate-200 dark:border-slate-700">
-                {keysData.xHmac.substring(0, 50)}...
-              </p>
-            </div>
-
-            {/* ChatMid (if available) */}
-            {keysData.chatMid && (
-              <div className="p-4 bg-slate-50 dark:bg-slate-800 rounded-xl">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-xs font-bold text-slate-500 uppercase">Chat MID</span>
-                  <button
-                    onClick={() => copyToClipboard(keysData.chatMid!, 'Chat MID')}
-                    className="text-xs font-semibold text-blue-500 hover:text-blue-600 flex items-center gap-1"
-                  >
-                    <Copy className="w-3 h-3" /> คัดลอก
-                  </button>
-                </div>
-                <p className="font-mono text-xs text-slate-700 dark:text-slate-300 break-all bg-white dark:bg-slate-900 p-3 rounded-lg border border-slate-200 dark:border-slate-700">
-                  {keysData.chatMid}
-                </p>
-              </div>
-            )}
-
-            {/* Copy All Button */}
-            <Button
-              variant="primary"
-              onClick={() => {
-                const allKeys = `X-Line-Access: ${keysData.xLineAccess}\nX-Hmac: ${keysData.xHmac}${keysData.chatMid ? `\nChat MID: ${keysData.chatMid}` : ''}`;
-                copyToClipboard(allKeys, 'Keys ทั้งหมด');
-              }}
-              className="w-full h-12 rounded-xl font-bold"
-              leftIcon={<Copy className="w-4 h-4" />}
-            >
-              คัดลอก Keys ทั้งหมด
-            </Button>
-          </div>
-        )}
       </Modal>
 
       {/* Delete Confirmation */}
