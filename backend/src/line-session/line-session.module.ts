@@ -7,6 +7,7 @@ import { LineSession, LineSessionSchema } from './schemas/line-session.schema';
 import { LineKeyHistory, LineKeyHistorySchema } from './schemas/line-key-history.schema';
 import { BankList, BankListSchema } from './schemas/bank-list.schema';
 import { LineMessage, LineMessageSchema } from './schemas/line-message.schema';
+import { LineAccount, LineAccountSchema } from '../database/schemas/line-account.schema';
 
 // Services (Original)
 import { KeyStorageService } from './services/key-storage.service';
@@ -20,8 +21,12 @@ import { WorkerPoolService } from './services/worker-pool.service';
 import { LoginCoordinatorService } from './services/login-coordinator.service';
 import { EnhancedAutomationService } from './services/enhanced-automation.service';
 
-// Controller
+// Shared Services
+import { LoginLockService } from './services/login-lock.service';
+
+// Controllers
 import { LineSessionController } from './line-session.controller';
+import { LineSessionUserController } from './line-session-user.controller';
 
 // Import EventBusModule from core
 import { EventBusModule } from '../core/events';
@@ -57,6 +62,7 @@ import { ConfigModule } from '@nestjs/config';
       { name: LineKeyHistory.name, schema: LineKeyHistorySchema },
       { name: BankList.name, schema: BankListSchema },
       { name: LineMessage.name, schema: LineMessageSchema },
+      { name: LineAccount.name, schema: LineAccountSchema },
     ]),
     // EventBus for publishing/subscribing to events
     EventBusModule,
@@ -65,8 +71,10 @@ import { ConfigModule } from '@nestjs/config';
     // Config for encryption keys
     ConfigModule,
   ],
-  controllers: [LineSessionController],
+  controllers: [LineSessionController, LineSessionUserController],
   providers: [
+    // Shared services
+    LoginLockService,
     // Original services
     KeyStorageService,
     SessionHealthService,
@@ -79,6 +87,8 @@ import { ConfigModule } from '@nestjs/config';
     EnhancedAutomationService,
   ],
   exports: [
+    // Shared services
+    LoginLockService,
     // Original services
     KeyStorageService,
     SessionHealthService,

@@ -1,12 +1,14 @@
-import { Injectable, Logger, OnModuleDestroy } from '@nestjs/common';
+import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { ConfigService } from '@nestjs/config';
 import { EventBusService } from '../../core/events';
 import { LineSession, LineSessionDocument } from '../schemas/line-session.schema';
 import { KeyStorageService } from './key-storage.service';
-import * as crypto from 'crypto';
+import { LoginLockService } from './login-lock.service';
+import { encryptPassword, decryptPassword } from '../utils/credential.util';
 import * as path from 'path';
+import * as fs from 'fs';
 
 // Puppeteer types (loaded dynamically)
 type Browser = any;
@@ -47,7 +49,7 @@ interface WorkerState {
 }
 
 @Injectable()
-export class LineAutomationService implements OnModuleDestroy {
+export class LineAutomationService implements OnModuleDestroy, OnModuleInit {
   private readonly logger = new Logger(LineAutomationService.name);
   private workers: Map<string, WorkerState> = new Map();
   private puppeteer: any = null;
@@ -68,11 +70,14 @@ export class LineAutomationService implements OnModuleDestroy {
     private configService: ConfigService,
     private eventBusService: EventBusService,
     private keyStorageService: KeyStorageService,
+    private loginLockService: LoginLockService,
   ) {
     this.ENCRYPTION_KEY = this.configService.get('LINE_PASSWORD_ENCRYPTION_KEY') ||
       'default-key-change-in-production-32';
+  }
 
-    this.initializePuppeteer();
+  async onModuleInit() {
+    await this.initializePuppeteer();
   }
 
   /**
@@ -143,32 +148,17 @@ export class LineAutomationService implements OnModuleDestroy {
   }
 
   /**
-   * Encrypt password for storage
+   * Encrypt password for storage (using shared utility)
    */
-  encryptPassword(password: string): string {
-    const iv = crypto.randomBytes(this.ENCRYPTION_IV_LENGTH);
-    const key = crypto.scryptSync(this.ENCRYPTION_KEY, 'salt', 32);
-    const cipher = crypto.createCipheriv('aes-256-cbc', key, iv);
-    let encrypted = cipher.update(password, 'utf8', 'hex');
-    encrypted += cipher.final('hex');
-    return iv.toString('hex') + ':' + encrypted;
+  encryptPasswordValue(password: string): string {
+    return encryptPassword(password, this.ENCRYPTION_KEY);
   }
 
   /**
-   * Decrypt password
+   * Decrypt password (using shared utility)
    */
-  decryptPassword(encryptedPassword: string): string {
-    const parts = encryptedPassword.split(':');
-    if (parts.length !== 2) {
-      throw new Error('Invalid encrypted password format');
-    }
-    const iv = Buffer.from(parts[0], 'hex');
-    const encrypted = parts[1];
-    const key = crypto.scryptSync(this.ENCRYPTION_KEY, 'salt', 32);
-    const decipher = crypto.createDecipheriv('aes-256-cbc', key, iv);
-    let decrypted = decipher.update(encrypted, 'hex', 'utf8');
-    decrypted += decipher.final('utf8');
-    return decrypted;
+  decryptPasswordValue(encryptedPassword: string): string {
+    return decryptPassword(encryptedPassword, this.ENCRYPTION_KEY);
   }
 
   /**
@@ -179,7 +169,7 @@ export class LineAutomationService implements OnModuleDestroy {
     email: string,
     password: string,
   ): Promise<void> {
-    const encryptedPassword = this.encryptPassword(password);
+    const encryptedPassword = this.encryptPasswordValue(password);
 
     await this.lineSessionModel.updateOne(
       { lineAccountId, isActive: true },
@@ -210,7 +200,7 @@ export class LineAutomationService implements OnModuleDestroy {
     }
 
     try {
-      const password = this.decryptPassword(session.linePassword);
+      const password = this.decryptPasswordValue(session.linePassword);
       return { email: session.lineEmail, password };
     } catch (error) {
       this.logger.error(`Failed to decrypt password for ${lineAccountId}`);
@@ -230,10 +220,22 @@ export class LineAutomationService implements OnModuleDestroy {
       };
     }
 
+    // Acquire global lock (prevent concurrent login from different services)
+    const lockAcquired = this.loginLockService.acquireLock(lineAccountId, 'original');
+    if (!lockAcquired) {
+      const lockInfo = this.loginLockService.getLockInfo(lineAccountId);
+      return {
+        success: false,
+        status: LoginStatus.FAILED,
+        error: `Login already in progress (locked by: ${lockInfo?.source || 'unknown'})`,
+      };
+    }
+
     // Check if already running
     const existingWorker = this.workers.get(lineAccountId);
     if (existingWorker && existingWorker.status !== LoginStatus.IDLE &&
         existingWorker.status !== LoginStatus.FAILED) {
+      this.loginLockService.releaseLock(lineAccountId, 'original');
       return {
         success: false,
         status: existingWorker.status,
@@ -347,6 +349,9 @@ export class LineAutomationService implements OnModuleDestroy {
         status: LoginStatus.FAILED,
         error: error.message,
       };
+    } finally {
+      // Always release the lock
+      this.loginLockService.releaseLock(lineAccountId, 'original');
     }
   }
 
@@ -359,8 +364,6 @@ export class LineAutomationService implements OnModuleDestroy {
     const options: any = {
       headless: false, // LINE extension requires headed mode
       args: [
-        `--disable-extensions-except=${extensionPath}`,
-        `--load-extension=${extensionPath}`,
         '--no-sandbox',
         '--disable-setuid-sandbox',
         '--disable-dev-shm-usage',
@@ -369,6 +372,14 @@ export class LineAutomationService implements OnModuleDestroy {
       ],
       defaultViewport: { width: 1280, height: 800 },
     };
+
+    // Add LINE extension if exists
+    if (fs.existsSync(extensionPath)) {
+      options.args.push(`--disable-extensions-except=${extensionPath}`);
+      options.args.push(`--load-extension=${extensionPath}`);
+    } else {
+      this.logger.warn(`LINE extension not found at ${extensionPath} - login may not work correctly`);
+    }
 
     // Check if running in Docker/headless environment
     const isHeadless = this.configService.get('PUPPETEER_HEADLESS') === 'true';

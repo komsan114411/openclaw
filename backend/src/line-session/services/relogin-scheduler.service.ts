@@ -210,86 +210,98 @@ export class ReloginSchedulerService implements OnModuleInit {
       { status: 'relogin_in_progress' },
     );
 
-    // Check if automation is available
-    if (!this.lineAutomationService.isAutomationAvailable()) {
-      this.logger.warn('Puppeteer not available, cannot auto-relogin');
+    try {
+      // Check if automation is available
+      if (!this.lineAutomationService.isAutomationAvailable()) {
+        this.logger.warn('Puppeteer not available, cannot auto-relogin');
 
-      // Emit event for manual handling
-      this.eventBusService.publish({
-        eventName: 'line-session.relogin-requested' as any,
-        occurredAt: new Date(),
-        lineAccountId: job.lineAccountId,
-        reason: job.reason,
-        message: 'Puppeteer not available - manual login required',
-      });
+        // Emit event for manual handling
+        this.eventBusService.publish({
+          eventName: 'line-session.relogin-requested' as any,
+          occurredAt: new Date(),
+          lineAccountId: job.lineAccountId,
+          reason: job.reason,
+          message: 'Puppeteer not available - manual login required',
+        });
 
-      await this.lineSessionModel.updateOne(
-        { lineAccountId: job.lineAccountId, isActive: true },
-        { status: 'pending_relogin' },
-      );
-      return;
-    }
+        await this.lineSessionModel.updateOne(
+          { lineAccountId: job.lineAccountId, isActive: true },
+          { status: 'pending_relogin' },
+        );
+        return;
+      }
 
-    // Check if credentials are saved
-    const credentials = await this.lineAutomationService.getCredentials(job.lineAccountId);
-    if (!credentials) {
-      this.logger.warn(`No credentials found for ${job.lineAccountId}, cannot auto-relogin`);
+      // Check if credentials are saved
+      const credentials = await this.lineAutomationService.getCredentials(job.lineAccountId);
+      if (!credentials) {
+        this.logger.warn(`No credentials found for ${job.lineAccountId}, cannot auto-relogin`);
 
-      this.eventBusService.publish({
-        eventName: 'line-session.relogin-requested' as any,
-        occurredAt: new Date(),
-        lineAccountId: job.lineAccountId,
-        reason: job.reason,
-        message: 'No credentials saved - manual login required',
-      });
+        this.eventBusService.publish({
+          eventName: 'line-session.relogin-requested' as any,
+          occurredAt: new Date(),
+          lineAccountId: job.lineAccountId,
+          reason: job.reason,
+          message: 'No credentials saved - manual login required',
+        });
 
-      await this.lineSessionModel.updateOne(
-        { lineAccountId: job.lineAccountId, isActive: true },
-        { status: 'pending_relogin' },
-      );
-      return;
-    }
+        await this.lineSessionModel.updateOne(
+          { lineAccountId: job.lineAccountId, isActive: true },
+          { status: 'pending_relogin' },
+        );
+        return;
+      }
 
-    // Execute auto login
-    this.logger.log(`Starting auto-login for ${job.lineAccountId}`);
-    const result = await this.lineAutomationService.startLogin(job.lineAccountId);
+      // Execute auto login
+      this.logger.log(`Starting auto-login for ${job.lineAccountId}`);
+      const result = await this.lineAutomationService.startLogin(job.lineAccountId);
 
-    if (result.success) {
-      this.logger.log(`Auto-relogin successful for ${job.lineAccountId}`);
+      if (result.success) {
+        this.logger.log(`Auto-relogin successful for ${job.lineAccountId}`);
 
-      await this.lineSessionModel.updateOne(
-        { lineAccountId: job.lineAccountId, isActive: true },
-        {
-          status: 'active',
-          lastCheckResult: 'valid',
-          consecutiveFailures: 0,
-        },
-      );
-    } else if (result.status === LoginStatus.PIN_DISPLAYED && result.pinCode) {
-      // PIN displayed - waiting for user verification
-      this.logger.log(`PIN displayed for ${job.lineAccountId}: ${result.pinCode}`);
+        await this.lineSessionModel.updateOne(
+          { lineAccountId: job.lineAccountId, isActive: true },
+          {
+            status: 'active',
+            lastCheckResult: 'valid',
+            consecutiveFailures: 0,
+          },
+        );
+      } else if (result.status === LoginStatus.PIN_DISPLAYED && result.pinCode) {
+        // PIN displayed - waiting for user verification
+        this.logger.log(`PIN displayed for ${job.lineAccountId}: ${result.pinCode}`);
 
-      this.eventBusService.publish({
-        eventName: 'line-session.pin-required' as any,
-        occurredAt: new Date(),
-        lineAccountId: job.lineAccountId,
-        pinCode: result.pinCode,
-      });
+        this.eventBusService.publish({
+          eventName: 'line-session.pin-required' as any,
+          occurredAt: new Date(),
+          lineAccountId: job.lineAccountId,
+          pinCode: result.pinCode,
+        });
 
-      await this.lineSessionModel.updateOne(
-        { lineAccountId: job.lineAccountId, isActive: true },
-        { status: 'waiting_pin' },
-      );
-    } else {
-      // Login failed
-      this.logger.error(`Auto-relogin failed for ${job.lineAccountId}: ${result.error}`);
+        await this.lineSessionModel.updateOne(
+          { lineAccountId: job.lineAccountId, isActive: true },
+          { status: 'waiting_pin' },
+        );
+      } else {
+        // Login failed
+        this.logger.error(`Auto-relogin failed for ${job.lineAccountId}: ${result.error}`);
+
+        await this.lineSessionModel.updateOne(
+          { lineAccountId: job.lineAccountId, isActive: true },
+          { status: 'relogin_failed' },
+        );
+
+        throw new Error(result.error || 'Auto-relogin failed');
+      }
+    } catch (error: any) {
+      // Ensure status is updated on any exception
+      this.logger.error(`Exception during relogin for ${job.lineAccountId}: ${error.message}`);
 
       await this.lineSessionModel.updateOne(
         { lineAccountId: job.lineAccountId, isActive: true },
         { status: 'relogin_failed' },
       );
 
-      throw new Error(result.error || 'Auto-relogin failed');
+      throw error;
     }
   }
 

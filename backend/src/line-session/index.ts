@@ -1,6 +1,9 @@
 // Module
 export * from './line-session.module';
 
+// Services (Shared)
+export * from './services/login-lock.service';
+
 // Services (Original)
 export * from './services/key-storage.service';
 export * from './services/session-health.service';
@@ -21,3 +24,6 @@ export * from './schemas/line-message.schema';
 
 // DTOs
 export * from './dto/set-keys.dto';
+
+// Utils
+export * from './utils/credential.util';

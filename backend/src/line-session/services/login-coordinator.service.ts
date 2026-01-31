@@ -206,8 +206,8 @@ export class LoginCoordinatorService {
       cooldownMs = this.config.successCooldownMs;
     }
 
-    // Manual requests have shorter cooldown
-    if (source === 'manual') {
+    // Manual requests have shorter cooldown only if last request was successful
+    if (source === 'manual' && lastEntry.status === RequestStatus.COMPLETED) {
       cooldownMs = Math.min(cooldownMs, this.config.successCooldownMs);
     }
 

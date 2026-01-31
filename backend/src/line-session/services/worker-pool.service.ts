@@ -1,4 +1,4 @@
-import { Injectable, Logger, OnModuleDestroy } from '@nestjs/common';
+import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import * as path from 'path';
@@ -61,7 +61,7 @@ export interface WorkerPoolConfig {
  * This is a NEW service that works alongside existing LineAutomationService
  */
 @Injectable()
-export class WorkerPoolService implements OnModuleDestroy {
+export class WorkerPoolService implements OnModuleDestroy, OnModuleInit {
   private readonly logger = new Logger(WorkerPoolService.name);
   private workers: Map<string, Worker> = new Map();
   private locks: Map<string, boolean> = new Map();
@@ -83,8 +83,10 @@ export class WorkerPoolService implements OnModuleDestroy {
       userDataDir: this.configService.get('PUPPETEER_USER_DATA_DIR') ||
         path.join(__dirname, '../../extensions/user_data'),
     };
+  }
 
-    this.initializePuppeteer();
+  async onModuleInit() {
+    await this.initializePuppeteer();
   }
 
   /**
@@ -269,6 +271,8 @@ export class WorkerPoolService implements OnModuleDestroy {
       if (fs.existsSync(extensionPath)) {
         launchOptions.args.push(`--disable-extensions-except=${extensionPath}`);
         launchOptions.args.push(`--load-extension=${extensionPath}`);
+      } else {
+        this.logger.warn(`LINE extension not found at ${extensionPath} - login may not work correctly`);
       }
 
       // Check if running in headless environment
@@ -416,7 +420,7 @@ export class WorkerPoolService implements OnModuleDestroy {
         const xLineAccess = headers['x-line-access'];
         const xHmac = headers['x-hmac'];
 
-        if (xLineAccess && xHmac && xLineAccess.length > 50 && !worker.capturedKeys) {
+        if (xLineAccess && xHmac && xLineAccess.length > 50 && xLineAccess.includes('.')) {
           // Extract chatMid from POST data
           let chatMid: string | undefined;
           const postData = request.postData();

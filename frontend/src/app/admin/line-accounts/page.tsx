@@ -110,7 +110,7 @@ export default function AdminLineAccountsPage() {
   });
   const [sessionTab, setSessionTab] = useState<'login' | 'keys' | 'curl' | 'history' | 'bank'>('login');
 
-  // Auto Login state
+  // Auto Login state (Enhanced)
   const [loginForm, setLoginForm] = useState({
     email: '',
     password: '',
@@ -120,11 +120,21 @@ export default function AdminLineAccountsPage() {
     pinCode?: string;
     error?: string;
     isLoading: boolean;
+    requestId?: string;
+    chatMid?: string;
+    sessionReused?: boolean;
+    cooldownRemainingMs?: number;
+    workerState?: string;
   }>({
     status: 'idle',
     pinCode: undefined,
     error: undefined,
     isLoading: false,
+    requestId: undefined,
+    chatMid: undefined,
+    sessionReused: false,
+    cooldownRemainingMs: undefined,
+    workerState: undefined,
   });
 
   // Bank configuration state
@@ -673,7 +683,7 @@ export default function AdminLineAccountsPage() {
     }
   };
 
-  // Auto Login handlers
+  // Enhanced Auto Login handlers
   const handleStartLogin = async () => {
     if (!selectedAccount) return;
     if (!loginForm.email || !loginForm.password) {
@@ -681,28 +691,67 @@ export default function AdminLineAccountsPage() {
       return;
     }
 
-    setLoginStatus(prev => ({ ...prev, isLoading: true, status: 'initializing', error: undefined }));
+    setLoginStatus(prev => ({
+      ...prev,
+      isLoading: true,
+      status: 'requesting',
+      error: undefined,
+      pinCode: undefined,
+      chatMid: undefined,
+      sessionReused: false,
+    }));
 
     try {
-      const res = await lineSessionApi.startLogin(
+      // Use enhanced login API
+      const res = await lineSessionApi.startEnhancedLogin(
         selectedAccount._id,
         loginForm.email,
-        loginForm.password
+        loginForm.password,
+        'manual'
       );
 
       const data = res.data;
-      setLoginStatus({
+
+      // Handle cooldown
+      if (data.status === 'cooldown') {
+        const seconds = Math.ceil((data.cooldownRemainingMs || 0) / 1000);
+        setLoginStatus(prev => ({
+          ...prev,
+          isLoading: false,
+          status: 'cooldown',
+          error: data.error || `Please wait ${seconds} seconds`,
+          cooldownRemainingMs: data.cooldownRemainingMs,
+        }));
+        toast.error(`Cooldown: Please wait ${seconds} seconds`);
+        return;
+      }
+
+      setLoginStatus(prev => ({
+        ...prev,
         status: data.status || 'unknown',
         pinCode: data.pinCode,
         error: data.error,
-        isLoading: false,
-      });
+        requestId: data.requestId,
+        chatMid: data.chatMid,
+        sessionReused: data.sessionReused,
+        isLoading: !data.success && data.status !== 'failed',
+      }));
 
       if (data.success) {
-        toast.success('Login successful');
+        if (data.sessionReused) {
+          toast.success('Session reused - Keys copied from existing login');
+        } else {
+          toast.success('Login successful - Keys captured');
+        }
+        if (data.chatMid) {
+          toast(`ChatMid captured: ${data.chatMid.substring(0, 20)}...`);
+        }
         await fetchSessionData(selectedAccount._id);
+        await fetchBankData(selectedAccount._id);
       } else if (data.pinCode) {
         toast(`PIN Code: ${data.pinCode} - Please verify on your mobile device`);
+        // Start polling for login completion
+        pollLoginStatus(selectedAccount._id);
       } else if (data.error) {
         toast.error(data.error);
       }
@@ -718,20 +767,109 @@ export default function AdminLineAccountsPage() {
     }
   };
 
+  // Poll login status for PIN verification
+  const pollLoginStatus = async (lineAccountId: string) => {
+    const maxAttempts = 60; // 2 minutes (2 sec intervals)
+    let attempts = 0;
+
+    const poll = async () => {
+      if (attempts >= maxAttempts) {
+        setLoginStatus(prev => ({
+          ...prev,
+          isLoading: false,
+          status: 'failed',
+          error: 'Login timeout - please try again',
+        }));
+        return;
+      }
+
+      attempts++;
+
+      try {
+        const res = await lineSessionApi.getEnhancedLoginStatus(lineAccountId);
+        const data = res.data;
+
+        // Update status from worker
+        if (data.worker) {
+          setLoginStatus(prev => ({
+            ...prev,
+            pinCode: data.worker.pinCode || prev.pinCode,
+            workerState: data.worker.state,
+          }));
+        }
+
+        // Check if completed or failed
+        if (data.worker?.state === 'ready' && data.worker?.hasKeys) {
+          setLoginStatus(prev => ({
+            ...prev,
+            isLoading: false,
+            status: 'success',
+            chatMid: data.worker?.hasChatMid ? 'captured' : undefined,
+          }));
+          toast.success('Login successful - Keys captured');
+          await fetchSessionData(lineAccountId);
+          await fetchBankData(lineAccountId);
+          return;
+        }
+
+        if (data.worker?.state === 'error' || data.worker?.state === 'closed') {
+          setLoginStatus(prev => ({
+            ...prev,
+            isLoading: false,
+            status: 'failed',
+            error: data.worker?.error || 'Login failed',
+          }));
+          return;
+        }
+
+        // Continue polling
+        setTimeout(poll, 2000);
+      } catch {
+        // Continue polling on error
+        setTimeout(poll, 2000);
+      }
+    };
+
+    poll();
+  };
+
   const handleCancelLogin = async () => {
     if (!selectedAccount) return;
 
     try {
-      await lineSessionApi.cancelLogin(selectedAccount._id);
+      // Use enhanced cancel API
+      await lineSessionApi.cancelEnhancedLogin(selectedAccount._id);
       setLoginStatus({
         status: 'idle',
         pinCode: undefined,
         error: undefined,
         isLoading: false,
+        requestId: undefined,
+        chatMid: undefined,
+        sessionReused: false,
+        cooldownRemainingMs: undefined,
+        workerState: undefined,
       });
       toast('Login cancelled');
     } catch (error: any) {
       toast.error(error.response?.data?.message || 'Failed to cancel login');
+    }
+  };
+
+  const handleResetCooldown = async () => {
+    if (!selectedAccount) return;
+
+    try {
+      await lineSessionApi.resetCooldown(selectedAccount._id);
+      setLoginStatus(prev => ({
+        ...prev,
+        status: 'idle',
+        cooldownRemainingMs: undefined,
+        error: undefined,
+      }));
+      toast.success('Cooldown reset');
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || 'Failed to reset cooldown');
     }
   };
 
@@ -741,13 +879,20 @@ export default function AdminLineAccountsPage() {
         return <Badge className="bg-emerald-500/10 text-emerald-400 border-emerald-500/20">Success</Badge>;
       case 'failed':
         return <Badge className="bg-rose-500/10 text-rose-400 border-rose-500/20">Failed</Badge>;
+      case 'cooldown':
+        return <Badge className="bg-orange-500/10 text-orange-400 border-orange-500/20">Cooldown</Badge>;
       case 'waiting_pin':
       case 'pin_displayed':
         return <Badge className="bg-amber-500/10 text-amber-400 border-amber-500/20">Waiting PIN</Badge>;
+      case 'requesting':
       case 'initializing':
       case 'launching_browser':
       case 'loading_extension':
+      case 'checking_session':
       case 'entering_credentials':
+      case 'verifying':
+      case 'extracting_keys':
+      case 'triggering_messages':
         return <Badge className="bg-blue-500/10 text-blue-400 border-blue-500/20">In Progress</Badge>;
       default:
         return <Badge className="bg-slate-500/10 text-slate-400 border-slate-500/20">Idle</Badge>;
@@ -1493,8 +1638,63 @@ export default function AdminLineAccountsPage() {
                   </div>
                 )}
 
+                {/* Cooldown Display with Reset Button */}
+                {loginStatus.status === 'cooldown' && loginStatus.cooldownRemainingMs && (
+                  <div className="p-4 bg-orange-50 rounded-xl border border-orange-200">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <Clock className="w-5 h-5 text-orange-500" />
+                        <div>
+                          <p className="text-sm font-bold text-orange-700">Cooldown Active</p>
+                          <p className="text-xs text-orange-600">
+                            Please wait {Math.ceil(loginStatus.cooldownRemainingMs / 1000)} seconds before trying again
+                          </p>
+                        </div>
+                      </div>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={handleResetCooldown}
+                        className="border-orange-300 text-orange-600 hover:bg-orange-100"
+                      >
+                        Reset Cooldown
+                      </Button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Session Reused Indicator */}
+                {loginStatus.sessionReused && loginStatus.status === 'success' && (
+                  <div className="p-4 bg-blue-50 rounded-xl border border-blue-200">
+                    <div className="flex items-center gap-3">
+                      <Copy className="w-5 h-5 text-blue-500" />
+                      <div>
+                        <p className="text-sm font-bold text-blue-700">Session Reused</p>
+                        <p className="text-xs text-blue-600">Keys were copied from an existing login with the same email</p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* ChatMid Display */}
+                {loginStatus.chatMid && (
+                  <div className="p-4 bg-indigo-50 rounded-xl border border-indigo-200">
+                    <div className="flex items-center gap-3">
+                      <MessageSquare className="w-5 h-5 text-indigo-500" />
+                      <div>
+                        <p className="text-sm font-bold text-indigo-700">ChatMid Captured</p>
+                        <p className="text-xs font-mono text-indigo-600 break-all">
+                          {loginStatus.chatMid.length > 30
+                            ? `${loginStatus.chatMid.substring(0, 30)}...`
+                            : loginStatus.chatMid}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
                 {/* Error Display */}
-                {loginStatus.error && (
+                {loginStatus.error && loginStatus.status !== 'cooldown' && (
                   <div className="p-4 bg-rose-50 rounded-xl border border-rose-200">
                     <div className="flex items-center gap-3">
                       <XCircle className="w-5 h-5 text-rose-500" />
@@ -1503,14 +1703,49 @@ export default function AdminLineAccountsPage() {
                   </div>
                 )}
 
+                {/* Worker State Progress */}
+                {loginStatus.isLoading && loginStatus.workerState && (
+                  <div className="p-4 bg-blue-50 rounded-xl border border-blue-200">
+                    <div className="flex items-center gap-3">
+                      <Loader2 className="w-5 h-5 text-blue-500 animate-spin" />
+                      <div>
+                        <p className="text-sm font-bold text-blue-700">Processing</p>
+                        <p className="text-xs text-blue-600 capitalize">
+                          {loginStatus.workerState.replace(/_/g, ' ')}
+                          {loginStatus.requestId && (
+                            <span className="ml-2 text-blue-400 font-mono">
+                              (Request: {loginStatus.requestId.substring(0, 8)}...)
+                            </span>
+                          )}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Success Display */}
+                {loginStatus.status === 'success' && !loginStatus.sessionReused && (
+                  <div className="p-4 bg-emerald-50 rounded-xl border border-emerald-200">
+                    <div className="flex items-center gap-3">
+                      <CheckCircle className="w-5 h-5 text-emerald-500" />
+                      <div>
+                        <p className="text-sm font-bold text-emerald-700">Login Successful</p>
+                        <p className="text-xs text-emerald-600">Keys have been captured and saved</p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
                 {/* Status Info */}
                 <div className="p-4 bg-slate-50 rounded-xl">
-                  <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-2">How it works</p>
+                  <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-2">Enhanced Auto Login Features</p>
                   <ol className="text-xs text-slate-600 space-y-1 list-decimal list-inside">
-                    <li>Enter your LINE email and password</li>
-                    <li>System will open a browser and login to LINE</li>
-                    <li>A 6-digit PIN will appear - verify it on your phone</li>
-                    <li>After verification, keys will be captured automatically</li>
+                    <li>Profile isolation - separate browser profile per account</li>
+                    <li>Dual-layer key interception (CDP + Puppeteer)</li>
+                    <li>Auto chatMid extraction for bank messages</li>
+                    <li>Session reuse - copy keys from same email accounts</li>
+                    <li>Auto recovery on browser crash (up to 3 retries)</li>
+                    <li>Cooldown management with exponential backoff</li>
                   </ol>
                 </div>
               </div>

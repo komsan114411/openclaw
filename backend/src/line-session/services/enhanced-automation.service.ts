@@ -6,8 +6,9 @@ import { EventEmitter2 } from '@nestjs/event-emitter';
 import { WorkerPoolService, WorkerState, Worker } from './worker-pool.service';
 import { LoginCoordinatorService, RequestStatus } from './login-coordinator.service';
 import { KeyStorageService } from './key-storage.service';
+import { LoginLockService } from './login-lock.service';
 import { LineSession, LineSessionDocument } from '../schemas/line-session.schema';
-import * as crypto from 'crypto';
+import { encryptPassword, decryptPassword } from '../utils/credential.util';
 
 export enum EnhancedLoginStatus {
   IDLE = 'idle',
@@ -77,6 +78,7 @@ export class EnhancedAutomationService implements OnModuleDestroy {
     private workerPoolService: WorkerPoolService,
     private loginCoordinatorService: LoginCoordinatorService,
     private keyStorageService: KeyStorageService,
+    private loginLockService: LoginLockService,
   ) {
     this.ENCRYPTION_KEY = this.configService.get('LINE_PASSWORD_ENCRYPTION_KEY') ||
       'default-key-change-in-production-32';
@@ -101,39 +103,24 @@ export class EnhancedAutomationService implements OnModuleDestroy {
   }
 
   /**
-   * Encrypt password
+   * Encrypt password (using shared utility)
    */
-  encryptPassword(password: string): string {
-    const iv = crypto.randomBytes(16);
-    const key = crypto.scryptSync(this.ENCRYPTION_KEY, 'salt', 32);
-    const cipher = crypto.createCipheriv('aes-256-cbc', key, iv);
-    let encrypted = cipher.update(password, 'utf8', 'hex');
-    encrypted += cipher.final('hex');
-    return iv.toString('hex') + ':' + encrypted;
+  encryptPasswordValue(password: string): string {
+    return encryptPassword(password, this.ENCRYPTION_KEY);
   }
 
   /**
-   * Decrypt password
+   * Decrypt password (using shared utility)
    */
-  decryptPassword(encryptedPassword: string): string {
-    const parts = encryptedPassword.split(':');
-    if (parts.length !== 2) {
-      throw new Error('Invalid encrypted password format');
-    }
-    const iv = Buffer.from(parts[0], 'hex');
-    const encrypted = parts[1];
-    const key = crypto.scryptSync(this.ENCRYPTION_KEY, 'salt', 32);
-    const decipher = crypto.createDecipheriv('aes-256-cbc', key, iv);
-    let decrypted = decipher.update(encrypted, 'hex', 'utf8');
-    decrypted += decipher.final('utf8');
-    return decrypted;
+  decryptPasswordValue(encryptedPassword: string): string {
+    return decryptPassword(encryptedPassword, this.ENCRYPTION_KEY);
   }
 
   /**
    * Save credentials
    */
   async saveCredentials(lineAccountId: string, email: string, password: string): Promise<void> {
-    const encryptedPassword = this.encryptPassword(password);
+    const encryptedPassword = this.encryptPasswordValue(password);
 
     await this.lineSessionModel.updateOne(
       { lineAccountId, isActive: true },
@@ -164,7 +151,7 @@ export class EnhancedAutomationService implements OnModuleDestroy {
     }
 
     try {
-      const password = this.decryptPassword(session.linePassword);
+      const password = this.decryptPasswordValue(session.linePassword);
       return { email: session.lineEmail, password };
     } catch {
       return null;
@@ -180,74 +167,87 @@ export class EnhancedAutomationService implements OnModuleDestroy {
     password?: string,
     source: 'manual' | 'auto' | 'relogin' = 'manual',
   ): Promise<EnhancedLoginResult> {
-    // Step 1: Request approval from coordinator
-    const requestResult = this.loginCoordinatorService.requestLogin(lineAccountId, source);
-
-    if (!requestResult.approved) {
+    // Step 0: Acquire global lock (prevent concurrent login from different services)
+    const lockAcquired = this.loginLockService.acquireLock(lineAccountId, 'enhanced');
+    if (!lockAcquired) {
+      const lockInfo = this.loginLockService.getLockInfo(lineAccountId);
       return {
         success: false,
-        status: EnhancedLoginStatus.COOLDOWN,
-        error: requestResult.message,
-        cooldownRemainingMs: requestResult.cooldownRemainingMs,
+        status: EnhancedLoginStatus.FAILED,
+        error: `Login already in progress (locked by: ${lockInfo?.source || 'unknown'})`,
       };
     }
 
-    const requestId = requestResult.requestId!;
-    this.emitStatus(lineAccountId, EnhancedLoginStatus.REQUESTING, { requestId });
+    let requestId: string | undefined;
 
-    // Step 2: Get credentials
-    let credentials: { email: string; password: string };
-    if (!email || !password) {
-      const saved = await this.getCredentials(lineAccountId);
-      if (!saved) {
-        this.loginCoordinatorService.markLoginFailed(lineAccountId, 'No credentials found');
+    try {
+      // Step 1: Request approval from coordinator
+      const requestResult = this.loginCoordinatorService.requestLogin(lineAccountId, source);
+
+      if (!requestResult.approved) {
+        return {
+          success: false,
+          status: EnhancedLoginStatus.COOLDOWN,
+          error: requestResult.message,
+          cooldownRemainingMs: requestResult.cooldownRemainingMs,
+        };
+      }
+
+      requestId = requestResult.requestId!;
+      this.emitStatus(lineAccountId, EnhancedLoginStatus.REQUESTING, { requestId });
+
+      // Step 2: Get credentials
+      let credentials: { email: string; password: string };
+      if (!email || !password) {
+        const saved = await this.getCredentials(lineAccountId);
+        if (!saved) {
+          this.loginCoordinatorService.markLoginFailed(lineAccountId, 'No credentials found');
+          return {
+            success: false,
+            status: EnhancedLoginStatus.FAILED,
+            requestId,
+            error: 'No credentials found. Please provide email and password.',
+          };
+        }
+        credentials = saved;
+      } else {
+        credentials = { email, password };
+        // Save for future use
+        await this.saveCredentials(lineAccountId, email, password);
+      }
+
+      // Step 3: Check for existing keys from same email (key copying)
+      const existingKeys = await this.checkExistingKeys(lineAccountId, credentials.email);
+      if (existingKeys) {
+        this.loginCoordinatorService.markLoginCompleted(lineAccountId);
+        return {
+          success: true,
+          status: EnhancedLoginStatus.SUCCESS,
+          requestId,
+          keys: existingKeys.keys,
+          chatMid: existingKeys.chatMid,
+          sessionReused: true,
+        };
+      }
+
+      // Step 4: Initialize worker
+      this.loginCoordinatorService.markLoginStarted(lineAccountId);
+      this.emitStatus(lineAccountId, EnhancedLoginStatus.INITIALIZING, { requestId });
+
+      let worker: Worker;
+      try {
+        this.emitStatus(lineAccountId, EnhancedLoginStatus.LAUNCHING_BROWSER, { requestId });
+        worker = await this.workerPoolService.initializeWorker(lineAccountId, credentials.email);
+      } catch (error: any) {
+        this.loginCoordinatorService.markLoginFailed(lineAccountId, error.message);
         return {
           success: false,
           status: EnhancedLoginStatus.FAILED,
           requestId,
-          error: 'No credentials found. Please provide email and password.',
+          error: `Failed to initialize browser: ${error.message}`,
         };
       }
-      credentials = saved;
-    } else {
-      credentials = { email, password };
-      // Save for future use
-      await this.saveCredentials(lineAccountId, email, password);
-    }
 
-    // Step 3: Check for existing keys from same email (key copying)
-    const existingKeys = await this.checkExistingKeys(lineAccountId, credentials.email);
-    if (existingKeys) {
-      this.loginCoordinatorService.markLoginCompleted(lineAccountId);
-      return {
-        success: true,
-        status: EnhancedLoginStatus.SUCCESS,
-        requestId,
-        keys: existingKeys.keys,
-        chatMid: existingKeys.chatMid,
-        sessionReused: true,
-      };
-    }
-
-    // Step 4: Initialize worker
-    this.loginCoordinatorService.markLoginStarted(lineAccountId);
-    this.emitStatus(lineAccountId, EnhancedLoginStatus.INITIALIZING, { requestId });
-
-    let worker: Worker;
-    try {
-      this.emitStatus(lineAccountId, EnhancedLoginStatus.LAUNCHING_BROWSER, { requestId });
-      worker = await this.workerPoolService.initializeWorker(lineAccountId, credentials.email);
-    } catch (error: any) {
-      this.loginCoordinatorService.markLoginFailed(lineAccountId, error.message);
-      return {
-        success: false,
-        status: EnhancedLoginStatus.FAILED,
-        requestId,
-        error: `Failed to initialize browser: ${error.message}`,
-      };
-    }
-
-    try {
       // Step 5: Setup interception (dual-layer)
       const keyCapturedPromise = new Promise<{ keys: any; chatMid?: string }>((resolve) => {
         const onKeyCaptured = (keys: any, chatMid?: string) => {
@@ -337,6 +337,9 @@ export class EnhancedAutomationService implements OnModuleDestroy {
         requestId,
         error: error.message,
       };
+    } finally {
+      // Always release the lock
+      this.loginLockService.releaseLock(lineAccountId, 'enhanced');
     }
   }
 
@@ -503,77 +506,94 @@ export class EnhancedAutomationService implements OnModuleDestroy {
    * Navigate to chats URL
    */
   private async navigateToChats(page: any): Promise<void> {
-    const currentUrl = page.url();
-    const baseUrl = currentUrl.split('#')[0];
-    await page.goto(baseUrl + '#/chats', { waitUntil: 'domcontentloaded', timeout: 10000 });
-    await this.delay(2000);
+    try {
+      const currentUrl = page.url();
+      const baseUrl = currentUrl.split('#')[0];
+      await page.goto(baseUrl + '#/chats', { waitUntil: 'domcontentloaded', timeout: 10000 });
+      await this.delay(2000);
+    } catch (error: any) {
+      this.logger.warn(`navigateToChats failed: ${error.message}`);
+      // Don't throw - let the next attempt try a different approach
+    }
   }
 
   /**
    * Click first chat item
    */
   private async clickFirstChatItem(page: any): Promise<void> {
-    await page.evaluate(() => {
-      const selectors = [
-        '[class*="chatItem"]',
-        '[class*="listItem"]',
-        '[class*="ChatListItem"]',
-        '[data-testid="chat-list-item"]',
-      ];
+    try {
+      await page.evaluate(() => {
+        const selectors = [
+          '[class*="chatItem"]',
+          '[class*="listItem"]',
+          '[class*="ChatListItem"]',
+          '[data-testid="chat-list-item"]',
+        ];
 
-      for (const selector of selectors) {
-        const items = document.querySelectorAll(selector);
-        if (items.length > 0) {
-          (items[0] as HTMLElement).click();
-          return;
+        for (const selector of selectors) {
+          const items = document.querySelectorAll(selector);
+          if (items.length > 0) {
+            (items[0] as HTMLElement).click();
+            return;
+          }
         }
-      }
-    });
-    await this.delay(1000);
+      });
+      await this.delay(1000);
+    } catch (error: any) {
+      this.logger.warn(`clickFirstChatItem failed: ${error.message}`);
+    }
   }
 
   /**
    * Click bank notification chat
    */
   private async clickBankChat(page: any): Promise<void> {
-    const bankPatterns = ['SCB', 'GSB', 'KBANK', 'KBank', 'ธนาคาร', 'ออมสิน', 'กสิกร', 'ไทยพาณิชย์', 'กรุงเทพ', 'กรุงไทย'];
+    try {
+      const bankPatterns = ['SCB', 'GSB', 'KBANK', 'KBank', 'ธนาคาร', 'ออมสิน', 'กสิกร', 'ไทยพาณิชย์', 'กรุงเทพ', 'กรุงไทย'];
 
-    await page.evaluate((patterns: string[]) => {
-      const chatItems = document.querySelectorAll('[class*="chatItem"], [class*="listItem"]');
+      await page.evaluate((patterns: string[]) => {
+        const chatItems = document.querySelectorAll('[class*="chatItem"], [class*="listItem"]');
 
-      for (const item of chatItems) {
-        const text = item.textContent || '';
-        for (const pattern of patterns) {
-          if (text.includes(pattern)) {
-            (item as HTMLElement).click();
-            return;
+        for (const item of chatItems) {
+          const text = item.textContent || '';
+          for (const pattern of patterns) {
+            if (text.includes(pattern)) {
+              (item as HTMLElement).click();
+              return;
+            }
           }
         }
-      }
-    }, bankPatterns);
+      }, bankPatterns);
 
-    await this.delay(1000);
+      await this.delay(1000);
+    } catch (error: any) {
+      this.logger.warn(`clickBankChat failed: ${error.message}`);
+    }
   }
 
   /**
    * Scroll and click second chat
    */
   private async scrollAndClickChat(page: any): Promise<void> {
-    await page.evaluate(() => {
-      const chatList = document.querySelector('[class*="chatList"], [class*="ChatList"]');
-      if (chatList) {
-        chatList.scrollTop = 100;
-      }
-
-      setTimeout(() => {
-        const items = document.querySelectorAll('[class*="chatItem"], [class*="listItem"]');
-        if (items.length > 1) {
-          (items[1] as HTMLElement).click();
+    try {
+      await page.evaluate(() => {
+        const chatList = document.querySelector('[class*="chatList"], [class*="ChatList"]');
+        if (chatList) {
+          chatList.scrollTop = 100;
         }
-      }, 500);
-    });
 
-    await this.delay(1500);
+        setTimeout(() => {
+          const items = document.querySelectorAll('[class*="chatItem"], [class*="listItem"]');
+          if (items.length > 1) {
+            (items[1] as HTMLElement).click();
+          }
+        }, 500);
+      });
+
+      await this.delay(1500);
+    } catch (error: any) {
+      this.logger.warn(`scrollAndClickChat failed: ${error.message}`);
+    }
   }
 
   /**

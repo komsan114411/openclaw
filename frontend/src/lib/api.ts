@@ -732,6 +732,49 @@ export const lineSessionApi = {
     api.delete(`/admin/line-session/${lineAccountId}/worker`),
 };
 
+// LINE Session User API (User-facing endpoints)
+export const lineSessionUserApi = {
+  // Get active session for user's LINE account
+  getSession: (lineAccountId: string) =>
+    api.get(`/user/line-session/${lineAccountId}`),
+
+  // Start enhanced login
+  startEnhancedLogin: (lineAccountId: string, email?: string, password?: string, source?: 'manual' | 'auto' | 'relogin') =>
+    api.post(`/user/line-session/${lineAccountId}/enhanced-login`, { email, password, source: source || 'manual' }),
+
+  // Get enhanced login status
+  getEnhancedLoginStatus: (lineAccountId: string) =>
+    api.get(`/user/line-session/${lineAccountId}/enhanced-login/status`),
+
+  // Cancel enhanced login
+  cancelEnhancedLogin: (lineAccountId: string) =>
+    api.delete(`/user/line-session/${lineAccountId}/enhanced-login`),
+
+  // Get cooldown info
+  getCooldownInfo: (lineAccountId: string) =>
+    api.get(`/user/line-session/${lineAccountId}/cooldown`),
+
+  // Reset cooldown
+  resetCooldown: (lineAccountId: string) =>
+    api.post(`/user/line-session/${lineAccountId}/reset-cooldown`),
+
+  // Get full keys for copying
+  getFullKeys: (lineAccountId: string) =>
+    api.get(`/user/line-session/${lineAccountId}/keys`),
+
+  // Set keys manually
+  setKeys: (lineAccountId: string, data: {
+    xLineAccess: string;
+    xHmac: string;
+    userAgent?: string;
+    lineVersion?: string;
+  }) => api.post(`/user/line-session/${lineAccountId}/keys`, data),
+
+  // Get key history
+  getHistory: (lineAccountId: string) =>
+    api.get(`/user/line-session/${lineAccountId}/history`),
+};
+
 // Rate Limit API (Admin Only)
 export const rateLimitApi = {
   // Get statistics
