@@ -313,6 +313,13 @@ interface UpdateSystemSettingsData {
   floatingContactTooltip?: string;
   floatingContactBgColor?: string;
   floatingContactShowOnMobile?: boolean;
+  // LINE Session Settings
+  lineSessionHealthCheckEnabled?: boolean;
+  lineSessionHealthCheckIntervalMinutes?: number;
+  lineSessionAutoReloginEnabled?: boolean;
+  lineSessionReloginCheckIntervalMinutes?: number;
+  lineSessionMaxConsecutiveFailures?: number;
+  lineSessionExpiryWarningMinutes?: number;
 }
 
 interface AddBankAccountData {

@@ -1283,11 +1283,11 @@ export default function UserLineAccountsPage() {
                       </Button>
                       <Button
                         variant="outline"
-                        className="h-9 sm:h-10 rounded-lg sm:rounded-xl font-semibold text-xs border-blue-500/30 bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 transition-all"
+                        className="h-9 sm:h-10 rounded-lg sm:rounded-xl font-semibold text-xs border-emerald-500/30 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 transition-all"
                         onClick={() => openLoginModal(account._id)}
-                        leftIcon={<Key className="w-3 h-3 sm:w-4 sm:h-4" />}
+                        leftIcon={<Zap className="w-3 h-3 sm:w-4 sm:h-4" />}
                       >
-                        Keys
+                        ดึง Keys
                       </Button>
                       <Button
                         variant="outline"
