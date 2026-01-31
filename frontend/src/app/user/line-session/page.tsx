@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import DashboardLayout from '@/components/layout/DashboardLayout';
-import { lineAccountsApi, lineSessionUserApi } from '@/lib/api';
+import { lineSessionUserApi } from '@/lib/api';
 import toast from 'react-hot-toast';
 import { Card, EmptyState } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
@@ -26,13 +26,22 @@ import {
   Eye,
   EyeOff,
   Smartphone,
+  Plus,
+  Trash2,
 } from 'lucide-react';
 
-interface LineAccount {
+// Interface for LINE Login (not LINE OA)
+interface LineLogin {
   _id: string;
-  accountName: string;
-  channelId: string;
-  isActive: boolean;
+  name: string;
+  status: string;
+  bankName?: string;
+  bankCode?: string;
+  hasKeys: boolean;
+  hasCredentials?: boolean;
+  email?: string;
+  extractedAt?: string;
+  createdAt?: string;
 }
 
 interface Bank {
@@ -74,10 +83,20 @@ interface CredentialsStatus {
 }
 
 export default function LineSessionPage() {
-  const [accounts, setAccounts] = useState<LineAccount[]>([]);
+  const [lineSessions, setLineSessions] = useState<LineLogin[]>([]);
   const [banks, setBanks] = useState<Bank[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [selectedAccount, setSelectedAccount] = useState<LineAccount | null>(null);
+  const [selectedSession, setSelectedSession] = useState<LineLogin | null>(null);
+
+  // Create modal
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [newSessionName, setNewSessionName] = useState('');
+  const [isCreating, setIsCreating] = useState(false);
+
+  // Delete confirm
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [sessionToDelete, setSessionToDelete] = useState<LineLogin | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   // Setup form
   const [setupForm, setSetupForm] = useState({
@@ -99,16 +118,16 @@ export default function LineSessionPage() {
   const [fullKeys, setFullKeys] = useState<Record<string, unknown> | null>(null);
   const [isLoadingKeys, setIsLoadingKeys] = useState(false);
 
-  // Fetch accounts and banks
+  // Fetch LINE sessions and banks
   const fetchData = useCallback(async () => {
     setIsLoading(true);
     try {
-      const [accountsRes, banksRes] = await Promise.all([
-        lineAccountsApi.getMyAccounts(),
+      const [sessionsRes, banksRes] = await Promise.all([
+        lineSessionUserApi.getMySessions(),
         lineSessionUserApi.getBanks(),
       ]);
 
-      setAccounts(accountsRes.data.accounts || []);
+      setLineSessions(sessionsRes.data.sessions || []);
       setBanks(banksRes.data.banks || []);
     } catch {
       toast.error('ไม่สามารถโหลดข้อมูลได้');
@@ -121,12 +140,12 @@ export default function LineSessionPage() {
     fetchData();
   }, [fetchData]);
 
-  // Fetch session status for selected account
-  const fetchSessionStatus = useCallback(async (accountId: string) => {
+  // Fetch session status for selected session
+  const fetchSessionStatus = useCallback(async (sessionId: string) => {
     try {
       const [sessionRes, credRes] = await Promise.all([
-        lineSessionUserApi.getSession(accountId),
-        lineSessionUserApi.getCredentialsStatus(accountId),
+        lineSessionUserApi.getSession(sessionId),
+        lineSessionUserApi.getCredentialsStatus(sessionId),
       ]);
 
       setSessionStatus(sessionRes.data.session);
@@ -137,19 +156,19 @@ export default function LineSessionPage() {
     }
   }, []);
 
-  // When account is selected
+  // When session is selected
   useEffect(() => {
-    if (selectedAccount) {
-      fetchSessionStatus(selectedAccount._id);
+    if (selectedSession) {
+      fetchSessionStatus(selectedSession._id);
       setLoginStatus(null);
       setSetupForm({ email: '', password: '', bankCode: '' });
     }
-  }, [selectedAccount, fetchSessionStatus]);
+  }, [selectedSession, fetchSessionStatus]);
 
   // Poll login status
-  const pollLoginStatus = useCallback(async (accountId: string) => {
+  const pollLoginStatus = useCallback(async (sessionId: string) => {
     try {
-      const res = await lineSessionUserApi.getEnhancedLoginStatus(accountId);
+      const res = await lineSessionUserApi.getEnhancedLoginStatus(sessionId);
       const status = res.data;
       setLoginStatus(status);
 
@@ -160,7 +179,8 @@ export default function LineSessionPage() {
 
       // If completed, refresh session status
       if (status.status === 'completed' || status.status === 'success') {
-        await fetchSessionStatus(accountId);
+        await fetchSessionStatus(sessionId);
+        await fetchData(); // Refresh list
         toast.success('ดึง Keys สำเร็จ');
       } else if (status.status === 'failed' || status.status === 'error') {
         toast.error(status.error || status.message || 'เกิดข้อผิดพลาด');
@@ -170,15 +190,15 @@ export default function LineSessionPage() {
     } catch {
       return false;
     }
-  }, [fetchSessionStatus]);
+  }, [fetchSessionStatus, fetchData]);
 
   // Start polling effect
   useEffect(() => {
     let intervalId: NodeJS.Timeout;
 
-    if (isPolling && selectedAccount) {
+    if (isPolling && selectedSession) {
       intervalId = setInterval(async () => {
-        const shouldContinue = await pollLoginStatus(selectedAccount._id);
+        const shouldContinue = await pollLoginStatus(selectedSession._id);
         if (!shouldContinue) {
           setIsPolling(false);
         }
@@ -188,11 +208,69 @@ export default function LineSessionPage() {
     return () => {
       if (intervalId) clearInterval(intervalId);
     };
-  }, [isPolling, selectedAccount, pollLoginStatus]);
+  }, [isPolling, selectedSession, pollLoginStatus]);
+
+  // Create new LINE Login
+  const handleCreateSession = async () => {
+    if (!newSessionName.trim()) {
+      toast.error('กรุณากรอกชื่อ LINE Login');
+      return;
+    }
+
+    setIsCreating(true);
+    try {
+      const res = await lineSessionUserApi.createSession(newSessionName.trim());
+      if (res.data.success) {
+        toast.success('สร้าง LINE Login สำเร็จ');
+        setShowCreateModal(false);
+        setNewSessionName('');
+        await fetchData();
+        // Auto select the newly created session
+        if (res.data.session) {
+          setSelectedSession(res.data.session);
+        }
+      } else {
+        toast.error(res.data.message || 'ไม่สามารถสร้าง LINE Login ได้');
+      }
+    } catch (err: unknown) {
+      const error = err as { response?: { data?: { message?: string } } };
+      toast.error(error.response?.data?.message || 'เกิดข้อผิดพลาด');
+    } finally {
+      setIsCreating(false);
+    }
+  };
+
+  // Delete LINE Login
+  const handleDeleteSession = async () => {
+    if (!sessionToDelete) return;
+
+    setIsDeleting(true);
+    try {
+      const res = await lineSessionUserApi.deleteSession(sessionToDelete._id);
+      if (res.data.success) {
+        toast.success('ลบ LINE Login สำเร็จ');
+        setShowDeleteModal(false);
+        setSessionToDelete(null);
+        if (selectedSession?._id === sessionToDelete._id) {
+          setSelectedSession(null);
+          setSessionStatus(null);
+          setCredentialsStatus(null);
+        }
+        await fetchData();
+      } else {
+        toast.error(res.data.message || 'ไม่สามารถลบได้');
+      }
+    } catch (err: unknown) {
+      const error = err as { response?: { data?: { message?: string } } };
+      toast.error(error.response?.data?.message || 'เกิดข้อผิดพลาด');
+    } finally {
+      setIsDeleting(false);
+    }
+  };
 
   // Handle setup and login
   const handleSetup = async () => {
-    if (!selectedAccount) return;
+    if (!selectedSession) return;
 
     if (!setupForm.email || !setupForm.password || !setupForm.bankCode) {
       toast.error('กรุณากรอกข้อมูลให้ครบ');
@@ -201,7 +279,7 @@ export default function LineSessionPage() {
 
     setIsSettingUp(true);
     try {
-      const res = await lineSessionUserApi.setupSession(selectedAccount._id, {
+      const res = await lineSessionUserApi.setupSession(selectedSession._id, {
         email: setupForm.email,
         password: setupForm.password,
         bankCode: setupForm.bankCode,
@@ -224,10 +302,10 @@ export default function LineSessionPage() {
 
   // Cancel login
   const handleCancelLogin = async () => {
-    if (!selectedAccount) return;
+    if (!selectedSession) return;
 
     try {
-      await lineSessionUserApi.cancelEnhancedLogin(selectedAccount._id);
+      await lineSessionUserApi.cancelEnhancedLogin(selectedSession._id);
       setLoginStatus(null);
       setIsPolling(false);
       toast.success('ยกเลิกแล้ว');
@@ -238,11 +316,11 @@ export default function LineSessionPage() {
 
   // Re-login (use saved credentials)
   const handleRelogin = async () => {
-    if (!selectedAccount) return;
+    if (!selectedSession) return;
 
     setIsSettingUp(true);
     try {
-      const res = await lineSessionUserApi.startEnhancedLogin(selectedAccount._id, undefined, undefined, 'relogin');
+      const res = await lineSessionUserApi.startEnhancedLogin(selectedSession._id, undefined, undefined, 'relogin');
 
       if (res.data.success !== false) {
         setLoginStatus(res.data);
@@ -261,11 +339,11 @@ export default function LineSessionPage() {
 
   // View full keys
   const handleViewKeys = async () => {
-    if (!selectedAccount) return;
+    if (!selectedSession) return;
 
     setIsLoadingKeys(true);
     try {
-      const res = await lineSessionUserApi.getFullKeys(selectedAccount._id);
+      const res = await lineSessionUserApi.getFullKeys(selectedSession._id);
       if (res.data.success) {
         setFullKeys(res.data.keys);
         setShowKeysModal(true);
@@ -339,68 +417,106 @@ export default function LineSessionPage() {
               <div className="p-2 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-xl text-white">
                 <Key className="w-6 h-6" />
               </div>
-              ดึง LINE Keys
+              LINE Session
             </h1>
             <p className="text-slate-500 dark:text-slate-400 mt-1">
-              ดึง Keys อัตโนมัติจากบัญชี LINE ของคุณ
+              จัดการ LINE Login และดึง Keys อัตโนมัติ
             </p>
           </div>
+          <Button
+            variant="primary"
+            onClick={() => setShowCreateModal(true)}
+            className="gap-2"
+          >
+            <Plus className="w-4 h-4" />
+            เพิ่ม LINE Login
+          </Button>
         </div>
 
-        {accounts.length === 0 ? (
+        {lineSessions.length === 0 ? (
           <Card className="p-8">
             <EmptyState
               icon={<Key className="w-12 h-12" />}
-              title="ยังไม่มีบัญชี LINE"
-              description="กรุณาเพิ่มบัญชี LINE ก่อนใช้งานฟีเจอร์นี้"
+              title="ยังไม่มี LINE Login"
+              description="กดปุ่ม 'เพิ่ม LINE Login' เพื่อเริ่มต้นใช้งาน"
             />
           </Card>
         ) : (
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            {/* Account Selection */}
+            {/* Session Selection */}
             <Card className="p-4">
               <h2 className="text-lg font-semibold text-slate-900 dark:text-white mb-4 flex items-center gap-2">
-                <Building2 className="w-5 h-5 text-emerald-500" />
-                เลือกบัญชี LINE
+                <Smartphone className="w-5 h-5 text-emerald-500" />
+                LINE Login ของคุณ
               </h2>
               <div className="space-y-2">
-                {accounts.map((account) => (
-                  <button
-                    key={account._id}
-                    onClick={() => setSelectedAccount(account)}
-                    className={`w-full p-3 rounded-xl text-left transition-all ${
-                      selectedAccount?._id === account._id
+                {lineSessions.map((session) => (
+                  <div
+                    key={session._id}
+                    className={`relative group p-3 rounded-xl transition-all cursor-pointer ${
+                      selectedSession?._id === session._id
                         ? 'bg-emerald-500/10 border-2 border-emerald-500'
                         : 'bg-slate-50 dark:bg-slate-800/50 border-2 border-transparent hover:border-emerald-500/50'
                     }`}
+                    onClick={() => setSelectedSession(session)}
                   >
-                    <div className="font-medium text-slate-900 dark:text-white">
-                      {account.accountName}
+                    <div className="flex items-center justify-between">
+                      <div className="flex-1 min-w-0">
+                        <div className="font-medium text-slate-900 dark:text-white truncate">
+                          {session.name}
+                        </div>
+                        <div className="text-xs text-slate-500 dark:text-slate-400 mt-1 flex items-center gap-2">
+                          {session.hasKeys ? (
+                            <span className="flex items-center gap-1 text-emerald-600">
+                              <CheckCircle2 className="w-3 h-3" />
+                              มี Keys
+                            </span>
+                          ) : (
+                            <span className="flex items-center gap-1 text-slate-400">
+                              <Clock className="w-3 h-3" />
+                              รอตั้งค่า
+                            </span>
+                          )}
+                          {session.bankName && (
+                            <span className="text-slate-400">| {session.bankName}</span>
+                          )}
+                        </div>
+                      </div>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setSessionToDelete(session);
+                          setShowDeleteModal(true);
+                        }}
+                        className="opacity-0 group-hover:opacity-100 p-1.5 text-red-500 hover:bg-red-500/10 rounded-lg transition-all"
+                        title="ลบ"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
                     </div>
-                    <div className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-                      {account.channelId}
-                    </div>
-                  </button>
+                  </div>
                 ))}
               </div>
             </Card>
 
             {/* Setup & Status */}
             <Card className="lg:col-span-2 p-6">
-              {!selectedAccount ? (
+              {!selectedSession ? (
                 <div className="flex flex-col items-center justify-center py-12 text-slate-400">
                   <Key className="w-16 h-16 mb-4 opacity-30" />
-                  <p>เลือกบัญชี LINE เพื่อเริ่มต้น</p>
+                  <p>เลือก LINE Login เพื่อเริ่มต้น</p>
                 </div>
               ) : (
                 <div className="space-y-6">
-                  {/* Account Info */}
+                  {/* Session Info */}
                   <div className="flex items-center justify-between">
                     <div>
                       <h3 className="text-lg font-semibold text-slate-900 dark:text-white">
-                        {selectedAccount.accountName}
+                        {selectedSession.name}
                       </h3>
-                      <p className="text-sm text-slate-500">{selectedAccount.channelId}</p>
+                      <p className="text-sm text-slate-500">
+                        {credentialsStatus?.email || 'ยังไม่ได้ตั้งค่า'}
+                      </p>
                     </div>
                     {sessionStatus?.status && (
                       <Badge variant={getStatusDisplay(sessionStatus.status).color}>
@@ -598,6 +714,110 @@ export default function LineSessionPage() {
           </div>
         )}
       </div>
+
+      {/* Create Modal */}
+      <Modal
+        isOpen={showCreateModal}
+        onClose={() => {
+          setShowCreateModal(false);
+          setNewSessionName('');
+        }}
+        title="เพิ่ม LINE Login ใหม่"
+      >
+        <div className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+              ชื่อ LINE Login
+            </label>
+            <Input
+              placeholder="เช่น LINE ส่วนตัว, LINE ธุรกิจ"
+              value={newSessionName}
+              onChange={(e) => setNewSessionName(e.target.value)}
+              autoFocus
+            />
+            <p className="text-xs text-slate-500 mt-1">
+              ตั้งชื่อเพื่อให้จำได้ว่าใช้สำหรับอะไร
+            </p>
+          </div>
+          <div className="flex gap-3 justify-end">
+            <Button
+              variant="secondary"
+              onClick={() => {
+                setShowCreateModal(false);
+                setNewSessionName('');
+              }}
+            >
+              ยกเลิก
+            </Button>
+            <Button
+              variant="primary"
+              onClick={handleCreateSession}
+              disabled={isCreating || !newSessionName.trim()}
+              className="gap-2"
+            >
+              {isCreating ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  กำลังสร้าง...
+                </>
+              ) : (
+                <>
+                  <Plus className="w-4 h-4" />
+                  สร้าง
+                </>
+              )}
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Delete Confirmation Modal */}
+      <Modal
+        isOpen={showDeleteModal}
+        onClose={() => {
+          setShowDeleteModal(false);
+          setSessionToDelete(null);
+        }}
+        title="ยืนยันการลบ"
+      >
+        <div className="space-y-4">
+          <p className="text-slate-600 dark:text-slate-400">
+            คุณต้องการลบ LINE Login <strong className="text-slate-900 dark:text-white">{sessionToDelete?.name}</strong> ใช่หรือไม่?
+          </p>
+          <p className="text-sm text-red-500">
+            การดำเนินการนี้จะลบ Keys และข้อมูล Login ทั้งหมดที่เกี่ยวข้อง
+          </p>
+          <div className="flex gap-3 justify-end">
+            <Button
+              variant="secondary"
+              onClick={() => {
+                setShowDeleteModal(false);
+                setSessionToDelete(null);
+              }}
+            >
+              ยกเลิก
+            </Button>
+            <Button
+              variant="danger"
+              onClick={handleDeleteSession}
+              disabled={isDeleting}
+              className="gap-2"
+            >
+              {isDeleting ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  กำลังลบ...
+                </>
+              ) : (
+                <>
+                  <Trash2 className="w-4 h-4" />
+                  ลบ
+                </>
+              )}
+            </Button>
+          </div>
+        </div>
+      </Modal>
 
       {/* Keys Modal */}
       <Modal

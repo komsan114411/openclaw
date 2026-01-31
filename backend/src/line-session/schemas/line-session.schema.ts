@@ -16,10 +16,23 @@ export type LineSessionDocument = LineSession & Document;
 })
 export class LineSession {
   /**
-   * อ้างอิง LINE Account (เก็บเป็น string ไม่ใช่ ObjectId ref)
-   * เพื่อให้ module นี้เป็นอิสระ
+   * เจ้าของ Session (userId)
+   * ใช้สำหรับ ownership check
    */
   @Prop({ required: true, index: true })
+  ownerId: string;
+
+  /**
+   * ชื่อที่ผู้ใช้ตั้ง เช่น "LINE ส่วนตัว", "LINE งาน"
+   */
+  @Prop({ required: true })
+  name: string;
+
+  /**
+   * อ้างอิง LINE Account (optional - ไม่จำเป็นต้องมี)
+   * เก็บเป็น string ไม่ใช่ ObjectId ref เพื่อให้ module นี้เป็นอิสระ
+   */
+  @Prop({ index: true })
   lineAccountId: string;
 
   /**
@@ -150,6 +163,7 @@ export class LineSession {
 export const LineSessionSchema = SchemaFactory.createForClass(LineSession);
 
 // Indexes
+LineSessionSchema.index({ ownerId: 1, isActive: 1 });
 LineSessionSchema.index({ lineAccountId: 1, isActive: 1 });
 LineSessionSchema.index({ status: 1 });
 LineSessionSchema.index({ expiresAt: 1 });
