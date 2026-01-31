@@ -1,4 +1,5 @@
-FROM node:18-alpine AS builder
+# Build stage
+FROM node:18-slim AS builder
 
 WORKDIR /app
 
@@ -8,15 +9,35 @@ RUN npm ci
 COPY . .
 RUN npm run build
 
-FROM node:18-alpine AS runner
+# Production stage - Use slim with Chromium for Puppeteer
+FROM node:18-slim AS runner
+
+# Install Chromium and dependencies for Puppeteer
+RUN apt-get update && apt-get install -y \
+    chromium \
+    fonts-ipafont-gothic \
+    fonts-wqy-zenhei \
+    fonts-thai-tlwg \
+    fonts-kacst \
+    fonts-freefont-ttf \
+    libxss1 \
+    --no-install-recommends \
+    && rm -rf /var/lib/apt/lists/*
+
+# Set Puppeteer environment variables
+ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true \
+    PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium \
+    PUPPETEER_HEADLESS=true \
+    NODE_ENV=production
 
 WORKDIR /app
-
-ENV NODE_ENV=production
 
 COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/package*.json ./
+
+# Create extensions directory (optional - for LINE extension if available)
+RUN mkdir -p /app/dist/extensions/line
 
 EXPOSE 4000
 

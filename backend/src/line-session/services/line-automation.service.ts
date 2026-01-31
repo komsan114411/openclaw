@@ -361,8 +361,12 @@ export class LineAutomationService implements OnModuleDestroy, OnModuleInit {
   private async launchBrowser(): Promise<Browser> {
     const extensionPath = path.join(__dirname, '../../extensions/line');
 
+    // Check for custom executable path (for Docker/production)
+    const executablePath = this.configService.get('PUPPETEER_EXECUTABLE_PATH');
+    const isHeadless = this.configService.get('PUPPETEER_HEADLESS') !== 'false';
+
     const options: any = {
-      headless: false, // LINE extension requires headed mode
+      headless: isHeadless ? 'new' : false,
       args: [
         '--no-sandbox',
         '--disable-setuid-sandbox',
@@ -373,19 +377,18 @@ export class LineAutomationService implements OnModuleDestroy, OnModuleInit {
       defaultViewport: { width: 1280, height: 800 },
     };
 
-    // Add LINE extension if exists
-    if (fs.existsSync(extensionPath)) {
-      options.args.push(`--disable-extensions-except=${extensionPath}`);
-      options.args.push(`--load-extension=${extensionPath}`);
-    } else {
-      this.logger.warn(`LINE extension not found at ${extensionPath} - login may not work correctly`);
+    // Add executable path if specified (for Docker with system Chromium)
+    if (executablePath) {
+      options.executablePath = executablePath;
+      this.logger.log(`Using custom Chromium path: ${executablePath}`);
     }
 
-    // Check if running in Docker/headless environment
-    const isHeadless = this.configService.get('PUPPETEER_HEADLESS') === 'true';
-    if (isHeadless) {
-      options.headless = 'new';
-      options.args.push('--headless=new');
+    // Add LINE extension if exists (only works in non-headless mode)
+    if (!isHeadless && fs.existsSync(extensionPath)) {
+      options.args.push(`--disable-extensions-except=${extensionPath}`);
+      options.args.push(`--load-extension=${extensionPath}`);
+    } else if (!isHeadless) {
+      this.logger.warn(`LINE extension not found at ${extensionPath} - login may not work correctly`);
     }
 
     return this.puppeteer.launch(options);

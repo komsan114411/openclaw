@@ -252,8 +252,12 @@ export class WorkerPoolService implements OnModuleDestroy, OnModuleInit {
       // Launch browser with isolated profile
       const extensionPath = path.join(__dirname, '../../extensions/line');
 
+      // Check for custom executable path (for Docker/production)
+      const executablePath = this.configService.get('PUPPETEER_EXECUTABLE_PATH');
+      const isHeadless = this.configService.get('PUPPETEER_HEADLESS') !== 'false';
+
       const launchOptions: any = {
-        headless: false,
+        headless: isHeadless ? 'new' : false,
         args: [
           '--no-sandbox',
           '--disable-setuid-sandbox',
@@ -267,19 +271,18 @@ export class WorkerPoolService implements OnModuleDestroy, OnModuleInit {
         defaultViewport: { width: 1280, height: 800 },
       };
 
-      // Add extension if exists
-      if (fs.existsSync(extensionPath)) {
-        launchOptions.args.push(`--disable-extensions-except=${extensionPath}`);
-        launchOptions.args.push(`--load-extension=${extensionPath}`);
-      } else {
-        this.logger.warn(`LINE extension not found at ${extensionPath} - login may not work correctly`);
+      // Add executable path if specified (for Docker with system Chromium)
+      if (executablePath) {
+        launchOptions.executablePath = executablePath;
+        this.logger.log(`Using custom Chromium path: ${executablePath}`);
       }
 
-      // Check if running in headless environment
-      const isHeadless = this.configService.get('PUPPETEER_HEADLESS') === 'true';
-      if (isHeadless) {
-        launchOptions.headless = 'new';
-        launchOptions.args.push('--headless=new');
+      // Add extension if exists (only works in non-headless mode)
+      if (!isHeadless && fs.existsSync(extensionPath)) {
+        launchOptions.args.push(`--disable-extensions-except=${extensionPath}`);
+        launchOptions.args.push(`--load-extension=${extensionPath}`);
+      } else if (!isHeadless) {
+        this.logger.warn(`LINE extension not found at ${extensionPath} - login may not work correctly`);
       }
 
       worker.browser = await this.puppeteer.launch(launchOptions);
