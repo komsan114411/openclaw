@@ -34,7 +34,7 @@ import { LineAutomationService } from './services/line-automation.service';
  */
 @ApiTags('LINE Session (User)')
 @ApiBearerAuth()
-@Controller('api/user/line-session')
+@Controller('user/line-session')
 @UseGuards(SessionAuthGuard)
 export class LineSessionUserController {
   private readonly logger = new Logger(LineSessionUserController.name);

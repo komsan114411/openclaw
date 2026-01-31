@@ -38,7 +38,7 @@ import { LineSession, LineSessionDocument } from './schemas/line-session.schema'
 
 @ApiTags('LINE Session')
 @ApiBearerAuth()
-@Controller('api/admin/line-session')
+@Controller('admin/line-session')
 @UseGuards(SessionAuthGuard, RolesGuard)
 @Roles(UserRole.ADMIN)
 export class LineSessionController {
