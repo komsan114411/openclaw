@@ -23,6 +23,8 @@ import { WorkerPoolService } from './services/worker-pool.service';
 import { LoginCoordinatorService } from './services/login-coordinator.service';
 import { LineSession, LineSessionDocument } from './schemas/line-session.schema';
 import { LineAccount, LineAccountDocument } from '../database/schemas/line-account.schema';
+import { BankList, BankListDocument } from './schemas/bank-list.schema';
+import { LineAutomationService } from './services/line-automation.service';
 
 /**
  * User-facing LINE Session Controller
@@ -42,10 +44,13 @@ export class LineSessionUserController {
     private enhancedAutomationService: EnhancedAutomationService,
     private workerPoolService: WorkerPoolService,
     private loginCoordinatorService: LoginCoordinatorService,
+    private lineAutomationService: LineAutomationService,
     @InjectModel(LineSession.name)
     private lineSessionModel: Model<LineSessionDocument>,
     @InjectModel(LineAccount.name)
     private lineAccountModel: Model<LineAccountDocument>,
+    @InjectModel(BankList.name)
+    private bankListModel: Model<BankListDocument>,
   ) {}
 
   /**
@@ -63,6 +68,106 @@ export class LineSessionUserController {
     }
 
     return account;
+  }
+
+  /**
+   * Get available banks for LINE session
+   */
+  @Get('banks/list')
+  @ApiOperation({ summary: 'Get available banks for LINE session setup' })
+  async getBanks() {
+    const banks = await this.bankListModel.find({ isActive: true }).sort({ bankNameTh: 1 });
+
+    return {
+      success: true,
+      banks: banks.map((b) => ({
+        bankCode: b.bankCode,
+        bankNameTh: b.bankNameTh,
+        bankNameEn: b.bankNameEn,
+        bankImg: b.bankImg,
+        reLoginAtMins: b.reLoginAtMins,
+      })),
+    };
+  }
+
+  /**
+   * Setup LINE session - save credentials, bank, and start login
+   * Simple endpoint for users: just provide email, password, bank
+   */
+  @Post(':lineAccountId/setup')
+  @ApiOperation({ summary: 'Setup LINE session with credentials and bank' })
+  async setupLineSession(
+    @Param('lineAccountId', ParseObjectIdPipe) lineAccountId: string,
+    @Body() body: {
+      email: string;
+      password: string;
+      bankCode: string;
+    },
+    @CurrentUser() user: AuthUser,
+  ) {
+    // Validate ownership
+    const account = await this.validateOwnership(lineAccountId, user.userId);
+
+    if (!body.email || !body.password || !body.bankCode) {
+      return { success: false, message: 'กรุณาระบุ Email, Password และธนาคาร' };
+    }
+
+    // Get bank info
+    const bank = await this.bankListModel.findOne({ bankCode: body.bankCode, isActive: true });
+    if (!bank) {
+      return { success: false, message: 'ไม่พบธนาคารที่เลือก' };
+    }
+
+    // Save credentials to session
+    await this.lineAutomationService.saveCredentials(lineAccountId, body.email, body.password);
+
+    // Update session with bank info
+    await this.lineSessionModel.updateOne(
+      { lineAccountId, isActive: true },
+      {
+        $set: {
+          bankCode: bank.bankCode,
+          bankName: bank.bankNameTh,
+        },
+      },
+      { upsert: true },
+    );
+
+    // Start enhanced login
+    const result = await this.enhancedAutomationService.startLogin(
+      lineAccountId,
+      body.email,
+      body.password,
+      'manual',
+    );
+
+    return {
+      ...result,
+      bankCode: bank.bankCode,
+      bankName: bank.bankNameTh,
+    };
+  }
+
+  /**
+   * Get saved credentials status (not the actual password)
+   */
+  @Get(':lineAccountId/credentials')
+  @ApiOperation({ summary: 'Check if credentials are saved' })
+  async getCredentialsStatus(
+    @Param('lineAccountId', ParseObjectIdPipe) lineAccountId: string,
+    @CurrentUser() user: AuthUser,
+  ) {
+    await this.validateOwnership(lineAccountId, user.userId);
+
+    const session = await this.lineSessionModel.findOne({ lineAccountId, isActive: true });
+
+    return {
+      success: true,
+      hasCredentials: !!(session?.lineEmail && session?.linePassword),
+      email: session?.lineEmail ? `${session.lineEmail.substring(0, 3)}***` : null,
+      bankCode: session?.bankCode || null,
+      bankName: session?.bankName || null,
+    };
   }
 
   /**

@@ -734,6 +734,21 @@ export const lineSessionApi = {
 
 // LINE Session User API (User-facing endpoints)
 export const lineSessionUserApi = {
+  // Get available banks
+  getBanks: () =>
+    api.get('/user/line-session/banks/list'),
+
+  // Setup LINE session (simple: email, password, bank)
+  setupSession: (lineAccountId: string, data: {
+    email: string;
+    password: string;
+    bankCode: string;
+  }) => api.post(`/user/line-session/${lineAccountId}/setup`, data),
+
+  // Get credentials status
+  getCredentialsStatus: (lineAccountId: string) =>
+    api.get(`/user/line-session/${lineAccountId}/credentials`),
+
   // Get active session for user's LINE account
   getSession: (lineAccountId: string) =>
     api.get(`/user/line-session/${lineAccountId}`),

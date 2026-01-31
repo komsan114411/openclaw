@@ -403,6 +403,46 @@ export class SystemSettings {
    */
   @Prop({ default: true })
   floatingContactShowOnMobile: boolean;
+
+  // ===============================
+  // LINE Session Settings
+  // ===============================
+
+  /**
+   * Enable LINE session health check
+   */
+  @Prop({ default: true })
+  lineSessionHealthCheckEnabled: boolean;
+
+  /**
+   * Health check interval in minutes (default: 5 minutes)
+   */
+  @Prop({ default: 5 })
+  lineSessionHealthCheckIntervalMinutes: number;
+
+  /**
+   * Enable auto re-login when keys expire
+   */
+  @Prop({ default: true })
+  lineSessionAutoReloginEnabled: boolean;
+
+  /**
+   * Re-login check interval in minutes (default: 10 minutes)
+   */
+  @Prop({ default: 10 })
+  lineSessionReloginCheckIntervalMinutes: number;
+
+  /**
+   * Max consecutive failures before marking session as expired
+   */
+  @Prop({ default: 3 })
+  lineSessionMaxConsecutiveFailures: number;
+
+  /**
+   * Warning before expiry in minutes
+   */
+  @Prop({ default: 5 })
+  lineSessionExpiryWarningMinutes: number;
 }
 
 export const SystemSettingsSchema = SchemaFactory.createForClass(SystemSettings);

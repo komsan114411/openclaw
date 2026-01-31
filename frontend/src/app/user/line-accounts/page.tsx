@@ -354,7 +354,7 @@ export default function UserLineAccountsPage() {
   // LINE Session Login state
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [loginAccountId, setLoginAccountId] = useState<string | null>(null);
-  const [loginForm, setLoginForm] = useState({ email: '', password: '' });
+  const [loginForm, setLoginForm] = useState({ email: '', password: '', bankCode: '' });
   const [loginStatus, setLoginStatus] = useState<{
     status: string;
     pinCode?: string;
@@ -374,6 +374,26 @@ export default function UserLineAccountsPage() {
     chatMid?: string;
   } | null>(null);
 
+  // LINE Banks for session setup
+  interface LineBank {
+    bankCode: string;
+    bankNameTh: string;
+    bankNameEn: string;
+    bankImg?: string;
+  }
+  const [lineBanks, setLineBanks] = useState<LineBank[]>([]);
+
+  const fetchLineBanks = async () => {
+    try {
+      const res = await lineSessionUserApi.getBanks();
+      if (res.data?.banks) {
+        setLineBanks(res.data.banks);
+      }
+    } catch {
+      // Ignore
+    }
+  };
+
   const fetchAiSettings = async () => {
     try {
       const res = await systemSettingsApi.getAiSettings();
@@ -391,6 +411,7 @@ export default function UserLineAccountsPage() {
     fetchBanks();
     fetchPreviewConfig();
     fetchAiSettings();
+    fetchLineBanks();
   }, []);
 
   // Auto-check all connections when accounts are loaded
@@ -766,7 +787,7 @@ export default function UserLineAccountsPage() {
   // LINE Session Login handlers
   const openLoginModal = (accountId: string) => {
     setLoginAccountId(accountId);
-    setLoginForm({ email: '', password: '' });
+    setLoginForm({ email: '', password: '', bankCode: '' });
     setLoginStatus({ status: 'idle', isLoading: false });
     setShowLoginModal(true);
   };
@@ -774,6 +795,11 @@ export default function UserLineAccountsPage() {
   const handleStartLogin = async () => {
     if (!loginAccountId || !loginForm.email || !loginForm.password) {
       toast.error('กรุณากรอก Email และ Password');
+      return;
+    }
+
+    if (!loginForm.bankCode) {
+      toast.error('กรุณาเลือกธนาคาร');
       return;
     }
 
@@ -786,12 +812,12 @@ export default function UserLineAccountsPage() {
     }));
 
     try {
-      const res = await lineSessionUserApi.startEnhancedLogin(
-        loginAccountId,
-        loginForm.email,
-        loginForm.password,
-        'manual'
-      );
+      // Use setupSession API which saves credentials and bank
+      const res = await lineSessionUserApi.setupSession(loginAccountId, {
+        email: loginForm.email,
+        password: loginForm.password,
+        bankCode: loginForm.bankCode,
+      });
 
       const data = res.data;
 
@@ -2158,13 +2184,29 @@ export default function UserLineAccountsPage() {
                     disabled={loginStatus.isLoading}
                   />
                 </div>
+                <div className="relative">
+                  <Building2 className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-white/50" />
+                  <select
+                    value={loginForm.bankCode}
+                    onChange={(e) => setLoginForm(prev => ({ ...prev, bankCode: e.target.value }))}
+                    className="w-full pl-12 pr-4 py-4 bg-white/10 border border-white/20 rounded-xl text-white focus:outline-none focus:border-white/40 appearance-none"
+                    disabled={loginStatus.isLoading}
+                  >
+                    <option value="" className="text-slate-800">-- เลือกธนาคาร --</option>
+                    {lineBanks.map((bank) => (
+                      <option key={bank.bankCode} value={bank.bankCode} className="text-slate-800">
+                        {bank.bankNameTh}
+                      </option>
+                    ))}
+                  </select>
+                </div>
               </div>
 
               <div className="flex gap-3 mt-6">
                 <Button
                   variant="primary"
                   onClick={handleStartLogin}
-                  disabled={loginStatus.isLoading || !loginForm.email || !loginForm.password}
+                  disabled={loginStatus.isLoading || !loginForm.email || !loginForm.password || !loginForm.bankCode}
                   className="flex-1 h-14 rounded-xl font-bold bg-white text-blue-600 hover:bg-white/90"
                 >
                   {loginStatus.isLoading ? (
