@@ -779,25 +779,30 @@ export default function AdminLineAccountsPage() {
         return;
       }
 
-      // Debug: Log exact values being set
-      console.log('[handleStartLogin] Setting loginStatus:', {
-        status: data.status,
-        pinCode: data.pinCode,
-        hasPinCode: !!data.pinCode,
-        error: data.error,
-        success: data.success,
-      });
+      // Debug: Log FULL API response
+      console.log('[handleStartLogin] FULL API Response:', data);
+      console.log('[handleStartLogin] pinCode value:', data.pinCode, 'type:', typeof data.pinCode);
+
+      // Extract PIN from response - handle different possible field names
+      const pinCodeValue = data.pinCode || data.pin || data.pin_code;
 
       setLoginStatus(prev => ({
         ...prev,
         status: data.status || 'unknown',
-        pinCode: data.pinCode,
+        pinCode: pinCodeValue,
         error: data.error,
         requestId: data.requestId,
         chatMid: data.chatMid,
         sessionReused: data.sessionReused,
         isLoading: !data.success && data.status !== 'failed',
       }));
+
+      // Show PIN popup immediately if available
+      if (pinCodeValue) {
+        console.log('[handleStartLogin] PIN FOUND:', pinCodeValue);
+        // Show prominent alert for PIN
+        alert(`PIN Code: ${pinCodeValue}\n\nPlease enter this PIN on your LINE mobile app.`);
+      }
 
       if (data.success) {
         if (data.sessionReused) {
@@ -810,9 +815,9 @@ export default function AdminLineAccountsPage() {
         }
         await fetchSessionData(selectedAccount._id);
         await fetchBankData(selectedAccount._id);
-      } else if (data.pinCode) {
-        console.log('[handleStartLogin] PIN received:', data.pinCode);
-        toast.success(`PIN: ${data.pinCode}`, { duration: 60000, icon: '🔑' });
+      } else if (pinCodeValue) {
+        console.log('[handleStartLogin] PIN received:', pinCodeValue);
+        toast.success(`PIN: ${pinCodeValue}`, { duration: 60000, icon: '🔑' });
         // WebSocket will handle real-time updates
         // Fall back to polling if WebSocket is not connected
         if (!loginNotifications.isConnected) {
@@ -821,6 +826,10 @@ export default function AdminLineAccountsPage() {
         } else {
           console.log('[Login] WebSocket connected, waiting for real-time updates');
         }
+      } else if (data.status === 'pin_displayed') {
+        // PIN status but no pinCode - show message to user
+        console.warn('[handleStartLogin] PIN status but no pinCode in response!', data);
+        toast.error('PIN was displayed but not captured. Please check backend logs.');
       } else if (data.error) {
         toast.error(data.error);
       }
