@@ -409,23 +409,11 @@ export class EnhancedAutomationService implements OnModuleDestroy {
         this.workerPoolService.setupPuppeteerInterception(worker, onKeyCaptured);
       });
 
-      // Step 6: Navigate to LINE extension
+      // Step 6: Navigate to LINE extension (GSB-style with multiple fallback methods)
       this.emitStatus(lineAccountId, EnhancedLoginStatus.LOADING_EXTENSION, { requestId });
-      const extensionUrl = `chrome-extension://${this.LINE_EXTENSION_ID}/index.html`;
-      this.logger.log(`[Login] Navigating to extension: ${extensionUrl}`);
-
-      try {
-        await worker.page.goto(extensionUrl, { waitUntil: 'domcontentloaded', timeout: 30000 });
-        const currentUrl = worker.page.url();
-        this.logger.log(`[Login] Current URL after navigation: ${currentUrl}`);
-
-        // Check if extension loaded successfully
-        if (currentUrl.includes('chrome-error') || currentUrl === 'about:blank') {
-          throw new Error(`Extension failed to load. URL: ${currentUrl}`);
-        }
-      } catch (navError: any) {
-        this.logger.error(`[Login] Extension navigation failed: ${navError.message}`);
-        throw new Error(`Failed to load LINE extension: ${navError.message}`);
+      const extensionLoaded = await this.navigateToExtension(worker);
+      if (!extensionLoaded) {
+        throw new Error('Failed to load LINE extension after all attempts');
       }
 
       await this.delay(3000);
@@ -636,8 +624,8 @@ export class EnhancedAutomationService implements OnModuleDestroy {
       try {
         switch (attempt) {
           case 1:
-            // Attempt 1: Click chat button
-            await this.clickChatButton(worker.page);
+            // Attempt 1: Click chat button (with CDP support)
+            await this.clickChatButton(worker.page, worker.cdpClient);
             break;
 
           case 2:
@@ -713,24 +701,69 @@ export class EnhancedAutomationService implements OnModuleDestroy {
   }
 
   /**
-   * Click chat button (multiple selectors)
+   * Click chat button with CDP fallback (GSB-style)
    */
-  private async clickChatButton(page: any): Promise<void> {
+  private async clickChatButton(page: any, cdpClient?: any): Promise<void> {
     const selectors = [
       'button[aria-label="Go chatroom"]',
       'button[aria-label="チャット"]',
       '[data-testid="chat-tab"]',
       'a[href="#/chats"]',
       '[class*="chatTab"]',
+      'nav button:first-child',
+      '[class*="navItem"]:first-child',
     ];
 
     for (const selector of selectors) {
       try {
-        const element = await page.$(selector);
-        if (element) {
-          await element.click();
-          await this.delay(1000);
-          return;
+        // First try: Get element position for CDP click
+        const elementInfo = await page.evaluate((sel: string) => {
+          const el = document.querySelector(sel);
+          if (el) {
+            const rect = el.getBoundingClientRect();
+            return {
+              found: true,
+              x: rect.x + rect.width / 2,
+              y: rect.y + rect.height / 2,
+            };
+          }
+          return { found: false, x: 0, y: 0 };
+        }, selector);
+
+        if (elementInfo.found) {
+          // Try CDP click first (more reliable like GSB)
+          if (cdpClient) {
+            try {
+              await cdpClient.send('Input.dispatchMouseEvent', {
+                type: 'mousePressed',
+                x: elementInfo.x,
+                y: elementInfo.y,
+                button: 'left',
+                clickCount: 1,
+              });
+              await cdpClient.send('Input.dispatchMouseEvent', {
+                type: 'mouseReleased',
+                x: elementInfo.x,
+                y: elementInfo.y,
+                button: 'left',
+                clickCount: 1,
+              });
+              this.logger.log(`[CDP Click] Clicked ${selector} at (${elementInfo.x}, ${elementInfo.y})`);
+              await this.delay(1000);
+              return;
+            } catch (cdpError) {
+              // Fall back to normal click
+            }
+          }
+
+          // Fallback: Normal element click
+          const element = await page.$(selector);
+          if (element) {
+            await element.click();
+            this.logger.log(`[Click] Clicked ${selector}`);
+            await this.delay(1000);
+            return;
+          }
         }
       } catch {
         // Try next selector
@@ -887,6 +920,123 @@ export class EnhancedAutomationService implements OnModuleDestroy {
       this.logger.warn(`[CheckLoggedIn] Error checking login status: ${(e as Error).message}`);
       return false;
     }
+  }
+
+  /**
+   * Navigate to LINE extension with multiple fallback methods (GSB-style)
+   * Method 1: Direct navigation to chrome-extension:// URL
+   * Method 2: Navigate to chrome://extensions and enable LINE extension
+   * Method 3: Use known extension URL as fallback
+   */
+  private async navigateToExtension(worker: Worker): Promise<boolean> {
+    const page = worker.page;
+    const extensionUrl = `chrome-extension://${this.LINE_EXTENSION_ID}/index.html`;
+    const maxRetries = 15;
+    let retries = 0;
+
+    this.logger.log(`[Extension] ========== EXTENSION LOADING (GSB-style) ==========`);
+    this.logger.log(`[Extension] Target URL: ${extensionUrl}`);
+
+    // Method 1: Try direct navigation first
+    while (retries < maxRetries) {
+      try {
+        this.logger.log(`[Extension] Method 1: Direct navigation (attempt ${retries + 1}/${maxRetries})...`);
+        await page.goto(extensionUrl, { waitUntil: 'domcontentloaded', timeout: 15000 });
+
+        const currentUrl = page.url();
+        this.logger.log(`[Extension] Current URL: ${currentUrl}`);
+
+        if (!currentUrl.includes('chrome-error') && currentUrl.includes(this.LINE_EXTENSION_ID)) {
+          this.logger.log(`[Extension] Method 1 SUCCESS - Extension loaded!`);
+          await this.delay(3000);
+          return true;
+        }
+
+        this.logger.warn(`[Extension] Method 1 failed - URL: ${currentUrl}`);
+      } catch (navError: any) {
+        this.logger.warn(`[Extension] Method 1 error: ${navError.message?.substring(0, 50)}`);
+      }
+
+      retries++;
+      if (retries < 3) {
+        await this.delay(2000);
+      } else {
+        break; // Try next method after 3 attempts
+      }
+    }
+
+    // Method 2: Try CDP to enable extension via chrome://extensions
+    try {
+      this.logger.log(`[Extension] Method 2: Enabling extension via chrome://extensions...`);
+
+      await page.goto('chrome://extensions', { waitUntil: 'load', timeout: 30000 });
+      await this.delay(3000);
+
+      // Try to find and enable LINE extension
+      const enabledLine = await page.evaluate(() => {
+        const extensions = document.querySelectorAll('extensions-item');
+        for (const ext of Array.from(extensions)) {
+          const name = ext.getAttribute('name') || (ext as any).querySelector('.extension-name')?.textContent;
+          if (name && name.includes('LINE')) {
+            const toggle = (ext as any).shadowRoot?.querySelector('cr-toggle');
+            if (toggle && !toggle.hasAttribute('checked')) {
+              toggle.click();
+              return 'enabled';
+            }
+            return 'already_enabled';
+          }
+        }
+        return 'not_found';
+      });
+
+      this.logger.log(`[Extension] LINE extension status: ${enabledLine}`);
+
+      if (enabledLine !== 'not_found') {
+        // Try navigating to extension again
+        await this.delay(2000);
+        await page.goto(extensionUrl, { waitUntil: 'domcontentloaded', timeout: 30000 });
+
+        const currentUrl = page.url();
+        if (!currentUrl.includes('chrome-error')) {
+          this.logger.log(`[Extension] Method 2 SUCCESS - Extension loaded after enable!`);
+          await this.delay(3000);
+          return true;
+        }
+      }
+
+      this.logger.warn(`[Extension] Method 2 failed`);
+    } catch (cdpError: any) {
+      this.logger.warn(`[Extension] Method 2 error: ${cdpError.message?.substring(0, 50)}`);
+    }
+
+    // Method 3: Final fallback - just use the known extension URL
+    try {
+      this.logger.log(`[Extension] Method 3: Final attempt with known URL...`);
+
+      await page.goto('about:blank', { waitUntil: 'load' });
+      await this.delay(1000);
+      await page.goto(extensionUrl, { waitUntil: 'domcontentloaded', timeout: 30000 });
+
+      const currentUrl = page.url();
+      const pageContent = await page.content();
+
+      this.logger.log(`[Extension] Final URL: ${currentUrl}`);
+      this.logger.log(`[Extension] Page content length: ${pageContent.length}`);
+
+      // Check if we have actual content (not error page)
+      if (pageContent.length > 1000 && (pageContent.includes('LINE') || pageContent.includes('email'))) {
+        this.logger.log(`[Extension] Method 3 SUCCESS - Extension appears to have loaded!`);
+        await this.delay(3000);
+        return true;
+      }
+
+      this.logger.error(`[Extension] Method 3 failed - Page content too short or no LINE content`);
+    } catch (finalError: any) {
+      this.logger.error(`[Extension] Method 3 error: ${finalError.message}`);
+    }
+
+    this.logger.error(`[Extension] ========== ALL METHODS FAILED ==========`);
+    return false;
   }
 
   /**
