@@ -132,7 +132,18 @@ export class EnhancedAutomationService implements OnModuleDestroy {
   /**
    * Save credentials
    */
-  async saveCredentials(lineAccountId: string, email: string, password: string): Promise<void> {
+  async saveCredentials(lineAccountId: string, email: string, password: string): Promise<boolean> {
+    // Check if session exists first - do NOT create new session automatically
+    const existingSession = await this.lineSessionModel.findOne({
+      lineAccountId,
+      isActive: true,
+    });
+
+    if (!existingSession) {
+      this.logger.warn(`Cannot save credentials: session not found for ${lineAccountId}`);
+      return false;
+    }
+
     const encryptedPassword = this.encryptPasswordValue(password);
 
     await this.lineSessionModel.updateOne(
@@ -143,10 +154,10 @@ export class EnhancedAutomationService implements OnModuleDestroy {
           linePassword: encryptedPassword,
         },
       },
-      { upsert: true },
     );
 
     this.logger.log(`Credentials saved for ${lineAccountId}`);
+    return true;
   }
 
   /**
@@ -180,7 +191,22 @@ export class EnhancedAutomationService implements OnModuleDestroy {
     password?: string,
     source: 'manual' | 'auto' | 'relogin' = 'manual',
   ): Promise<EnhancedLoginResult> {
-    // Step 0: Check if headless mode (extension-based login won't work)
+    // Step 0: Check if session exists in database
+    const existingSession = await this.lineSessionModel.findOne({
+      lineAccountId,
+      isActive: true,
+    });
+
+    if (!existingSession) {
+      this.logger.warn(`Cannot start login: session not found for ${lineAccountId}`);
+      return {
+        success: false,
+        status: EnhancedLoginStatus.FAILED,
+        error: 'Session not found. Please create a LINE session first before attempting login.',
+      };
+    }
+
+    // Step 0b: Check if headless mode (extension-based login won't work)
     if (this.isHeadlessMode()) {
       this.logger.warn(`Automated login not available in headless mode for ${lineAccountId}`);
       return {

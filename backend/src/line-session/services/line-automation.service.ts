@@ -171,6 +171,17 @@ export class LineAutomationService implements OnModuleDestroy, OnModuleInit {
   ): Promise<void> {
     const encryptedPassword = this.encryptPasswordValue(password);
 
+    // Check if session exists first - do NOT create new session automatically
+    const existingSession = await this.lineSessionModel.findOne({
+      lineAccountId,
+      isActive: true,
+    });
+
+    if (!existingSession) {
+      this.logger.warn(`Cannot save credentials: session not found for ${lineAccountId}`);
+      return;
+    }
+
     await this.lineSessionModel.updateOne(
       { lineAccountId, isActive: true },
       {
@@ -179,7 +190,6 @@ export class LineAutomationService implements OnModuleDestroy, OnModuleInit {
           linePassword: encryptedPassword,
         },
       },
-      { upsert: true },
     );
 
     this.logger.log(`Credentials saved for ${lineAccountId}`);
