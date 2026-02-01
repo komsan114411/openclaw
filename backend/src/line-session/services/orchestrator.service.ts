@@ -103,9 +103,37 @@ export class OrchestratorService implements OnModuleInit, OnModuleDestroy {
 
   async onModuleInit() {
     this.logger.log('Orchestrator Service initializing...');
+
+    // Auto-cleanup corrupted sessions on startup
+    await this.cleanupCorruptedSessions();
+
     await this.loadSettings();
     await this.startLoops();
     this.logger.log('Orchestrator Service initialized');
+  }
+
+  /**
+   * Clean up corrupted sessions (missing name, ownerId, or with invalid data)
+   */
+  private async cleanupCorruptedSessions(): Promise<void> {
+    try {
+      const result = await this.lineSessionModel.deleteMany({
+        $or: [
+          { name: { $exists: false } },
+          { name: null },
+          { name: '' },
+          { ownerId: { $exists: false } },
+          { ownerId: null },
+          { ownerId: '' },
+        ],
+      });
+
+      if (result.deletedCount > 0) {
+        this.logger.log(`[Cleanup] Deleted ${result.deletedCount} corrupted sessions on startup`);
+      }
+    } catch (error: any) {
+      this.logger.error(`[Cleanup] Failed to clean up corrupted sessions: ${error.message}`);
+    }
   }
 
   onModuleDestroy() {

@@ -270,12 +270,14 @@ export class EnhancedAutomationService implements OnModuleDestroy {
   /**
    * Start enhanced login process
    * Note: lineAccountId can be either session _id or actual LINE Account ID
+   * @param forceLogin - Skip key copying and force browser login (for testing)
    */
   async startLogin(
     lineAccountId: string,
     email?: string,
     password?: string,
     source: 'manual' | 'auto' | 'relogin' = 'manual',
+    forceLogin = false,
   ): Promise<EnhancedLoginResult> {
     // Step 0: Check if session exists in database - try by _id first, then by lineAccountId
     let existingSession = await this.lineSessionModel.findById(lineAccountId);
@@ -359,17 +361,23 @@ export class EnhancedAutomationService implements OnModuleDestroy {
       }
 
       // Step 3: Check for existing keys from same email (key copying)
-      const existingKeys = await this.checkExistingKeys(lineAccountId, credentials.email);
-      if (existingKeys) {
-        this.loginCoordinatorService.markLoginCompleted(lineAccountId);
-        return {
-          success: true,
-          status: EnhancedLoginStatus.SUCCESS,
-          requestId,
-          keys: existingKeys.keys,
-          chatMid: existingKeys.chatMid,
-          sessionReused: true,
-        };
+      // Skip if forceLogin is true (for testing browser login)
+      if (!forceLogin) {
+        const existingKeys = await this.checkExistingKeys(lineAccountId, credentials.email);
+        if (existingKeys) {
+          this.loginCoordinatorService.markLoginCompleted(lineAccountId);
+          this.logger.log(`[Login] Using existing keys for ${lineAccountId} (key copying)`);
+          return {
+            success: true,
+            status: EnhancedLoginStatus.SUCCESS,
+            requestId,
+            keys: existingKeys.keys,
+            chatMid: existingKeys.chatMid,
+            sessionReused: true,
+          };
+        }
+      } else {
+        this.logger.log(`[Login] Force login enabled - skipping key copying for ${lineAccountId}`);
       }
 
       // Step 4: Initialize worker

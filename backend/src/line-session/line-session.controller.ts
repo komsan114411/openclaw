@@ -873,15 +873,22 @@ export class LineSessionController {
 
   /**
    * Start enhanced login (with full GSB-like features)
+   * @param force - Skip key copying and force browser login (for testing)
    */
   @Post(':lineAccountId/enhanced-login')
   @ApiOperation({ summary: 'Start enhanced login with GSB-like features' })
   async startEnhancedLogin(
     @Param('lineAccountId') lineAccountId: string,
-    @Body() body: { email?: string; password?: string; source?: 'manual' | 'auto' | 'relogin' },
+    @Body() body: {
+      email?: string;
+      password?: string;
+      source?: 'manual' | 'auto' | 'relogin';
+      force?: boolean; // Skip key copying, force browser login
+    },
   ) {
     this.logger.log(`[enhanced-login] === CONTROLLER START === for ${lineAccountId}`);
     this.logger.log(`[enhanced-login] Body: ${JSON.stringify(body)}`);
+    this.logger.log(`[enhanced-login] Force login: ${body.force || false}`);
 
     try {
       this.logger.log(`[enhanced-login] Calling enhancedAutomationService.startLogin...`);
@@ -890,13 +897,11 @@ export class LineSessionController {
         body.email,
         body.password,
         body.source || 'manual',
+        body.force || false, // Pass force flag to skip key copying
       );
 
       this.logger.log(`[enhanced-login] === SERVICE RETURNED ===`);
-      this.logger.log(`[enhanced-login] Result type: ${typeof result}`);
       this.logger.log(`[enhanced-login] Result: ${JSON.stringify(result)}`);
-      this.logger.log(`[enhanced-login] Result.pinCode: ${result?.pinCode}`);
-      this.logger.log(`[enhanced-login] Result.status: ${result?.status}`);
 
       return result;
     } catch (error: any) {
@@ -1042,6 +1047,54 @@ export class LineSessionController {
       success: true,
       lineAccountId,
       ...result,
+    };
+  }
+
+  /**
+   * Force relogin - bypass key copying and always use browser login
+   * Useful for testing browser automation
+   */
+  @Post(':lineAccountId/force-relogin')
+  @ApiOperation({ summary: 'Force browser login (skip key copying)' })
+  async forceRelogin(
+    @Param('lineAccountId') lineAccountId: string,
+    @Body() body: { email?: string; password?: string },
+  ) {
+    this.logger.log(`[force-relogin] Starting force relogin for ${lineAccountId}`);
+
+    // First, clear existing keys so we can test browser login
+    try {
+      await this.lineSessionModel.updateOne(
+        { _id: lineAccountId },
+        {
+          $unset: { xLineAccess: '', xHmac: '', chatMid: '' },
+          $set: { status: 'pending_relogin', lastCheckResult: 'expired' },
+        },
+      );
+      this.logger.log(`[force-relogin] Cleared existing keys for ${lineAccountId}`);
+    } catch (e) {
+      // Ignore if session not found by _id, try lineAccountId
+      await this.lineSessionModel.updateOne(
+        { lineAccountId },
+        {
+          $unset: { xLineAccess: '', xHmac: '', chatMid: '' },
+          $set: { status: 'pending_relogin', lastCheckResult: 'expired' },
+        },
+      );
+    }
+
+    // Then trigger force login
+    const result = await this.enhancedAutomationService.startLogin(
+      lineAccountId,
+      body.email,
+      body.password,
+      'manual',
+      true, // Force login - skip key copying
+    );
+
+    return {
+      ...result,
+      forcedLogin: true,
     };
   }
 
