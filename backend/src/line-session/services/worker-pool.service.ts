@@ -294,8 +294,13 @@ export class WorkerPoolService implements OnModuleDestroy, OnModuleInit {
           '--disable-blink-features=AutomationControlled',
           `--user-data-dir=${this.config.userDataDir}`,
           `--profile-directory=${profileDir}`,
+          // GSB-style: Allow insecure content and disable web security for extension access
+          '--allow-running-insecure-content',
+          '--disable-web-security',
         ],
         defaultViewport: { width: 1280, height: 800 },
+        // GSB-style: Allow extensions to load by ignoring default args that disable them
+        ignoreDefaultArgs: ['--enable-automation', '--disable-extensions'],
       };
 
       // Add executable path if specified (for Docker with system Chromium)
@@ -305,11 +310,14 @@ export class WorkerPoolService implements OnModuleDestroy, OnModuleInit {
       }
 
       // Add extension if exists (only works in non-headless mode)
+      // GSB-style: Just use --load-extension (ignoreDefaultArgs already removes --disable-extensions)
       if (!isHeadless && fs.existsSync(extensionPath)) {
-        launchOptions.args.push(`--disable-extensions-except=${extensionPath}`);
         launchOptions.args.push(`--load-extension=${extensionPath}`);
+        this.logger.log(`[WorkerPool] Loading extension from: ${extensionPath}`);
       } else if (!isHeadless) {
         this.logger.warn(`LINE extension not found at ${extensionPath} - login may not work correctly`);
+      } else {
+        this.logger.warn(`[WorkerPool] Running in headless mode - extension will NOT load (LINE login requires non-headless)`);
       }
 
       worker.browser = await this.puppeteer.launch(launchOptions);

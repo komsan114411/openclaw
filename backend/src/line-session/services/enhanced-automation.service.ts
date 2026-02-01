@@ -103,8 +103,9 @@ export class EnhancedAutomationService implements OnModuleDestroy {
   private readonly logger = new Logger(EnhancedAutomationService.name);
 
   private readonly LINE_EXTENSION_ID = 'ophjlpahpchlmihnnnihgmmeilfjmjjc';
-  private readonly LOGIN_TIMEOUT = 120000; // 2 minutes
-  private readonly PIN_TIMEOUT = 90000; // 90 seconds
+  private readonly LOGIN_TIMEOUT = 180000; // 3 minutes (GSB-style)
+  private readonly PIN_TIMEOUT = 180000; // 3 minutes (GSB-style, was 90 seconds)
+  private readonly DIALOG_TIMEOUT = 10000; // 10 seconds to wait for dialog after login
   private readonly MESSAGE_TRIGGER_ATTEMPTS = 6;
   private readonly ATTEMPT_DELAY = 4000; // 4 seconds between attempts
 
@@ -824,30 +825,67 @@ export class EnhancedAutomationService implements OnModuleDestroy {
   }
 
   /**
-   * Check if already logged in
+   * Check if already logged in (GSB-style with multiple indicators)
    */
   private async checkLoggedIn(page: any): Promise<boolean> {
     try {
-      const loggedInIndicator = await page.$('button[aria-label="Go chatroom"], [data-testid="chat-list"]');
-      if (loggedInIndicator) return true;
+      const url = page.url();
 
-      const loginForm = await page.$('input[name="email"]');
-      if (!loginForm) {
-        const url = page.url();
-        if (url.includes('#/chats') || url.includes('#/friends')) {
+      // Check URL patterns that indicate logged in
+      if (url.includes('#/chats') || url.includes('#/friends') || url.includes('#/settings')) {
+        this.logger.log(`[CheckLoggedIn] URL indicates logged in: ${url}`);
+        return true;
+      }
+
+      // Check for chat-related elements (indicates logged in)
+      const loggedInSelectors = [
+        'button[aria-label="Go chatroom"]',
+        'button[aria-label="チャット"]',
+        '[data-testid="chat-list"]',
+        '[data-testid="chat-tab"]',
+        '[class*="chatList"]',
+        '[class*="ChatList"]',
+        '[class*="friendList"]',
+        '[class*="FriendList"]',
+        'a[href="#/chats"]',
+        'a[href="#/friends"]',
+      ];
+
+      for (const selector of loggedInSelectors) {
+        const element = await page.$(selector);
+        if (element) {
+          this.logger.log(`[CheckLoggedIn] Found logged-in indicator: ${selector}`);
           return true;
         }
       }
+
+      // Check if login form is NOT present (might indicate logged in)
+      const loginForm = await page.$('input[name="email"]');
+      if (!loginForm) {
+        // No login form and no PIN dialog = might be logged in
+        const pinDialog = await page.$('[role="dialog"], [class*="pinCode"]');
+        if (!pinDialog) {
+          // Check if we're on a page that requires login
+          const pageContent = await page.content();
+          if (pageContent.includes('chats') || pageContent.includes('friends') || pageContent.includes('messages')) {
+            this.logger.log(`[CheckLoggedIn] No login form, page content suggests logged in`);
+            return true;
+          }
+        }
+      }
+
       return false;
-    } catch {
+    } catch (e) {
+      this.logger.warn(`[CheckLoggedIn] Error checking login status: ${(e as Error).message}`);
       return false;
     }
   }
 
   /**
-   * Perform login
+   * Perform login (GSB-style - simple form submission)
    */
   private async performLogin(page: any, email: string, password: string): Promise<void> {
+    this.logger.log(`[Login] ========== STARTING LOGIN PROCESS ==========`);
     this.logger.log(`[Login] Waiting for email input field...`);
 
     try {
@@ -857,54 +895,211 @@ export class EnhancedAutomationService implements OnModuleDestroy {
       this.logger.error(`[Login] Email input not found: ${e.message}`);
       const currentUrl = page.url();
       this.logger.error(`[Login] Current URL: ${currentUrl}`);
+
+      // Take screenshot of current state for debugging
+      const pageContent = await page.content();
+      this.logger.error(`[Login] Page content length: ${pageContent.length}`);
+      this.logger.error(`[Login] Page contains 'email': ${pageContent.includes('email')}`);
+      this.logger.error(`[Login] Page contains 'login': ${pageContent.includes('login')}`);
       throw e;
     }
 
+    // Clear and enter email
+    this.logger.log(`[Login] Clicking email input...`);
     await page.click('input[name="email"]', { clickCount: 3 });
+    this.logger.log(`[Login] Typing email...`);
     await page.type('input[name="email"]', email, { delay: 50 });
     this.logger.log(`[Login] Entered email: ${email.substring(0, 3)}***`);
 
+    // Clear and enter password
+    this.logger.log(`[Login] Clicking password input...`);
     await page.click('input[name="password"]', { clickCount: 3 });
+    this.logger.log(`[Login] Typing password...`);
     await page.type('input[name="password"]', password, { delay: 50 });
-    this.logger.log(`[Login] Entered password (hidden)`);
+    this.logger.log(`[Login] Entered password: ***${password.length} chars`);
 
+    // Click login button
+    this.logger.log(`[Login] Looking for login button...`);
     const loginButton = await page.$('button[type="submit"]');
     if (loginButton) {
+      this.logger.log(`[Login] Found login button, clicking...`);
       await loginButton.click();
       this.logger.log(`[Login] Clicked login button`);
     } else {
-      this.logger.warn(`[Login] Login button not found!`);
+      // Try alternative selectors
+      this.logger.warn(`[Login] button[type="submit"] not found, trying alternatives...`);
+      const altSelectors = [
+        'button:contains("Log in")',
+        'button:contains("ล็อกอิน")',
+        'button:contains("Login")',
+        'input[type="submit"]',
+        'form button',
+      ];
+
+      let clicked = false;
+      for (const sel of altSelectors) {
+        try {
+          const altButton = await page.$(sel);
+          if (altButton) {
+            await altButton.click();
+            this.logger.log(`[Login] Clicked alternative button: ${sel}`);
+            clicked = true;
+            break;
+          }
+        } catch {
+          // Try next
+        }
+      }
+
+      if (!clicked) {
+        // Try form submit
+        try {
+          await page.evaluate(() => {
+            const form = document.querySelector('form');
+            if (form) form.submit();
+          });
+          this.logger.log(`[Login] Submitted form directly`);
+          clicked = true;
+        } catch {
+          // Ignore
+        }
+      }
+
+      if (!clicked) {
+        throw new Error('Login button not found');
+      }
     }
 
-    await this.delay(2000);
-    this.logger.log(`[Login] Login form submitted, waiting for PIN...`);
+    // GSB-style: Just wait a short time after clicking (don't wait for dialog)
+    this.logger.log(`[Login] Waiting 3 seconds for form submission...`);
+    await this.delay(3000);
+
+    // Log current state
+    const currentUrl = page.url();
+    this.logger.log(`[Login] Current URL after submit: ${currentUrl}`);
+
+    // Check for immediate errors
+    const errorDetected = await this.detectLoginError(page);
+    if (errorDetected) {
+      this.logger.error(`[Login] Error detected: ${errorDetected}`);
+      throw new Error(`Login failed: ${errorDetected}`);
+    }
+
+    this.logger.log(`[Login] ========== LOGIN FORM SUBMITTED, WAITING FOR PIN ==========`);
   }
 
   /**
-   * Wait for PIN code
+   * Detect login errors on page (GSB-style)
+   */
+  private async detectLoginError(page: any): Promise<string | null> {
+    try {
+      const errorMessage = await page.evaluate(() => {
+        // Check for error elements
+        const errorSelectors = [
+          '[class*="error"]',
+          '[class*="Error"]',
+          '[class*="alert-danger"]',
+          '[class*="alert-error"]',
+          '.error-message',
+          '[data-testid="error"]',
+        ];
+
+        for (const selector of errorSelectors) {
+          const element = document.querySelector(selector);
+          if (element && element.textContent) {
+            const text = element.textContent.trim();
+            if (text && text.length > 0 && text.length < 200) {
+              return text;
+            }
+          }
+        }
+
+        // Check for specific error text in body
+        const bodyText = document.body?.innerText || '';
+        const errorPatterns = [
+          /incorrect.*(password|email)/i,
+          /invalid.*(credentials|password|email)/i,
+          /login.*(failed|error)/i,
+          /รหัสผ่าน.*ไม่ถูกต้อง/i,
+          /อีเมล.*ไม่ถูกต้อง/i,
+          /เข้าสู่ระบบ.*ไม่สำเร็จ/i,
+        ];
+
+        for (const pattern of errorPatterns) {
+          const match = bodyText.match(pattern);
+          if (match) {
+            return match[0];
+          }
+        }
+
+        return null;
+      });
+
+      return errorMessage;
+    } catch {
+      return null;
+    }
+  }
+
+  /**
+   * Wait for PIN code (GSB-style with extended timeout and better selectors)
    */
   private async waitForPin(page: any, lineAccountId: string): Promise<string | null> {
     const startTime = Date.now();
     let checkCount = 0;
+    let lastUrl = '';
 
-    this.logger.log(`[PIN] Starting PIN detection for ${lineAccountId}, timeout: ${this.PIN_TIMEOUT}ms`);
+    this.logger.log(`[PIN] Starting PIN detection for ${lineAccountId}, timeout: ${this.PIN_TIMEOUT}ms (${this.PIN_TIMEOUT / 60000} minutes)`);
 
     while (Date.now() - startTime < this.PIN_TIMEOUT) {
       checkCount++;
       try {
-        // Log every 10 checks
+        // Log every 10 checks (approximately every 10 seconds)
         if (checkCount % 10 === 1) {
           const currentUrl = page.url();
-          this.logger.log(`[PIN] Check #${checkCount}, elapsed: ${Date.now() - startTime}ms, URL: ${currentUrl}`);
+          const elapsed = Math.floor((Date.now() - startTime) / 1000);
+          this.logger.log(`[PIN] Check #${checkCount}, elapsed: ${elapsed}s, URL: ${currentUrl}`);
+
+          // If URL changed, log it
+          if (currentUrl !== lastUrl) {
+            this.logger.log(`[PIN] URL changed: ${lastUrl} -> ${currentUrl}`);
+            lastUrl = currentUrl;
+          }
         }
 
+        // GSB-style PIN detection with multiple approaches
         const pinCode = await page.evaluate(() => {
+          // Priority 1: GSB's specific PIN selector
+          const gsbPinElement = document.querySelector('.pinCodeModal-module__pincode__bFKMn');
+          if (gsbPinElement) {
+            const text = gsbPinElement.textContent?.trim();
+            if (text && /^\d{6}$/.test(text)) {
+              return text;
+            }
+          }
+
+          // Priority 2: Dialog with PIN (GSB approach)
+          const dialog = document.querySelector('[role="dialog"]');
+          if (dialog) {
+            // Look for 6-digit number in dialog
+            const spans = dialog.querySelectorAll('span, div, p');
+            for (const span of spans) {
+              const text = span.textContent?.trim();
+              if (text && /^\d{6}$/.test(text)) {
+                return text;
+              }
+            }
+          }
+
+          // Priority 3: Various PIN class selectors
           const selectors = [
-            '.pinCodeModal-module__pincode__bFKMn',
             '[class*="pincode"]',
             '[class*="pinCode"]',
             '[class*="pin-code"]',
-            '[role="dialog"] span',
+            '[class*="PinCode"]',
+            '[class*="verification-code"]',
+            '[class*="verificationCode"]',
+            '[data-testid*="pin"]',
           ];
 
           for (const selector of selectors) {
@@ -917,13 +1112,29 @@ export class EnhancedAutomationService implements OnModuleDestroy {
             }
           }
 
-          // Regex patterns
+          // Priority 4: Look for large/styled numbers (PIN usually displayed prominently)
+          const allElements = document.querySelectorAll('*');
+          for (const el of allElements) {
+            if (el.children.length === 0) { // Leaf nodes only
+              const text = el.textContent?.trim();
+              if (text && /^\d{6}$/.test(text)) {
+                // Check if it's styled as PIN (larger font, centered, etc.)
+                const style = window.getComputedStyle(el);
+                const fontSize = parseFloat(style.fontSize);
+                if (fontSize >= 18) { // PIN usually displayed in larger font
+                  return text;
+                }
+              }
+            }
+          }
+
+          // Priority 5: Regex patterns on body text (last resort)
           const bodyText = document.body?.innerText || '';
           const patterns = [
             /PIN\s*[:：]?\s*(\d{6})/i,
-            /รหัส\s*[:：]?\s*(\d{6})/i,
+            /รหัส(?:ยืนยัน)?\s*[:：]?\s*(\d{6})/i,
+            /verification\s*code\s*[:：]?\s*(\d{6})/i,
             /code\s*[:：]?\s*(\d{6})/i,
-            /\b(\d{6})\b/,
           ];
 
           for (const pattern of patterns) {
@@ -937,34 +1148,94 @@ export class EnhancedAutomationService implements OnModuleDestroy {
         });
 
         if (pinCode) {
-          this.logger.log(`PIN detected for ${lineAccountId}: ${pinCode}`);
+          const elapsed = Math.floor((Date.now() - startTime) / 1000);
+          this.logger.log(`[PIN] PIN detected for ${lineAccountId}: ${pinCode} (after ${elapsed}s, ${checkCount} checks)`);
           return pinCode;
         }
-      } catch {
-        // Continue waiting
+
+        // Check for errors that might indicate login failed
+        if (checkCount % 30 === 0) { // Check every 30 seconds
+          const errorDetected = await this.detectLoginError(page);
+          if (errorDetected) {
+            this.logger.error(`[PIN] Login error detected: ${errorDetected}`);
+            throw new Error(`Login failed during PIN wait: ${errorDetected}`);
+          }
+        }
+      } catch (e: any) {
+        if (e.message.includes('Login failed')) {
+          throw e;
+        }
+        // Continue waiting for other errors
       }
 
       await this.delay(1000);
+    }
+
+    // Final check - log page state for debugging
+    try {
+      const finalUrl = page.url();
+      const pageTitle = await page.title();
+      this.logger.warn(`[PIN] PIN detection timed out after ${this.PIN_TIMEOUT / 1000}s`);
+      this.logger.warn(`[PIN] Final URL: ${finalUrl}`);
+      this.logger.warn(`[PIN] Page title: ${pageTitle}`);
+    } catch (e) {
+      // Ignore
     }
 
     return null;
   }
 
   /**
-   * Wait for login to complete
+   * Wait for login to complete (GSB-style with navigation wait)
+   * This waits for user to verify PIN on mobile app
    */
   private async waitForLoginComplete(page: any): Promise<boolean> {
     const startTime = Date.now();
+    let checkCount = 0;
 
+    this.logger.log(`[LoginComplete] Waiting for PIN verification (timeout: ${this.LOGIN_TIMEOUT / 60000} minutes)...`);
+
+    // GSB-style: Try to wait for navigation first
+    try {
+      this.logger.log(`[LoginComplete] Waiting for page navigation after PIN verification...`);
+      await page.waitForNavigation({
+        waitUntil: 'load',
+        timeout: this.LOGIN_TIMEOUT,
+      });
+      this.logger.log(`[LoginComplete] Navigation completed!`);
+
+      // After navigation, check if logged in
+      const isLoggedIn = await this.checkLoggedIn(page);
+      if (isLoggedIn) {
+        this.logger.log(`[LoginComplete] Successfully logged in after navigation`);
+        return true;
+      }
+    } catch (navError: any) {
+      // Navigation timeout - fall back to polling
+      this.logger.log(`[LoginComplete] Navigation wait ended, falling back to polling...`);
+    }
+
+    // Fallback: Poll for login completion
     while (Date.now() - startTime < this.LOGIN_TIMEOUT) {
+      checkCount++;
       try {
         const isLoggedIn = await this.checkLoggedIn(page);
-        if (isLoggedIn) return true;
+        if (isLoggedIn) {
+          this.logger.log(`[LoginComplete] Login verified on check #${checkCount}`);
+          return true;
+        }
 
-        const errorElement = await page.$('[class*="error"], [class*="alert-danger"]');
-        if (errorElement) {
-          const errorText = await page.evaluate((el: Element) => el.textContent, errorElement);
-          throw new Error(`Login error: ${errorText}`);
+        // Check for errors
+        const errorDetected = await this.detectLoginError(page);
+        if (errorDetected) {
+          throw new Error(`Login error: ${errorDetected}`);
+        }
+
+        // Log progress every 15 seconds
+        if (checkCount % 8 === 0) {
+          const elapsed = Math.floor((Date.now() - startTime) / 1000);
+          const currentUrl = page.url();
+          this.logger.log(`[LoginComplete] Still waiting... ${elapsed}s elapsed, URL: ${currentUrl}`);
         }
       } catch (e: any) {
         if (e.message.includes('Login error')) throw e;
@@ -973,6 +1244,7 @@ export class EnhancedAutomationService implements OnModuleDestroy {
       await this.delay(2000);
     }
 
+    this.logger.warn(`[LoginComplete] Timed out waiting for login verification`);
     return false;
   }
 
