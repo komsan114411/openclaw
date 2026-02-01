@@ -85,9 +85,21 @@ export class EnhancedAutomationService implements OnModuleDestroy {
   }
 
   /**
+   * Check if running in headless mode (extension-based login won't work)
+   */
+  private isHeadlessMode(): boolean {
+    const headlessEnv = process.env.PUPPETEER_HEADLESS;
+    return headlessEnv === 'true' || headlessEnv === '1' || headlessEnv === 'new';
+  }
+
+  /**
    * Check if enhanced automation is available
    */
   isAvailable(): boolean {
+    // Extension-based login doesn't work in headless mode
+    if (this.isHeadlessMode()) {
+      return false;
+    }
     return this.workerPoolService.isPoolAvailable();
   }
 
@@ -167,7 +179,17 @@ export class EnhancedAutomationService implements OnModuleDestroy {
     password?: string,
     source: 'manual' | 'auto' | 'relogin' = 'manual',
   ): Promise<EnhancedLoginResult> {
-    // Step 0: Acquire global lock (prevent concurrent login from different services)
+    // Step 0: Check if headless mode (extension-based login won't work)
+    if (this.isHeadlessMode()) {
+      this.logger.warn(`Automated login not available in headless mode for ${lineAccountId}`);
+      return {
+        success: false,
+        status: EnhancedLoginStatus.FAILED,
+        error: 'Automated login is not available in production (headless mode). Please use manual key entry: copy X-Line-Access and X-Hmac headers from browser DevTools.',
+      };
+    }
+
+    // Step 0b: Acquire global lock (prevent concurrent login from different services)
     const lockAcquired = this.loginLockService.acquireLock(lineAccountId, 'enhanced');
     if (!lockAcquired) {
       const lockInfo = this.loginLockService.getLockInfo(lineAccountId);

@@ -84,6 +84,12 @@ export class ReloginSchedulerService implements OnModuleInit {
     lineAccountId: string;
     consecutiveFailures: number;
   }): Promise<void> {
+    // Skip invalid lineAccountId
+    if (!payload.lineAccountId || payload.lineAccountId === 'undefined') {
+      this.logger.warn('Skipping unhealthy session with invalid lineAccountId');
+      return;
+    }
+
     if (payload.consecutiveFailures >= 3) {
       this.logger.log(
         `Session unhealthy for ${payload.lineAccountId} (${payload.consecutiveFailures} failures), scheduling relogin`,
@@ -125,6 +131,12 @@ export class ReloginSchedulerService implements OnModuleInit {
    * เพิ่ม job เข้า queue
    */
   addToQueue(job: ReloginJob): void {
+    // Skip invalid lineAccountId
+    if (!job.lineAccountId || job.lineAccountId === 'undefined') {
+      this.logger.warn('Skipping relogin job with invalid lineAccountId');
+      return;
+    }
+
     // Check if already queued
     const existingIndex = this.reloginQueue.findIndex(
       (j) => j.lineAccountId === job.lineAccountId,
