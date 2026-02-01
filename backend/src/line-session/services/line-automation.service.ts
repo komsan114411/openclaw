@@ -163,6 +163,7 @@ export class LineAutomationService implements OnModuleDestroy, OnModuleInit {
 
   /**
    * Save LINE credentials
+   * Note: lineAccountId can be either session _id or actual LINE Account ID
    */
   async saveCredentials(
     lineAccountId: string,
@@ -171,19 +172,24 @@ export class LineAutomationService implements OnModuleDestroy, OnModuleInit {
   ): Promise<void> {
     const encryptedPassword = this.encryptPasswordValue(password);
 
-    // Check if session exists first - do NOT create new session automatically
-    const existingSession = await this.lineSessionModel.findOne({
-      lineAccountId,
-      isActive: true,
-    });
+    // Check if session exists first - try by _id first, then by lineAccountId field
+    let existingSession = await this.lineSessionModel.findById(lineAccountId);
+    
+    if (!existingSession) {
+      existingSession = await this.lineSessionModel.findOne({
+        lineAccountId,
+        isActive: true,
+      });
+    }
 
     if (!existingSession) {
       this.logger.warn(`Cannot save credentials: session not found for ${lineAccountId}`);
       return;
     }
 
+    // Update using the found session's _id to ensure correct document is updated
     await this.lineSessionModel.updateOne(
-      { lineAccountId, isActive: true },
+      { _id: existingSession._id },
       {
         $set: {
           lineEmail: email,
@@ -197,13 +203,19 @@ export class LineAutomationService implements OnModuleDestroy, OnModuleInit {
 
   /**
    * Get credentials
+   * Note: lineAccountId can be either session _id or actual LINE Account ID
    */
   async getCredentials(lineAccountId: string): Promise<{ email: string; password: string } | null> {
-    const session = await this.lineSessionModel.findOne({
-      lineAccountId,
-      isActive: true,
-      lineEmail: { $exists: true, $ne: null },
-    });
+    // Try by _id first, then by lineAccountId field
+    let session = await this.lineSessionModel.findById(lineAccountId);
+    
+    if (!session) {
+      session = await this.lineSessionModel.findOne({
+        lineAccountId,
+        isActive: true,
+        lineEmail: { $exists: true, $ne: null },
+      });
+    }
 
     if (!session?.lineEmail || !session?.linePassword) {
       return null;
