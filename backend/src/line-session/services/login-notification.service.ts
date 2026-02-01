@@ -39,8 +39,7 @@ export class LoginNotificationService {
     // Build user-friendly message
     const message = this.getStatusMessage(payload.status, payload.pinCode, payload.error);
 
-    // Broadcast to all admins
-    this.websocketGateway.broadcastToAdmins('line-session:login-status', {
+    const eventData = {
       type: 'login_status',
       lineAccountId: payload.lineAccountId,
       status: payload.status,
@@ -49,19 +48,16 @@ export class LoginNotificationService {
       error: payload.error,
       requestId: payload.requestId,
       timestamp: payload.timestamp,
-    });
+    };
 
-    // Also broadcast to the specific line account channel
-    this.websocketGateway.broadcastToRoom(`line-account:${payload.lineAccountId}`, 'line-session:login-status', {
-      type: 'login_status',
-      lineAccountId: payload.lineAccountId,
-      status: payload.status,
-      message,
-      pinCode: payload.pinCode,
-      error: payload.error,
-      requestId: payload.requestId,
-      timestamp: payload.timestamp,
-    });
+    // Broadcast to all admins (requires verified session)
+    this.websocketGateway.broadcastToAdmins('line-session:login-status', eventData);
+
+    // Also broadcast to the specific line account channel (can subscribe without verification)
+    this.websocketGateway.broadcastToRoom(`line-account:${payload.lineAccountId}`, 'line-session:login-status', eventData);
+
+    // Broadcast to login-notifications channel (public channel for login updates)
+    this.websocketGateway.broadcastToRoom('login-notifications', 'line-session:login-status', eventData);
   }
 
   /**
@@ -75,14 +71,16 @@ export class LoginNotificationService {
   }) {
     this.logger.log(`Login requested: ${payload.lineAccountId} (${payload.source})`);
 
-    this.websocketGateway.broadcastToAdmins('line-session:login-event', {
+    const eventData = {
       type: 'login_requested',
       lineAccountId: payload.lineAccountId,
       source: payload.source,
       requestId: payload.requestId,
       message: 'Login request received',
       timestamp: new Date(),
-    });
+    };
+    this.websocketGateway.broadcastToAdmins('line-session:login-event', eventData);
+    this.websocketGateway.broadcastToRoom('login-notifications', 'line-session:login-event', eventData);
   }
 
   /**
@@ -95,13 +93,15 @@ export class LoginNotificationService {
   }) {
     this.logger.log(`Login started: ${payload.lineAccountId}`);
 
-    this.websocketGateway.broadcastToAdmins('line-session:login-event', {
+    const eventData = {
       type: 'login_started',
       lineAccountId: payload.lineAccountId,
       requestId: payload.requestId,
       message: 'Login process started',
       timestamp: new Date(),
-    });
+    };
+    this.websocketGateway.broadcastToAdmins('line-session:login-event', eventData);
+    this.websocketGateway.broadcastToRoom('login-notifications', 'line-session:login-event', eventData);
   }
 
   /**
@@ -114,14 +114,16 @@ export class LoginNotificationService {
   }) {
     this.logger.log(`Login completed: ${payload.lineAccountId}`);
 
-    this.websocketGateway.broadcastToAdmins('line-session:login-event', {
+    const eventData = {
       type: 'login_completed',
       lineAccountId: payload.lineAccountId,
       requestId: payload.requestId,
       message: 'Login successful! Keys captured.',
       success: true,
       timestamp: new Date(),
-    });
+    };
+    this.websocketGateway.broadcastToAdmins('line-session:login-event', eventData);
+    this.websocketGateway.broadcastToRoom('login-notifications', 'line-session:login-event', eventData);
   }
 
   /**
@@ -140,7 +142,7 @@ export class LoginNotificationService {
       ? Math.ceil(payload.nextCooldownMs / 1000)
       : null;
 
-    this.websocketGateway.broadcastToAdmins('line-session:login-event', {
+    const eventData = {
       type: 'login_failed',
       lineAccountId: payload.lineAccountId,
       requestId: payload.requestId,
@@ -149,7 +151,9 @@ export class LoginNotificationService {
       success: false,
       nextRetryIn,
       timestamp: new Date(),
-    });
+    };
+    this.websocketGateway.broadcastToAdmins('line-session:login-event', eventData);
+    this.websocketGateway.broadcastToRoom('login-notifications', 'line-session:login-event', eventData);
   }
 
   /**
@@ -159,12 +163,14 @@ export class LoginNotificationService {
   handleLoginCancelled(payload: { lineAccountId: string }) {
     this.logger.log(`Login cancelled: ${payload.lineAccountId}`);
 
-    this.websocketGateway.broadcastToAdmins('line-session:login-event', {
+    const eventData = {
       type: 'login_cancelled',
       lineAccountId: payload.lineAccountId,
       message: 'Login was cancelled',
       timestamp: new Date(),
-    });
+    };
+    this.websocketGateway.broadcastToAdmins('line-session:login-event', eventData);
+    this.websocketGateway.broadcastToRoom('login-notifications', 'line-session:login-event', eventData);
   }
 
   /**
@@ -193,7 +199,7 @@ export class LoginNotificationService {
 
     this.logger.log(`Worker state: ${payload.lineAccountId} -> ${payload.state}`);
 
-    this.websocketGateway.broadcastToAdmins('line-session:worker-state', {
+    const eventData = {
       type: 'worker_state',
       lineAccountId: payload.lineAccountId,
       state: payload.state,
@@ -202,7 +208,9 @@ export class LoginNotificationService {
       hasChatMid: payload.hasChatMid,
       error: payload.error,
       timestamp: new Date(),
-    });
+    };
+    this.websocketGateway.broadcastToAdmins('line-session:worker-state', eventData);
+    this.websocketGateway.broadcastToRoom('login-notifications', 'line-session:worker-state', eventData);
   }
 
   /**

@@ -86,6 +86,29 @@ export function useLoginNotifications(options: UseLoginNotificationsOptions = {}
     pinCode: null,
   });
 
+  // Use refs for callbacks and lineAccountId to avoid reconnecting on every render
+  const onStatusChangeRef = useRef(onStatusChange);
+  const onLoginEventRef = useRef(onLoginEvent);
+  const onWorkerStateRef = useRef(onWorkerState);
+  const lineAccountIdRef = useRef(lineAccountId);
+
+  // Keep refs updated
+  useEffect(() => {
+    onStatusChangeRef.current = onStatusChange;
+  }, [onStatusChange]);
+
+  useEffect(() => {
+    onLoginEventRef.current = onLoginEvent;
+  }, [onLoginEvent]);
+
+  useEffect(() => {
+    onWorkerStateRef.current = onWorkerState;
+  }, [onWorkerState]);
+
+  useEffect(() => {
+    lineAccountIdRef.current = lineAccountId;
+  }, [lineAccountId]);
+
   // Status message Thai translations
   const getStatusMessage = useCallback((status: LoginStatusType, message?: string): string => {
     const translations: Record<LoginStatusType, string> = {
@@ -126,12 +149,16 @@ export function useLoginNotifications(options: UseLoginNotificationsOptions = {}
       console.log('[LoginNotifications] Connected:', socket.id);
       setState(prev => ({ ...prev, isConnected: true }));
 
-      // Join admin room to receive notifications
+      // Join admin room to receive notifications (may fail without session)
       socket.emit('join', { userId: 'admin', role: 'admin' });
 
+      // Subscribe to login-notifications channel (public channel)
+      socket.emit('subscribe', { channel: 'login-notifications' });
+
       // Subscribe to specific line account if provided
-      if (lineAccountId) {
-        socket.emit('subscribe', { channel: `line-account:${lineAccountId}` });
+      const currentAccountId = lineAccountIdRef.current;
+      if (currentAccountId) {
+        socket.emit('subscribe', { channel: `line-account:${currentAccountId}` });
       }
     });
 
@@ -144,8 +171,9 @@ export function useLoginNotifications(options: UseLoginNotificationsOptions = {}
     socket.on('line-session:login-status', (data: LoginStatusEvent) => {
       console.log('[LoginNotifications] Status:', data);
 
-      // Filter by lineAccountId if specified
-      if (lineAccountId && data.lineAccountId !== lineAccountId) {
+      // Filter by lineAccountId if specified (using ref for stable reference)
+      const currentAccountId = lineAccountIdRef.current;
+      if (currentAccountId && data.lineAccountId !== currentAccountId) {
         return;
       }
 
@@ -157,30 +185,31 @@ export function useLoginNotifications(options: UseLoginNotificationsOptions = {}
 
       // Show toast notification
       if (showToasts) {
-        const thaiMessage = getStatusMessage(data.status, data.message);
-
         if (data.status === 'pin_displayed' && data.pinCode) {
           toast.success(`PIN: ${data.pinCode}`, {
             duration: 60000,
             icon: '🔑',
           });
         } else if (data.status === 'success') {
-          toast.success(thaiMessage, { icon: '✅' });
+          toast.success('Login สำเร็จ!', { icon: '✅' });
         } else if (data.status === 'failed') {
-          toast.error(thaiMessage, { icon: '❌' });
+          toast.error(data.error || 'Login ล้มเหลว', { icon: '❌' });
         } else if (data.status === 'cooldown') {
-          toast(thaiMessage, { icon: '⏳' });
+          toast('กำลังรอ Cooldown...', { icon: '⏳' });
         }
       }
 
-      onStatusChange?.(data);
+      // Call callback via ref (stable reference)
+      onStatusChangeRef.current?.(data);
     });
 
     // Handle login events
     socket.on('line-session:login-event', (data: LoginEvent) => {
       console.log('[LoginNotifications] Event:', data);
 
-      if (lineAccountId && data.lineAccountId !== lineAccountId) {
+      // Filter by lineAccountId if specified
+      const currentAccountId = lineAccountIdRef.current;
+      if (currentAccountId && data.lineAccountId !== currentAccountId) {
         return;
       }
 
@@ -200,14 +229,17 @@ export function useLoginNotifications(options: UseLoginNotificationsOptions = {}
         }
       }
 
-      onLoginEvent?.(data);
+      // Call callback via ref (stable reference)
+      onLoginEventRef.current?.(data);
     });
 
     // Handle worker state changes
     socket.on('line-session:worker-state', (data: WorkerStateEvent) => {
       console.log('[LoginNotifications] Worker state:', data);
 
-      if (lineAccountId && data.lineAccountId !== lineAccountId) {
+      // Filter by lineAccountId if specified
+      const currentAccountId = lineAccountIdRef.current;
+      if (currentAccountId && data.lineAccountId !== currentAccountId) {
         return;
       }
 
@@ -215,7 +247,8 @@ export function useLoginNotifications(options: UseLoginNotificationsOptions = {}
         setState(prev => ({ ...prev, pinCode: data.pinCode || null }));
       }
 
-      onWorkerState?.(data);
+      // Call callback via ref (stable reference)
+      onWorkerStateRef.current?.(data);
     });
 
     return () => {
@@ -224,7 +257,7 @@ export function useLoginNotifications(options: UseLoginNotificationsOptions = {}
       socket.off('line-session:worker-state');
       socket.disconnect();
     };
-  }, [autoConnect, lineAccountId, showToasts, getStatusMessage, onStatusChange, onLoginEvent, onWorkerState]);
+  }, [autoConnect, showToasts]);
 
   // Subscribe to specific account
   const subscribeToAccount = useCallback((accountId: string) => {
