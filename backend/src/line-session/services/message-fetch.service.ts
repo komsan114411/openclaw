@@ -51,11 +51,32 @@ export class MessageFetchService {
     private eventBusService: EventBusService,
   ) {}
 
+  // Flag to enable/disable automatic message fetch
+  private autoMessageFetchEnabled = false; // Disabled by default
+
+  /**
+   * Enable/Disable automatic message fetch
+   */
+  setAutoMessageFetchEnabled(enabled: boolean): void {
+    this.autoMessageFetchEnabled = enabled;
+    this.logger.log(`Auto message fetch ${enabled ? 'enabled' : 'disabled'}`);
+  }
+
+  isAutoMessageFetchEnabled(): boolean {
+    return this.autoMessageFetchEnabled;
+  }
+
   /**
    * Cron Job: ดึงข้อความทุก 2 นาที
+   * ปิดโดย default - ต้องเปิดผ่าน API
    */
   @Cron('*/2 * * * *')
   async scheduledMessageFetch(): Promise<void> {
+    // Skip if auto message fetch is disabled
+    if (!this.autoMessageFetchEnabled) {
+      return;
+    }
+
     this.logger.debug('Running scheduled message fetch...');
 
     const activeSessions = await this.lineSessionModel.find({

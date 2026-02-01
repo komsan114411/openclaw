@@ -37,11 +37,32 @@ export class SessionHealthService {
     private eventBusService: EventBusService,
   ) {}
 
+  // Flag to enable/disable automatic health check
+  private autoHealthCheckEnabled = false; // Disabled by default
+
+  /**
+   * Enable/Disable automatic health check
+   */
+  setAutoHealthCheckEnabled(enabled: boolean): void {
+    this.autoHealthCheckEnabled = enabled;
+    this.logger.log(`Auto health check ${enabled ? 'enabled' : 'disabled'}`);
+  }
+
+  isAutoHealthCheckEnabled(): boolean {
+    return this.autoHealthCheckEnabled;
+  }
+
   /**
    * Cron Job: ตรวจสอบ health ทุก 1 นาที
+   * ปิดโดย default - ต้องเปิดผ่าน API
    */
   @Cron(CronExpression.EVERY_MINUTE)
   async scheduledHealthCheck(): Promise<void> {
+    // Skip if auto health check is disabled
+    if (!this.autoHealthCheckEnabled) {
+      return;
+    }
+
     if (this.isChecking) {
       this.logger.debug('Health check already in progress, skipping...');
       return;

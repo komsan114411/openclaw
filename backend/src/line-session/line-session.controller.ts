@@ -402,6 +402,97 @@ export class LineSessionController {
   }
 
   // ================================
+  // AUTOMATION CONTROL (All Services)
+  // ================================
+
+  /**
+   * Get status of all automated processes
+   */
+  @Get('automation/all-status')
+  @ApiOperation({ summary: 'Get status of all automated processes' })
+  async getAllAutomationStatus() {
+    return {
+      success: true,
+      automation: {
+        autoRelogin: this.reloginSchedulerService.isAutoReloginEnabled(),
+        autoHealthCheck: this.sessionHealthService.isAutoHealthCheckEnabled(),
+        autoMessageFetch: this.messageFetchService.isAutoMessageFetchEnabled(),
+      },
+      message: 'All automated processes are disabled by default. Enable only when needed.',
+    };
+  }
+
+  /**
+   * Enable all automated processes
+   */
+  @Post('automation/enable-all')
+  @ApiOperation({ summary: 'Enable all automated processes' })
+  async enableAllAutomation() {
+    this.reloginSchedulerService.setAutoReloginEnabled(true);
+    this.sessionHealthService.setAutoHealthCheckEnabled(true);
+    this.messageFetchService.setAutoMessageFetchEnabled(true);
+    return {
+      success: true,
+      message: 'All automated processes enabled',
+      automation: {
+        autoRelogin: true,
+        autoHealthCheck: true,
+        autoMessageFetch: true,
+      },
+    };
+  }
+
+  /**
+   * Disable all automated processes
+   */
+  @Post('automation/disable-all')
+  @ApiOperation({ summary: 'Disable all automated processes' })
+  async disableAllAutomation() {
+    this.reloginSchedulerService.setAutoReloginEnabled(false);
+    this.sessionHealthService.setAutoHealthCheckEnabled(false);
+    this.messageFetchService.setAutoMessageFetchEnabled(false);
+    return {
+      success: true,
+      message: 'All automated processes disabled',
+      automation: {
+        autoRelogin: false,
+        autoHealthCheck: false,
+        autoMessageFetch: false,
+      },
+    };
+  }
+
+  /**
+   * Enable/Disable auto health check
+   */
+  @Post('automation/health-check/:enabled')
+  @ApiOperation({ summary: 'Enable/Disable auto health check' })
+  async setAutoHealthCheck(@Param('enabled') enabled: string) {
+    const isEnabled = enabled === 'true' || enabled === '1';
+    this.sessionHealthService.setAutoHealthCheckEnabled(isEnabled);
+    return {
+      success: true,
+      message: `Auto health check ${isEnabled ? 'enabled' : 'disabled'}`,
+      autoHealthCheck: isEnabled,
+    };
+  }
+
+  /**
+   * Enable/Disable auto message fetch
+   */
+  @Post('automation/message-fetch/:enabled')
+  @ApiOperation({ summary: 'Enable/Disable auto message fetch' })
+  async setAutoMessageFetch(@Param('enabled') enabled: string) {
+    const isEnabled = enabled === 'true' || enabled === '1';
+    this.messageFetchService.setAutoMessageFetchEnabled(isEnabled);
+    return {
+      success: true,
+      message: `Auto message fetch ${isEnabled ? 'enabled' : 'disabled'}`,
+      autoMessageFetch: isEnabled,
+    };
+  }
+
+  // ================================
   // AUTO LOGIN (Puppeteer)
   // ================================
 
