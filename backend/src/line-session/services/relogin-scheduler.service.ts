@@ -5,7 +5,7 @@ import { Cron } from '@nestjs/schedule';
 import { LineSession, LineSessionDocument } from '../schemas/line-session.schema';
 import { KeyStorageService } from './key-storage.service';
 import { EventBusService } from '../../core/events';
-import { LineAutomationService, LoginStatus } from './line-automation.service';
+import { EnhancedAutomationService, EnhancedLoginStatus } from './enhanced-automation.service';
 
 export interface ReloginJob {
   lineAccountId: string;
@@ -25,13 +25,16 @@ export class ReloginSchedulerService implements OnModuleInit {
   private readonly MAX_CONCURRENT_RELOGINS = 1;
   private readonly RELOGIN_COOLDOWN_MS = 60000; // 1 minute between relogins
 
+  // Flag to enable/disable auto-relogin globally
+  private autoReloginEnabled = false; // Disabled by default - must be enabled manually
+
   constructor(
     @InjectModel(LineSession.name)
     private lineSessionModel: Model<LineSessionDocument>,
     private keyStorageService: KeyStorageService,
     private eventBusService: EventBusService,
-    @Inject(forwardRef(() => LineAutomationService))
-    private lineAutomationService: LineAutomationService,
+    @Inject(forwardRef(() => EnhancedAutomationService))
+    private enhancedAutomationService: EnhancedAutomationService,
   ) {}
 
   /**
@@ -56,12 +59,34 @@ export class ReloginSchedulerService implements OnModuleInit {
 
   /**
    * Cron Job: ตรวจสอบและ relogin ทุก 5 นาที
+   * จะทำงานเฉพาะเมื่อ autoReloginEnabled = true
    */
   @Cron('*/5 * * * *')
   async scheduledReloginCheck(): Promise<void> {
+    // Skip if auto-relogin is disabled
+    if (!this.autoReloginEnabled) {
+      this.logger.debug('Auto-relogin is disabled, skipping scheduled check');
+      return;
+    }
+
     this.logger.debug('Running scheduled relogin check...');
     await this.checkAndScheduleRelogins();
     await this.processReloginQueue();
+  }
+
+  /**
+   * Enable/Disable auto-relogin globally
+   */
+  setAutoReloginEnabled(enabled: boolean): void {
+    this.autoReloginEnabled = enabled;
+    this.logger.log(`Auto-relogin ${enabled ? 'enabled' : 'disabled'}`);
+  }
+
+  /**
+   * Get auto-relogin status
+   */
+  isAutoReloginEnabled(): boolean {
+    return this.autoReloginEnabled;
   }
 
   /**
@@ -211,7 +236,7 @@ export class ReloginSchedulerService implements OnModuleInit {
 
   /**
    * Execute relogin สำหรับ LINE Account
-   * ใช้ LineAutomationService สำหรับ Puppeteer login
+   * ใช้ EnhancedAutomationService สำหรับ Puppeteer login
    */
   private async executeRelogin(job: ReloginJob): Promise<void> {
     this.logger.log(`Executing relogin for ${job.lineAccountId}, reason: ${job.reason}`);
@@ -223,29 +248,13 @@ export class ReloginSchedulerService implements OnModuleInit {
     );
 
     try {
-      // Check if automation is available
-      if (!this.lineAutomationService.isAutomationAvailable()) {
-        this.logger.warn('Puppeteer not available, cannot auto-relogin');
+      // Get session to check for credentials
+      const session = await this.lineSessionModel.findOne({
+        lineAccountId: job.lineAccountId,
+        isActive: true,
+      });
 
-        // Emit event for manual handling
-        this.eventBusService.publish({
-          eventName: 'line-session.relogin-requested' as any,
-          occurredAt: new Date(),
-          lineAccountId: job.lineAccountId,
-          reason: job.reason,
-          message: 'Puppeteer not available - manual login required',
-        });
-
-        await this.lineSessionModel.updateOne(
-          { lineAccountId: job.lineAccountId, isActive: true },
-          { status: 'pending_relogin' },
-        );
-        return;
-      }
-
-      // Check if credentials are saved
-      const credentials = await this.lineAutomationService.getCredentials(job.lineAccountId);
-      if (!credentials) {
+      if (!session || !session.lineEmail || !session.linePassword) {
         this.logger.warn(`No credentials found for ${job.lineAccountId}, cannot auto-relogin`);
 
         this.eventBusService.publish({
@@ -263,9 +272,14 @@ export class ReloginSchedulerService implements OnModuleInit {
         return;
       }
 
-      // Execute auto login
-      this.logger.log(`Starting auto-login for ${job.lineAccountId}`);
-      const result = await this.lineAutomationService.startLogin(job.lineAccountId);
+      // Execute auto login using enhanced service
+      this.logger.log(`Starting auto-relogin for ${job.lineAccountId}`);
+      const result = await this.enhancedAutomationService.startLogin(
+        job.lineAccountId,
+        undefined, // Use saved credentials
+        undefined,
+        'relogin',
+      );
 
       if (result.success) {
         this.logger.log(`Auto-relogin successful for ${job.lineAccountId}`);
@@ -278,7 +292,7 @@ export class ReloginSchedulerService implements OnModuleInit {
             consecutiveFailures: 0,
           },
         );
-      } else if (result.status === LoginStatus.PIN_DISPLAYED && result.pinCode) {
+      } else if (result.status === EnhancedLoginStatus.PIN_DISPLAYED && result.pinCode) {
         // PIN displayed - waiting for user verification
         this.logger.log(`PIN displayed for ${job.lineAccountId}: ${result.pinCode}`);
 

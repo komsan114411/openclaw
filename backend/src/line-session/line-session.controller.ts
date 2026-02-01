@@ -361,6 +361,46 @@ export class LineSessionController {
     };
   }
 
+  /**
+   * Get auto-relogin status
+   */
+  @Get('relogin/auto-status')
+  @ApiOperation({ summary: 'Get auto-relogin enabled status' })
+  async getAutoReloginStatus() {
+    return {
+      success: true,
+      autoReloginEnabled: this.reloginSchedulerService.isAutoReloginEnabled(),
+    };
+  }
+
+  /**
+   * Enable auto-relogin
+   */
+  @Post('relogin/enable')
+  @ApiOperation({ summary: 'Enable auto-relogin scheduler' })
+  async enableAutoRelogin() {
+    this.reloginSchedulerService.setAutoReloginEnabled(true);
+    return {
+      success: true,
+      message: 'Auto-relogin enabled',
+      autoReloginEnabled: true,
+    };
+  }
+
+  /**
+   * Disable auto-relogin
+   */
+  @Post('relogin/disable')
+  @ApiOperation({ summary: 'Disable auto-relogin scheduler' })
+  async disableAutoRelogin() {
+    this.reloginSchedulerService.setAutoReloginEnabled(false);
+    return {
+      success: true,
+      message: 'Auto-relogin disabled',
+      autoReloginEnabled: false,
+    };
+  }
+
   // ================================
   // AUTO LOGIN (Puppeteer)
   // ================================
