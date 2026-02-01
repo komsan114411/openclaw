@@ -319,11 +319,15 @@ export class EnhancedAutomationService implements OnModuleDestroy {
       const pinCode = await this.waitForPin(worker.page, lineAccountId);
 
       if (pinCode) {
+        this.logger.log(`PIN ${pinCode} detected, returning to frontend immediately for ${lineAccountId}`);
+
+        // Update worker state with PIN
         this.workerPoolService.updateWorkerState(lineAccountId, WorkerState.WAITING_PIN, { pinCode });
+
+        // Emit PIN_DISPLAYED status event for WebSocket clients
         this.emitStatus(lineAccountId, EnhancedLoginStatus.PIN_DISPLAYED, { requestId, pinCode });
 
-        // Return immediately with PIN - continue processing in background
-        // This allows the frontend to show the PIN while waiting for user verification
+        // Continue login verification in background (non-blocking)
         this.continueLoginInBackground(
           worker,
           keyCapturedPromise,
@@ -333,13 +337,15 @@ export class EnhancedAutomationService implements OnModuleDestroy {
         );
 
         // Return PIN immediately so frontend can display it
-        return {
+        const result = {
           success: false, // Not complete yet, but PIN is available
           status: EnhancedLoginStatus.PIN_DISPLAYED,
           requestId,
           pinCode,
           message: 'PIN displayed. Please verify on your LINE mobile app.',
         };
+        this.logger.log(`Returning PIN response: ${JSON.stringify(result)}`);
+        return result;
       }
 
       throw new Error('Login failed or timed out - no PIN detected');

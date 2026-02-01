@@ -762,6 +762,9 @@ export default function AdminLineAccountsPage() {
 
       const data = res.data;
 
+      // Debug: Log the response data
+      console.log('[handleStartLogin] API Response:', JSON.stringify(data, null, 2));
+
       // Handle cooldown
       if (data.status === 'cooldown') {
         const seconds = Math.ceil((data.cooldownRemainingMs || 0) / 1000);
@@ -799,7 +802,8 @@ export default function AdminLineAccountsPage() {
         await fetchSessionData(selectedAccount._id);
         await fetchBankData(selectedAccount._id);
       } else if (data.pinCode) {
-        toast(`PIN Code: ${data.pinCode} - Please verify on your mobile device`);
+        console.log('[handleStartLogin] PIN received:', data.pinCode);
+        toast.success(`PIN: ${data.pinCode}`, { duration: 60000, icon: '🔑' });
         // WebSocket will handle real-time updates
         // Fall back to polling if WebSocket is not connected
         if (!loginNotifications.isConnected) {
