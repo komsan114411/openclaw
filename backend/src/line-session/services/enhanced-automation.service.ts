@@ -28,6 +28,46 @@ export enum EnhancedLoginStatus {
   COOLDOWN = 'cooldown',
 }
 
+/**
+ * PIN Status Types (ported from GSB)
+ * FRESH: < 1 minute - ใหม่มาก
+ * NEW: 1-5 minutes - ยังใช้ได้
+ * OLD: >= 5 minutes - หมดอายุ
+ */
+export enum PinStatus {
+  FRESH = 'FRESH',     // < 1 minute - ใหม่มาก
+  NEW = 'NEW',         // 1-5 minutes - ยังใช้ได้
+  OLD = 'OLD',         // >= 5 minutes - หมดอายุ
+  NO_PIN = 'NO_PIN',   // ไม่มี PIN
+}
+
+/**
+ * Keys Status Types (ported from GSB)
+ */
+export enum KeysStatus {
+  UNKNOWN = 'UNKNOWN',
+  VALID = 'VALID',
+  EXPIRED = 'EXPIRED',
+  EXPIRING_SOON = 'EXPIRING_SOON',
+}
+
+/**
+ * PIN Status Result Interface (ported from GSB)
+ */
+export interface PinStatusResult {
+  pinCode: string | null;
+  status: PinStatus;
+  createdAt: Date | null;
+  updatedAt: Date | null;
+  ageMinutes: number;
+  ageSeconds: number;
+  expiresIn: number;  // seconds until expiry
+  isFresh: boolean;   // < 1 minute
+  isNew: boolean;     // 1-5 minutes
+  isUsable: boolean;  // < 5 minutes
+  recommendation: string;
+}
+
 export interface EnhancedLoginResult {
   success: boolean;
   status: EnhancedLoginStatus;
@@ -67,6 +107,15 @@ export class EnhancedAutomationService implements OnModuleDestroy {
   private readonly PIN_TIMEOUT = 90000; // 90 seconds
   private readonly MESSAGE_TRIGGER_ATTEMPTS = 6;
   private readonly ATTEMPT_DELAY = 4000; // 4 seconds between attempts
+
+  // PIN Status Configuration (ported from GSB)
+  private readonly PIN_EXPIRY_MINUTES = 5;      // PIN expires after 5 minutes
+  private readonly PIN_FRESH_MINUTES = 1;       // PIN is "fresh" for 1 minute
+  private readonly KEYS_EXPIRY_MINUTES = 30;    // Keys expire after 30 minutes
+  private readonly KEYS_WARNING_MINUTES = 5;    // Warn 5 minutes before expiry
+
+  // In-memory PIN storage (for real-time tracking like GSB)
+  private pinStore: Map<string, { pinCode: string; createdAt: Date; updatedAt: Date }> = new Map();
 
   // Encryption
   private readonly ENCRYPTION_KEY: string;
@@ -365,6 +414,9 @@ export class EnhancedAutomationService implements OnModuleDestroy {
 
       if (pinCode) {
         this.logger.log(`PIN ${pinCode} detected, returning to frontend immediately for ${lineAccountId}`);
+
+        // Store PIN with timestamp for status tracking (GSB-style)
+        this.storePin(lineAccountId, pinCode);
 
         // Update worker state with PIN
         this.workerPoolService.updateWorkerState(lineAccountId, WorkerState.WAITING_PIN, { pinCode });
@@ -956,14 +1008,28 @@ export class EnhancedAutomationService implements OnModuleDestroy {
       }
     }
 
+    // Get PIN status with GSB-style tracking
+    const pinStatus = this.getPinStatus(lineAccountId);
+
     return {
       success: true,
       // Frontend-expected format
       status,
-      pin,
+      pin: pin || pinStatus.pinCode,
       message,
       error,
       stage: status,
+      // GSB-style PIN status
+      pinStatus: {
+        status: pinStatus.status,
+        ageMinutes: pinStatus.ageMinutes,
+        ageSeconds: pinStatus.ageSeconds,
+        expiresIn: pinStatus.expiresIn,
+        isFresh: pinStatus.isFresh,
+        isNew: pinStatus.isNew,
+        isUsable: pinStatus.isUsable,
+        recommendation: pinStatus.recommendation,
+      },
       // Original detailed data
       worker: worker ? {
         state: worker.state,
@@ -981,6 +1047,290 @@ export class EnhancedAutomationService implements OnModuleDestroy {
    */
   resetCooldown(lineAccountId: string): void {
     this.loginCoordinatorService.resetCooldown(lineAccountId);
+  }
+
+  // ============================================
+  // PIN Status Tracking Methods (ported from GSB)
+  // ============================================
+
+  /**
+   * Store PIN for a LINE account (ported from GSB)
+   */
+  storePin(lineAccountId: string, pinCode: string): void {
+    const now = new Date();
+    const existing = this.pinStore.get(lineAccountId);
+
+    this.pinStore.set(lineAccountId, {
+      pinCode,
+      createdAt: existing?.createdAt || now,
+      updatedAt: now,
+    });
+
+    this.logger.log(`[PIN] Stored PIN for ${lineAccountId}: ${pinCode}`);
+  }
+
+  /**
+   * Get PIN with detailed status (ported from GSB getPinByBankId)
+   * Returns: { pin, status: FRESH/NEW/OLD/NO_PIN, ageMinutes, expiresIn, recommendation }
+   */
+  getPinStatus(lineAccountId: string): PinStatusResult {
+    const pinData = this.pinStore.get(lineAccountId);
+
+    if (!pinData || !pinData.pinCode) {
+      return {
+        pinCode: null,
+        status: PinStatus.NO_PIN,
+        createdAt: null,
+        updatedAt: null,
+        ageMinutes: 0,
+        ageSeconds: 0,
+        expiresIn: 0,
+        isFresh: false,
+        isNew: false,
+        isUsable: false,
+        recommendation: 'ไม่มี PIN - กรุณาล็อกอินใหม่',
+      };
+    }
+
+    // Calculate PIN age
+    const now = new Date();
+    const pinCreatedAt = new Date(pinData.updatedAt || pinData.createdAt);
+    const pinAgeMs = now.getTime() - pinCreatedAt.getTime();
+    const pinAgeMinutes = Math.floor(pinAgeMs / 1000 / 60);
+    const pinAgeSeconds = Math.floor(pinAgeMs / 1000);
+
+    // Determine status
+    let status: PinStatus;
+    let recommendation: string;
+
+    if (pinAgeMinutes < this.PIN_FRESH_MINUTES) {
+      status = PinStatus.FRESH;
+      recommendation = 'กรุณากรอก PIN บนมือถือทันที';
+    } else if (pinAgeMinutes < this.PIN_EXPIRY_MINUTES) {
+      status = PinStatus.NEW;
+      recommendation = `PIN ยังใช้ได้ เหลือเวลา ${this.PIN_EXPIRY_MINUTES - pinAgeMinutes} นาที`;
+    } else {
+      status = PinStatus.OLD;
+      recommendation = 'PIN หมดอายุแล้ว กรุณาล็อกอินใหม่';
+    }
+
+    // Calculate expiration
+    const isUsable = pinAgeMinutes < this.PIN_EXPIRY_MINUTES;
+    const expiresIn = isUsable
+      ? Math.max(0, this.PIN_EXPIRY_MINUTES * 60 - pinAgeSeconds)
+      : 0;
+
+    return {
+      pinCode: pinData.pinCode,
+      status,
+      createdAt: pinData.createdAt,
+      updatedAt: pinData.updatedAt,
+      ageMinutes: pinAgeMinutes,
+      ageSeconds: pinAgeSeconds,
+      expiresIn,
+      isFresh: status === PinStatus.FRESH,
+      isNew: status === PinStatus.NEW,
+      isUsable,
+      recommendation,
+    };
+  }
+
+  /**
+   * Get Keys status for a LINE account (ported from GSB)
+   */
+  async getKeysStatus(lineAccountId: string): Promise<{
+    hasKeys: boolean;
+    keysStatus: KeysStatus;
+    keysAge: number;
+    keysAgeMinutes: number;
+    keysExpiresAt: Date | null;
+    expiresIn: number;
+    isValid: boolean;
+    isExpiringSoon: boolean;
+    recommendation: string;
+  }> {
+    const session = await this.lineSessionModel.findOne({
+      lineAccountId,
+      isActive: true,
+    });
+
+    if (!session) {
+      return {
+        hasKeys: false,
+        keysStatus: KeysStatus.UNKNOWN,
+        keysAge: 0,
+        keysAgeMinutes: 0,
+        keysExpiresAt: null,
+        expiresIn: 0,
+        isValid: false,
+        isExpiringSoon: false,
+        recommendation: 'ไม่พบ session - กรุณาล็อกอินใหม่',
+      };
+    }
+
+    const hasKeys = !!(session.xLineAccess && session.xHmac);
+
+    if (!hasKeys) {
+      return {
+        hasKeys: false,
+        keysStatus: KeysStatus.UNKNOWN,
+        keysAge: 0,
+        keysAgeMinutes: 0,
+        keysExpiresAt: null,
+        expiresIn: 0,
+        isValid: false,
+        isExpiringSoon: false,
+        recommendation: 'ไม่มี Keys - กรุณาล็อกอินใหม่',
+      };
+    }
+
+    // Calculate keys age
+    const now = new Date();
+    const keysUpdatedAt = session.lastCheckedAt || (session as any).updatedAt || now;
+    const keysAgeMs = now.getTime() - new Date(keysUpdatedAt).getTime();
+    const keysAgeMinutes = Math.floor(keysAgeMs / 1000 / 60);
+
+    // Calculate expiration
+    const keysExpiryMs = this.KEYS_EXPIRY_MINUTES * 60 * 1000;
+    const timeUntilExpiry = keysExpiryMs - keysAgeMs;
+    const expiresIn = Math.max(0, Math.floor(timeUntilExpiry / 1000));
+    const keysExpiresAt = new Date(new Date(keysUpdatedAt).getTime() + keysExpiryMs);
+
+    // Determine status
+    let keysStatus: KeysStatus;
+    let recommendation: string;
+    let isValid = false;
+    let isExpiringSoon = false;
+
+    if (timeUntilExpiry <= 0) {
+      keysStatus = KeysStatus.EXPIRED;
+      recommendation = 'Keys หมดอายุแล้ว - ต้อง login ใหม่';
+    } else if (timeUntilExpiry <= this.KEYS_WARNING_MINUTES * 60 * 1000) {
+      keysStatus = KeysStatus.EXPIRING_SOON;
+      isValid = true;
+      isExpiringSoon = true;
+      const minutesLeft = Math.ceil(timeUntilExpiry / 60000);
+      recommendation = `Keys กำลังจะหมดอายุใน ${minutesLeft} นาที`;
+    } else {
+      keysStatus = KeysStatus.VALID;
+      isValid = true;
+      recommendation = 'Keys ใช้งานได้ปกติ';
+    }
+
+    return {
+      hasKeys,
+      keysStatus,
+      keysAge: keysAgeMs,
+      keysAgeMinutes,
+      keysExpiresAt,
+      expiresIn,
+      isValid,
+      isExpiringSoon,
+      recommendation,
+    };
+  }
+
+  /**
+   * Get full session status (PIN + Keys) - ported from GSB
+   */
+  async getFullSessionStatus(lineAccountId: string): Promise<{
+    lineAccountId: string;
+    pin: PinStatusResult;
+    keys: Awaited<ReturnType<typeof this.getKeysStatus>>;
+    lastCheckedAt: Date;
+    needsRelogin: boolean;
+    reloginReason: string | null;
+  }> {
+    const pin = this.getPinStatus(lineAccountId);
+    const keys = await this.getKeysStatus(lineAccountId);
+
+    // Determine if relogin is needed
+    let needsRelogin = false;
+    let reloginReason: string | null = null;
+
+    if (!keys.hasKeys) {
+      needsRelogin = true;
+      reloginReason = 'No keys found';
+    } else if (keys.keysStatus === KeysStatus.EXPIRED) {
+      needsRelogin = true;
+      reloginReason = 'Keys expired';
+    }
+
+    return {
+      lineAccountId,
+      pin,
+      keys,
+      lastCheckedAt: new Date(),
+      needsRelogin,
+      reloginReason,
+    };
+  }
+
+  /**
+   * Clear PIN for a LINE account
+   */
+  clearPin(lineAccountId: string): void {
+    this.pinStore.delete(lineAccountId);
+    this.logger.log(`[PIN] Cleared PIN for ${lineAccountId}`);
+  }
+
+  /**
+   * Get all active PINs (for admin dashboard)
+   */
+  getAllActivePins(): Array<{ lineAccountId: string; status: PinStatusResult }> {
+    const results: Array<{ lineAccountId: string; status: PinStatusResult }> = [];
+
+    for (const [lineAccountId] of this.pinStore) {
+      const status = this.getPinStatus(lineAccountId);
+      if (status.isUsable) {
+        results.push({ lineAccountId, status });
+      }
+    }
+
+    // Sort by most recent first
+    results.sort((a, b) => (b.status.updatedAt?.getTime() || 0) - (a.status.updatedAt?.getTime() || 0));
+
+    return results;
+  }
+
+  /**
+   * Check if relogin is needed based on keys status (ported from GSB)
+   */
+  async needsRelogin(lineAccountId: string): Promise<{ needsRelogin: boolean; reason: string }> {
+    const keys = await this.getKeysStatus(lineAccountId);
+
+    if (!keys.hasKeys) {
+      return { needsRelogin: true, reason: 'No keys found' };
+    }
+
+    if (keys.keysStatus === KeysStatus.EXPIRED) {
+      return { needsRelogin: true, reason: 'Keys expired' };
+    }
+
+    return { needsRelogin: false, reason: 'Keys valid' };
+  }
+
+  /**
+   * Auto-cleanup expired PINs (call periodically)
+   */
+  cleanupExpiredPins(): number {
+    let cleaned = 0;
+    const now = new Date();
+    const expiryMs = this.PIN_EXPIRY_MINUTES * 60 * 1000;
+
+    for (const [lineAccountId, pinData] of this.pinStore) {
+      const pinAge = now.getTime() - new Date(pinData.updatedAt).getTime();
+      if (pinAge > expiryMs) {
+        this.pinStore.delete(lineAccountId);
+        cleaned++;
+      }
+    }
+
+    if (cleaned > 0) {
+      this.logger.log(`[PIN] Cleaned up ${cleaned} expired PINs`);
+    }
+
+    return cleaned;
   }
 
   /**

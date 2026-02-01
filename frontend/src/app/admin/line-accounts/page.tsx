@@ -128,6 +128,17 @@ export default function AdminLineAccountsPage() {
     sessionReused?: boolean;
     cooldownRemainingMs?: number;
     workerState?: string;
+    // GSB-style PIN status tracking
+    pinStatus?: {
+      status: 'FRESH' | 'NEW' | 'OLD' | 'NO_PIN';
+      ageMinutes: number;
+      ageSeconds: number;
+      expiresIn: number;
+      isFresh: boolean;
+      isNew: boolean;
+      isUsable: boolean;
+      recommendation: string;
+    };
   }>({
     status: 'idle',
     pinCode: undefined,
@@ -138,6 +149,7 @@ export default function AdminLineAccountsPage() {
     sessionReused: false,
     cooldownRemainingMs: undefined,
     workerState: undefined,
+    pinStatus: undefined,
   });
 
   // Bank configuration state
@@ -669,6 +681,7 @@ export default function AdminLineAccountsPage() {
       sessionReused: false,
       cooldownRemainingMs: undefined,
       workerState: undefined,
+      pinStatus: undefined,
     });
     
     // Clear WebSocket notification state as well
@@ -803,6 +816,7 @@ export default function AdminLineAccountsPage() {
       pinCode: undefined,
       chatMid: undefined,
       sessionReused: false,
+      pinStatus: undefined,
     }));
 
     // STEP 2: Start polling IMMEDIATELY (don't wait for HTTP response)
@@ -920,15 +934,19 @@ export default function AdminLineAccountsPage() {
         const pinFromWorker = data.worker?.pinCode;
         const foundPin = pinFromTopLevel || pinFromWorker;
 
+        // Extract GSB-style PIN status
+        const pinStatus = data.pinStatus;
+
         console.log('[pollLoginStatus] Poll data:', {
           status: data.status,
           workerState: data.worker?.state,
           pinFromTopLevel,
           pinFromWorker,
           foundPin,
+          pinStatus,
         });
 
-        // Update status
+        // Update status with GSB-style PIN tracking
         setLoginStatus(prev => ({
           ...prev,
           pinCode: foundPin || prev.pinCode,
@@ -936,6 +954,7 @@ export default function AdminLineAccountsPage() {
           status: (data.worker?.state === 'waiting_pin' || data.status === 'waiting_for_pin')
             ? 'pin_displayed'
             : prev.status,
+          pinStatus: pinStatus || prev.pinStatus,
         }));
 
         // CRITICAL: Show PIN alert if found and not shown before
@@ -1001,6 +1020,7 @@ export default function AdminLineAccountsPage() {
         sessionReused: false,
         cooldownRemainingMs: undefined,
         workerState: undefined,
+        pinStatus: undefined,
       });
       toast('Login cancelled');
     } catch (error: any) {
@@ -1788,19 +1808,66 @@ export default function AdminLineAccountsPage() {
                   </div>
                 </div>
 
-                {/* PIN Code Display */}
+                {/* PIN Code Display with GSB-style Status */}
                 {loginStatus.pinCode && (
-                  <div className="p-6 bg-amber-50 rounded-[2rem] border-2 border-amber-200">
+                  <div className={cn(
+                    "p-6 rounded-[2rem] border-2",
+                    loginStatus.pinStatus?.status === 'FRESH' && "bg-green-50 border-green-300",
+                    loginStatus.pinStatus?.status === 'NEW' && "bg-amber-50 border-amber-200",
+                    loginStatus.pinStatus?.status === 'OLD' && "bg-red-50 border-red-200",
+                    !loginStatus.pinStatus && "bg-amber-50 border-amber-200"
+                  )}>
                     <div className="text-center">
-                      <p className="text-[10px] font-black text-amber-600 uppercase tracking-widest mb-2">PIN Code</p>
+                      {/* PIN Status Badge */}
+                      {loginStatus.pinStatus && (
+                        <div className="flex items-center justify-center gap-2 mb-3">
+                          <span className={cn(
+                            "px-3 py-1 rounded-full text-xs font-bold uppercase",
+                            loginStatus.pinStatus.status === 'FRESH' && "bg-green-200 text-green-800",
+                            loginStatus.pinStatus.status === 'NEW' && "bg-amber-200 text-amber-800",
+                            loginStatus.pinStatus.status === 'OLD' && "bg-red-200 text-red-800"
+                          )}>
+                            {loginStatus.pinStatus.status === 'FRESH' && 'Fresh PIN'}
+                            {loginStatus.pinStatus.status === 'NEW' && 'Valid PIN'}
+                            {loginStatus.pinStatus.status === 'OLD' && 'Expired PIN'}
+                          </span>
+                          {loginStatus.pinStatus.expiresIn > 0 && (
+                            <span className="text-xs text-gray-500">
+                              Expires in {Math.floor(loginStatus.pinStatus.expiresIn / 60)}:{String(loginStatus.pinStatus.expiresIn % 60).padStart(2, '0')}
+                            </span>
+                          )}
+                        </div>
+                      )}
+
+                      <p className={cn(
+                        "text-[10px] font-black uppercase tracking-widest mb-2",
+                        loginStatus.pinStatus?.status === 'FRESH' && "text-green-600",
+                        loginStatus.pinStatus?.status === 'NEW' && "text-amber-600",
+                        loginStatus.pinStatus?.status === 'OLD' && "text-red-600",
+                        !loginStatus.pinStatus && "text-amber-600"
+                      )}>PIN Code</p>
                       <div className="flex items-center justify-center gap-2">
                         {loginStatus.pinCode.split('').map((digit, i) => (
-                          <span key={i} className="w-12 h-14 flex items-center justify-center text-2xl font-black text-amber-700 bg-white rounded-xl border-2 border-amber-300 shadow-sm">
+                          <span key={i} className={cn(
+                            "w-12 h-14 flex items-center justify-center text-2xl font-black bg-white rounded-xl border-2 shadow-sm",
+                            loginStatus.pinStatus?.status === 'FRESH' && "text-green-700 border-green-300",
+                            loginStatus.pinStatus?.status === 'NEW' && "text-amber-700 border-amber-300",
+                            loginStatus.pinStatus?.status === 'OLD' && "text-red-700 border-red-300",
+                            !loginStatus.pinStatus && "text-amber-700 border-amber-300"
+                          )}>
                             {digit}
                           </span>
                         ))}
                       </div>
-                      <p className="text-sm text-amber-600 mt-4">Please verify this PIN on your mobile LINE app</p>
+                      <p className={cn(
+                        "text-sm mt-4",
+                        loginStatus.pinStatus?.status === 'FRESH' && "text-green-600",
+                        loginStatus.pinStatus?.status === 'NEW' && "text-amber-600",
+                        loginStatus.pinStatus?.status === 'OLD' && "text-red-600",
+                        !loginStatus.pinStatus && "text-amber-600"
+                      )}>
+                        {loginStatus.pinStatus?.recommendation || 'Please verify this PIN on your mobile LINE app'}
+                      </p>
                     </div>
                   </div>
                 )}

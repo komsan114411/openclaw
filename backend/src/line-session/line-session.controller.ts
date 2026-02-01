@@ -983,4 +983,104 @@ export class LineSessionController {
       message: 'Worker closed',
     };
   }
+
+  // ================================
+  // PIN STATUS TRACKING (GSB-style)
+  // ================================
+
+  /**
+   * Get PIN status for account (GSB-style FRESH/NEW/OLD tracking)
+   */
+  @Get(':lineAccountId/pin-status')
+  @ApiOperation({ summary: 'Get PIN status with GSB-style tracking' })
+  async getPinStatus(@Param('lineAccountId') lineAccountId: string) {
+    const status = this.enhancedAutomationService.getPinStatus(lineAccountId);
+    return {
+      success: true,
+      lineAccountId,
+      ...status,
+    };
+  }
+
+  /**
+   * Get full session status (PIN + Keys) with relogin check
+   */
+  @Get(':lineAccountId/session-status')
+  @ApiOperation({ summary: 'Get full session status with PIN and Keys' })
+  async getSessionStatus(@Param('lineAccountId') lineAccountId: string) {
+    const status = await this.enhancedAutomationService.getFullSessionStatus(lineAccountId);
+    return {
+      success: true,
+      ...status,
+    };
+  }
+
+  /**
+   * Get keys status with expiration tracking
+   */
+  @Get(':lineAccountId/keys-status')
+  @ApiOperation({ summary: 'Get keys status with expiration tracking' })
+  async getKeysStatus(@Param('lineAccountId') lineAccountId: string) {
+    const status = await this.enhancedAutomationService.getKeysStatus(lineAccountId);
+    return {
+      success: true,
+      lineAccountId,
+      ...status,
+    };
+  }
+
+  /**
+   * Check if relogin is needed
+   */
+  @Get(':lineAccountId/needs-relogin')
+  @ApiOperation({ summary: 'Check if relogin is needed' })
+  async checkNeedsRelogin(@Param('lineAccountId') lineAccountId: string) {
+    const result = await this.enhancedAutomationService.needsRelogin(lineAccountId);
+    return {
+      success: true,
+      lineAccountId,
+      ...result,
+    };
+  }
+
+  /**
+   * Get all active PINs (for admin dashboard)
+   */
+  @Get('pins/active')
+  @ApiOperation({ summary: 'Get all active PINs' })
+  async getAllActivePins() {
+    const pins = this.enhancedAutomationService.getAllActivePins();
+    return {
+      success: true,
+      total: pins.length,
+      pins,
+    };
+  }
+
+  /**
+   * Clear PIN for account
+   */
+  @Delete(':lineAccountId/pin')
+  @ApiOperation({ summary: 'Clear PIN for account' })
+  async clearPin(@Param('lineAccountId') lineAccountId: string) {
+    this.enhancedAutomationService.clearPin(lineAccountId);
+    return {
+      success: true,
+      message: 'PIN cleared',
+    };
+  }
+
+  /**
+   * Cleanup expired PINs
+   */
+  @Post('pins/cleanup')
+  @ApiOperation({ summary: 'Cleanup expired PINs' })
+  async cleanupExpiredPins() {
+    const cleaned = this.enhancedAutomationService.cleanupExpiredPins();
+    return {
+      success: true,
+      message: `Cleaned up ${cleaned} expired PINs`,
+      cleaned,
+    };
+  }
 }
