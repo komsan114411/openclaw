@@ -387,7 +387,15 @@ export class LineAutomationService implements OnModuleDestroy, OnModuleInit {
 
     // Check for custom executable path (for Docker/production)
     const executablePath = this.configService.get('PUPPETEER_EXECUTABLE_PATH');
-    const isHeadless = this.configService.get('PUPPETEER_HEADLESS') !== 'false';
+    const headlessEnv = this.configService.get('PUPPETEER_HEADLESS');
+    const displayEnv = process.env.DISPLAY;
+
+    // Headless = false if:
+    // 1. PUPPETEER_HEADLESS is explicitly 'false'
+    // 2. DISPLAY is set (Xvfb or real display)
+    const isHeadless = headlessEnv !== 'false' && !displayEnv;
+
+    this.logger.log(`Browser config: headless=${isHeadless}, DISPLAY=${displayEnv || 'not set'}`);
 
     const options: any = {
       headless: isHeadless ? 'new' : false,

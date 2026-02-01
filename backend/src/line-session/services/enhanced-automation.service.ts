@@ -136,18 +136,39 @@ export class EnhancedAutomationService implements OnModuleDestroy {
 
   /**
    * Check if running in headless mode (extension-based login won't work)
+   * With Xvfb support: headless=false + DISPLAY set = can run with virtual display
    */
   private isHeadlessMode(): boolean {
     const headlessEnv = process.env.PUPPETEER_HEADLESS;
+    const displayEnv = process.env.DISPLAY;
+
+    // If headless is explicitly false, we can run (with real or virtual display)
+    if (headlessEnv === 'false') {
+      return false;
+    }
+
+    // If DISPLAY is set (Xvfb), we can run even if headless not set
+    if (displayEnv) {
+      return false;
+    }
+
+    // Otherwise, check if headless is enabled
     return headlessEnv === 'true' || headlessEnv === '1' || headlessEnv === 'new';
+  }
+
+  /**
+   * Check if virtual display (Xvfb) is available
+   */
+  private hasVirtualDisplay(): boolean {
+    return !!process.env.DISPLAY;
   }
 
   /**
    * Check if enhanced automation is available
    */
   isAvailable(): boolean {
-    // Extension-based login doesn't work in headless mode
-    if (this.isHeadlessMode()) {
+    // Extension-based login works with real display or Xvfb
+    if (this.isHeadlessMode() && !this.hasVirtualDisplay()) {
       return false;
     }
     return this.workerPoolService.isPoolAvailable();
@@ -274,15 +295,18 @@ export class EnhancedAutomationService implements OnModuleDestroy {
       };
     }
 
-    // Step 0b: Check if headless mode (extension-based login won't work)
-    if (this.isHeadlessMode()) {
-      this.logger.warn(`Automated login not available in headless mode for ${lineAccountId}`);
+    // Step 0b: Check if headless mode without virtual display (extension-based login won't work)
+    if (this.isHeadlessMode() && !this.hasVirtualDisplay()) {
+      this.logger.warn(`Automated login not available: no display for ${lineAccountId}`);
       return {
         success: false,
         status: EnhancedLoginStatus.FAILED,
-        error: 'Automated login is not available in production (headless mode). Please use manual key entry: copy X-Line-Access and X-Hmac headers from browser DevTools.',
+        error: 'Automated login requires a display (Xvfb or real). Please configure DISPLAY environment or use manual key entry.',
       };
     }
+
+    // Log display status
+    this.logger.log(`Display check: DISPLAY=${process.env.DISPLAY || 'not set'}, HEADLESS=${process.env.PUPPETEER_HEADLESS || 'not set'}`);
 
     // Step 0b: Acquire global lock (prevent concurrent login from different services)
     const lockAcquired = this.loginLockService.acquireLock(lineAccountId, 'enhanced');
