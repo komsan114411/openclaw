@@ -174,6 +174,13 @@ export class WebsocketGateway implements OnGatewayConnection, OnGatewayDisconnec
   }
 
   broadcastToRoom(room: string, event: string, data: any) {
+    // Get room member count for debugging
+    const roomSockets = this.server.sockets.adapter.rooms.get(room);
+    const memberCount = roomSockets ? roomSockets.size : 0;
+    this.logger.log(`[Broadcast] Room "${room}" has ${memberCount} members. Event: ${event}`);
+    if (data?.pinCode) {
+      this.logger.log(`[Broadcast] PIN ${data.pinCode} being sent to room ${room}`);
+    }
     this.server.to(room).emit(event, data);
   }
 
@@ -182,6 +189,9 @@ export class WebsocketGateway implements OnGatewayConnection, OnGatewayDisconnec
   }
 
   broadcastToAdmins(event: string, data: any) {
+    const roomSockets = this.server.sockets.adapter.rooms.get('admins');
+    const memberCount = roomSockets ? roomSockets.size : 0;
+    this.logger.log(`[Broadcast] Admins room has ${memberCount} members. Event: ${event}`);
     this.server.to('admins').emit(event, data);
   }
 }

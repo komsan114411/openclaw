@@ -758,6 +758,19 @@ export default function AdminLineAccountsPage() {
       return;
     }
 
+    const accountId = selectedAccount._id;
+    console.log('[handleStartLogin] === STARTING LOGIN ===');
+    console.log('[handleStartLogin] Account ID:', accountId);
+    console.log('[handleStartLogin] WebSocket connected:', loginNotifications.isConnected);
+
+    // STEP 1: Subscribe to WebSocket channel BEFORE starting login
+    if (loginNotifications.isConnected) {
+      console.log('[handleStartLogin] Subscribing to WebSocket channel:', `line-account:${accountId}`);
+      loginNotifications.subscribeToAccount(accountId);
+      // Wait a bit for subscription to be processed
+      await new Promise(resolve => setTimeout(resolve, 200));
+    }
+
     setLoginStatus(prev => ({
       ...prev,
       isLoading: true,
@@ -769,25 +782,29 @@ export default function AdminLineAccountsPage() {
     }));
 
     try {
-      console.log('[handleStartLogin] === STARTING LOGIN ===');
-      console.log('[handleStartLogin] Account ID:', selectedAccount._id);
-
-      // Use enhanced login API
+      // STEP 2: Call the login API
+      console.log('[handleStartLogin] Calling startEnhancedLogin API...');
       const res = await lineSessionApi.startEnhancedLogin(
-        selectedAccount._id,
+        accountId,
         loginForm.email,
         loginForm.password,
         'manual'
       );
 
       console.log('[handleStartLogin] === API RESPONSE RECEIVED ===');
-      console.log('[handleStartLogin] Full Response Object:', res);
-      const data = res.data;
+      console.log('[handleStartLogin] res:', res);
+      console.log('[handleStartLogin] res.status:', res.status);
 
-      // Debug: Log the response data
-      console.log('[handleStartLogin] Response Data:', JSON.stringify(data, null, 2));
-      console.log('[handleStartLogin] data.pinCode =', data.pinCode);
-      console.log('[handleStartLogin] typeof data.pinCode =', typeof data.pinCode);
+      const data = res.data;
+      console.log('[handleStartLogin] Response data:', JSON.stringify(data, null, 2));
+
+      // STEP 3: Check for errors first
+      if (!data) {
+        console.error('[handleStartLogin] No data in response!');
+        toast.error('No response from server');
+        setLoginStatus(prev => ({ ...prev, isLoading: false, status: 'failed', error: 'No response' }));
+        return;
+      }
 
       // Handle cooldown
       if (data.status === 'cooldown') {
@@ -803,17 +820,15 @@ export default function AdminLineAccountsPage() {
         return;
       }
 
-      // Debug: Log FULL API response
-      console.log('[handleStartLogin] FULL API Response:', data);
-      console.log('[handleStartLogin] pinCode value:', data.pinCode, 'type:', typeof data.pinCode);
+      // STEP 4: Extract PIN from response
+      const pinCodeValue = data.pinCode || data.pin || data.pin_code || null;
+      console.log('[handleStartLogin] Extracted PIN:', pinCodeValue);
 
-      // Extract PIN from response - handle different possible field names
-      const pinCodeValue = data.pinCode || data.pin || data.pin_code;
-
+      // STEP 5: Update state with response
       setLoginStatus(prev => ({
         ...prev,
         status: data.status || 'unknown',
-        pinCode: pinCodeValue,
+        pinCode: pinCodeValue || undefined,
         error: data.error,
         requestId: data.requestId,
         chatMid: data.chatMid,
@@ -821,13 +836,20 @@ export default function AdminLineAccountsPage() {
         isLoading: !data.success && data.status !== 'failed',
       }));
 
-      // Show PIN popup immediately if available
+      // STEP 6: Handle PIN display - CRITICAL
       if (pinCodeValue) {
-        console.log('[handleStartLogin] PIN FOUND:', pinCodeValue);
-        // Show prominent alert for PIN
-        alert(`PIN Code: ${pinCodeValue}\n\nPlease enter this PIN on your LINE mobile app.`);
+        console.log('[handleStartLogin] *** PIN FOUND ***:', pinCodeValue);
+        // Show alert popup
+        alert(`PIN Code: ${pinCodeValue}\n\nPlease enter this PIN on your LINE mobile app.\n\nกรุณากรอก PIN นี้ในแอป LINE บนมือถือของคุณ`);
+        // Also show toast
+        toast.success(`PIN: ${pinCodeValue}`, { duration: 60000 });
+      } else if (data.status === 'pin_displayed') {
+        // Status says PIN displayed but no PIN in response - start polling
+        console.warn('[handleStartLogin] Status is pin_displayed but no PIN value! Starting poll...');
+        pollLoginStatus(accountId);
       }
 
+      // STEP 7: Handle success/failure
       if (data.success) {
         if (data.sessionReused) {
           toast.success('Session reused - Keys copied from existing login');
@@ -837,28 +859,26 @@ export default function AdminLineAccountsPage() {
         if (data.chatMid) {
           toast(`ChatMid captured: ${data.chatMid.substring(0, 20)}...`);
         }
-        await fetchSessionData(selectedAccount._id);
-        await fetchBankData(selectedAccount._id);
+        await fetchSessionData(accountId);
+        await fetchBankData(accountId);
       } else if (pinCodeValue) {
-        console.log('[handleStartLogin] PIN received:', pinCodeValue);
-        toast.success(`PIN: ${pinCodeValue}`, { duration: 60000, icon: '🔑' });
-        // WebSocket will handle real-time updates
-        // Fall back to polling if WebSocket is not connected
+        // PIN was returned - wait for user to verify on mobile
+        console.log('[handleStartLogin] PIN returned, waiting for verification...');
+        // Start polling as backup in case WebSocket doesn't work
         if (!loginNotifications.isConnected) {
-          console.log('[Login] WebSocket not connected, falling back to polling');
-          pollLoginStatus(selectedAccount._id);
-        } else {
-          console.log('[Login] WebSocket connected, waiting for real-time updates');
+          console.log('[handleStartLogin] WebSocket not connected, starting poll');
+          pollLoginStatus(accountId);
         }
-      } else if (data.status === 'pin_displayed') {
-        // PIN status but no pinCode - show message to user
-        console.warn('[handleStartLogin] PIN status but no pinCode in response!', data);
-        toast.error('PIN was displayed but not captured. Please check backend logs.');
       } else if (data.error) {
         toast.error(data.error);
       }
+
     } catch (error: any) {
-      const errorMsg = error.response?.data?.message || 'Login failed';
+      console.error('[handleStartLogin] === ERROR ===', error);
+      console.error('[handleStartLogin] Error response:', error.response);
+      console.error('[handleStartLogin] Error data:', error.response?.data);
+
+      const errorMsg = error.response?.data?.message || error.response?.data?.error || error.message || 'Login failed';
       setLoginStatus(prev => ({
         ...prev,
         isLoading: false,
