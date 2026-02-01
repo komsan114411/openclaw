@@ -29,8 +29,8 @@ export class KeyStorageService {
 
   /**
    * บันทึก keys ใหม่
-   * - Deactivate keys เก่า
-   * - สร้าง session ใหม่
+   * - หา session ที่มีอยู่แล้ว update keys
+   * - ถ้าไม่มี session ให้ throw error (ต้องสร้าง session ก่อน)
    * - บันทึก history
    */
   async saveKeys(input: SaveKeysInput): Promise<LineSessionDocument> {
@@ -38,26 +38,39 @@ export class KeyStorageService {
     this.logger.log(`Saving keys for lineAccountId: ${input.lineAccountId}`);
 
     try {
-      // 1. Deactivate previous active sessions
-      await this.lineSessionModel.updateMany(
-        { lineAccountId: input.lineAccountId, isActive: true },
-        { isActive: false, status: 'replaced' },
-      );
+      // 1. Find existing session by lineAccountId (which is actually the session _id)
+      // The lineAccountId here could be either:
+      // - The actual LINE Account ID (for admin flow)
+      // - The Session ID (for user flow)
+      let session = await this.lineSessionModel.findById(input.lineAccountId);
+      
+      if (!session) {
+        // Try finding by lineAccountId field
+        session = await this.lineSessionModel.findOne({
+          lineAccountId: input.lineAccountId,
+          isActive: true,
+        });
+      }
 
-      // 2. Create new session
-      const session = await this.lineSessionModel.create({
-        lineAccountId: input.lineAccountId,
-        xLineAccess: input.xLineAccess,
-        xHmac: input.xHmac,
-        userAgent: input.userAgent || this.getDefaultUserAgent(),
-        lineVersion: input.lineVersion || '3.4.0',
-        extractedAt: new Date(),
-        isActive: true,
-        source: input.source,
-        status: 'active',
-        consecutiveFailures: 0,
-        metadata: input.metadata,
-      });
+      if (!session) {
+        throw new Error(`Session not found for ${input.lineAccountId}. Please create a session first.`);
+      }
+
+      // 2. Update existing session with new keys
+      session.xLineAccess = input.xLineAccess;
+      session.xHmac = input.xHmac;
+      session.userAgent = input.userAgent || this.getDefaultUserAgent();
+      session.lineVersion = input.lineVersion || '3.4.0';
+      session.extractedAt = new Date();
+      session.isActive = true;
+      session.source = input.source;
+      session.status = 'active';
+      session.consecutiveFailures = 0;
+      if (input.metadata) {
+        session.metadata = { ...session.metadata, ...input.metadata };
+      }
+
+      await session.save();
 
       // 3. Record history
       await this.keyHistoryModel.create({
