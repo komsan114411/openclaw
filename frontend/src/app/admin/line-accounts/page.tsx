@@ -914,26 +914,36 @@ export default function AdminLineAccountsPage() {
       try {
         const res = await lineSessionApi.getEnhancedLoginStatus(lineAccountId);
         const data = res.data;
-        console.log('[pollLoginStatus] Worker state:', data.worker?.state, 'PIN:', data.worker?.pinCode);
 
-        // Update status from worker
-        if (data.worker) {
-          const workerPin = data.worker.pinCode;
+        // Extract PIN from multiple sources (top-level or nested)
+        const pinFromTopLevel = data.pin;
+        const pinFromWorker = data.worker?.pinCode;
+        const foundPin = pinFromTopLevel || pinFromWorker;
 
-          setLoginStatus(prev => ({
-            ...prev,
-            pinCode: workerPin || prev.pinCode,
-            workerState: data.worker.state,
-            status: data.worker.state === 'waiting_pin' ? 'pin_displayed' : prev.status,
-          }));
+        console.log('[pollLoginStatus] Poll data:', {
+          status: data.status,
+          workerState: data.worker?.state,
+          pinFromTopLevel,
+          pinFromWorker,
+          foundPin,
+        });
 
-          // CRITICAL: Show PIN alert if found and not shown before
-          if (workerPin && workerPin !== pinShownRef.current) {
-            console.log('[pollLoginStatus] *** PIN FOUND FROM POLL ***:', workerPin);
-            pinShownRef.current = workerPin;
-            alert(`PIN Code: ${workerPin}\n\nกรุณากรอก PIN นี้ในแอป LINE บนมือถือของคุณ`);
-            toast.success(`PIN: ${workerPin}`, { duration: 60000 });
-          }
+        // Update status
+        setLoginStatus(prev => ({
+          ...prev,
+          pinCode: foundPin || prev.pinCode,
+          workerState: data.worker?.state || data.status,
+          status: (data.worker?.state === 'waiting_pin' || data.status === 'waiting_for_pin')
+            ? 'pin_displayed'
+            : prev.status,
+        }));
+
+        // CRITICAL: Show PIN alert if found and not shown before
+        if (foundPin && foundPin !== pinShownRef.current) {
+          console.log('[pollLoginStatus] *** PIN FOUND ***:', foundPin);
+          pinShownRef.current = foundPin;
+          alert(`PIN Code: ${foundPin}\n\nกรุณากรอก PIN นี้ในแอป LINE บนมือถือของคุณ`);
+          toast.success(`PIN: ${foundPin}`, { duration: 60000 });
         }
 
         // Check if completed
