@@ -568,23 +568,87 @@ export class EnhancedAutomationService implements OnModuleDestroy {
   }
 
   /**
+   * Validate keys by making a test API call to LINE
+   */
+  async validateKeys(xLineAccess: string, xHmac: string): Promise<boolean> {
+    try {
+      const axios = require('axios');
+      const response = await axios.post(
+        'https://line-chrome-gw.line-apps.com/api/talk/thrift/Talk/TalkService/getChats',
+        ['', 50, ''],
+        {
+          headers: {
+            'x-line-access': xLineAccess,
+            'x-hmac': xHmac,
+            'content-type': 'application/json',
+            'x-line-chrome-version': '3.4.0',
+          },
+          timeout: 10000,
+          validateStatus: (status: number) => status < 500,
+        },
+      );
+
+      // Check if response is successful
+      if (response.status === 200 && response.data?.code === 0) {
+        this.logger.log(`[ValidateKeys] Keys are VALID`);
+        return true;
+      }
+
+      // 401/403 means keys are expired
+      if (response.status === 401 || response.status === 403) {
+        this.logger.warn(`[ValidateKeys] Keys are EXPIRED (${response.status})`);
+        return false;
+      }
+
+      this.logger.warn(`[ValidateKeys] Keys validation unclear: status=${response.status}, code=${response.data?.code}`);
+      return false;
+    } catch (error: any) {
+      this.logger.error(`[ValidateKeys] Error validating keys: ${error.message}`);
+      return false;
+    }
+  }
+
+  /**
    * Check for existing keys from same email (key copying)
+   * Now validates keys before copying
    */
   private async checkExistingKeys(
     lineAccountId: string,
     email: string,
   ): Promise<{ keys: { xLineAccess: string; xHmac: string }; chatMid?: string } | null> {
-    // Find another account with same email that has valid keys
+    // Find another account with same email that has keys
     const existingSession = await this.lineSessionModel.findOne({
-      lineAccountId: { $ne: lineAccountId },
+      _id: { $ne: lineAccountId },
       lineEmail: email,
       isActive: true,
       xLineAccess: { $exists: true, $ne: null },
-      status: 'active',
+      $expr: { $gt: [{ $strLenCP: '$xLineAccess' }, 0] },
     });
 
     if (existingSession?.xLineAccess && existingSession?.xHmac) {
-      this.logger.log(`Found existing keys for email ${email}, copying to ${lineAccountId}`);
+      this.logger.log(`[KeyCopy] Found keys for email ${email}, validating before copy...`);
+
+      // VALIDATE keys before copying
+      const isValid = await this.validateKeys(existingSession.xLineAccess, existingSession.xHmac);
+
+      if (!isValid) {
+        this.logger.warn(`[KeyCopy] Keys are INVALID/EXPIRED - will proceed with browser login`);
+
+        // Mark the source session as needing relogin too
+        await this.lineSessionModel.updateOne(
+          { _id: existingSession._id },
+          {
+            $set: {
+              status: 'expired',
+              lastCheckResult: 'expired',
+            },
+          },
+        );
+
+        return null; // Don't copy invalid keys
+      }
+
+      this.logger.log(`[KeyCopy] Keys are VALID - copying to ${lineAccountId}`);
 
       // Copy keys to current account
       await this.keyStorageService.saveKeys({
@@ -592,7 +656,7 @@ export class EnhancedAutomationService implements OnModuleDestroy {
         xLineAccess: existingSession.xLineAccess,
         xHmac: existingSession.xHmac,
         source: 'copied',
-        metadata: { copiedFrom: existingSession.lineAccountId },
+        metadata: { copiedFrom: existingSession._id.toString() },
       });
 
       return {

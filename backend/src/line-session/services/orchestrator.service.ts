@@ -113,11 +113,13 @@ export class OrchestratorService implements OnModuleInit, OnModuleDestroy {
   }
 
   /**
-   * Clean up corrupted sessions (missing name, ownerId, or with invalid data)
+   * Fix or clean up corrupted sessions (missing name, ownerId, or with invalid data)
+   * Try to fix first, only delete if unfixable
    */
   private async cleanupCorruptedSessions(): Promise<void> {
     try {
-      const result = await this.lineSessionModel.deleteMany({
+      // Find corrupted sessions
+      const corruptedSessions = await this.lineSessionModel.find({
         $or: [
           { name: { $exists: false } },
           { name: null },
@@ -128,11 +130,43 @@ export class OrchestratorService implements OnModuleInit, OnModuleDestroy {
         ],
       });
 
-      if (result.deletedCount > 0) {
-        this.logger.log(`[Cleanup] Deleted ${result.deletedCount} corrupted sessions on startup`);
+      this.logger.log(`[Cleanup] Found ${corruptedSessions.length} corrupted sessions`);
+
+      let fixedCount = 0;
+      let deletedCount = 0;
+
+      for (const session of corruptedSessions) {
+        const sessionId = session._id.toString();
+
+        // Try to fix: sessions with email/credentials are fixable
+        if (session.lineEmail || session.lineAccountId) {
+          const fixedName = session.lineEmail?.split('@')[0] || session.lineAccountId || `Session-${sessionId.slice(-6)}`;
+          const fixedOwnerId = session.ownerId || 'system';
+
+          await this.lineSessionModel.updateOne(
+            { _id: session._id },
+            {
+              $set: {
+                name: fixedName,
+                ownerId: fixedOwnerId,
+              },
+            },
+          );
+          fixedCount++;
+          this.logger.log(`[Cleanup] Fixed session ${sessionId}: name=${fixedName}`);
+        } else {
+          // No email or lineAccountId - delete
+          await this.lineSessionModel.deleteOne({ _id: session._id });
+          deletedCount++;
+          this.logger.log(`[Cleanup] Deleted unfixable session ${sessionId}`);
+        }
+      }
+
+      if (fixedCount > 0 || deletedCount > 0) {
+        this.logger.log(`[Cleanup] Completed: fixed=${fixedCount}, deleted=${deletedCount}`);
       }
     } catch (error: any) {
-      this.logger.error(`[Cleanup] Failed to clean up corrupted sessions: ${error.message}`);
+      this.logger.error(`[Cleanup] Error: ${error.message}`);
     }
   }
 
@@ -241,24 +275,41 @@ export class OrchestratorService implements OnModuleInit, OnModuleDestroy {
 
       for (const session of sessions) {
         try {
-          // Skip corrupted sessions (missing required fields)
-          if (!session.name || !session.ownerId) {
-            this.logger.warn(`[HealthCheck] Skipping corrupted session ${session._id} (missing name or ownerId)`);
-            continue;
-          }
-
           // Use session._id as the primary identifier (lineAccountId might be empty)
           const sessionId = session._id.toString();
+
+          // Try to fix corrupted sessions
+          if (!session.name || !session.ownerId) {
+            const fixedName = session.lineEmail?.split('@')[0] || session.lineAccountId || `Session-${sessionId.slice(-6)}`;
+            await this.lineSessionModel.updateOne(
+              { _id: session._id },
+              { $set: { name: fixedName, ownerId: session.ownerId || 'system' } },
+            );
+            session.name = fixedName;
+            this.logger.log(`[HealthCheck] Auto-fixed session ${sessionId}: name=${fixedName}`);
+          }
+
+          // Check keys status
           const keysStatus = await this.enhancedAutomationService.getKeysStatus(sessionId);
 
-          // Update session with check result (don't save to avoid validation error)
+          // If session has keys, validate them with actual API call
+          let keysValid = keysStatus.isValid;
+          if (session.xLineAccess && session.xHmac && keysStatus.isValid) {
+            // Validate keys with LINE API
+            keysValid = await this.enhancedAutomationService.validateKeys(session.xLineAccess, session.xHmac);
+            if (!keysValid) {
+              this.logger.warn(`[HealthCheck] Session ${session.name}: keys failed API validation - marking as expired`);
+            }
+          }
+
+          // Update session with check result
           try {
             await this.lineSessionModel.updateOne(
               { _id: session._id },
               {
                 lastCheckedAt: new Date(),
-                lastCheckResult: keysStatus.isValid ? 'valid' :
-                                keysStatus.keysStatus === KeysStatus.EXPIRED ? 'expired' : 'unknown',
+                lastCheckResult: keysValid ? 'valid' : 'expired',
+                status: keysValid ? 'active' : 'expired',
               }
             );
           } catch (updateError: any) {
@@ -338,14 +389,37 @@ export class OrchestratorService implements OnModuleInit, OnModuleDestroy {
 
       for (const session of sessions) {
         try {
-          // Skip corrupted sessions (missing required fields)
-          if (!session.name || !session.ownerId) {
-            this.logger.warn(`[ReloginCheck] Skipping corrupted session ${session._id} (missing name or ownerId)`);
-            continue;
-          }
-
           // Use session._id as the primary identifier
           const sessionId = session._id.toString();
+
+          // Try to fix corrupted sessions instead of just skipping
+          if (!session.name || !session.ownerId) {
+            this.logger.warn(`[ReloginCheck] Session ${sessionId} is corrupted (missing name or ownerId)`);
+
+            // Try to auto-fix: set name from email or lineAccountId
+            const fixedName = session.lineEmail?.split('@')[0] || session.lineAccountId || `Session-${sessionId.slice(-6)}`;
+            const fixedOwnerId = session.ownerId || 'system';
+
+            try {
+              await this.lineSessionModel.updateOne(
+                { _id: session._id },
+                {
+                  $set: {
+                    name: fixedName,
+                    ownerId: fixedOwnerId,
+                  },
+                },
+              );
+              this.logger.log(`[ReloginCheck] Auto-fixed session ${sessionId}: name=${fixedName}`);
+
+              // Update local session object for this iteration
+              session.name = fixedName;
+              session.ownerId = fixedOwnerId;
+            } catch (fixError: any) {
+              this.logger.error(`[ReloginCheck] Failed to fix session ${sessionId}: ${fixError.message}`);
+              continue;
+            }
+          }
 
           // Check recovery attempts (cooldown)
           const recovery = this.recoveryAttempts.get(sessionId);
