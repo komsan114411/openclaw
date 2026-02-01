@@ -657,6 +657,29 @@ export default function AdminLineAccountsPage() {
   const openSessionModal = async (account: ExtendedLineAccount) => {
     setSelectedAccount(account);
     setShowSessionModal(true);
+    
+    // Reset login status to prevent showing stale PIN from previous session
+    setLoginStatus({
+      status: 'idle',
+      pinCode: undefined,
+      error: undefined,
+      isLoading: false,
+      requestId: undefined,
+      chatMid: undefined,
+      sessionReused: false,
+      cooldownRemainingMs: undefined,
+      workerState: undefined,
+    });
+    
+    // Clear WebSocket notification state as well
+    loginNotifications.clearState();
+    
+    // Clear login form
+    setLoginForm({
+      email: '',
+      password: '',
+    });
+    
     setSessionTab('keys');
     setSessionKeyForm({
       xLineAccess: '',
