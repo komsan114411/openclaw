@@ -1161,6 +1161,7 @@ export class EnhancedAutomationService implements OnModuleDestroy {
 
   /**
    * Get Keys status for a LINE account (ported from GSB)
+   * Note: lineAccountId can be either session _id or actual lineAccountId field
    */
   async getKeysStatus(lineAccountId: string): Promise<{
     hasKeys: boolean;
@@ -1173,10 +1174,15 @@ export class EnhancedAutomationService implements OnModuleDestroy {
     isExpiringSoon: boolean;
     recommendation: string;
   }> {
-    const session = await this.lineSessionModel.findOne({
-      lineAccountId,
-      isActive: true,
-    });
+    // Try by _id first, then by lineAccountId field
+    let session = await this.lineSessionModel.findById(lineAccountId);
+
+    if (!session) {
+      session = await this.lineSessionModel.findOne({
+        lineAccountId,
+        isActive: true,
+      });
+    }
 
     if (!session) {
       return {

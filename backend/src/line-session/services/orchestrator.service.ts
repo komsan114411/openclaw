@@ -206,7 +206,9 @@ export class OrchestratorService implements OnModuleInit, OnModuleDestroy {
 
       for (const session of sessions) {
         try {
-          const keysStatus = await this.enhancedAutomationService.getKeysStatus(session.lineAccountId);
+          // Use session._id as the primary identifier (lineAccountId might be empty)
+          const sessionId = session._id.toString();
+          const keysStatus = await this.enhancedAutomationService.getKeysStatus(sessionId);
 
           // Update session with check result
           session.lastCheckedAt = new Date();
@@ -218,7 +220,7 @@ export class OrchestratorService implements OnModuleInit, OnModuleDestroy {
           if (keysStatus.isExpiringSoon) {
             this.logger.warn(`[HealthCheck] Session ${session.name} keys expiring soon (${keysStatus.expiresIn}s left)`);
             this.eventEmitter.emit('session.expiring_soon', {
-              lineAccountId: session.lineAccountId,
+              lineAccountId: sessionId,
               sessionId: session._id,
               name: session.name,
               expiresIn: keysStatus.expiresIn,
@@ -229,7 +231,7 @@ export class OrchestratorService implements OnModuleInit, OnModuleDestroy {
           if (keysStatus.keysStatus === KeysStatus.EXPIRED) {
             this.logger.warn(`[HealthCheck] Session ${session.name} keys expired`);
             this.eventEmitter.emit('session.expired', {
-              lineAccountId: session.lineAccountId,
+              lineAccountId: sessionId,
               sessionId: session._id,
               name: session.name,
             });
@@ -249,7 +251,10 @@ export class OrchestratorService implements OnModuleInit, OnModuleDestroy {
    * Perform relogin check and auto-relogin expired sessions
    */
   async performReloginCheck(): Promise<void> {
+    this.logger.log(`[ReloginCheck] Auto-relogin enabled: ${this.settings?.lineSessionAutoReloginEnabled !== false}`);
+
     if (this.settings?.lineSessionAutoReloginEnabled === false) {
+      this.logger.log('[ReloginCheck] Auto-relogin is disabled in settings, skipping');
       return;
     }
 
@@ -257,6 +262,11 @@ export class OrchestratorService implements OnModuleInit, OnModuleDestroy {
     this.logger.log('[ReloginCheck] Starting relogin check...');
 
     try {
+      // Find sessions that need relogin:
+      // 1. Status is expired or pending_relogin
+      // 2. Last check result is expired
+      // 3. Too many consecutive failures
+      // 4. No keys at all (xLineAccess is empty)
       const sessions = await this.lineSessionModel.find({
         isActive: true,
         $or: [
@@ -264,15 +274,26 @@ export class OrchestratorService implements OnModuleInit, OnModuleDestroy {
           { status: 'pending_relogin' },
           { lastCheckResult: 'expired' },
           { consecutiveFailures: { $gte: this.settings?.lineSessionMaxConsecutiveFailures || 3 } },
+          { xLineAccess: { $exists: false } },
+          { xLineAccess: null },
+          { xLineAccess: '' },
         ],
       });
 
       this.logger.log(`[ReloginCheck] Found ${sessions.length} sessions needing relogin`);
 
+      // Log each session's details
+      for (const s of sessions) {
+        this.logger.log(`[ReloginCheck] Session: ${s.name}, status=${s.status}, hasKeys=${!!s.xLineAccess}, hasEmail=${!!s.lineEmail}, hasPassword=${!!s.linePassword}`);
+      }
+
       for (const session of sessions) {
         try {
+          // Use session._id as the primary identifier
+          const sessionId = session._id.toString();
+
           // Check recovery attempts (cooldown)
-          const recovery = this.recoveryAttempts.get(session.lineAccountId);
+          const recovery = this.recoveryAttempts.get(sessionId);
           if (recovery && recovery.attempts >= 3) {
             const cooldownMs = 30 * 60 * 1000; // 30 minutes
             if (Date.now() - recovery.lastAttempt.getTime() < cooldownMs) {
@@ -280,7 +301,7 @@ export class OrchestratorService implements OnModuleInit, OnModuleDestroy {
               continue;
             }
             // Reset after cooldown
-            this.recoveryAttempts.delete(session.lineAccountId);
+            this.recoveryAttempts.delete(sessionId);
           }
 
           // Check if has credentials
@@ -289,12 +310,12 @@ export class OrchestratorService implements OnModuleInit, OnModuleDestroy {
             continue;
           }
 
-          this.logger.log(`[ReloginCheck] Auto-relogin for session ${session.name}`);
+          this.logger.log(`[ReloginCheck] Auto-relogin for session ${session.name} (ID: ${sessionId})`);
           this.reloginAttempts++;
 
-          // Trigger relogin
+          // Trigger relogin using session._id
           const result = await this.enhancedAutomationService.startLogin(
-            session.lineAccountId,
+            sessionId,
             undefined, // Use stored credentials
             undefined,
             'auto',
@@ -302,22 +323,22 @@ export class OrchestratorService implements OnModuleInit, OnModuleDestroy {
 
           if (result.success || result.pinCode) {
             this.reloginSuccesses++;
-            this.recoveryAttempts.delete(session.lineAccountId);
+            this.recoveryAttempts.delete(sessionId);
             this.logger.log(`[ReloginCheck] Relogin initiated for ${session.name}, PIN: ${result.pinCode || 'N/A'}`);
 
             // Emit event for real-time update
             this.eventEmitter.emit('session.relogin_started', {
-              lineAccountId: session.lineAccountId,
+              lineAccountId: sessionId,
               sessionId: session._id,
               name: session.name,
               pinCode: result.pinCode,
             });
           } else {
             this.reloginFailures++;
-            const recovery = this.recoveryAttempts.get(session.lineAccountId) || { attempts: 0, lastAttempt: new Date() };
-            recovery.attempts++;
-            recovery.lastAttempt = new Date();
-            this.recoveryAttempts.set(session.lineAccountId, recovery);
+            const recoveryData = this.recoveryAttempts.get(sessionId) || { attempts: 0, lastAttempt: new Date() };
+            recoveryData.attempts++;
+            recoveryData.lastAttempt = new Date();
+            this.recoveryAttempts.set(sessionId, recoveryData);
             this.logger.error(`[ReloginCheck] Relogin failed for ${session.name}: ${result.error}`);
           }
         } catch (error: any) {
@@ -342,13 +363,15 @@ export class OrchestratorService implements OnModuleInit, OnModuleDestroy {
 
       for (const session of sessions) {
         try {
-          const keysStatus = await this.enhancedAutomationService.getKeysStatus(session.lineAccountId);
-          const workerStatus = this.enhancedAutomationService.getWorkerStatus(session.lineAccountId);
-          const pinStatus = this.enhancedAutomationService.getPinStatus(session.lineAccountId);
+          // Use session._id as the primary identifier
+          const sessionId = session._id.toString();
+          const keysStatus = await this.enhancedAutomationService.getKeysStatus(sessionId);
+          const workerStatus = this.enhancedAutomationService.getWorkerStatus(sessionId);
+          const pinStatus = this.enhancedAutomationService.getPinStatus(sessionId);
 
           statuses.push({
-            lineAccountId: session.lineAccountId,
-            sessionId: session._id.toString(),
+            lineAccountId: sessionId,
+            sessionId: sessionId,
             name: session.name,
             lineEmail: session.lineEmail,
             bankName: session.bankName,
@@ -436,13 +459,15 @@ export class OrchestratorService implements OnModuleInit, OnModuleDestroy {
 
     for (const session of sessions) {
       try {
-        const keysStatus = await this.enhancedAutomationService.getKeysStatus(session.lineAccountId);
-        const workerStatus = this.enhancedAutomationService.getWorkerStatus(session.lineAccountId);
-        const pinStatus = this.enhancedAutomationService.getPinStatus(session.lineAccountId);
+        // Use session._id as the primary identifier
+        const sessionId = session._id.toString();
+        const keysStatus = await this.enhancedAutomationService.getKeysStatus(sessionId);
+        const workerStatus = this.enhancedAutomationService.getWorkerStatus(sessionId);
+        const pinStatus = this.enhancedAutomationService.getPinStatus(sessionId);
 
         statuses.push({
-          lineAccountId: session.lineAccountId,
-          sessionId: session._id.toString(),
+          lineAccountId: sessionId,
+          sessionId: sessionId,
           name: session.name,
           lineEmail: session.lineEmail,
           bankName: session.bankName,
