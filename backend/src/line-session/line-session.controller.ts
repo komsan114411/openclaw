@@ -912,10 +912,8 @@ export class LineSessionController {
   @ApiOperation({ summary: 'Get enhanced login status' })
   async getEnhancedLoginStatus(@Param('lineAccountId') lineAccountId: string) {
     const status = this.enhancedAutomationService.getWorkerStatus(lineAccountId);
-    return {
-      success: true,
-      ...status,
-    };
+    // status already contains success: true, so just return it directly
+    return status;
   }
 
   /**
