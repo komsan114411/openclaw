@@ -47,8 +47,8 @@ ENV LINE_EXTENSION_PATH=/app/extensions/line
 
 EXPOSE 4000
 
-# Increase Node.js memory limit
-ENV NODE_OPTIONS="--max-old-space-size=4096"
+# Increase Node.js memory limit to 8GB
+ENV NODE_OPTIONS="--max-old-space-size=8192"
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \

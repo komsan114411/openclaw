@@ -59,8 +59,8 @@ ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true \
     NODE_ENV=production \
     PORT=4000
 
-# Increase Node.js memory limit
-ENV NODE_OPTIONS="--max-old-space-size=4096"
+# Increase Node.js memory limit to 8GB
+ENV NODE_OPTIONS="--max-old-space-size=8192"
 
 EXPOSE 4000
 
