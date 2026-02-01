@@ -401,6 +401,7 @@ export class LineSessionController {
   /**
    * Start auto login process
    * This will launch browser, enter credentials, and wait for PIN
+   * Now uses EnhancedAutomationService for proper WebSocket notifications
    */
   @Post(':lineAccountId/login')
   @ApiOperation({ summary: 'Start auto login with Puppeteer' })
@@ -408,28 +409,12 @@ export class LineSessionController {
     @Param('lineAccountId') lineAccountId: string,
     @Body() dto: TriggerLoginDto,
   ) {
-    if (!this.lineAutomationService.isAutomationAvailable()) {
-      return {
-        success: false,
-        message: 'Automation not available. Puppeteer is not installed.',
-        installCommand: 'npm install puppeteer puppeteer-extra puppeteer-extra-plugin-stealth',
-      };
-    }
-
-    // Save credentials if provided
-    if (dto.email && dto.password) {
-      await this.lineAutomationService.saveCredentials(
-        lineAccountId,
-        dto.email,
-        dto.password,
-      );
-    }
-
-    // Start login process (async - will emit events via WebSocket)
-    const result = await this.lineAutomationService.startLogin(
+    // Use enhanced automation service which has proper WebSocket notifications
+    const result = await this.enhancedAutomationService.startLogin(
       lineAccountId,
       dto.email,
       dto.password,
+      'manual',
     );
 
     return {
@@ -437,11 +422,11 @@ export class LineSessionController {
       status: result.status,
       pinCode: result.pinCode,
       error: result.error,
-      message: result.success
+      message: result.message || (result.success
         ? 'Login successful'
         : result.pinCode
         ? 'PIN code displayed - please verify on your mobile device'
-        : result.error || 'Login failed',
+        : result.error || 'Login failed'),
     };
   }
 
@@ -451,22 +436,23 @@ export class LineSessionController {
   @Get(':lineAccountId/login/status')
   @ApiOperation({ summary: 'Get current login status' })
   async getLoginStatus(@Param('lineAccountId') lineAccountId: string) {
-    const worker = this.lineAutomationService.getWorkerStatus(lineAccountId);
+    // Use enhanced automation service
+    const status = this.enhancedAutomationService.getWorkerStatus(lineAccountId);
 
-    if (!worker) {
+    if (!status) {
       return {
         success: true,
         hasActiveLogin: false,
-        status: LoginStatus.IDLE,
+        status: EnhancedLoginStatus.IDLE,
       };
     }
 
     return {
       success: true,
-      hasActiveLogin: true,
-      status: worker.status,
-      pinCode: worker.pinCode,
-      error: worker.error,
+      hasActiveLogin: status.state !== 'idle',
+      status: status.state,
+      pinCode: status.pinCode,
+      error: status.error,
     };
   }
 
@@ -476,7 +462,7 @@ export class LineSessionController {
   @Delete(':lineAccountId/login')
   @ApiOperation({ summary: 'Cancel ongoing login process' })
   async cancelLogin(@Param('lineAccountId') lineAccountId: string) {
-    await this.lineAutomationService.cancelLogin(lineAccountId);
+    await this.enhancedAutomationService.cancelLogin(lineAccountId);
 
     return {
       success: true,
@@ -761,6 +747,7 @@ export class LineSessionController {
     @Param('lineAccountId') lineAccountId: string,
     @Body() body: { email?: string; password?: string; source?: 'manual' | 'auto' | 'relogin' },
   ) {
+    this.logger.log(`[enhanced-login] Starting login for ${lineAccountId}`);
     const result = await this.enhancedAutomationService.startLogin(
       lineAccountId,
       body.email,
@@ -768,6 +755,7 @@ export class LineSessionController {
       body.source || 'manual',
     );
 
+    this.logger.log(`[enhanced-login] Result: ${JSON.stringify(result)}`);
     return result;
   }
 

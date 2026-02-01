@@ -861,12 +861,14 @@ export class EnhancedAutomationService implements OnModuleDestroy {
    * Emit status update
    */
   private emitStatus(lineAccountId: string, status: EnhancedLoginStatus, data?: any): void {
-    this.eventEmitter.emit('enhanced-login.status', {
+    const eventData = {
       lineAccountId,
       status,
       timestamp: new Date(),
       ...data,
-    });
+    };
+    this.logger.log(`[EnhancedAutomation] Emitting status: ${status} for ${lineAccountId}${data?.pinCode ? ` with PIN ${data.pinCode}` : ''}`);
+    this.eventEmitter.emit('enhanced-login.status', eventData);
   }
 
   /**

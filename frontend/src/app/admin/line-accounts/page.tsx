@@ -779,6 +779,15 @@ export default function AdminLineAccountsPage() {
         return;
       }
 
+      // Debug: Log exact values being set
+      console.log('[handleStartLogin] Setting loginStatus:', {
+        status: data.status,
+        pinCode: data.pinCode,
+        hasPinCode: !!data.pinCode,
+        error: data.error,
+        success: data.success,
+      });
+
       setLoginStatus(prev => ({
         ...prev,
         status: data.status || 'unknown',

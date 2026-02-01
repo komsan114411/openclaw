@@ -34,7 +34,7 @@ export class LoginNotificationService {
     pinCode?: string;
     error?: string;
   }) {
-    this.logger.log(`Login status: ${payload.lineAccountId} -> ${payload.status}`);
+    this.logger.log(`[LoginNotification] Received status: ${payload.status} for ${payload.lineAccountId}${payload.pinCode ? ` with PIN ${payload.pinCode}` : ''}`);
 
     // Build user-friendly message
     const message = this.getStatusMessage(payload.status, payload.pinCode, payload.error);
