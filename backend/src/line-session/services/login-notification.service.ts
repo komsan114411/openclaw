@@ -1,0 +1,253 @@
+import { Injectable, Logger } from '@nestjs/common';
+import { OnEvent } from '@nestjs/event-emitter';
+import { WebsocketGateway } from '../../websocket/websocket.gateway';
+import { EnhancedLoginStatus } from './enhanced-automation.service';
+import { RequestStatus } from './login-coordinator.service';
+import { WorkerState } from './worker-pool.service';
+
+/**
+ * Login Notification Service
+ *
+ * Listens to login events and broadcasts them to clients via WebSocket.
+ * This enables real-time status updates in the frontend.
+ *
+ * Events handled:
+ * - enhanced-login.status: Detailed login status updates
+ * - login.requested/started/completed/failed/cancelled: Coordinator events
+ * - worker.stateChanged: Worker pool state changes
+ */
+@Injectable()
+export class LoginNotificationService {
+  private readonly logger = new Logger(LoginNotificationService.name);
+
+  constructor(private readonly websocketGateway: WebsocketGateway) {}
+
+  /**
+   * Handle enhanced login status updates
+   */
+  @OnEvent('enhanced-login.status')
+  handleEnhancedLoginStatus(payload: {
+    lineAccountId: string;
+    status: EnhancedLoginStatus;
+    timestamp: Date;
+    requestId?: string;
+    pinCode?: string;
+    error?: string;
+  }) {
+    this.logger.log(`Login status: ${payload.lineAccountId} -> ${payload.status}`);
+
+    // Build user-friendly message
+    const message = this.getStatusMessage(payload.status, payload.pinCode, payload.error);
+
+    // Broadcast to all admins
+    this.websocketGateway.broadcastToAdmins('line-session:login-status', {
+      type: 'login_status',
+      lineAccountId: payload.lineAccountId,
+      status: payload.status,
+      message,
+      pinCode: payload.pinCode,
+      error: payload.error,
+      requestId: payload.requestId,
+      timestamp: payload.timestamp,
+    });
+
+    // Also broadcast to the specific line account channel
+    this.websocketGateway.broadcastToRoom(`line-account:${payload.lineAccountId}`, 'line-session:login-status', {
+      type: 'login_status',
+      lineAccountId: payload.lineAccountId,
+      status: payload.status,
+      message,
+      pinCode: payload.pinCode,
+      error: payload.error,
+      requestId: payload.requestId,
+      timestamp: payload.timestamp,
+    });
+  }
+
+  /**
+   * Handle login requested
+   */
+  @OnEvent('login.requested')
+  handleLoginRequested(payload: {
+    requestId: string;
+    lineAccountId: string;
+    source: string;
+  }) {
+    this.logger.log(`Login requested: ${payload.lineAccountId} (${payload.source})`);
+
+    this.websocketGateway.broadcastToAdmins('line-session:login-event', {
+      type: 'login_requested',
+      lineAccountId: payload.lineAccountId,
+      source: payload.source,
+      requestId: payload.requestId,
+      message: 'Login request received',
+      timestamp: new Date(),
+    });
+  }
+
+  /**
+   * Handle login started
+   */
+  @OnEvent('login.started')
+  handleLoginStarted(payload: {
+    requestId: string;
+    lineAccountId: string;
+  }) {
+    this.logger.log(`Login started: ${payload.lineAccountId}`);
+
+    this.websocketGateway.broadcastToAdmins('line-session:login-event', {
+      type: 'login_started',
+      lineAccountId: payload.lineAccountId,
+      requestId: payload.requestId,
+      message: 'Login process started',
+      timestamp: new Date(),
+    });
+  }
+
+  /**
+   * Handle login completed
+   */
+  @OnEvent('login.completed')
+  handleLoginCompleted(payload: {
+    requestId: string;
+    lineAccountId: string;
+  }) {
+    this.logger.log(`Login completed: ${payload.lineAccountId}`);
+
+    this.websocketGateway.broadcastToAdmins('line-session:login-event', {
+      type: 'login_completed',
+      lineAccountId: payload.lineAccountId,
+      requestId: payload.requestId,
+      message: 'Login successful! Keys captured.',
+      success: true,
+      timestamp: new Date(),
+    });
+  }
+
+  /**
+   * Handle login failed
+   */
+  @OnEvent('login.failed')
+  handleLoginFailed(payload: {
+    requestId: string;
+    lineAccountId: string;
+    error: string;
+    nextCooldownMs?: number;
+  }) {
+    this.logger.warn(`Login failed: ${payload.lineAccountId} - ${payload.error}`);
+
+    const nextRetryIn = payload.nextCooldownMs
+      ? Math.ceil(payload.nextCooldownMs / 1000)
+      : null;
+
+    this.websocketGateway.broadcastToAdmins('line-session:login-event', {
+      type: 'login_failed',
+      lineAccountId: payload.lineAccountId,
+      requestId: payload.requestId,
+      error: payload.error,
+      message: `Login failed: ${payload.error}`,
+      success: false,
+      nextRetryIn,
+      timestamp: new Date(),
+    });
+  }
+
+  /**
+   * Handle login cancelled
+   */
+  @OnEvent('login.cancelled')
+  handleLoginCancelled(payload: { lineAccountId: string }) {
+    this.logger.log(`Login cancelled: ${payload.lineAccountId}`);
+
+    this.websocketGateway.broadcastToAdmins('line-session:login-event', {
+      type: 'login_cancelled',
+      lineAccountId: payload.lineAccountId,
+      message: 'Login was cancelled',
+      timestamp: new Date(),
+    });
+  }
+
+  /**
+   * Handle worker state changes
+   */
+  @OnEvent('worker.stateChanged')
+  handleWorkerStateChanged(payload: {
+    lineAccountId: string;
+    state: WorkerState;
+    pinCode?: string;
+    hasKeys?: boolean;
+    hasChatMid?: boolean;
+    error?: string;
+  }) {
+    // Only broadcast significant state changes
+    const significantStates = [
+      WorkerState.WAITING_PIN,
+      WorkerState.READY,
+      WorkerState.ERROR,
+      WorkerState.RECOVERING,
+    ];
+
+    if (!significantStates.includes(payload.state)) {
+      return;
+    }
+
+    this.logger.log(`Worker state: ${payload.lineAccountId} -> ${payload.state}`);
+
+    this.websocketGateway.broadcastToAdmins('line-session:worker-state', {
+      type: 'worker_state',
+      lineAccountId: payload.lineAccountId,
+      state: payload.state,
+      pinCode: payload.pinCode,
+      hasKeys: payload.hasKeys,
+      hasChatMid: payload.hasChatMid,
+      error: payload.error,
+      timestamp: new Date(),
+    });
+  }
+
+  /**
+   * Get user-friendly status message
+   */
+  private getStatusMessage(
+    status: EnhancedLoginStatus,
+    pinCode?: string,
+    error?: string,
+  ): string {
+    switch (status) {
+      case EnhancedLoginStatus.IDLE:
+        return 'Idle';
+      case EnhancedLoginStatus.REQUESTING:
+        return 'Requesting login...';
+      case EnhancedLoginStatus.INITIALIZING:
+        return 'Initializing...';
+      case EnhancedLoginStatus.LAUNCHING_BROWSER:
+        return 'Launching browser...';
+      case EnhancedLoginStatus.LOADING_EXTENSION:
+        return 'Loading LINE extension...';
+      case EnhancedLoginStatus.CHECKING_SESSION:
+        return 'Checking existing session...';
+      case EnhancedLoginStatus.ENTERING_CREDENTIALS:
+        return 'Entering credentials...';
+      case EnhancedLoginStatus.WAITING_PIN:
+        return 'Waiting for PIN verification...';
+      case EnhancedLoginStatus.PIN_DISPLAYED:
+        return pinCode
+          ? `PIN Code: ${pinCode} - Enter on your LINE app`
+          : 'PIN displayed - Enter on your LINE app';
+      case EnhancedLoginStatus.VERIFYING:
+        return 'Verifying login...';
+      case EnhancedLoginStatus.EXTRACTING_KEYS:
+        return 'Extracting keys...';
+      case EnhancedLoginStatus.TRIGGERING_MESSAGES:
+        return 'Triggering messages to capture keys...';
+      case EnhancedLoginStatus.SUCCESS:
+        return 'Login successful! Keys captured.';
+      case EnhancedLoginStatus.FAILED:
+        return error ? `Login failed: ${error}` : 'Login failed';
+      case EnhancedLoginStatus.COOLDOWN:
+        return 'In cooldown period. Please wait.';
+      default:
+        return 'Unknown status';
+    }
+  }
+}

@@ -21,6 +21,7 @@ import { BankListService } from './services/bank-list.service';
 import { WorkerPoolService } from './services/worker-pool.service';
 import { LoginCoordinatorService } from './services/login-coordinator.service';
 import { EnhancedAutomationService } from './services/enhanced-automation.service';
+import { LoginNotificationService } from './services/login-notification.service';
 
 // Shared Services
 import { LoginLockService } from './services/login-lock.service';
@@ -87,6 +88,7 @@ import { ConfigModule } from '@nestjs/config';
     WorkerPoolService,
     LoginCoordinatorService,
     EnhancedAutomationService,
+    LoginNotificationService,
   ],
   exports: [
     // Shared services

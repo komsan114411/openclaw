@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import { lineAccountsApi, usersApi, systemSettingsApi, lineSessionApi } from '@/lib/api';
+import { useLoginNotifications } from '@/hooks';
 import { LineAccount, User } from '@/types';
 import toast from 'react-hot-toast';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -159,6 +160,55 @@ export default function AdminLineAccountsPage() {
     accountNumber: '',
     chatMid: '',
   });
+
+  // WebSocket login notifications
+  const loginNotifications = useLoginNotifications({
+    lineAccountId: selectedAccount?._id,
+    showToasts: false, // We handle toasts manually
+    onStatusChange: (event) => {
+      // Update login status from WebSocket event
+      setLoginStatus(prev => ({
+        ...prev,
+        status: event.status,
+        pinCode: event.pinCode || prev.pinCode,
+        error: event.error,
+        workerState: event.status,
+      }));
+
+      // Handle success/failure
+      if (event.status === 'success') {
+        setLoginStatus(prev => ({ ...prev, isLoading: false }));
+        toast.success('Login successful - Keys captured');
+        if (selectedAccount) {
+          fetchSessionData(selectedAccount._id);
+          fetchBankData(selectedAccount._id);
+        }
+      } else if (event.status === 'failed') {
+        setLoginStatus(prev => ({
+          ...prev,
+          isLoading: false,
+          error: event.error || 'Login failed',
+        }));
+        toast.error(event.error || 'Login failed');
+      } else if (event.status === 'pin_displayed' && event.pinCode) {
+        toast.success(`PIN: ${event.pinCode}`, { duration: 60000, icon: '🔑' });
+      }
+    },
+    onLoginEvent: (event) => {
+      if (event.type === 'login_completed') {
+        toast.success('Login completed - Keys saved');
+      } else if (event.type === 'login_failed') {
+        toast.error(event.error || 'Login failed');
+      }
+    },
+  });
+
+  // Update login PIN from WebSocket
+  useEffect(() => {
+    if (loginNotifications.pinCode && loginNotifications.pinCode !== loginStatus.pinCode) {
+      setLoginStatus(prev => ({ ...prev, pinCode: loginNotifications.pinCode || undefined }));
+    }
+  }, [loginNotifications.pinCode, loginStatus.pinCode]);
 
   const [formData, setFormData] = useState({
     accountName: '',
@@ -750,8 +800,14 @@ export default function AdminLineAccountsPage() {
         await fetchBankData(selectedAccount._id);
       } else if (data.pinCode) {
         toast(`PIN Code: ${data.pinCode} - Please verify on your mobile device`);
-        // Start polling for login completion
-        pollLoginStatus(selectedAccount._id);
+        // WebSocket will handle real-time updates
+        // Fall back to polling if WebSocket is not connected
+        if (!loginNotifications.isConnected) {
+          console.log('[Login] WebSocket not connected, falling back to polling');
+          pollLoginStatus(selectedAccount._id);
+        } else {
+          console.log('[Login] WebSocket connected, waiting for real-time updates');
+        }
       } else if (data.error) {
         toast.error(data.error);
       }
@@ -1570,7 +1626,22 @@ export default function AdminLineAccountsPage() {
                           <p className="text-white font-bold">Login with Email & Password</p>
                         </div>
                       </div>
-                      {getLoginStatusBadge(loginStatus.status)}
+                      <div className="flex items-center gap-2">
+                        {/* WebSocket Connection Indicator */}
+                        <div className={cn(
+                          "flex items-center gap-1 px-2 py-1 rounded-full text-[9px] font-bold uppercase tracking-wider",
+                          loginNotifications.isConnected
+                            ? "bg-emerald-500/20 text-emerald-300"
+                            : "bg-rose-500/20 text-rose-300"
+                        )}>
+                          <div className={cn(
+                            "w-1.5 h-1.5 rounded-full",
+                            loginNotifications.isConnected ? "bg-emerald-400 animate-pulse" : "bg-rose-400"
+                          )} />
+                          {loginNotifications.isConnected ? "Live" : "Offline"}
+                        </div>
+                        {getLoginStatusBadge(loginStatus.status)}
+                      </div>
                     </div>
 
                     <div className="space-y-4">
@@ -1746,6 +1817,7 @@ export default function AdminLineAccountsPage() {
                     <li>Session reuse - copy keys from same email accounts</li>
                     <li>Auto recovery on browser crash (up to 3 retries)</li>
                     <li>Cooldown management with exponential backoff</li>
+                    <li className="text-blue-600 font-medium">Real-time WebSocket notifications for login status</li>
                   </ol>
                 </div>
               </div>
