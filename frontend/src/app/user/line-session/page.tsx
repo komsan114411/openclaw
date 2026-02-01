@@ -169,21 +169,34 @@ export default function LineSessionPage() {
   const pollLoginStatus = useCallback(async (sessionId: string) => {
     try {
       const res = await lineSessionUserApi.getEnhancedLoginStatus(sessionId);
-      const status = res.data;
-      setLoginStatus(status);
+      const rawStatus = res.data;
+      
+      // Map backend response to frontend LoginStatus format
+      // Backend returns: { status, pin, message, error, worker: { pinCode, ... } }
+      const mappedStatus: LoginStatus = {
+        success: rawStatus.success !== false,
+        status: rawStatus.status,
+        // PIN can come from top-level 'pin' or from 'worker.pinCode'
+        pin: rawStatus.pin || rawStatus.worker?.pinCode,
+        message: rawStatus.message,
+        stage: rawStatus.stage || rawStatus.status,
+        error: rawStatus.error,
+      };
+      
+      setLoginStatus(mappedStatus);
 
       // If still in progress, continue polling
-      if (status.status === 'waiting_for_pin' || status.status === 'extracting_keys' || status.status === 'starting') {
+      if (mappedStatus.status === 'waiting_for_pin' || mappedStatus.status === 'extracting_keys' || mappedStatus.status === 'starting') {
         return true; // Continue polling
       }
 
       // If completed, refresh session status
-      if (status.status === 'completed' || status.status === 'success') {
+      if (mappedStatus.status === 'completed' || mappedStatus.status === 'success') {
         await fetchSessionStatus(sessionId);
         await fetchData(); // Refresh list
         toast.success('ดึง Keys สำเร็จ');
-      } else if (status.status === 'failed' || status.status === 'error') {
-        toast.error(status.error || status.message || 'เกิดข้อผิดพลาด');
+      } else if (mappedStatus.status === 'failed' || mappedStatus.status === 'error') {
+        toast.error(mappedStatus.error || mappedStatus.message || 'เกิดข้อผิดพลาด');
       }
 
       return false; // Stop polling
@@ -272,12 +285,21 @@ export default function LineSessionPage() {
   const handleSetup = async () => {
     if (!selectedSession) return;
 
+    // Prevent double-click while already in progress
+    if (isSettingUp || isPolling) {
+      toast('กำลังดำเนินการอยู่ กรุณารอสักครู่...', { icon: '⏳' });
+      return;
+    }
+
     if (!setupForm.email || !setupForm.password || !setupForm.bankCode) {
       toast.error('กรุณากรอกข้อมูลให้ครบ');
       return;
     }
 
     setIsSettingUp(true);
+    // Set initial status to show loading state immediately
+    setLoginStatus({ success: true, status: 'starting', message: 'กำลังเริ่มต้น...' });
+    
     try {
       const res = await lineSessionUserApi.setupSession(selectedSession._id, {
         email: setupForm.email,
@@ -285,15 +307,30 @@ export default function LineSessionPage() {
         bankCode: setupForm.bankCode,
       });
 
-      if (res.data.success) {
+      // Check for PIN in response (from API directly, not WebSocket)
+      if (res.data.pinCode) {
+        // PIN received directly from API response!
+        setLoginStatus({
+          success: true,
+          status: 'waiting_for_pin',
+          pin: res.data.pinCode,
+          message: 'รอยืนยัน PIN บนมือถือ',
+        });
+        toast.success(`PIN: ${res.data.pinCode}`, { duration: 60000, icon: '🔑' });
+        setIsPolling(true);
+      } else if (res.data.success !== false) {
+        // No PIN yet, start polling
         setLoginStatus(res.data);
         setIsPolling(true);
         toast.success('เริ่มกระบวนการ Login แล้ว');
       } else {
+        // Error from API
+        setLoginStatus(null);
         toast.error(res.data.message || 'เกิดข้อผิดพลาด');
       }
     } catch (err: unknown) {
       const error = err as { response?: { data?: { message?: string } } };
+      setLoginStatus(null);
       toast.error(error.response?.data?.message || 'เกิดข้อผิดพลาด');
     } finally {
       setIsSettingUp(false);
@@ -318,19 +355,43 @@ export default function LineSessionPage() {
   const handleRelogin = async () => {
     if (!selectedSession) return;
 
+    // Prevent double-click while already in progress
+    if (isSettingUp || isPolling) {
+      toast('กำลังดำเนินการอยู่ กรุณารอสักครู่...', { icon: '⏳' });
+      return;
+    }
+
     setIsSettingUp(true);
+    // Set initial status to show loading state immediately
+    setLoginStatus({ success: true, status: 'starting', message: 'กำลังเริ่มต้น...' });
+    
     try {
       const res = await lineSessionUserApi.startEnhancedLogin(selectedSession._id, undefined, undefined, 'relogin');
 
-      if (res.data.success !== false) {
+      // Check for PIN in response (from API directly, not WebSocket)
+      if (res.data.pinCode) {
+        // PIN received directly from API response!
+        setLoginStatus({
+          success: true,
+          status: 'waiting_for_pin',
+          pin: res.data.pinCode,
+          message: 'รอยืนยัน PIN บนมือถือ',
+        });
+        toast.success(`PIN: ${res.data.pinCode}`, { duration: 60000, icon: '🔑' });
+        setIsPolling(true);
+      } else if (res.data.success !== false) {
+        // No PIN yet, start polling
         setLoginStatus(res.data);
         setIsPolling(true);
         toast.success('เริ่มกระบวนการ Re-login แล้ว');
       } else {
+        // Error from API
+        setLoginStatus(null);
         toast.error(res.data.message || 'เกิดข้อผิดพลาด');
       }
     } catch (err: unknown) {
       const error = err as { response?: { data?: { message?: string } } };
+      setLoginStatus(null);
       toast.error(error.response?.data?.message || 'เกิดข้อผิดพลาด');
     } finally {
       setIsSettingUp(false);
