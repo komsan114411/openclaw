@@ -315,10 +315,36 @@ export class EnhancedAutomationService implements OnModuleDestroy {
     const lockAcquired = this.loginLockService.acquireLock(lineAccountId, 'enhanced');
     if (!lockAcquired) {
       const lockInfo = this.loginLockService.getLockInfo(lineAccountId);
+
+      // Check if there's an active worker with PIN - return PIN status instead of error
+      const worker = this.workerPoolService.getWorker(lineAccountId);
+      if (worker && worker.pinCode) {
+        this.logger.log(`[Login] Returning existing PIN ${worker.pinCode} for ${lineAccountId} (login in progress)`);
+        return {
+          success: false,
+          status: EnhancedLoginStatus.PIN_DISPLAYED,
+          pinCode: worker.pinCode,
+          message: 'PIN displayed. Please verify on your LINE mobile app.',
+        };
+      }
+
+      // Check PIN store as fallback
+      const pinStatus = this.getPinStatus(lineAccountId);
+      if (pinStatus.pinCode && pinStatus.isUsable) {
+        this.logger.log(`[Login] Returning stored PIN ${pinStatus.pinCode} for ${lineAccountId} (login in progress)`);
+        return {
+          success: false,
+          status: EnhancedLoginStatus.PIN_DISPLAYED,
+          pinCode: pinStatus.pinCode,
+          message: 'PIN displayed. Please verify on your LINE mobile app.',
+        };
+      }
+
+      // Return in-progress status instead of error
       return {
         success: false,
-        status: EnhancedLoginStatus.FAILED,
-        error: `Login already in progress (locked by: ${lockInfo?.source || 'unknown'})`,
+        status: EnhancedLoginStatus.VERIFYING,
+        message: `Login in progress (${lockInfo?.source || 'unknown'}). Please wait...`,
       };
     }
 
