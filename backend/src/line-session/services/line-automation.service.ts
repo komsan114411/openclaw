@@ -359,7 +359,9 @@ export class LineAutomationService implements OnModuleDestroy, OnModuleInit {
    * Launch browser with LINE extension
    */
   private async launchBrowser(): Promise<Browser> {
-    const extensionPath = path.join(__dirname, '../../extensions/line');
+    // Use LINE_EXTENSION_PATH env var (Docker) or default path (local dev)
+    const extensionPath = this.configService.get('LINE_EXTENSION_PATH') ||
+      path.join(__dirname, '../../extensions/line');
 
     // Check for custom executable path (for Docker/production)
     const executablePath = this.configService.get('PUPPETEER_EXECUTABLE_PATH');
