@@ -52,16 +52,19 @@ export class LoginNotificationService {
 
     // Log PIN specifically for debugging
     if (payload.pinCode) {
-      this.logger.log(`Broadcasting PIN ${payload.pinCode} for ${payload.lineAccountId}`);
+      this.logger.log(`Broadcasting PIN ${payload.pinCode} for account ${payload.lineAccountId}`);
     }
 
-    // Broadcast to ALL connected clients (ensures delivery)
-    this.websocketGateway.broadcastToAll('line-session:login-status', eventData);
+    // CRITICAL: Only broadcast to specific account channel to prevent PIN mixing
+    // DO NOT use broadcastToAll() as it causes PIN to show on wrong accounts
+    this.websocketGateway.broadcastToRoom(
+      `line-account:${payload.lineAccountId}`,
+      'line-session:login-status',
+      eventData,
+    );
 
-    // Also broadcast to specific rooms as backup
+    // Also send to admins room (they should filter by lineAccountId on client)
     this.websocketGateway.broadcastToAdmins('line-session:login-status', eventData);
-    this.websocketGateway.broadcastToRoom(`line-account:${payload.lineAccountId}`, 'line-session:login-status', eventData);
-    this.websocketGateway.broadcastToRoom('login-notifications', 'line-session:login-status', eventData);
   }
 
   /**
@@ -83,8 +86,9 @@ export class LoginNotificationService {
       message: 'Login request received',
       timestamp: new Date(),
     };
+    // Send to specific account channel only
+    this.websocketGateway.broadcastToRoom(`line-account:${payload.lineAccountId}`, 'line-session:login-event', eventData);
     this.websocketGateway.broadcastToAdmins('line-session:login-event', eventData);
-    this.websocketGateway.broadcastToRoom('login-notifications', 'line-session:login-event', eventData);
   }
 
   /**
@@ -104,8 +108,8 @@ export class LoginNotificationService {
       message: 'Login process started',
       timestamp: new Date(),
     };
+    this.websocketGateway.broadcastToRoom(`line-account:${payload.lineAccountId}`, 'line-session:login-event', eventData);
     this.websocketGateway.broadcastToAdmins('line-session:login-event', eventData);
-    this.websocketGateway.broadcastToRoom('login-notifications', 'line-session:login-event', eventData);
   }
 
   /**
@@ -126,8 +130,8 @@ export class LoginNotificationService {
       success: true,
       timestamp: new Date(),
     };
+    this.websocketGateway.broadcastToRoom(`line-account:${payload.lineAccountId}`, 'line-session:login-event', eventData);
     this.websocketGateway.broadcastToAdmins('line-session:login-event', eventData);
-    this.websocketGateway.broadcastToRoom('login-notifications', 'line-session:login-event', eventData);
   }
 
   /**
@@ -156,8 +160,8 @@ export class LoginNotificationService {
       nextRetryIn,
       timestamp: new Date(),
     };
+    this.websocketGateway.broadcastToRoom(`line-account:${payload.lineAccountId}`, 'line-session:login-event', eventData);
     this.websocketGateway.broadcastToAdmins('line-session:login-event', eventData);
-    this.websocketGateway.broadcastToRoom('login-notifications', 'line-session:login-event', eventData);
   }
 
   /**
@@ -173,8 +177,8 @@ export class LoginNotificationService {
       message: 'Login was cancelled',
       timestamp: new Date(),
     };
+    this.websocketGateway.broadcastToRoom(`line-account:${payload.lineAccountId}`, 'line-session:login-event', eventData);
     this.websocketGateway.broadcastToAdmins('line-session:login-event', eventData);
-    this.websocketGateway.broadcastToRoom('login-notifications', 'line-session:login-event', eventData);
   }
 
   /**
@@ -213,8 +217,9 @@ export class LoginNotificationService {
       error: payload.error,
       timestamp: new Date(),
     };
+    // CRITICAL: Only send to specific account channel to prevent PIN mixing
+    this.websocketGateway.broadcastToRoom(`line-account:${payload.lineAccountId}`, 'line-session:worker-state', eventData);
     this.websocketGateway.broadcastToAdmins('line-session:worker-state', eventData);
-    this.websocketGateway.broadcastToRoom('login-notifications', 'line-session:worker-state', eventData);
   }
 
   /**

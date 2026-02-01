@@ -213,6 +213,13 @@ export class WorkerPoolService implements OnModuleDestroy, OnModuleInit {
     // Check existing worker
     const existing = this.workers.get(lineAccountId);
     if (existing && existing.state !== WorkerState.ERROR && existing.state !== WorkerState.CLOSED) {
+      // CRITICAL: Clear old state to prevent PIN mixing with previous login
+      this.logger.log(`Reusing existing worker for ${lineAccountId}, clearing old state`);
+      existing.pinCode = undefined;
+      existing.capturedKeys = undefined;
+      existing.capturedChatMid = undefined;
+      existing.error = undefined;
+      existing.lastActivityAt = new Date();
       return existing;
     }
 

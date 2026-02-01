@@ -106,7 +106,29 @@ export function useLoginNotifications(options: UseLoginNotificationsOptions = {}
   }, [onWorkerState]);
 
   useEffect(() => {
+    const prevAccountId = lineAccountIdRef.current;
     lineAccountIdRef.current = lineAccountId;
+
+    // Re-subscribe when account changes
+    if (socketRef.current?.connected && lineAccountId && lineAccountId !== prevAccountId) {
+      // Unsubscribe from previous account
+      if (prevAccountId) {
+        console.log('[LoginNotifications] Unsubscribing from previous account:', prevAccountId);
+        socketRef.current.emit('unsubscribe', { channel: `line-account:${prevAccountId}` });
+      }
+
+      // Subscribe to new account
+      console.log('[LoginNotifications] Subscribing to new account:', lineAccountId);
+      socketRef.current.emit('subscribe', { channel: `line-account:${lineAccountId}` });
+
+      // Clear previous PIN state to prevent showing wrong PIN
+      setState(prev => ({
+        ...prev,
+        pinCode: null,
+        lastStatus: null,
+        lastEvent: null,
+      }));
+    }
   }, [lineAccountId]);
 
   // Status message Thai translations
@@ -152,12 +174,11 @@ export function useLoginNotifications(options: UseLoginNotificationsOptions = {}
       // Join admin room to receive notifications (may fail without session)
       socket.emit('join', { userId: 'admin', role: 'admin' });
 
-      // Subscribe to login-notifications channel (public channel)
-      socket.emit('subscribe', { channel: 'login-notifications' });
-
-      // Subscribe to specific line account if provided
+      // Subscribe to specific line account channel only (NOT the global login-notifications)
+      // This ensures PIN isolation - only receive events for the account being viewed
       const currentAccountId = lineAccountIdRef.current;
       if (currentAccountId) {
+        console.log('[LoginNotifications] Subscribing to account:', currentAccountId);
         socket.emit('subscribe', { channel: `line-account:${currentAccountId}` });
       }
     });
@@ -169,13 +190,32 @@ export function useLoginNotifications(options: UseLoginNotificationsOptions = {}
 
     // Handle login status updates
     socket.on('line-session:login-status', (data: LoginStatusEvent) => {
-      console.log('[LoginNotifications] Status:', data);
-
-      // Filter by lineAccountId if specified (using ref for stable reference)
+      // CRITICAL: Validate account ID to prevent PIN mixing
       const currentAccountId = lineAccountIdRef.current;
-      if (currentAccountId && data.lineAccountId !== currentAccountId) {
+
+      // Log all received events for debugging
+      console.log('[LoginNotifications] Status received:', {
+        eventAccountId: data.lineAccountId,
+        currentAccountId,
+        status: data.status,
+        hasPinCode: !!data.pinCode,
+      });
+
+      // Strict filtering: only accept events for the account we're viewing
+      if (!currentAccountId) {
+        console.log('[LoginNotifications] No current account, ignoring event');
         return;
       }
+
+      if (data.lineAccountId !== currentAccountId) {
+        console.warn('[LoginNotifications] Ignoring event for different account:', {
+          expected: currentAccountId,
+          received: data.lineAccountId,
+        });
+        return;
+      }
+
+      console.log('[LoginNotifications] Processing event for correct account:', data.lineAccountId);
 
       setState(prev => ({
         ...prev,
