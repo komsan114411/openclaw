@@ -439,7 +439,7 @@ export class LineSessionController {
     // Use enhanced automation service
     const status = this.enhancedAutomationService.getWorkerStatus(lineAccountId);
 
-    if (!status) {
+    if (!status || !status.worker) {
       return {
         success: true,
         hasActiveLogin: false,
@@ -449,10 +449,10 @@ export class LineSessionController {
 
     return {
       success: true,
-      hasActiveLogin: status.state !== 'idle',
-      status: status.state,
-      pinCode: status.pinCode,
-      error: status.error,
+      hasActiveLogin: status.worker.state !== 'idle',
+      status: status.worker.state,
+      pinCode: status.worker.pinCode,
+      error: status.request?.error,
     };
   }
 
