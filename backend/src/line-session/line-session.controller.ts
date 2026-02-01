@@ -103,6 +103,8 @@ export class LineSessionController {
         id: session._id,
         lineAccountId: session.lineAccountId,
         hasKeys: !!(session.xLineAccess && session.xHmac),
+        hasCurl: !!session.cUrlBash,
+        chatMid: session.chatMid,
         extractedAt: session.extractedAt,
         expiresAt: session.expiresAt,
         lastCheckedAt: session.lastCheckedAt,
@@ -110,7 +112,9 @@ export class LineSessionController {
         status: session.status,
         source: session.source,
         consecutiveFailures: session.consecutiveFailures,
-        // ไม่ส่ง keys กลับเพื่อความปลอดภัย
+        // Masked keys for display (first 20 chars only)
+        xLineAccessPreview: session.xLineAccess ? session.xLineAccess.substring(0, 20) + '...' : null,
+        xHmacPreview: session.xHmac ? session.xHmac.substring(0, 20) + '...' : null,
       },
     };
   }

@@ -1,9 +1,12 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { OnEvent } from '@nestjs/event-emitter';
+import { InjectModel } from '@nestjs/mongoose';
+import { Model } from 'mongoose';
 import { WebsocketGateway } from '../../websocket/websocket.gateway';
 import { EnhancedLoginStatus } from './enhanced-automation.service';
 import { RequestStatus } from './login-coordinator.service';
 import { WorkerState } from './worker-pool.service';
+import { LineSession, LineSessionDocument } from '../schemas/line-session.schema';
 
 /**
  * Login Notification Service
@@ -20,7 +23,11 @@ import { WorkerState } from './worker-pool.service';
 export class LoginNotificationService {
   private readonly logger = new Logger(LoginNotificationService.name);
 
-  constructor(private readonly websocketGateway: WebsocketGateway) {}
+  constructor(
+    private readonly websocketGateway: WebsocketGateway,
+    @InjectModel(LineSession.name)
+    private readonly lineSessionModel: Model<LineSessionDocument>,
+  ) {}
 
   /**
    * Handle enhanced login status updates
@@ -113,14 +120,20 @@ export class LoginNotificationService {
   }
 
   /**
-   * Handle login completed
+   * Handle login completed - fetch keys and curl command
    */
   @OnEvent('login.completed')
-  handleLoginCompleted(payload: {
+  async handleLoginCompleted(payload: {
     requestId: string;
     lineAccountId: string;
   }) {
     this.logger.log(`Login completed: ${payload.lineAccountId}`);
+
+    // Fetch session with keys and curl command
+    const session = await this.lineSessionModel.findOne({
+      lineAccountId: payload.lineAccountId,
+      isActive: true,
+    });
 
     const eventData = {
       type: 'login_completed',
@@ -129,9 +142,39 @@ export class LoginNotificationService {
       message: 'Login successful! Keys captured.',
       success: true,
       timestamp: new Date(),
+      // Include keys info for real-time update
+      keysInfo: session ? {
+        hasKeys: !!(session.xLineAccess && session.xHmac),
+        chatMid: session.chatMid,
+        extractedAt: session.extractedAt,
+        hasCurl: !!session.cUrlBash,
+        status: session.status,
+      } : null,
     };
+
     this.websocketGateway.broadcastToRoom(`line-account:${payload.lineAccountId}`, 'line-session:login-event', eventData);
     this.websocketGateway.broadcastToAdmins('line-session:login-event', eventData);
+
+    // Send detailed keys notification
+    if (session && session.xLineAccess) {
+      const keysEventData = {
+        type: 'keys_captured',
+        lineAccountId: payload.lineAccountId,
+        message: 'Keys captured successfully! You can now use cURL command.',
+        keys: {
+          xLineAccess: session.xLineAccess.substring(0, 20) + '...', // Masked for security
+          xHmac: session.xHmac?.substring(0, 20) + '...',
+          chatMid: session.chatMid,
+          extractedAt: session.extractedAt,
+        },
+        hasCurl: !!session.cUrlBash,
+        timestamp: new Date(),
+      };
+
+      this.logger.log(`Keys captured notification sent for ${payload.lineAccountId}`);
+      this.websocketGateway.broadcastToRoom(`line-account:${payload.lineAccountId}`, 'line-session:keys-captured', keysEventData);
+      this.websocketGateway.broadcastToAdmins('line-session:keys-captured', keysEventData);
+    }
   }
 
   /**
