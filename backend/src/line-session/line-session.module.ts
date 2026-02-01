@@ -1,6 +1,5 @@
 import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
-import { EventEmitterModule } from '@nestjs/event-emitter';
 
 // Schemas
 import { LineSession, LineSessionSchema } from './schemas/line-session.schema';
@@ -8,6 +7,7 @@ import { LineKeyHistory, LineKeyHistorySchema } from './schemas/line-key-history
 import { BankList, BankListSchema } from './schemas/bank-list.schema';
 import { LineMessage, LineMessageSchema } from './schemas/line-message.schema';
 import { LineAccount, LineAccountSchema } from '../database/schemas/line-account.schema';
+import { SystemSettings, SystemSettingsSchema } from '../database/schemas/system-settings.schema';
 
 // Services (Original)
 import { KeyStorageService } from './services/key-storage.service';
@@ -22,6 +22,7 @@ import { WorkerPoolService } from './services/worker-pool.service';
 import { LoginCoordinatorService } from './services/login-coordinator.service';
 import { EnhancedAutomationService } from './services/enhanced-automation.service';
 import { LoginNotificationService } from './services/login-notification.service';
+import { OrchestratorService } from './services/orchestrator.service';
 
 // Shared Services
 import { LoginLockService } from './services/login-lock.service';
@@ -65,11 +66,10 @@ import { ConfigModule } from '@nestjs/config';
       { name: BankList.name, schema: BankListSchema },
       { name: LineMessage.name, schema: LineMessageSchema },
       { name: LineAccount.name, schema: LineAccountSchema },
+      { name: SystemSettings.name, schema: SystemSettingsSchema },
     ]),
     // EventBus for publishing/subscribing to events
     EventBusModule,
-    // EventEmitter for enhanced services
-    EventEmitterModule.forRoot(),
     // Config for encryption keys
     ConfigModule,
   ],
@@ -89,6 +89,7 @@ import { ConfigModule } from '@nestjs/config';
     LoginCoordinatorService,
     EnhancedAutomationService,
     LoginNotificationService,
+    OrchestratorService,
   ],
   exports: [
     // Shared services
@@ -104,6 +105,7 @@ import { ConfigModule } from '@nestjs/config';
     WorkerPoolService,
     LoginCoordinatorService,
     EnhancedAutomationService,
+    OrchestratorService,
   ],
 })
 export class LineSessionModule {}

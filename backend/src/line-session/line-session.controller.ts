@@ -30,6 +30,7 @@ import { MessageFetchService, BankCodes } from './services/message-fetch.service
 import { EnhancedAutomationService, EnhancedLoginStatus } from './services/enhanced-automation.service';
 import { WorkerPoolService } from './services/worker-pool.service';
 import { LoginCoordinatorService } from './services/login-coordinator.service';
+import { OrchestratorService } from './services/orchestrator.service';
 import { SetKeysDto, CopyKeysDto, ParseCurlDto, TriggerLoginDto } from './dto/set-keys.dto';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
@@ -54,6 +55,7 @@ export class LineSessionController {
     private enhancedAutomationService: EnhancedAutomationService,
     private workerPoolService: WorkerPoolService,
     private loginCoordinatorService: LoginCoordinatorService,
+    private orchestratorService: OrchestratorService,
     @InjectModel(BankList.name)
     private bankListModel: Model<BankListDocument>,
     @InjectModel(LineSession.name)
@@ -1149,6 +1151,122 @@ export class LineSessionController {
         source: session.source,
         performedBy: session.performedBy,
       },
+    };
+  }
+
+  // ================================
+  // ORCHESTRATOR (Auto-Relogin Loop)
+  // ================================
+
+  /**
+   * Get orchestrator status and statistics
+   */
+  @Get('orchestrator/status')
+  @ApiOperation({ summary: 'Get orchestrator status and statistics' })
+  async getOrchestratorStatus() {
+    const stats = this.orchestratorService.getStatistics();
+    const settings = this.orchestratorService.getCurrentSettings();
+    const sessions = await this.orchestratorService.getAllSessionStatuses();
+
+    // Calculate session stats
+    const totalSessions = sessions.length;
+    const activeSessions = sessions.filter(s => s.hasKeys && s.keysStatus === 'VALID').length;
+    const expiringSoonSessions = sessions.filter(s => s.isExpiringSoon).length;
+    const expiredSessions = sessions.filter(s => s.keysStatus === 'EXPIRED').length;
+    const loggingInSessions = sessions.filter(s => s.loginStatus === 'logging_in' || s.loginStatus === 'waiting_pin').length;
+
+    return {
+      success: true,
+      orchestrator: {
+        ...stats,
+        totalSessions,
+        activeSessions,
+        expiringSoonSessions,
+        expiredSessions,
+        loggingInSessions,
+      },
+      settings,
+      sessions,
+    };
+  }
+
+  /**
+   * Get all session statuses (real-time)
+   */
+  @Get('orchestrator/sessions')
+  @ApiOperation({ summary: 'Get all session statuses for real-time monitoring' })
+  async getOrchestratorSessions() {
+    const sessions = await this.orchestratorService.getAllSessionStatuses();
+    return {
+      success: true,
+      total: sessions.length,
+      sessions,
+    };
+  }
+
+  /**
+   * Force orchestrator health check now (all sessions)
+   */
+  @Post('orchestrator/health-check')
+  @ApiOperation({ summary: 'Force orchestrator health check on all sessions' })
+  async triggerOrchestratorHealthCheck() {
+    await this.orchestratorService.forceHealthCheck();
+    return {
+      success: true,
+      message: 'Health check completed',
+    };
+  }
+
+  /**
+   * Force relogin check now
+   */
+  @Post('orchestrator/relogin-check')
+  @ApiOperation({ summary: 'Force relogin check now' })
+  async forceReloginCheck() {
+    await this.orchestratorService.forceReloginCheck();
+    return {
+      success: true,
+      message: 'Relogin check completed',
+    };
+  }
+
+  /**
+   * Trigger manual relogin for a session
+   */
+  @Post(':lineAccountId/orchestrator/relogin')
+  @ApiOperation({ summary: 'Trigger manual relogin via orchestrator' })
+  async triggerOrchestratorRelogin(@Param('lineAccountId') lineAccountId: string) {
+    const result = await this.orchestratorService.triggerManualRelogin(lineAccountId);
+    return {
+      success: result.success,
+      message: result.message,
+      pinCode: result.pinCode,
+    };
+  }
+
+  /**
+   * Restart orchestrator loops (after settings change)
+   */
+  @Post('orchestrator/restart')
+  @ApiOperation({ summary: 'Restart orchestrator loops after settings change' })
+  async restartOrchestrator() {
+    await this.orchestratorService.restartLoops();
+    return {
+      success: true,
+      message: 'Orchestrator restarted',
+      settings: this.orchestratorService.getCurrentSettings(),
+    };
+  }
+
+  /**
+   * Get orchestrator settings
+   */
+  @Get('orchestrator/settings')
+  @ApiOperation({ summary: 'Get orchestrator settings' })
+  async getOrchestratorSettings() {
+    return {
+      success: true,
+      settings: this.orchestratorService.getCurrentSettings(),
     };
   }
 }

@@ -9,6 +9,7 @@ import {
 } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
 import { Logger } from '@nestjs/common';
+import { OnEvent } from '@nestjs/event-emitter';
 import { WebsocketService } from './websocket.service';
 import { AuthService } from '../auth/auth.service';
 
@@ -230,5 +231,96 @@ export class WebsocketGateway implements OnGatewayConnection, OnGatewayDisconnec
     const memberCount = roomSockets ? roomSockets.size : 0;
     this.logger.log(`[Broadcast] Admins room has ${memberCount} members. Event: ${event}`);
     this.server.to('admins').emit(event, data);
+  }
+
+  // ============================================
+  // Orchestrator Events (Auto-Relogin Loop)
+  // ============================================
+
+  /**
+   * Broadcast orchestrator status to all admins (every 5 seconds)
+   */
+  @OnEvent('orchestrator.status_broadcast')
+  handleOrchestratorStatusBroadcast(payload: {
+    timestamp: Date;
+    sessions: Array<{
+      lineAccountId: string;
+      name: string;
+      keysStatus: string;
+      loginStatus: string;
+      pinCode?: string;
+      needsRelogin: boolean;
+    }>;
+    stats: Record<string, unknown>;
+  }) {
+    this.broadcastToAdmins('orchestrator:status', payload);
+  }
+
+  /**
+   * Broadcast when a session's keys are expiring soon
+   */
+  @OnEvent('session.expiring_soon')
+  handleSessionExpiringSoon(payload: {
+    lineAccountId: string;
+    sessionId: string;
+    name: string;
+    expiresIn: number;
+  }) {
+    this.logger.warn(`[Orchestrator] Session ${payload.name} expiring in ${payload.expiresIn}s`);
+    this.broadcastToAdmins('orchestrator:session_expiring', payload);
+  }
+
+  /**
+   * Broadcast when a session's keys have expired
+   */
+  @OnEvent('session.expired')
+  handleSessionExpired(payload: {
+    lineAccountId: string;
+    sessionId: string;
+    name: string;
+  }) {
+    this.logger.warn(`[Orchestrator] Session ${payload.name} expired`);
+    this.broadcastToAdmins('orchestrator:session_expired', payload);
+  }
+
+  /**
+   * Broadcast when auto-relogin starts for a session
+   */
+  @OnEvent('session.relogin_started')
+  handleSessionReloginStarted(payload: {
+    lineAccountId: string;
+    sessionId: string;
+    name: string;
+    pinCode?: string;
+  }) {
+    this.logger.log(`[Orchestrator] Relogin started for ${payload.name}, PIN: ${payload.pinCode || 'N/A'}`);
+    this.broadcastToAdmins('orchestrator:relogin_started', payload);
+  }
+
+  /**
+   * Broadcast PIN update for a session
+   */
+  @OnEvent('session.pin_update')
+  handleSessionPinUpdate(payload: {
+    lineAccountId: string;
+    sessionId: string;
+    pinCode: string;
+    pinStatus: string;
+  }) {
+    this.logger.log(`[Orchestrator] PIN update: ${payload.pinCode} (${payload.pinStatus})`);
+    this.broadcastToAdmins('orchestrator:pin_update', payload);
+  }
+
+  /**
+   * Broadcast when keys are successfully extracted
+   */
+  @OnEvent('session.keys_extracted')
+  handleSessionKeysExtracted(payload: {
+    lineAccountId: string;
+    sessionId: string;
+    name: string;
+  }) {
+    this.logger.log(`[Orchestrator] Keys extracted for ${payload.name}`);
+    this.broadcastToAdmins('orchestrator:keys_extracted', payload);
   }
 }

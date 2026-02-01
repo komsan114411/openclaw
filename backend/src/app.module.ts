@@ -3,6 +3,7 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { MongooseModule } from '@nestjs/mongoose';
 import { ServeStaticModule } from '@nestjs/serve-static';
 import { ScheduleModule } from '@nestjs/schedule';
+import { EventEmitterModule } from '@nestjs/event-emitter';
 import { join } from 'path';
 import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
@@ -36,6 +37,7 @@ import { LineSessionModule } from './line-session/line-session.module';
   imports: [
     // Core modules (Event Bus - Global)
     EventBusModule,
+    EventEmitterModule.forRoot(),
     SecurityModule,
 
     // Configuration
