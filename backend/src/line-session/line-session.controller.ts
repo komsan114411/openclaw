@@ -1083,4 +1083,72 @@ export class LineSessionController {
       cleaned,
     };
   }
+
+  // ================================
+  // CURL COMMAND (GSB-style)
+  // ================================
+
+  /**
+   * Get cURL command for a session
+   */
+  @Get(':lineAccountId/curl')
+  @ApiOperation({ summary: 'Get cURL command for copying' })
+  async getCurlCommand(@Param('lineAccountId') lineAccountId: string) {
+    const curl = await this.keyStorageService.getCurlCommand(lineAccountId);
+
+    if (!curl) {
+      return {
+        success: false,
+        message: 'No keys found. Please login first.',
+        curl: null,
+      };
+    }
+
+    return {
+      success: true,
+      curl,
+    };
+  }
+
+  /**
+   * Get session with login details
+   */
+  @Get(':lineAccountId/details')
+  @ApiOperation({ summary: 'Get session details including login info' })
+  async getSessionDetails(@Param('lineAccountId') lineAccountId: string) {
+    const session = await this.keyStorageService.getActiveSession(lineAccountId);
+
+    if (!session) {
+      return {
+        success: false,
+        hasSession: false,
+        session: null,
+      };
+    }
+
+    return {
+      success: true,
+      hasSession: true,
+      session: {
+        id: session._id,
+        lineAccountId: session.lineAccountId,
+        name: session.name,
+        lineEmail: session.lineEmail,
+        bankCode: session.bankCode,
+        bankName: session.bankName,
+        accountNumber: session.accountNumber,
+        chatMid: session.chatMid,
+        balance: session.balance,
+        hasKeys: !!(session.xLineAccess && session.xHmac),
+        hasCurl: !!session.cUrlBash,
+        extractedAt: session.extractedAt,
+        expiresAt: session.expiresAt,
+        lastCheckedAt: session.lastCheckedAt,
+        lastCheckResult: session.lastCheckResult,
+        status: session.status,
+        source: session.source,
+        performedBy: session.performedBy,
+      },
+    };
+  }
 }

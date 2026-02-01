@@ -158,6 +158,19 @@ export class LineSession {
    */
   @Prop({ type: Object })
   metadata: Record<string, any>;
+
+  /**
+   * cURL Bash Command (for copying)
+   * สร้างจาก keys ที่สกัดได้
+   */
+  @Prop()
+  cUrlBash: string;
+
+  /**
+   * ผู้ดำเนินการล็อกอินล่าสุด
+   */
+  @Prop()
+  performedBy: string;
 }
 
 export const LineSessionSchema = SchemaFactory.createForClass(LineSession);

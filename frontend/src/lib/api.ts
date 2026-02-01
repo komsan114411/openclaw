@@ -748,6 +748,34 @@ export const lineSessionApi = {
   // Close worker
   closeWorker: (lineAccountId: string) =>
     api.delete(`/admin/line-session/${lineAccountId}/worker`),
+
+  // === cURL Command ===
+
+  // Get cURL command for copying
+  getCurl: (lineAccountId: string) =>
+    api.get(`/admin/line-session/${lineAccountId}/curl`),
+
+  // Get session details with login info
+  getSessionDetails: (lineAccountId: string) =>
+    api.get(`/admin/line-session/${lineAccountId}/details`),
+
+  // === PIN Status (GSB-style) ===
+
+  // Get PIN status
+  getPinStatus: (lineAccountId: string) =>
+    api.get(`/admin/line-session/${lineAccountId}/pin-status`),
+
+  // Get full session status (PIN + Keys)
+  getSessionStatus: (lineAccountId: string) =>
+    api.get(`/admin/line-session/${lineAccountId}/session-status`),
+
+  // Get keys status
+  getKeysStatus: (lineAccountId: string) =>
+    api.get(`/admin/line-session/${lineAccountId}/keys-status`),
+
+  // Check if needs relogin
+  needsRelogin: (lineAccountId: string) =>
+    api.get(`/admin/line-session/${lineAccountId}/needs-relogin`),
 };
 
 // LINE Session User API (User-facing endpoints)

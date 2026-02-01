@@ -66,9 +66,21 @@ export class KeyStorageService {
       session.source = input.source;
       session.status = 'active';
       session.consecutiveFailures = 0;
+      if (input.performedBy) {
+        session.performedBy = input.performedBy;
+      }
       if (input.metadata) {
         session.metadata = { ...session.metadata, ...input.metadata };
       }
+
+      // Generate cURL command
+      session.cUrlBash = this.generateCurlCommand(
+        input.xLineAccess,
+        input.xHmac,
+        session.chatMid || '',
+        input.userAgent || this.getDefaultUserAgent(),
+        input.lineVersion || '3.4.0',
+      );
 
       await session.save();
 
@@ -241,5 +253,56 @@ export class KeyStorageService {
 
   private getDefaultUserAgent(): string {
     return 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
+  }
+
+  /**
+   * Generate cURL command from keys
+   */
+  generateCurlCommand(
+    xLineAccess: string,
+    xHmac: string,
+    chatMid: string,
+    userAgent: string,
+    lineVersion: string = '3.4.0',
+  ): string {
+    return `curl 'https://gd2.line.naver.jp/enc' \\
+  -H 'X-Line-Access: ${xLineAccess}' \\
+  -H 'X-Hmac: ${xHmac}' \\
+  -H 'User-Agent: ${userAgent}' \\
+  -H 'Content-Type: application/x-thrift' \\
+  -H 'x-line-application: CHROMEOS\t${lineVersion}\tChrome OS\t1' \\
+  --data-binary $'\\x80\\x01\\x00\\x01\\x00\\x00\\x00\\x14getRecentMessagesV2\\x00\\x00\\x00\\x00\\x0b\\x00\\x02\\x00\\x00\\x00${chatMid ? chatMid.length.toString(16).padStart(2, '0') : '00'}${chatMid}\\x08\\x00\\x03\\x00\\x00\\x00\\x32\\x00'`;
+  }
+
+  /**
+   * Get cURL command for a session
+   */
+  async getCurlCommand(lineAccountId: string): Promise<string | null> {
+    const session = await this.getActiveSession(lineAccountId);
+    if (!session) return null;
+
+    // Return stored cURL or generate new one
+    if (session.cUrlBash) {
+      return session.cUrlBash;
+    }
+
+    // Generate from stored keys
+    if (session.xLineAccess && session.xHmac) {
+      const curl = this.generateCurlCommand(
+        session.xLineAccess,
+        session.xHmac,
+        session.chatMid || '',
+        session.userAgent || this.getDefaultUserAgent(),
+        session.lineVersion || '3.4.0',
+      );
+
+      // Save for next time
+      session.cUrlBash = curl;
+      await session.save();
+
+      return curl;
+    }
+
+    return null;
   }
 }

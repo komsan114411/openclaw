@@ -570,14 +570,19 @@ export default function AdminLineAccountsPage() {
   const fetchSessionData = async (accountId: string) => {
     setSessionData(prev => ({ ...prev, isLoading: true }));
     try {
-      const [sessionRes, healthRes, historyRes] = await Promise.allSettled([
+      const [sessionRes, healthRes, historyRes, detailsRes] = await Promise.allSettled([
         lineSessionApi.getSession(accountId),
         lineSessionApi.getHealth(accountId),
         lineSessionApi.getHistory(accountId, 10),
+        lineSessionApi.getSessionDetails(accountId),
       ]);
 
+      // Merge session and details
+      const baseSession = sessionRes.status === 'fulfilled' ? sessionRes.value.data : null;
+      const details = detailsRes.status === 'fulfilled' ? detailsRes.value.data?.session : null;
+
       setSessionData({
-        session: sessionRes.status === 'fulfilled' ? sessionRes.value.data : null,
+        session: details || baseSession,
         health: healthRes.status === 'fulfilled' ? healthRes.value.data : null,
         history: historyRes.status === 'fulfilled' ? historyRes.value.data?.history || [] : [],
         isLoading: false,
@@ -585,6 +590,23 @@ export default function AdminLineAccountsPage() {
     } catch (error) {
       setSessionData(prev => ({ ...prev, isLoading: false }));
       toast.error('ไม่สามารถโหลดข้อมูล Session ได้');
+    }
+  };
+
+  // Copy cURL command
+  const handleCopyCurl = async () => {
+    if (!selectedAccount) return;
+
+    try {
+      const res = await lineSessionApi.getCurl(selectedAccount._id);
+      if (res.data.success && res.data.curl) {
+        navigator.clipboard.writeText(res.data.curl);
+        toast.success('คัดลอก cURL command แล้ว');
+      } else {
+        toast.error(res.data.message || 'ไม่พบ cURL command');
+      }
+    } catch (error: any) {
+      toast.error('ไม่สามารถดึง cURL command ได้');
     }
   };
 
@@ -2043,23 +2065,82 @@ export default function AdminLineAccountsPage() {
                   </div>
                 </div>
 
+                {/* Session Details Display */}
+                {sessionData.session && (
+                  <div className="p-6 bg-blue-50 rounded-[2rem] border border-blue-200">
+                    <p className="text-[10px] font-black text-blue-600 uppercase tracking-widest mb-4">Session Details</p>
+                    <div className="grid grid-cols-2 gap-4">
+                      {sessionData.session.lineEmail && (
+                        <div>
+                          <p className="text-[9px] font-bold text-blue-500 uppercase mb-1">LINE Email</p>
+                          <p className="text-sm text-blue-700 bg-white/50 p-2 rounded-lg">
+                            {sessionData.session.lineEmail}
+                          </p>
+                        </div>
+                      )}
+                      {sessionData.session.bankName && (
+                        <div>
+                          <p className="text-[9px] font-bold text-blue-500 uppercase mb-1">Bank</p>
+                          <p className="text-sm text-blue-700 bg-white/50 p-2 rounded-lg">
+                            {sessionData.session.bankName}
+                          </p>
+                        </div>
+                      )}
+                      {sessionData.session.accountNumber && (
+                        <div>
+                          <p className="text-[9px] font-bold text-blue-500 uppercase mb-1">Account Number</p>
+                          <p className="text-sm text-blue-700 bg-white/50 p-2 rounded-lg font-mono">
+                            {sessionData.session.accountNumber}
+                          </p>
+                        </div>
+                      )}
+                      {sessionData.session.status && (
+                        <div>
+                          <p className="text-[9px] font-bold text-blue-500 uppercase mb-1">Status</p>
+                          <p className="text-sm text-blue-700 bg-white/50 p-2 rounded-lg capitalize">
+                            {sessionData.session.status}
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
                 {/* Current Keys Display */}
-                {sessionData.session && sessionData.session.xLineAccess && (
+                {sessionData.session && sessionData.session.hasKeys && (
                   <div className="p-6 bg-emerald-50 rounded-[2rem] border border-emerald-200">
-                    <p className="text-[10px] font-black text-emerald-600 uppercase tracking-widest mb-4">Current Keys</p>
+                    <div className="flex items-center justify-between mb-4">
+                      <p className="text-[10px] font-black text-emerald-600 uppercase tracking-widest">Current Keys</p>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={handleCopyCurl}
+                        className="border-emerald-300 text-emerald-600 hover:bg-emerald-100"
+                      >
+                        <Copy className="w-3 h-3 mr-1" /> Copy cURL
+                      </Button>
+                    </div>
                     <div className="space-y-3">
                       <div>
                         <p className="text-[9px] font-bold text-emerald-500 uppercase mb-1">X-Line-Access</p>
                         <p className="font-mono text-xs text-emerald-700 bg-white/50 p-2 rounded-lg break-all">
-                          {sessionData.session.xLineAccess.substring(0, 30)}...
+                          {sessionData.session.xLineAccess ? sessionData.session.xLineAccess.substring(0, 30) + '...' : 'Hidden'}
                         </p>
                       </div>
                       <div>
                         <p className="text-[9px] font-bold text-emerald-500 uppercase mb-1">X-Hmac</p>
                         <p className="font-mono text-xs text-emerald-700 bg-white/50 p-2 rounded-lg break-all">
-                          {sessionData.session.xHmac.substring(0, 30)}...
+                          {sessionData.session.xHmac ? sessionData.session.xHmac.substring(0, 30) + '...' : 'Hidden'}
                         </p>
                       </div>
+                      {sessionData.session.extractedAt && (
+                        <div>
+                          <p className="text-[9px] font-bold text-emerald-500 uppercase mb-1">Extracted At</p>
+                          <p className="text-xs text-emerald-700 bg-white/50 p-2 rounded-lg">
+                            {new Date(sessionData.session.extractedAt).toLocaleString('th-TH')}
+                          </p>
+                        </div>
+                      )}
                     </div>
                   </div>
                 )}
