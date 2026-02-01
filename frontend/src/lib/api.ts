@@ -3,6 +3,17 @@ import axios from 'axios';
 const api = axios.create({
   baseURL: process.env.NEXT_PUBLIC_API_URL || '/api',
   withCredentials: true,
+  timeout: 30000, // 30 seconds default timeout
+  headers: {
+    'Content-Type': 'application/json',
+  },
+});
+
+// Extended timeout API for long-running operations
+const apiLongRunning = axios.create({
+  baseURL: process.env.NEXT_PUBLIC_API_URL || '/api',
+  withCredentials: true,
+  timeout: 180000, // 3 minutes for operations like enhanced login
   headers: {
     'Content-Type': 'application/json',
   },
@@ -710,9 +721,9 @@ export const lineSessionApi = {
   getCoordinatorStats: () =>
     api.get('/admin/line-session/enhanced/coordinator'),
 
-  // Start enhanced login
+  // Start enhanced login (uses extended timeout for long-running operation)
   startEnhancedLogin: (lineAccountId: string, email?: string, password?: string, source?: 'manual' | 'auto' | 'relogin') =>
-    api.post(`/admin/line-session/${lineAccountId}/enhanced-login`, { email, password, source }),
+    apiLongRunning.post(`/admin/line-session/${lineAccountId}/enhanced-login`, { email, password, source }),
 
   // Get enhanced login status
   getEnhancedLoginStatus: (lineAccountId: string) =>

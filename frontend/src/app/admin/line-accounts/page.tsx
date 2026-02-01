@@ -116,6 +116,8 @@ export default function AdminLineAccountsPage() {
     email: '',
     password: '',
   });
+  // Track if PIN has been shown to avoid duplicate alerts
+  const pinShownRef = useRef<string | null>(null);
   const [loginStatus, setLoginStatus] = useState<{
     status: string;
     pinCode?: string;
@@ -767,7 +769,6 @@ export default function AdminLineAccountsPage() {
     if (loginNotifications.isConnected) {
       console.log('[handleStartLogin] Subscribing to WebSocket channel:', `line-account:${accountId}`);
       loginNotifications.subscribeToAccount(accountId);
-      // Wait a bit for subscription to be processed
       await new Promise(resolve => setTimeout(resolve, 200));
     }
 
@@ -781,8 +782,13 @@ export default function AdminLineAccountsPage() {
       sessionReused: false,
     }));
 
+    // STEP 2: Start polling IMMEDIATELY (don't wait for HTTP response)
+    // This ensures we get PIN even if HTTP response is slow
+    console.log('[handleStartLogin] Starting immediate polling for PIN...');
+    pollLoginStatus(accountId);
+
     try {
-      // STEP 2: Call the login API
+      // STEP 3: Call the login API (non-blocking polling already started)
       console.log('[handleStartLogin] Calling startEnhancedLogin API...');
       const res = await lineSessionApi.startEnhancedLogin(
         accountId,
@@ -792,17 +798,11 @@ export default function AdminLineAccountsPage() {
       );
 
       console.log('[handleStartLogin] === API RESPONSE RECEIVED ===');
-      console.log('[handleStartLogin] res:', res);
-      console.log('[handleStartLogin] res.status:', res.status);
-
       const data = res.data;
-      console.log('[handleStartLogin] Response data:', JSON.stringify(data, null, 2));
 
-      // STEP 3: Check for errors first
+      // Check for errors first
       if (!data) {
         console.error('[handleStartLogin] No data in response!');
-        toast.error('No response from server');
-        setLoginStatus(prev => ({ ...prev, isLoading: false, status: 'failed', error: 'No response' }));
         return;
       }
 
@@ -820,15 +820,15 @@ export default function AdminLineAccountsPage() {
         return;
       }
 
-      // STEP 4: Extract PIN from response
+      // Extract PIN from response (if present)
       const pinCodeValue = data.pinCode || data.pin || data.pin_code || null;
-      console.log('[handleStartLogin] Extracted PIN:', pinCodeValue);
+      console.log('[handleStartLogin] Response PIN:', pinCodeValue);
 
-      // STEP 5: Update state with response
+      // Update state with response
       setLoginStatus(prev => ({
         ...prev,
-        status: data.status || 'unknown',
-        pinCode: pinCodeValue || undefined,
+        status: data.status || prev.status,
+        pinCode: pinCodeValue || prev.pinCode, // Keep existing PIN if response doesn't have one
         error: data.error,
         requestId: data.requestId,
         chatMid: data.chatMid,
@@ -836,62 +836,42 @@ export default function AdminLineAccountsPage() {
         isLoading: !data.success && data.status !== 'failed',
       }));
 
-      // STEP 6: Handle PIN display - CRITICAL
+      // Handle PIN from HTTP response
       if (pinCodeValue) {
-        console.log('[handleStartLogin] *** PIN FOUND ***:', pinCodeValue);
-        // Show alert popup
-        alert(`PIN Code: ${pinCodeValue}\n\nPlease enter this PIN on your LINE mobile app.\n\nกรุณากรอก PIN นี้ในแอป LINE บนมือถือของคุณ`);
-        // Also show toast
+        console.log('[handleStartLogin] *** PIN FROM HTTP ***:', pinCodeValue);
+        alert(`PIN Code: ${pinCodeValue}\n\nกรุณากรอก PIN นี้ในแอป LINE บนมือถือของคุณ`);
         toast.success(`PIN: ${pinCodeValue}`, { duration: 60000 });
-      } else if (data.status === 'pin_displayed') {
-        // Status says PIN displayed but no PIN in response - start polling
-        console.warn('[handleStartLogin] Status is pin_displayed but no PIN value! Starting poll...');
-        pollLoginStatus(accountId);
       }
 
-      // STEP 7: Handle success/failure
+      // Handle success
       if (data.success) {
-        if (data.sessionReused) {
-          toast.success('Session reused - Keys copied from existing login');
-        } else {
-          toast.success('Login successful - Keys captured');
-        }
-        if (data.chatMid) {
-          toast(`ChatMid captured: ${data.chatMid.substring(0, 20)}...`);
-        }
+        toast.success(data.sessionReused ? 'Session reused - Keys copied' : 'Login successful - Keys captured');
         await fetchSessionData(accountId);
         await fetchBankData(accountId);
-      } else if (pinCodeValue) {
-        // PIN was returned - wait for user to verify on mobile
-        console.log('[handleStartLogin] PIN returned, waiting for verification...');
-        // Start polling as backup in case WebSocket doesn't work
-        if (!loginNotifications.isConnected) {
-          console.log('[handleStartLogin] WebSocket not connected, starting poll');
-          pollLoginStatus(accountId);
-        }
-      } else if (data.error) {
+      } else if (data.error && data.status === 'failed') {
         toast.error(data.error);
       }
 
     } catch (error: any) {
       console.error('[handleStartLogin] === ERROR ===', error);
-      console.error('[handleStartLogin] Error response:', error.response);
-      console.error('[handleStartLogin] Error data:', error.response?.data);
-
-      const errorMsg = error.response?.data?.message || error.response?.data?.error || error.message || 'Login failed';
-      setLoginStatus(prev => ({
-        ...prev,
-        isLoading: false,
-        status: 'failed',
-        error: errorMsg,
-      }));
-      toast.error(errorMsg);
+      // Don't set failed immediately - polling might still find PIN
+      // Only set error if it's a real failure (not timeout)
+      if (error.code !== 'ECONNABORTED' && error.message !== 'timeout of 180000ms exceeded') {
+        const errorMsg = error.response?.data?.message || error.response?.data?.error || error.message || 'Login failed';
+        setLoginStatus(prev => ({
+          ...prev,
+          error: errorMsg,
+        }));
+        toast.error(errorMsg);
+      } else {
+        console.log('[handleStartLogin] Request timed out, but polling continues...');
+      }
     }
   };
 
   // Poll login status for PIN verification
   const pollLoginStatus = async (lineAccountId: string) => {
-    const maxAttempts = 60; // 2 minutes (2 sec intervals)
+    const maxAttempts = 90; // 3 minutes (2 sec intervals)
     let attempts = 0;
 
     const poll = async () => {
@@ -906,21 +886,34 @@ export default function AdminLineAccountsPage() {
       }
 
       attempts++;
+      console.log(`[pollLoginStatus] Poll #${attempts} for ${lineAccountId}`);
 
       try {
         const res = await lineSessionApi.getEnhancedLoginStatus(lineAccountId);
         const data = res.data;
+        console.log('[pollLoginStatus] Worker state:', data.worker?.state, 'PIN:', data.worker?.pinCode);
 
         // Update status from worker
         if (data.worker) {
+          const workerPin = data.worker.pinCode;
+
           setLoginStatus(prev => ({
             ...prev,
-            pinCode: data.worker.pinCode || prev.pinCode,
+            pinCode: workerPin || prev.pinCode,
             workerState: data.worker.state,
+            status: data.worker.state === 'waiting_pin' ? 'pin_displayed' : prev.status,
           }));
+
+          // CRITICAL: Show PIN alert if found and not shown before
+          if (workerPin && workerPin !== pinShownRef.current) {
+            console.log('[pollLoginStatus] *** PIN FOUND FROM POLL ***:', workerPin);
+            pinShownRef.current = workerPin;
+            alert(`PIN Code: ${workerPin}\n\nกรุณากรอก PIN นี้ในแอป LINE บนมือถือของคุณ`);
+            toast.success(`PIN: ${workerPin}`, { duration: 60000 });
+          }
         }
 
-        // Check if completed or failed
+        // Check if completed
         if (data.worker?.state === 'ready' && data.worker?.hasKeys) {
           setLoginStatus(prev => ({
             ...prev,
@@ -929,11 +922,13 @@ export default function AdminLineAccountsPage() {
             chatMid: data.worker?.hasChatMid ? 'captured' : undefined,
           }));
           toast.success('Login successful - Keys captured');
+          pinShownRef.current = null; // Reset for next login
           await fetchSessionData(lineAccountId);
           await fetchBankData(lineAccountId);
           return;
         }
 
+        // Check if failed
         if (data.worker?.state === 'error' || data.worker?.state === 'closed') {
           setLoginStatus(prev => ({
             ...prev,
@@ -941,12 +936,14 @@ export default function AdminLineAccountsPage() {
             status: 'failed',
             error: data.worker?.error || 'Login failed',
           }));
+          pinShownRef.current = null; // Reset for next login
           return;
         }
 
         // Continue polling
         setTimeout(poll, 2000);
-      } catch {
+      } catch (err) {
+        console.log('[pollLoginStatus] Poll error, continuing...', err);
         // Continue polling on error
         setTimeout(poll, 2000);
       }
