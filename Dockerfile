@@ -23,6 +23,7 @@ COPY backend/ ./
 RUN npm run build
 
 # Production stage - Single container with Chromium for Puppeteer
+# Cache bust: 2026-02-01-v2
 FROM node:20-slim AS production
 
 # Install Chromium and dependencies for Puppeteer
