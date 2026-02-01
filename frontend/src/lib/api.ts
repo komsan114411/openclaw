@@ -743,58 +743,58 @@ export const lineSessionApi = {
 export const lineSessionUserApi = {
   // Get my LINE Logins
   getMySessions: () =>
-    api.get('/api/user/line-session/my'),
+    api.get('/user/line-session/my'),
 
   // Create new LINE Login
   createSession: (name: string) =>
-    api.post('/api/user/line-session/create', { name }),
+    api.post('/user/line-session/create', { name }),
 
   // Delete LINE Login
   deleteSession: (sessionId: string) =>
-    api.delete(`/api/user/line-session/${sessionId}`),
+    api.delete(`/user/line-session/${sessionId}`),
 
   // Get available banks
   getBanks: () =>
-    api.get('/api/user/line-session/banks/list'),
+    api.get('/user/line-session/banks/list'),
 
   // Setup LINE session (simple: email, password, bank)
   setupSession: (sessionId: string, data: {
     email: string;
     password: string;
     bankCode: string;
-  }) => api.post(`/api/user/line-session/${sessionId}/setup`, data),
+  }) => api.post(`/user/line-session/${sessionId}/setup`, data),
 
   // Get credentials status
   getCredentialsStatus: (sessionId: string) =>
-    api.get(`/api/user/line-session/${sessionId}/credentials`),
+    api.get(`/user/line-session/${sessionId}/credentials`),
 
   // Get session info
   getSession: (sessionId: string) =>
-    api.get(`/api/user/line-session/${sessionId}`),
+    api.get(`/user/line-session/${sessionId}`),
 
   // Start enhanced login
   startEnhancedLogin: (sessionId: string, email?: string, password?: string, source?: 'manual' | 'auto' | 'relogin') =>
-    api.post(`/api/user/line-session/${sessionId}/enhanced-login`, { email, password, source: source || 'manual' }),
+    api.post(`/user/line-session/${sessionId}/enhanced-login`, { email, password, source: source || 'manual' }),
 
   // Get enhanced login status
   getEnhancedLoginStatus: (sessionId: string) =>
-    api.get(`/api/user/line-session/${sessionId}/enhanced-login/status`),
+    api.get(`/user/line-session/${sessionId}/enhanced-login/status`),
 
   // Cancel enhanced login
   cancelEnhancedLogin: (sessionId: string) =>
-    api.delete(`/api/user/line-session/${sessionId}/enhanced-login`),
+    api.delete(`/user/line-session/${sessionId}/enhanced-login`),
 
   // Get cooldown info
   getCooldownInfo: (sessionId: string) =>
-    api.get(`/api/user/line-session/${sessionId}/cooldown`),
+    api.get(`/user/line-session/${sessionId}/cooldown`),
 
   // Reset cooldown
   resetCooldown: (sessionId: string) =>
-    api.post(`/api/user/line-session/${sessionId}/reset-cooldown`),
+    api.post(`/user/line-session/${sessionId}/reset-cooldown`),
 
   // Get full keys for copying
   getFullKeys: (sessionId: string) =>
-    api.get(`/api/user/line-session/${sessionId}/keys`),
+    api.get(`/user/line-session/${sessionId}/keys`),
 
   // Set keys manually
   setKeys: (sessionId: string, data: {
@@ -802,11 +802,11 @@ export const lineSessionUserApi = {
     xHmac: string;
     userAgent?: string;
     lineVersion?: string;
-  }) => api.post(`/api/user/line-session/${sessionId}/keys`, data),
+  }) => api.post(`/user/line-session/${sessionId}/keys`, data),
 
   // Get key history
   getHistory: (sessionId: string) =>
-    api.get(`/api/user/line-session/${sessionId}/history`),
+    api.get(`/user/line-session/${sessionId}/history`),
 };
 
 // Rate Limit API (Admin Only)
