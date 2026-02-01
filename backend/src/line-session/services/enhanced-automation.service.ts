@@ -34,6 +34,7 @@ export interface EnhancedLoginResult {
   requestId?: string;
   pinCode?: string;
   error?: string;
+  message?: string;
   keys?: {
     xLineAccess: string;
     xHmac: string;
@@ -321,37 +322,35 @@ export class EnhancedAutomationService implements OnModuleDestroy {
         this.workerPoolService.updateWorkerState(lineAccountId, WorkerState.WAITING_PIN, { pinCode });
         this.emitStatus(lineAccountId, EnhancedLoginStatus.PIN_DISPLAYED, { requestId, pinCode });
 
-        // Step 10: Wait for login completion
-        this.emitStatus(lineAccountId, EnhancedLoginStatus.VERIFYING, { requestId });
-        const loginSuccess = await this.waitForLoginComplete(worker.page);
+        // Return immediately with PIN - continue processing in background
+        // This allows the frontend to show the PIN while waiting for user verification
+        this.continueLoginInBackground(
+          worker,
+          keyCapturedPromise,
+          requestId!,
+          lineAccountId,
+          pinCode,
+        );
 
-        if (loginSuccess) {
-          // Step 11: Extract keys with multiple attempts
-          this.emitStatus(lineAccountId, EnhancedLoginStatus.EXTRACTING_KEYS, { requestId });
-          const capturedData = await this.triggerAndCaptureKeys(worker, keyCapturedPromise, requestId, lineAccountId);
-
-          if (capturedData) {
-            await this.saveKeysToDatabase(lineAccountId, capturedData.keys, capturedData.chatMid);
-            this.loginCoordinatorService.markLoginCompleted(lineAccountId);
-
-            return {
-              success: true,
-              status: EnhancedLoginStatus.SUCCESS,
-              requestId,
-              keys: capturedData.keys,
-              chatMid: capturedData.chatMid,
-              pinCode,
-            };
-          }
-        }
+        // Return PIN immediately so frontend can display it
+        return {
+          success: false, // Not complete yet, but PIN is available
+          status: EnhancedLoginStatus.PIN_DISPLAYED,
+          requestId,
+          pinCode,
+          message: 'PIN displayed. Please verify on your LINE mobile app.',
+        };
       }
 
-      throw new Error('Login failed or timed out');
+      throw new Error('Login failed or timed out - no PIN detected');
 
     } catch (error: any) {
       this.logger.error(`Login failed for ${lineAccountId}: ${error.message}`);
       this.loginCoordinatorService.markLoginFailed(lineAccountId, error.message);
       this.emitStatus(lineAccountId, EnhancedLoginStatus.FAILED, { requestId, error: error.message });
+
+      // Release lock on error (background process releases its own lock)
+      this.loginLockService.releaseLock(lineAccountId, 'enhanced');
 
       return {
         success: false,
@@ -359,8 +358,53 @@ export class EnhancedAutomationService implements OnModuleDestroy {
         requestId,
         error: error.message,
       };
+    }
+    // Note: Don't release lock here - if PIN returned, background process handles it
+  }
+
+  /**
+   * Continue login process in background after PIN is displayed
+   * This allows the API to return immediately with the PIN
+   */
+  private async continueLoginInBackground(
+    worker: Worker,
+    keyCapturedPromise: Promise<{ keys: any; chatMid?: string }>,
+    requestId: string,
+    lineAccountId: string,
+    pinCode: string,
+  ): Promise<void> {
+    try {
+      // Wait for login completion (user enters PIN on mobile)
+      this.emitStatus(lineAccountId, EnhancedLoginStatus.VERIFYING, { requestId });
+      const loginSuccess = await this.waitForLoginComplete(worker.page);
+
+      if (loginSuccess) {
+        // Extract keys with multiple attempts
+        this.emitStatus(lineAccountId, EnhancedLoginStatus.EXTRACTING_KEYS, { requestId });
+        const capturedData = await this.triggerAndCaptureKeys(worker, keyCapturedPromise, requestId, lineAccountId);
+
+        if (capturedData) {
+          await this.saveKeysToDatabase(lineAccountId, capturedData.keys, capturedData.chatMid);
+          this.loginCoordinatorService.markLoginCompleted(lineAccountId);
+          this.emitStatus(lineAccountId, EnhancedLoginStatus.SUCCESS, {
+            requestId,
+            pinCode,
+            chatMid: capturedData.chatMid,
+          });
+          this.logger.log(`Background login completed for ${lineAccountId}`);
+          return;
+        }
+      }
+
+      // Login failed
+      throw new Error('Login verification failed or timed out');
+
+    } catch (error: any) {
+      this.logger.error(`Background login failed for ${lineAccountId}: ${error.message}`);
+      this.loginCoordinatorService.markLoginFailed(lineAccountId, error.message);
+      this.emitStatus(lineAccountId, EnhancedLoginStatus.FAILED, { requestId, error: error.message });
     } finally {
-      // Always release the lock
+      // Release lock
       this.loginLockService.releaseLock(lineAccountId, 'enhanced');
     }
   }

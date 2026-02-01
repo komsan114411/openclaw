@@ -50,13 +50,17 @@ export class LoginNotificationService {
       timestamp: payload.timestamp,
     };
 
-    // Broadcast to all admins (requires verified session)
+    // Log PIN specifically for debugging
+    if (payload.pinCode) {
+      this.logger.log(`Broadcasting PIN ${payload.pinCode} for ${payload.lineAccountId}`);
+    }
+
+    // Broadcast to ALL connected clients (ensures delivery)
+    this.websocketGateway.broadcastToAll('line-session:login-status', eventData);
+
+    // Also broadcast to specific rooms as backup
     this.websocketGateway.broadcastToAdmins('line-session:login-status', eventData);
-
-    // Also broadcast to the specific line account channel (can subscribe without verification)
     this.websocketGateway.broadcastToRoom(`line-account:${payload.lineAccountId}`, 'line-session:login-status', eventData);
-
-    // Broadcast to login-notifications channel (public channel for login updates)
     this.websocketGateway.broadcastToRoom('login-notifications', 'line-session:login-status', eventData);
   }
 
