@@ -170,10 +170,31 @@ export class WebsocketGateway implements OnGatewayConnection, OnGatewayDisconnec
 
   // Broadcast methods
   broadcastToAll(event: string, data: any) {
+    if (!this.server) {
+      this.logger.warn('[Broadcast] Server not initialized, cannot broadcast to all');
+      return;
+    }
     this.server.emit(event, data);
   }
 
   broadcastToRoom(room: string, event: string, data: any) {
+    // Check if server is initialized
+    if (!this.server) {
+      this.logger.warn(`[Broadcast] Server not initialized, cannot broadcast to room ${room}`);
+      return;
+    }
+
+    // Check if sockets adapter is available
+    if (!this.server.sockets?.adapter?.rooms) {
+      this.logger.warn(`[Broadcast] Sockets adapter not ready, broadcasting anyway to room ${room}`);
+      // Still try to broadcast - the room might exist
+      this.server.to(room).emit(event, data);
+      if (data?.pinCode) {
+        this.logger.log(`[Broadcast] PIN ${data.pinCode} sent to room ${room} (adapter not ready)`);
+      }
+      return;
+    }
+
     // Get room member count for debugging
     const roomSockets = this.server.sockets.adapter.rooms.get(room);
     const memberCount = roomSockets ? roomSockets.size : 0;
@@ -185,10 +206,26 @@ export class WebsocketGateway implements OnGatewayConnection, OnGatewayDisconnec
   }
 
   broadcastToUser(userId: string, event: string, data: any) {
+    if (!this.server) {
+      this.logger.warn(`[Broadcast] Server not initialized, cannot broadcast to user ${userId}`);
+      return;
+    }
     this.server.to(`user:${userId}`).emit(event, data);
   }
 
   broadcastToAdmins(event: string, data: any) {
+    if (!this.server) {
+      this.logger.warn('[Broadcast] Server not initialized, cannot broadcast to admins');
+      return;
+    }
+
+    // Check if sockets adapter is available
+    if (!this.server.sockets?.adapter?.rooms) {
+      this.logger.warn('[Broadcast] Sockets adapter not ready, broadcasting anyway to admins');
+      this.server.to('admins').emit(event, data);
+      return;
+    }
+
     const roomSockets = this.server.sockets.adapter.rooms.get('admins');
     const memberCount = roomSockets ? roomSockets.size : 0;
     this.logger.log(`[Broadcast] Admins room has ${memberCount} members. Event: ${event}`);

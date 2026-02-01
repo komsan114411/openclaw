@@ -865,13 +865,87 @@ export class EnhancedAutomationService implements OnModuleDestroy {
 
   /**
    * Get worker status
+   * Returns format compatible with frontend polling:
+   * - status: string (waiting_for_pin, extracting_keys, starting, completed, success, failed, error)
+   * - pin: string (PIN code if available)
+   * - message: string
+   * - error: string (if failed)
    */
   getWorkerStatus(lineAccountId: string) {
     const worker = this.workerPoolService.getWorker(lineAccountId);
     const request = this.loginCoordinatorService.getRequestStatus(lineAccountId);
     const cooldown = this.loginCoordinatorService.getCooldownInfo(lineAccountId);
 
+    // Map worker state to frontend-expected status
+    let status = 'idle';
+    let message = '';
+    let pin: string | undefined;
+    let error: string | undefined;
+
+    if (worker) {
+      pin = worker.pinCode;
+      error = worker.error;
+
+      switch (worker.state) {
+        case WorkerState.INITIALIZING:
+        case WorkerState.READY:
+          status = 'starting';
+          message = 'กำลังเริ่มต้น...';
+          break;
+        case WorkerState.BUSY:
+          status = 'extracting_keys';
+          message = 'กำลังดึง Keys...';
+          break;
+        case WorkerState.WAITING_PIN:
+          status = 'waiting_for_pin';
+          message = 'รอยืนยัน PIN บนมือถือ';
+          break;
+        case WorkerState.ERROR:
+          status = 'failed';
+          message = worker.error || 'เกิดข้อผิดพลาด';
+          break;
+        case WorkerState.CLOSED:
+          if (worker.capturedKeys) {
+            status = 'success';
+            message = 'ดึง Keys สำเร็จ';
+          } else {
+            status = 'idle';
+            message = '';
+          }
+          break;
+        default:
+          status = 'starting';
+          message = 'กำลังดำเนินการ...';
+      }
+    } else if (request) {
+      // Check request status if no worker
+      switch (request.status) {
+        case 'pending':
+        case 'in_progress':
+          status = 'starting';
+          message = 'กำลังเริ่มต้น...';
+          break;
+        case 'completed':
+          status = 'success';
+          message = 'สำเร็จ';
+          break;
+        case 'failed':
+          status = 'failed';
+          message = request.error || 'เกิดข้อผิดพลาด';
+          error = request.error;
+          break;
+      }
+    }
+
     return {
+      success: true,
+      // Frontend-expected format
+      status,
+      pin,
+      message,
+      error,
+      stage: status,
+      // Original detailed data
       worker: worker ? {
         state: worker.state,
         pinCode: worker.pinCode,
