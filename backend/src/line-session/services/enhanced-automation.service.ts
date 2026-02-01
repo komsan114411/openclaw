@@ -353,24 +353,31 @@ export class EnhancedAutomationService implements OnModuleDestroy {
         // Emit PIN_DISPLAYED status event for WebSocket clients
         this.emitStatus(lineAccountId, EnhancedLoginStatus.PIN_DISPLAYED, { requestId, pinCode });
 
-        // Continue login verification in background (non-blocking)
-        this.continueLoginInBackground(
-          worker,
-          keyCapturedPromise,
-          requestId!,
-          lineAccountId,
-          pinCode,
-        );
-
-        // Return PIN immediately so frontend can display it
-        const result = {
+        // Build result BEFORE starting background process
+        const result: EnhancedLoginResult = {
           success: false, // Not complete yet, but PIN is available
           status: EnhancedLoginStatus.PIN_DISPLAYED,
           requestId,
           pinCode,
           message: 'PIN displayed. Please verify on your LINE mobile app.',
         };
-        this.logger.log(`Returning PIN response: ${JSON.stringify(result)}`);
+
+        this.logger.log(`[PIN] === ABOUT TO RETURN PIN RESULT ===`);
+        this.logger.log(`[PIN] pinCode: ${pinCode}`);
+        this.logger.log(`[PIN] result: ${JSON.stringify(result)}`);
+
+        // Start background process AFTER building result (non-blocking with setImmediate)
+        setImmediate(() => {
+          this.continueLoginInBackground(
+            worker,
+            keyCapturedPromise,
+            requestId!,
+            lineAccountId,
+            pinCode,
+          );
+        });
+
+        this.logger.log(`[PIN] === RETURNING NOW ===`);
         return result;
       }
 

@@ -878,16 +878,31 @@ export class LineSessionController {
     @Param('lineAccountId') lineAccountId: string,
     @Body() body: { email?: string; password?: string; source?: 'manual' | 'auto' | 'relogin' },
   ) {
-    this.logger.log(`[enhanced-login] Starting login for ${lineAccountId}`);
-    const result = await this.enhancedAutomationService.startLogin(
-      lineAccountId,
-      body.email,
-      body.password,
-      body.source || 'manual',
-    );
+    this.logger.log(`[enhanced-login] === CONTROLLER START === for ${lineAccountId}`);
+    this.logger.log(`[enhanced-login] Body: ${JSON.stringify(body)}`);
 
-    this.logger.log(`[enhanced-login] Result: ${JSON.stringify(result)}`);
-    return result;
+    try {
+      this.logger.log(`[enhanced-login] Calling enhancedAutomationService.startLogin...`);
+      const result = await this.enhancedAutomationService.startLogin(
+        lineAccountId,
+        body.email,
+        body.password,
+        body.source || 'manual',
+      );
+
+      this.logger.log(`[enhanced-login] === SERVICE RETURNED ===`);
+      this.logger.log(`[enhanced-login] Result type: ${typeof result}`);
+      this.logger.log(`[enhanced-login] Result: ${JSON.stringify(result)}`);
+      this.logger.log(`[enhanced-login] Result.pinCode: ${result?.pinCode}`);
+      this.logger.log(`[enhanced-login] Result.status: ${result?.status}`);
+
+      return result;
+    } catch (error: any) {
+      this.logger.error(`[enhanced-login] === ERROR IN CONTROLLER ===`);
+      this.logger.error(`[enhanced-login] Error: ${error.message}`);
+      this.logger.error(`[enhanced-login] Stack: ${error.stack}`);
+      throw error;
+    }
   }
 
   /**
