@@ -166,14 +166,33 @@ export default function AdminLineAccountsPage() {
     lineAccountId: selectedAccount?._id,
     showToasts: false, // We handle toasts manually
     onStatusChange: (event) => {
+      // DEBUG: Log all WebSocket events
+      console.log('[WebSocket] onStatusChange received:', {
+        eventStatus: event.status,
+        eventPinCode: event.pinCode,
+        eventLineAccountId: event.lineAccountId,
+        selectedAccountId: selectedAccount?._id,
+      });
+
       // Update login status from WebSocket event
-      setLoginStatus(prev => ({
-        ...prev,
-        status: event.status,
-        pinCode: event.pinCode || prev.pinCode,
-        error: event.error,
-        workerState: event.status,
-      }));
+      setLoginStatus(prev => {
+        const newState = {
+          ...prev,
+          status: event.status,
+          pinCode: event.pinCode || prev.pinCode,
+          error: event.error,
+          workerState: event.status,
+        };
+        console.log('[WebSocket] Updating loginStatus:', newState);
+        return newState;
+      });
+
+      // Handle PIN display - show popup immediately
+      if (event.pinCode) {
+        console.log('[WebSocket] PIN RECEIVED via WebSocket:', event.pinCode);
+        alert(`PIN Code: ${event.pinCode}\n\nกรุณากรอก PIN นี้ในแอป LINE บนมือถือ`);
+        toast.success(`PIN: ${event.pinCode}`, { duration: 60000, icon: '🔑' });
+      }
 
       // Handle success/failure
       if (event.status === 'success') {
@@ -190,8 +209,6 @@ export default function AdminLineAccountsPage() {
           error: event.error || 'Login failed',
         }));
         toast.error(event.error || 'Login failed');
-      } else if (event.status === 'pin_displayed' && event.pinCode) {
-        toast.success(`PIN: ${event.pinCode}`, { duration: 60000, icon: '🔑' });
       }
     },
     onLoginEvent: (event) => {
