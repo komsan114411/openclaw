@@ -1,395 +1,114 @@
-2026-02-01T04:57:18.000000000Z [inf]  Starting Container
-2026-02-01T04:57:19.651432961Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:18 AM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mMongooseModule dependencies initialized[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.651433552Z [err]  (node:1) [MONGOOSE] Warning: Duplicate schema index on {"type":1} found. This is often due to declaring an index using both "index: true" and "schema.index()". Please remove the duplicate index definition.
-2026-02-01T04:57:19.651439120Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:18 AM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mMongooseModule dependencies initialized[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.651441905Z [err]  (Use `node --trace-warnings ...` to show where the warning was created)
-2026-02-01T04:57:19.651443667Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:18 AM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mMongooseModule dependencies initialized[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.651445099Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:18 AM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mConfigModule dependencies initialized[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.651447703Z [err]  (node:1) [MONGOOSE] Warning: Duplicate schema index on {"code":1} found. This is often due to declaring an index using both "index: true" and "schema.index()". Please remove the duplicate index definition.
-2026-02-01T04:57:19.651452651Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:18 AM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mMongooseModule dependencies initialized[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.651453382Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:18 AM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mMongooseCoreModule dependencies initialized[39m[38;5;3m +156ms[39m
-2026-02-01T04:57:19.651453542Z [inf]  [33m[Nest] 1  - [39m02/01/2026, 4:57:18 AM [33m   WARN[39m [38;5;3m[RedisModule] [39m[33m⚠️ REDIS_URL not set, using memory fallback[39m
-2026-02-01T04:57:19.651453772Z [err]  (node:1) [MONGOOSE] Warning: Duplicate schema index on {"userId":1} found. This is often due to declaring an index using both "index: true" and "schema.index()". Please remove the duplicate index definition.
-2026-02-01T04:57:19.651458149Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:18 AM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mMongooseModule dependencies initialized[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.651458249Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:18 AM [32m    LOG[39m [38;5;3m[NestFactory] [39m[32mStarting Nest application...[39m
-2026-02-01T04:57:19.651458960Z [inf]  🔌 Connecting to MongoDB with optimized pooling...
-2026-02-01T04:57:19.651464418Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:18 AM [32m    LOG[39m [38;5;3m[EventBusService] [39m[32mEventBus initialized[39m
-2026-02-01T04:57:19.651464979Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:18 AM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mMongooseModule dependencies initialized[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.651465350Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:18 AM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mMongooseModule dependencies initialized[39m[38;5;3m +10ms[39m
-2026-02-01T04:57:19.651467854Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:18 AM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mEventEmitterModule dependencies initialized[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.651470898Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:18 AM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mAppModule dependencies initialized[39m[38;5;3m +77ms[39m
-2026-02-01T04:57:19.651474063Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:18 AM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mMongooseModule dependencies initialized[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.651474574Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:18 AM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mScheduleModule dependencies initialized[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.651476807Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:18 AM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mEventBusModule dependencies initialized[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.651479040Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:18 AM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mRedisModule dependencies initialized[39m[38;5;3m +7ms[39m
-2026-02-01T04:57:19.651480763Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:18 AM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mSecurityModule dependencies initialized[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.651483387Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:18 AM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mJwtModule dependencies initialized[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.651484759Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:18 AM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mMongooseModule dependencies initialized[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.651489666Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:18 AM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mDatabaseModule dependencies initialized[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.651494043Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:18 AM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mPassportModule dependencies initialized[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.651497879Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:18 AM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mConfigHostModule dependencies initialized[39m[38;5;3m +1ms[39m
-2026-02-01T04:57:19.651501804Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:18 AM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mDiscoveryModule dependencies initialized[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.651505119Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:18 AM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mServeStaticModule dependencies initialized[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.651508525Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:18 AM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mConfigModule dependencies initialized[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.654189266Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:18 AM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mMongooseModule dependencies initialized[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.654194504Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:18 AM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mMongooseModule dependencies initialized[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.654198330Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:18 AM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mMongooseModule dependencies initialized[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.654202085Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:18 AM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mMongooseModule dependencies initialized[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.654205140Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:18 AM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mMongooseModule dependencies initialized[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.654208214Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:18 AM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mMongooseModule dependencies initialized[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.654211069Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:18 AM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mMongooseModule dependencies initialized[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.654213693Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:18 AM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mMongooseModule dependencies initialized[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.654216867Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:18 AM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mMongooseModule dependencies initialized[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.654219591Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:18 AM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mMongooseModule dependencies initialized[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.654222456Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:18 AM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mMongooseModule dependencies initialized[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.654225881Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:18 AM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mMongooseModule dependencies initialized[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.654228865Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:18 AM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mMongooseModule dependencies initialized[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.654232240Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:18 AM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mWebsocketModule dependencies initialized[39m[38;5;3m +3ms[39m
-2026-02-01T04:57:19.654235836Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:18 AM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mCommonModule dependencies initialized[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.654240142Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:18 AM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mTasksModule dependencies initialized[39m[38;5;3m +2ms[39m
-2026-02-01T04:57:19.654245400Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:18 AM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mHealthModule dependencies initialized[39m[38;5;3m +1ms[39m
-2026-02-01T04:57:19.654248935Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mSlipTemplatesController {/api/line-accounts}:[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.654253262Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:18 AM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mSystemResponseTemplatesModule dependencies initialized[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.654256617Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/admin/slip-templates/global/:templateId, PUT} route[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.654258580Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/line-accounts/:accountId/slip-templates, GET} route[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.654260703Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:18 AM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mActivityLogsModule dependencies initialized[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.654262756Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/admin/slip-templates/global/:templateId/usage, GET} route[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.654266221Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/line-accounts/:accountId/slip-templates-list, GET} route[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.654267734Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:18 AM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mThunderApiModule dependencies initialized[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.654268925Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/admin/slip-templates/global/:templateId/safe-delete, DELETE} route[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.654273192Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/line-accounts/:accountId/slip-templates, POST} route[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.654275115Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:18 AM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mAnnouncementsModule dependencies initialized[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.654279642Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/line-accounts/:accountId/slip-templates/:templateId, PUT} route[39m[38;5;3m +1ms[39m
-2026-02-01T04:57:19.654281384Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/admin/slip-templates/global/:templateId, DELETE} route[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.654285791Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mSystemSettingsController {/api/system-settings}:[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.654287684Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/line-accounts/:accountId/slip-templates/:templateId/usage, GET} route[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.654290267Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:18 AM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mSlipTemplatesModule dependencies initialized[39m[38;5;3m +1ms[39m
-2026-02-01T04:57:19.654291950Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/system-settings/access-status, GET} route[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.654295696Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/admin/slip-templates/global/:templateId/default, PUT} route[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.654296086Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/line-accounts/:accountId/slip-templates/:templateId/safe-delete, DELETE} route[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.654301374Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/system-settings/floating-contact, GET} route[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.654303527Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/admin/slip-templates/global/:templateId/preview, GET} route[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.654303728Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:18 AM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mBanksModule dependencies initialized[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.654306342Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/line-accounts/:accountId/slip-templates/:templateId, DELETE} route[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.654310237Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/system-settings/access-control, GET} route[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.654311319Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:18 AM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mSubscriptionsModule dependencies initialized[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.654314985Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/line-accounts/:accountId/slip-templates/:templateId/default, PUT} route[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.654315806Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/system-settings, GET} route[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.654317328Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/admin/slip-templates/global/init-defaults, POST} route[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.654320423Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/system-settings/access-control, PUT} route[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.654324709Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:18 AM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mPackagesModule dependencies initialized[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.654326332Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/admin/slip-templates/global/repair, POST} route[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.654329346Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/line-accounts/:accountId/slip-templates/:templateId/preview, GET} route[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.654330007Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/system-settings/test-usdt-api, POST} route[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.654331079Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/system-settings, PUT} route[39m[38;5;3m +1ms[39m
-2026-02-01T04:57:19.654333362Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:18 AM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mSystemSettingsModule dependencies initialized[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.654335836Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/admin/slip-templates/global/reset, POST} route[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.654337909Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/line-accounts/:accountId/slip-templates/select/:type/:templateId, PUT} route[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.654340182Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/system-settings/bank-accounts/:index, DELETE} route[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.654340603Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/system-settings/bank-accounts, POST} route[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.654342676Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:18 AM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mRateLimitModule dependencies initialized[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.654345180Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/admin/slip-templates/global/debug, GET} route[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.654345811Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/line-accounts/:accountId/slip-templates/selected, GET} route[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.654347914Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/system-settings/api-status, GET} route[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.654351259Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:18 AM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mChatMessagesModule dependencies initialized[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.654353622Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/line-accounts/:accountId/slip-templates/init-defaults, POST} route[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.654355065Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/system-settings/payment-info, GET} route[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.654358760Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:18 AM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mChatbotModule dependencies initialized[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.654359031Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mAdminSlipTemplatesController {/api/admin/slip-templates}:[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.654360903Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/system-settings/message-settings, GET} route[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.654364939Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:18 AM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mUsersModule dependencies initialized[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.654365801Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/admin/slip-templates/global, GET} route[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.654371319Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:18 AM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mAuthModule dependencies initialized[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.654372992Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/admin/slip-templates/global, POST} route[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.654375916Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:18 AM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mLineAccountsModule dependencies initialized[39m[38;5;3m +1ms[39m
-2026-02-01T04:57:19.654381074Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:18 AM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mLineSessionModule dependencies initialized[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.654382746Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/wallet/transactions, GET} route[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.654388645Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/wallet/deposit, POST} route[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.654389176Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:18 AM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mWalletModule dependencies initialized[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.654391940Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/wallet/admin/user/:userId/deduct-credits, POST} route[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.654393793Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/system-settings/message-settings, PUT} route[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.654394754Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/wallet/deposit/usdt, POST} route[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.654397098Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:18 AM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mPaymentsModule dependencies initialized[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.654397949Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/wallet/admin/user/:userId/statistics, GET} route[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.654401254Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/wallet/admin/transaction/:id, GET} route[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.654402356Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/wallet/usdt/rate, GET} route[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.654404148Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/system-settings/system-health, GET} route[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.654404389Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:18 AM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mSlipVerificationModule dependencies initialized[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.654404609Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/wallet/admin/statistics, GET} route[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.654408956Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/wallet/admin/transaction/:id/approve, POST} route[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.654410468Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/wallet/usdt/calculate, GET} route[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.654412230Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/system-settings/run-cleanup, POST} route[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.654414874Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[WebSocketsController] [39m[32mWebsocketGateway subscribed to the "join" message[39m[38;5;3m +34ms[39m
-2026-02-01T04:57:19.654416958Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/wallet/admin/transaction/:id/reject, POST} route[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.654417088Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/wallet/admin/refunds, GET} route[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.654417418Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/admin/banks/:id, PUT} route[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.654417518Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/wallet/usdt/verify/:txHash, GET} route[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.654419101Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/system-settings/contact-info, GET} route[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.654423778Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[WebSocketsController] [39m[32mWebsocketGateway subscribed to the "subscribe" message[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.654424789Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/banks/search, GET} route[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.654424829Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/wallet/admin/transactions, GET} route[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.654425370Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/system-settings/preview-config, GET} route[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.654425470Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/wallet/admin/user/:userId/audit, GET} route[39m[38;5;3m +1ms[39m
-2026-02-01T04:57:19.654425941Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/wallet/admin/failed-operations, GET} route[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.654426612Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/wallet/admin/operation/:id/refund, POST} route[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.654430808Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[WebSocketsController] [39m[32mWebsocketGateway subscribed to the "unsubscribe" message[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.654431059Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/bank-logo/:code, GET} route[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.654431509Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/system-settings/ai-settings, GET} route[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.654432972Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/wallet/admin/operation/:id, GET} route[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.654433072Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/wallet/admin/user/:userId/balance, GET} route[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.654433843Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mBanksController {/api}:[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.654436407Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/wallet/admin/transaction/:id/refund, POST} route[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.654438179Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/admin/banks, GET} route[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.654439852Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[WebSocketsController] [39m[32mWebsocketGateway subscribed to the "subscribe_chat" message[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.654439992Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/banks, GET} route[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.654440082Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/system-settings/ai-settings, PUT} route[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.654440733Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/wallet/admin/user/:userId/transactions, GET} route[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.654444399Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/admin/banks, POST} route[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.654446902Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/system-settings/ai-toggle, PUT} route[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.654449516Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/wallet/admin/user/:userId/add-credits, POST} route[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.654450458Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[WebSocketsController] [39m[32mWebsocketGateway subscribed to the "unsubscribe_chat" message[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.654454304Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/system-settings/slip-provider-settings, GET} route[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.654457508Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[WebSocketsController] [39m[32mWebsocketGateway subscribed to the "ping" message[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.654461364Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/system-settings/slip-provider-settings, PUT} route[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.654463027Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mSystemResponseTemplatesController {/api/admin/system-response-templates}:[39m[38;5;3m +1ms[39m
-2026-02-01T04:57:19.654469266Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/admin/system-response-templates, GET} route[39m[38;5;3m +1ms[39m
-2026-02-01T04:57:19.654471079Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/system-settings/slip-provider-status, GET} route[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.654475145Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/admin/system-response-templates/:type, GET} route[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.654479692Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/system-settings/test-slip-provider, POST} route[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.654481424Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/admin/system-response-templates/:type, PUT} route[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.654487563Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/admin/system-response-templates/:type/reset, POST} route[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.654489366Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/system-settings/slip-toggle, PUT} route[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.654492701Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/admin/system-response-templates/reset-all, POST} route[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.654498239Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mSubscriptionsController {/api/subscriptions}:[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.654499682Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/admin/system-response-templates/:type/preview, POST} route[39m[38;5;3m +1ms[39m
-2026-02-01T04:57:19.654505661Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/admin/system-response-templates/initialize, POST} route[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.654507694Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/subscriptions/my, GET} route[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.654510558Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mHealthController {/api/health}:[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.654515215Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/subscriptions/quota, GET} route[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.654516968Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/health, GET} route[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.654519331Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/admin/banks/sync-from-thunder, POST} route[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.654523157Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/health/detailed, GET} route[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.654525661Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/subscriptions/ai-quota, GET} route[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.654527393Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/admin/banks/:id/logo, POST} route[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.654528625Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/health/ping, GET} route[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.654534273Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/admin/banks/init-defaults, POST} route[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.654535836Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/subscriptions, GET} route[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.654535986Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/health/cached, GET} route[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.654540283Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/admin/banks/init-thunder-banks, POST} route[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.654542997Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mAuthController {/api/auth}:[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.654545621Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/subscriptions/grant, POST} route[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.654547213Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mPaymentsController {/api/payments}:[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.654548555Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/auth/login, POST} route[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.654552711Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/auth/register, POST} route[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.654553663Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/payments, POST} route[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.654557969Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/subscriptions/expire, POST} route[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.654559531Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/auth/logout, POST} route[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.654560423Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/payments/slip, POST} route[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.654564990Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/auth/me, GET} route[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.654565981Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/payments/usdt, POST} route[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.654567934Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/subscriptions/cleanup-reservations, POST} route[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.654570628Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/auth/change-password, POST} route[39m[38;5;3m +1ms[39m
-2026-02-01T04:57:19.654572220Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/payments, GET} route[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.654576968Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/auth/validate, GET} route[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.654578039Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mPackagesController {/api/packages}:[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.654578239Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/payments/my, GET} route[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.654582426Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/auth/cleanup-sessions, POST} route[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.654586191Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/payments/check-eligibility/:packageId, GET} route[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.654588204Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/packages, POST} route[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.654588455Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mUsersController {/api/users}:[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.654591299Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/payments/:id, GET} route[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.654593282Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/users, POST} route[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.654597749Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/packages, GET} route[39m[38;5;3m +1ms[39m
-2026-02-01T04:57:19.654597949Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/payments/:id/approve, POST} route[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.654599451Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/users, GET} route[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.654605400Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/payments/:id/reject, POST} route[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.654605901Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/users/statistics, GET} route[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.654607083Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/packages/:id, GET} route[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.654610798Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/users/growth, GET} route[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.654611810Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mChatbotController {/api/chatbot}:[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.654616166Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/packages/:id, PUT} route[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.654617038Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/users/me, GET} route[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.654617709Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/chatbot/test, POST} route[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.654624599Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/chatbot/test-connection, POST} route[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.654624619Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/users/:id, GET} route[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.654625641Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/packages/:id, DELETE} route[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.654630147Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/users/:id, PUT} route[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.654630197Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/chatbot/history/:userId, DELETE} route[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.654634644Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/packages/:id/activate, POST} route[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.654636236Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/users/:id, DELETE} route[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.654637028Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mChatMessagesController {/api/chat-messages}:[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.654642095Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/users/:id/restore, POST} route[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.654644289Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/packages/:id/purchase, POST} route[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.654644459Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/chat-messages/:accountId/users, GET} route[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.654647163Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/users/:id/block, POST} route[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.654653332Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mWalletController {/api/wallet}:[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.654653462Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/users/:id/unblock, POST} route[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.654653532Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/chat-messages/:accountId/:userId, GET} route[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.654658550Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mActivityLogsController {/api/activity-logs}:[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.654662896Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/wallet/balance, GET} route[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.654663017Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/chat-messages/:accountId/:userId/send, POST} route[39m[38;5;3m +1ms[39m
-2026-02-01T04:57:19.654664519Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/activity-logs, GET} route[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.654667363Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/chat-messages/:accountId/broadcast, POST} route[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.654668935Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/activity-logs/my, GET} route[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.654670748Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/chat-messages/:accountId/send, POST} route[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.654672761Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mLineAccountsController {/api/line-accounts}:[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.654674093Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/chat-messages/:accountId/:userId/read, POST} route[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.654676447Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/line-accounts, POST} route[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.654677548Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/chat-messages/:accountId/unread-count, GET} route[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.654679852Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/line-accounts, GET} route[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.654680883Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/chat-messages/:accountId/:userId, DELETE} route[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.654683067Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/line-accounts/my, GET} route[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.654684168Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/chat-messages/:accountId/image/:messageId, GET} route[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.654686322Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/line-accounts/my/templates, GET} route[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.654687523Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/chat-messages/:accountId/profile/:userId, GET} route[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.654689356Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/line-accounts/statistics, GET} route[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.654692701Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/line-accounts/:id, GET} route[39m[38;5;3m +1ms[39m
-2026-02-01T04:57:19.654695986Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/line-accounts/:id, PUT} route[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.654699331Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/line-accounts/:id/settings, PUT} route[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.654702566Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/line-accounts/:id, DELETE} route[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.654706432Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/line-accounts/:id/regenerate-webhook, POST} route[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.654709637Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/line-accounts/:id/chat-history, GET} route[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.654712631Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/line-accounts/:id/test-connection, POST} route[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.654716457Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/line-accounts/test-connection, POST} route[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.654719852Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mLineWebhookController {/api/webhook/line}:[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.654722967Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/webhook/line/:slug, POST} route[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.654725931Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mSlipVerificationController {/api/slip-verification}:[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.654732180Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/slip-verification/test, POST} route[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.654735535Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/slip-verification/test-connection, POST} route[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.654740633Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/slip-verification/history/:lineAccountId, GET} route[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.654744178Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mPublicSlipTemplatesController {/api/slip-templates}:[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.654747343Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/slip-templates/global, GET} route[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.654773082Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mThunderApiController {/api/thunder}:[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.654776667Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/thunder/quota, GET} route[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.654779942Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/thunder/health, GET} route[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.654783457Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mRateLimitController {/api/rate-limit}:[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.654786922Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/rate-limit/stats, GET} route[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.654790037Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/rate-limit/logs, GET} route[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.654793442Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/rate-limit/metrics, GET} route[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.654797038Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/rate-limit/accounts, GET} route[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.654800142Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/rate-limit/test, POST} route[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.654803628Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/rate-limit/test/webhook, POST} route[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.654806882Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/rate-limit/test/quick, POST} route[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.654809987Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/rate-limit/test/logs, DELETE} route[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.654812781Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/rate-limit/test/history, GET} route[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.654816216Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mAnnouncementsController {/api/announcements}:[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.654819391Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/announcements/active, GET} route[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.654822416Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/announcements/:id/view, POST} route[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.654825580Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/announcements/:id/dismiss, POST} route[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.654828765Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/announcements/admin, GET} route[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.654832250Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/announcements/admin/:id, GET} route[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.655268385Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/announcements/admin, POST} route[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.655272661Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/announcements/admin/:id, PUT} route[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.655275626Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/announcements/admin/:id/toggle, PUT} route[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.655278850Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/announcements/admin/:id, DELETE} route[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.655281965Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mLineSessionController {/api/admin/line-session}:[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.655288775Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/admin/line-session/:lineAccountId, GET} route[39m[38;5;3m +1ms[39m
-2026-02-01T04:57:19.655293262Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/admin/line-session/:lineAccountId/keys, POST} route[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.655297929Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/admin/line-session/:lineAccountId/parse-curl, POST} route[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.655302556Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/admin/line-session/:lineAccountId/copy-keys, POST} route[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.655308525Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/admin/line-session/:lineAccountId/history, GET} route[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.656094103Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/admin/line-session/:lineAccountId/health, GET} route[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.656097839Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/admin/line-session/health/all, GET} route[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.656100853Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/admin/line-session/:lineAccountId/health/check, POST} route[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.656103908Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/admin/line-session/:lineAccountId/relogin, POST} route[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.656107133Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/admin/line-session/relogin/queue, GET} route[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.656110488Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/admin/line-session/relogin/queue/:lineAccountId, DELETE} route[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.656114704Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/admin/line-session/relogin/queue, DELETE} route[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.656118880Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/admin/line-session/automation/status, GET} route[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.656150979Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/admin/line-session/:lineAccountId/credentials, POST} route[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.656155535Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/admin/line-session/:lineAccountId/login, POST} route[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.656159872Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/admin/line-session/:lineAccountId/login/status, GET} route[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.656165150Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/admin/line-session/:lineAccountId/login, DELETE} route[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.656169126Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/admin/line-session/:lineAccountId/credentials, GET} route[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.656173532Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/admin/line-session/banks, GET} route[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.656177238Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/admin/line-session/:lineAccountId/bank, POST} route[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.656181224Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/admin/line-session/:lineAccountId/bank, GET} route[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.656185160Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/admin/line-session/:lineAccountId/messages/fetch, POST} route[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.656198740Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/admin/line-session/:lineAccountId/messages, GET} route[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.656204809Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/admin/line-session/:lineAccountId/messages/summary, GET} route[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.656208986Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/admin/line-session/enhanced/status, GET} route[39m[38;5;3m +1ms[39m
-2026-02-01T04:57:19.656212831Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/admin/line-session/enhanced/pool, GET} route[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.656216767Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/admin/line-session/enhanced/coordinator, GET} route[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.656220573Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/admin/line-session/:lineAccountId/enhanced-login, POST} route[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.656224499Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/admin/line-session/:lineAccountId/enhanced-login/status, GET} route[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.656228375Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/admin/line-session/:lineAccountId/enhanced-login, DELETE} route[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.656232451Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/admin/line-session/:lineAccountId/cooldown, GET} route[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.656237659Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/admin/line-session/:lineAccountId/reset-cooldown, POST} route[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.656241254Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/admin/line-session/:lineAccountId/login-history, GET} route[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.656245240Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/admin/line-session/:lineAccountId/worker, DELETE} route[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.656248325Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mLineSessionUserController {/api/user/line-session}:[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.656251279Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/user/line-session/banks/list, GET} route[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.656262896Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/user/line-session/my, GET} route[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.656266402Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/user/line-session/create, POST} route[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.656269486Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/user/line-session/:sessionId, DELETE} route[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.656273052Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/user/line-session/:sessionId, GET} route[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.656275866Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/user/line-session/:sessionId/setup, POST} route[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.656281985Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/user/line-session/:sessionId/credentials, GET} route[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.656284899Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/user/line-session/:sessionId/enhanced-login, POST} route[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.656287603Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/user/line-session/:sessionId/enhanced-login/status, GET} route[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.656290808Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/user/line-session/:sessionId/enhanced-login, DELETE} route[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.656293963Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/user/line-session/:sessionId/cooldown, GET} route[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.656297428Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/user/line-session/:sessionId/reset-cooldown, POST} route[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.656300573Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/user/line-session/:sessionId/keys, GET} route[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.656305110Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/user/line-session/:sessionId/keys, POST} route[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.656308385Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/user/line-session/:sessionId/history, GET} route[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.656311439Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/user/line-session/:lineAccountId/setup, POST} route[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.656315335Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/user/line-session/:lineAccountId/credentials, GET} route[39m[38;5;3m +1ms[39m
-2026-02-01T04:57:19.656319652Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/user/line-session/:lineAccountId, GET} route[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.656323457Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/user/line-session/:lineAccountId/enhanced-login, POST} route[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.656327123Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/user/line-session/:lineAccountId/enhanced-login/status, GET} route[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.656331289Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/user/line-session/:lineAccountId/enhanced-login, DELETE} route[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.656336968Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/user/line-session/:lineAccountId/cooldown, GET} route[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.656340613Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/user/line-session/:lineAccountId/reset-cooldown, POST} route[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.656345270Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/user/line-session/:lineAccountId/keys, GET} route[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.656348665Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/user/line-session/:lineAccountId/keys, POST} route[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.656352160Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/user/line-session/:lineAccountId/history, GET} route[39m[38;5;3m +0ms[39m
-2026-02-01T04:57:19.656355946Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[SubscriptionEventHandlers] [39m[32mSubscription event handlers registered[39m
-2026-02-01T04:57:19.656360282Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[SystemResponseTemplatesService] [39m[32m[INIT] Starting system response templates initialization...[39m
-2026-02-01T04:57:19.916680022Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[SystemResponseTemplatesService] [39m[32m[INIT] System response templates count: 17[39m
-2026-02-01T04:57:19.916685020Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[SlipTemplatesService] [39m[32m[INIT] Starting global templates initialization...[39m
-2026-02-01T04:57:19.916688135Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[SlipTemplatesService] [39m[32m[INIT] Global templates count: 4[39m
-2026-02-01T04:57:19.916690739Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[ReloginSchedulerService] [39m[32mReloginSchedulerService subscribed to events[39m
-2026-02-01T04:57:19.942598040Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[LineAutomationService] [39m[32mPuppeteer loaded with stealth plugin[39m
-2026-02-01T04:57:19.942601975Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[WorkerPoolService] [39m[32mWorkerPool: Puppeteer loaded with stealth plugin[39m
-2026-02-01T04:57:19.959651660Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[BankListService] [39m[32mBanks already exist (7 records), skipping seed[39m
-2026-02-01T04:57:19.976659672Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[NestApplication] [39m[32mNest application successfully started[39m[38;5;3m +17ms[39m
-2026-02-01T04:57:19.976664088Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[Bootstrap] [39m[32m🚀 Server running on port 8080[39m
-2026-02-01T04:57:19.976667083Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[Bootstrap] [39m[32m📚 Swagger docs at /api/docs[39m
-2026-02-01T04:57:19.976670128Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[Bootstrap] [39m[32m🌐 Frontend served from /public[39m
-2026-02-01T04:57:19.976673222Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:57:19 AM [32m    LOG[39m [38;5;3m[Bootstrap] [39m[32m🌍 CORS enabled for: https://dooslip.com, https://www.dooslip.com[39m
-2026-02-01T04:58:00.355950287Z [inf]  
-2026-02-01T04:58:00.355956116Z [inf]  [33m[Nest] 1  - [39m02/01/2026, 4:57:53 AM [33m   WARN[39m [38;5;3m[GlobalExceptionFilter] [39m[33m[017258e2-877d-4af3-9cd5-ffbb5cbb5378] POST /api/api/user/line-session/create - 404 HTTP_404: Cannot POST /api/api/user/line-session/create[39m
-2026-02-01T04:58:00.355957397Z [inf]  [33m[Nest] 1  - [39m02/01/2026, 4:57:53 AM [33m   WARN[39m [38;5;3m[RedisService] [39m[33m[REDIS] Redis connection lost - using memory fallback[39m
-2026-02-01T04:58:00.355958860Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:58:00 AM [32m    LOG[39m [38;5;3m[ReloginSchedulerService] [39m[32mSession unhealthy for 697e7d74c1231f9b219a91cd (409 failures), scheduling relogin[39m
-2026-02-01T04:58:00.355960292Z [inf]  [33m[Nest] 1  - [39m02/01/2026, 4:57:53 AM [33m   WARN[39m [38;5;3m[GlobalExceptionFilter] [39m[33mObject:[39m
-2026-02-01T04:58:00.355962355Z [inf]  [33m[Nest] 1  - [39m02/01/2026, 4:57:59 AM [33m   WARN[39m [38;5;3m[GlobalExceptionFilter] [39m[33m[90f6182c-23aa-4fe8-962f-ed7bb477e244] POST /api/api/user/line-session/create - 404 HTTP_404: Cannot POST /api/api/user/line-session/create[39m
-2026-02-01T04:58:00.355964308Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:58:00 AM [32m    LOG[39m [38;5;3m[ReloginSchedulerService] [39m[32mAdded relogin job for 697e7d74c1231f9b219a91cd, queue size: 4[39m
-2026-02-01T04:58:00.355966461Z [inf]  [33m[Nest] 1  - [39m02/01/2026, 4:57:59 AM [33m   WARN[39m [38;5;3m[GlobalExceptionFilter] [39m[33mObject:[39m
-2026-02-01T04:58:00.355966521Z [inf]    "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36",
-2026-02-01T04:58:00.355967693Z [inf]  {
-2026-02-01T04:58:00.355970888Z [inf]  {
-2026-02-01T04:58:00.355972470Z [inf]    "correlationId": "017258e2-877d-4af3-9cd5-ffbb5cbb5378",
-2026-02-01T04:58:00.355972821Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:58:00 AM [32m    LOG[39m [38;5;3m[ReloginSchedulerService] [39m[32mAdded relogin job for 697e72f24489f38cd70db7e4, queue size: 2[39m
-2026-02-01T04:58:00.355974824Z [inf]    "ip": "100.64.0.3"
-2026-02-01T04:58:00.355978509Z [inf]    "correlationId": "90f6182c-23aa-4fe8-962f-ed7bb477e244",
-2026-02-01T04:58:00.355978770Z [inf]    "status": 404,
-2026-02-01T04:58:00.355980092Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:58:00 AM [32m    LOG[39m [38;5;3m[ReloginSchedulerService] [39m[32mSession unhealthy for undefined (410 failures), scheduling relogin[39m
-2026-02-01T04:58:00.355981464Z [inf]  }
-2026-02-01T04:58:00.355984829Z [inf]    "path": "/api/api/user/line-session/create",
-2026-02-01T04:58:00.355985029Z [inf]    "errorCode": "HTTP_404",
-2026-02-01T04:58:00.355985039Z [inf]    "status": 404,
-2026-02-01T04:58:00.355985710Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:58:00 AM [32m    LOG[39m [38;5;3m[ReloginSchedulerService] [39m[32mAdded relogin job for 6976051c2b749b1355effccd, queue size: 1[39m
-2026-02-01T04:58:00.355986842Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:58:00 AM [32m    LOG[39m [38;5;3m[ReloginSchedulerService] [39m[32mAdded relogin job for undefined, queue size: 3[39m
-2026-02-01T04:58:00.355990637Z [inf]    "errorCode": "HTTP_404",
-2026-02-01T04:58:00.355990657Z [inf]  
-2026-02-01T04:58:00.355991198Z [inf]    "path": "/api/api/user/line-session/create",
-2026-02-01T04:58:00.355998139Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:58:00 AM [32m    LOG[39m [38;5;3m[SessionHealthService] [39m[32mChecking health for 4 active sessions[39m
-2026-02-01T04:58:00.355998369Z [inf]    "method": "POST",
-2026-02-01T04:58:00.355998499Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:58:00 AM [32m    LOG[39m [38;5;3m[ReloginSchedulerService] [39m[32mSession unhealthy for 697e72f24489f38cd70db7e4 (454 failures), scheduling relogin[39m
-2026-02-01T04:58:00.355998529Z [inf]    "method": "POST",
-2026-02-01T04:58:00.356002355Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:58:00 AM [32m    LOG[39m [38;5;3m[MessageFetchService] [39m[32mFetching messages for 0 active sessions[39m
-2026-02-01T04:58:00.356003757Z [inf]    "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36",
-2026-02-01T04:58:00.356005860Z [inf]  [32m[Nest] 1  - [39m02/01/2026, 4:58:00 AM [32m    LOG[39m [38;5;3m[ReloginSchedulerService] [39m[32mSession unhealthy for 6976051c2b749b1355effccd (484 failures), scheduling relogin[39m
-2026-02-01T04:58:00.356009325Z [inf]    "ip": "100.64.0.3"
-2026-02-01T04:58:00.356012530Z [inf]  }
+You reached the start of the range
+Feb 1, 2026, 1:14 PM
+scheduling build on Metal builder "builder-ejyuqd"
+scheduling build on Metal builder "builder-ejyuqd"
+[snapshot] received sha256:926074ec1d71a25bffd2c0ed16fbc367cf0b5078d923339caae540bb611f1801 md5:8085f9c9514b622a64b2e3d9dde68e98
+receiving snapshot
+12 MB
+1.9s
+found 'Dockerfile' at 'Dockerfile'
+skipping 'Dockerfile' at 'backend/Dockerfile' as it is not rooted at a valid path (root_dir=, fileOpts={acceptChildOfRepoRoot:false})
+skipping 'Dockerfile' at 'frontend/Dockerfile' as it is not rooted at a valid path (root_dir=, fileOpts={acceptChildOfRepoRoot:false})
+skipping 'Dockerfile' at 'memory-server/Dockerfile' as it is not rooted at a valid path (root_dir=, fileOpts={acceptChildOfRepoRoot:false})
+found 'nixpacks.toml' at 'nixpacks.toml'
+found 'railway.json' at 'railway.json'
+analyzing snapshot
+12 MB
+164ms
+uploading snapshot
+12 MB
+417ms
+fetched snapshot sha256:926074ec1d71a25bffd2c0ed16fbc367cf0b5078d923339caae540bb611f1801 (13 MB bytes)
+fetching snapshot
+12 MB
+448ms
+unpacking archive
+26.3 MB
+191ms
+
+internal
+load build definition from Dockerfile
+0ms
+
+internal
+load metadata for docker.io/library/node:20-slim
+1s
+
+internal
+load .dockerignore
+0ms
+JSONArgsRecommended: JSON arguments recommended for CMD to prevent unintended behavior related to OS signals (line 71)(https://docs.docker.com/go/dockerfile/rule/json-args-recommended/)
+ details: JSON arguments recommended for ENTRYPOINT/CMD to prevent unintended behavior related to OS signals
+
+frontend-builder
+FROM docker.io/library/node:20-slim@sha256:6c51af7dc83f4708aaac35991306bca8f478351cfd2bda35750a62d7efcf05bb
+18ms
+
+internal
+load build context
+0ms
+
+frontend-builder
+WORKDIR /app/frontend cached
+0ms
+
+frontend-builder
+RUN npm ci cached
+0ms
+
+frontend-builder
+COPY frontend/package*.json ./ cached
+0ms
+
+frontend-builder
+COPY frontend/ ./
+426ms
+
+backend-builder
+RUN npm ci cached
+136ms
+
+backend-builder
+WORKDIR /app/backend cached
+0ms
+
+backend-builder
+COPY backend/package*.json ./ cached
+0ms
+
+backend-builder
+COPY backend/ ./
+415ms
+
+frontend-builder
+RUN npm run build
+8s
+> line-oa-frontend@2.0.0 build
+> next build
+Attention: Next.js now collects completely anonymous telemetry regarding usage.
+This information is used to shape Next.js' roadmap and prioritize features.
+You can learn more, including how to opt-out if you'd not like to participate in this anonymous program, by visiting the following URL:
+https://nextjs.org/telemetry
+  ▲ Next.js 14.2.35
+   Creating an optimized production build ...
+
+backend-builder
+RUN npm run build
+7s
+> line-oa-backend@2.0.0 build
+> nest build
+src/line-session/line-session.controller.ts:452:30 - error TS2339: Property 'state' does not exist on type '{ worker: { state: WorkerState; pinCode: string | undefined; hasKeys: boolean; hasChatMid: boolean; } | null; request: LoginRequest | null; cooldown: { inCooldown: boolean; remainingMs: number; recentErrors: number; nextRetryAt?: Date | undefined; }; }'.
+452       hasActiveLogin: status.state !== 'idle',
+                                 ~~~~~
+src/line-session/line-session.controller.ts:453:22 - error TS2339: Property 'state' does not exist on type '{ worker: { state: WorkerState; pinCode: string | undefined; hasKeys: boolean; hasChatMid: boolean; } | null; request: LoginRequest | null; cooldown: { inCooldown: boolean; remainingMs: number; recentErrors: number; nextRetryAt?: Date | undefined; }; }'.
+453       status: status.state,
+                         ~~~~~
+src/line-session/line-session.controller.ts:454:23 - error TS2339: Property 'pinCode' does not exist on type '{ worker: { state: WorkerState; pinCode: string | undefined; hasKeys: boolean; hasChatMid: boolean; } | null; request: LoginRequest | null; cooldown: { inCooldown: boolean; remainingMs: number; recentErrors: number; nextRetryAt?: Date | undefined; }; }'.
+454       pinCode: status.pinCode,
+                          ~~~~~~~
+src/line-session/line-session.controller.ts:455:21 - error TS2339: Property 'error' does not exist on type '{ worker: { state: WorkerState; pinCode: string | undefined; hasKeys: boolean; hasChatMid: boolean; } | null; request: LoginRequest | null; cooldown: { inCooldown: boolean; remainingMs: number; recentErrors: number; nextRetryAt?: Date | undefined; }; }'.
+[7m455[0m       error: status.error,
+
+                        ~~~~~
+Found 4 error(s).
+Build Failed: build daemon returned an error < failed to solve: process "/bin/sh -c npm run build" did not complete successfully: exit code: 1 >
