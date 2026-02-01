@@ -213,14 +213,23 @@ export class WorkerPoolService implements OnModuleDestroy, OnModuleInit {
     // Check existing worker
     const existing = this.workers.get(lineAccountId);
     if (existing && existing.state !== WorkerState.ERROR && existing.state !== WorkerState.CLOSED) {
-      // CRITICAL: Clear old state to prevent PIN mixing with previous login
-      this.logger.log(`Reusing existing worker for ${lineAccountId}, clearing old state`);
-      existing.pinCode = undefined;
-      existing.capturedKeys = undefined;
-      existing.capturedChatMid = undefined;
-      existing.error = undefined;
-      existing.lastActivityAt = new Date();
-      return existing;
+      // Test if browser is still responsive before reusing
+      const browserHealthy = await this.testBrowserHealth(existing);
+
+      if (browserHealthy) {
+        // CRITICAL: Clear old state to prevent PIN mixing with previous login
+        this.logger.log(`Reusing existing worker for ${lineAccountId}, browser is healthy`);
+        existing.pinCode = undefined;
+        existing.capturedKeys = undefined;
+        existing.capturedChatMid = undefined;
+        existing.error = undefined;
+        existing.lastActivityAt = new Date();
+        return existing;
+      } else {
+        // Browser is stale/crashed - close and create new one
+        this.logger.warn(`Worker browser is stale for ${lineAccountId}, creating new worker`);
+        await this.closeWorker(lineAccountId);
+      }
     }
 
     // Check max workers
@@ -347,6 +356,46 @@ export class WorkerPoolService implements OnModuleDestroy, OnModuleInit {
       worker.error = error.message;
       this.emitWorkerStateChanged(worker);
       throw error;
+    }
+  }
+
+  /**
+   * Test if browser is still healthy/responsive
+   */
+  private async testBrowserHealth(worker: Worker): Promise<boolean> {
+    try {
+      if (!worker.browser || !worker.page) {
+        this.logger.warn(`[BrowserHealth] No browser or page for ${worker.lineAccountId}`);
+        return false;
+      }
+
+      // Check if browser is connected
+      if (!worker.browser.isConnected()) {
+        this.logger.warn(`[BrowserHealth] Browser disconnected for ${worker.lineAccountId}`);
+        return false;
+      }
+
+      // Try a simple operation with short timeout
+      const testPromise = worker.page.evaluate(() => {
+        return 'health-check';
+      });
+
+      const timeoutPromise = new Promise<null>((resolve) =>
+        setTimeout(() => resolve(null), 5000),
+      );
+
+      const result = await Promise.race([testPromise, timeoutPromise]);
+
+      if (result === 'health-check') {
+        this.logger.log(`[BrowserHealth] Browser healthy for ${worker.lineAccountId}`);
+        return true;
+      }
+
+      this.logger.warn(`[BrowserHealth] Browser health check timed out for ${worker.lineAccountId}`);
+      return false;
+    } catch (error: any) {
+      this.logger.warn(`[BrowserHealth] Browser health check failed for ${worker.lineAccountId}: ${error.message}`);
+      return false;
     }
   }
 

@@ -411,9 +411,41 @@ export class EnhancedAutomationService implements OnModuleDestroy {
 
       // Step 6: Navigate to LINE extension (GSB-style with multiple fallback methods)
       this.emitStatus(lineAccountId, EnhancedLoginStatus.LOADING_EXTENSION, { requestId });
-      const extensionLoaded = await this.navigateToExtension(worker);
+      let extensionLoaded = await this.navigateToExtension(worker);
+
+      // If extension loading failed, try recreating browser
       if (!extensionLoaded) {
-        throw new Error('Failed to load LINE extension after all attempts');
+        this.logger.warn(`[Login] Extension loading failed, recreating browser for ${lineAccountId}`);
+
+        // Close current worker and create new one
+        await this.workerPoolService.closeWorker(lineAccountId);
+
+        // Small delay before recreating
+        await this.delay(2000);
+
+        // Recreate worker with fresh browser
+        this.emitStatus(lineAccountId, EnhancedLoginStatus.LAUNCHING_BROWSER, { requestId });
+        worker = await this.workerPoolService.initializeWorker(lineAccountId, credentials.email);
+
+        // Setup interception again for new browser
+        const newKeyCapturedPromise = new Promise<{ keys: any; chatMid?: string }>((resolve) => {
+          const onKeyCaptured = (keys: any, chatMid?: string) => {
+            resolve({ keys, chatMid });
+          };
+          this.workerPoolService.setupCDPInterception(worker, onKeyCaptured);
+          this.workerPoolService.setupPuppeteerInterception(worker, onKeyCaptured);
+        });
+
+        // Wait for browser to stabilize
+        await this.delay(3000);
+
+        // Try extension loading again
+        this.emitStatus(lineAccountId, EnhancedLoginStatus.LOADING_EXTENSION, { requestId });
+        extensionLoaded = await this.navigateToExtension(worker);
+
+        if (!extensionLoaded) {
+          throw new Error('Failed to load LINE extension after browser recreation');
+        }
       }
 
       await this.delay(3000);
@@ -995,108 +1027,163 @@ export class EnhancedAutomationService implements OnModuleDestroy {
   private async navigateToExtension(worker: Worker): Promise<boolean> {
     const page = worker.page;
     const extensionUrl = `chrome-extension://${this.LINE_EXTENSION_ID}/index.html`;
-    const maxRetries = 15;
-    let retries = 0;
+    const maxRetries = 5; // Reduced from 15 to fail faster
 
     this.logger.log(`[Extension] ========== EXTENSION LOADING (GSB-style) ==========`);
     this.logger.log(`[Extension] Target URL: ${extensionUrl}`);
 
-    // Method 1: Try direct navigation first
-    while (retries < maxRetries) {
+    // First: Test if browser/page is responsive
+    try {
+      this.logger.log(`[Extension] Testing browser responsiveness...`);
+      const testResult = await Promise.race([
+        page.evaluate(() => 'responsive'),
+        this.delay(5000).then(() => null),
+      ]);
+
+      if (!testResult) {
+        this.logger.error(`[Extension] Browser not responsive - page.evaluate timed out`);
+        return false;
+      }
+      this.logger.log(`[Extension] Browser is responsive`);
+    } catch (testError: any) {
+      this.logger.error(`[Extension] Browser test failed: ${testError.message}`);
+      return false;
+    }
+
+    // Method 1: Try direct navigation first (with shorter timeout)
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
       try {
-        this.logger.log(`[Extension] Method 1: Direct navigation (attempt ${retries + 1}/${maxRetries})...`);
-        await page.goto(extensionUrl, { waitUntil: 'domcontentloaded', timeout: 15000 });
+        this.logger.log(`[Extension] Method 1: Direct navigation (attempt ${attempt}/${maxRetries})...`);
+
+        // Navigate with shorter timeout
+        await page.goto(extensionUrl, { waitUntil: 'domcontentloaded', timeout: 10000 });
 
         const currentUrl = page.url();
         this.logger.log(`[Extension] Current URL: ${currentUrl}`);
 
         if (!currentUrl.includes('chrome-error') && currentUrl.includes(this.LINE_EXTENSION_ID)) {
           this.logger.log(`[Extension] Method 1 SUCCESS - Extension loaded!`);
-          await this.delay(3000);
+          await this.delay(2000);
           return true;
         }
 
         this.logger.warn(`[Extension] Method 1 failed - URL: ${currentUrl}`);
+
+        // Check if it's a simple about:blank - extension might not be loaded
+        if (currentUrl === 'about:blank' || currentUrl.includes('chrome-error')) {
+          this.logger.warn(`[Extension] Extension appears not to be loaded in browser`);
+          break; // Don't retry, extension is not available
+        }
       } catch (navError: any) {
-        this.logger.warn(`[Extension] Method 1 error: ${navError.message?.substring(0, 50)}`);
+        this.logger.warn(`[Extension] Method 1 error: ${navError.message?.substring(0, 100)}`);
+
+        // If timeout, browser might be overloaded
+        if (navError.message?.includes('timeout')) {
+          this.logger.warn(`[Extension] Navigation timeout - browser might be overloaded`);
+          // Short delay before retry
+          await this.delay(1000);
+        }
       }
 
-      retries++;
-      if (retries < 3) {
-        await this.delay(2000);
-      } else {
-        break; // Try next method after 3 attempts
+      // Delay between retries
+      if (attempt < maxRetries) {
+        await this.delay(1500);
       }
     }
 
-    // Method 2: Try CDP to enable extension via chrome://extensions
+    // Method 2: Try to navigate to about:blank first then extension (clean navigation)
     try {
-      this.logger.log(`[Extension] Method 2: Enabling extension via chrome://extensions...`);
+      this.logger.log(`[Extension] Method 2: Clean navigation via about:blank...`);
 
-      await page.goto('chrome://extensions', { waitUntil: 'load', timeout: 30000 });
-      await this.delay(3000);
+      // First go to about:blank
+      await page.goto('about:blank', { waitUntil: 'load', timeout: 5000 });
+      await this.delay(1000);
 
-      // Try to find and enable LINE extension
-      const enabledLine = await page.evaluate(() => {
-        const extensions = document.querySelectorAll('extensions-item');
-        for (const ext of Array.from(extensions)) {
-          const name = ext.getAttribute('name') || (ext as any).querySelector('.extension-name')?.textContent;
-          if (name && name.includes('LINE')) {
-            const toggle = (ext as any).shadowRoot?.querySelector('cr-toggle');
-            if (toggle && !toggle.hasAttribute('checked')) {
-              toggle.click();
-              return 'enabled';
-            }
-            return 'already_enabled';
-          }
-        }
-        return 'not_found';
-      });
+      // Then navigate to extension
+      await page.goto(extensionUrl, { waitUntil: 'domcontentloaded', timeout: 15000 });
 
-      this.logger.log(`[Extension] LINE extension status: ${enabledLine}`);
+      const currentUrl = page.url();
+      this.logger.log(`[Extension] Method 2 URL: ${currentUrl}`);
 
-      if (enabledLine !== 'not_found') {
-        // Try navigating to extension again
+      if (!currentUrl.includes('chrome-error') && currentUrl.includes(this.LINE_EXTENSION_ID)) {
+        this.logger.log(`[Extension] Method 2 SUCCESS - Extension loaded!`);
         await this.delay(2000);
-        await page.goto(extensionUrl, { waitUntil: 'domcontentloaded', timeout: 30000 });
+        return true;
+      }
+
+      // Check page content
+      const pageContent = await page.content();
+      this.logger.log(`[Extension] Method 2 content length: ${pageContent.length}`);
+
+      if (pageContent.length > 1000 && (pageContent.includes('LINE') || pageContent.includes('email'))) {
+        this.logger.log(`[Extension] Method 2 SUCCESS - Extension content detected!`);
+        await this.delay(2000);
+        return true;
+      }
+
+      this.logger.warn(`[Extension] Method 2 failed`);
+    } catch (method2Error: any) {
+      this.logger.warn(`[Extension] Method 2 error: ${method2Error.message?.substring(0, 100)}`);
+    }
+
+    // Method 3: Try CDP navigation (more reliable in some cases)
+    try {
+      this.logger.log(`[Extension] Method 3: CDP navigation...`);
+
+      if (worker.cdpClient) {
+        // Use CDP to navigate
+        await worker.cdpClient.send('Page.navigate', { url: extensionUrl });
+        await this.delay(3000);
 
         const currentUrl = page.url();
-        if (!currentUrl.includes('chrome-error')) {
-          this.logger.log(`[Extension] Method 2 SUCCESS - Extension loaded after enable!`);
-          await this.delay(3000);
+        this.logger.log(`[Extension] Method 3 URL: ${currentUrl}`);
+
+        if (currentUrl.includes(this.LINE_EXTENSION_ID)) {
+          this.logger.log(`[Extension] Method 3 SUCCESS - Extension loaded via CDP!`);
+          await this.delay(2000);
           return true;
         }
       }
 
-      this.logger.warn(`[Extension] Method 2 failed`);
+      this.logger.warn(`[Extension] Method 3 failed`);
     } catch (cdpError: any) {
-      this.logger.warn(`[Extension] Method 2 error: ${cdpError.message?.substring(0, 50)}`);
+      this.logger.warn(`[Extension] Method 3 error: ${cdpError.message?.substring(0, 100)}`);
     }
 
-    // Method 3: Final fallback - just use the known extension URL
+    // Method 4: chrome://extensions to verify extension is loaded
     try {
-      this.logger.log(`[Extension] Method 3: Final attempt with known URL...`);
+      this.logger.log(`[Extension] Method 4: Checking chrome://extensions...`);
 
-      await page.goto('about:blank', { waitUntil: 'load' });
-      await this.delay(1000);
-      await page.goto(extensionUrl, { waitUntil: 'domcontentloaded', timeout: 30000 });
+      await page.goto('chrome://extensions', { waitUntil: 'load', timeout: 10000 });
+      await this.delay(2000);
 
-      const currentUrl = page.url();
-      const pageContent = await page.content();
+      // Check if LINE extension exists
+      const extensionCheck = await page.evaluate(() => {
+        const pageText = document.body?.innerText || '';
+        return {
+          hasLine: pageText.toLowerCase().includes('line'),
+          hasExtensions: document.querySelectorAll('extensions-item').length,
+        };
+      });
 
-      this.logger.log(`[Extension] Final URL: ${currentUrl}`);
-      this.logger.log(`[Extension] Page content length: ${pageContent.length}`);
+      this.logger.log(`[Extension] chrome://extensions check: ${JSON.stringify(extensionCheck)}`);
 
-      // Check if we have actual content (not error page)
-      if (pageContent.length > 1000 && (pageContent.includes('LINE') || pageContent.includes('email'))) {
-        this.logger.log(`[Extension] Method 3 SUCCESS - Extension appears to have loaded!`);
-        await this.delay(3000);
-        return true;
+      if (extensionCheck.hasLine || extensionCheck.hasExtensions > 0) {
+        // Extension is present, try navigating one more time
+        await this.delay(1000);
+        await page.goto(extensionUrl, { waitUntil: 'domcontentloaded', timeout: 15000 });
+
+        const currentUrl = page.url();
+        if (currentUrl.includes(this.LINE_EXTENSION_ID)) {
+          this.logger.log(`[Extension] Method 4 SUCCESS - Extension loaded after verification!`);
+          await this.delay(2000);
+          return true;
+        }
+      } else {
+        this.logger.error(`[Extension] Extension NOT found in chrome://extensions - browser might not have loaded it`);
       }
-
-      this.logger.error(`[Extension] Method 3 failed - Page content too short or no LINE content`);
-    } catch (finalError: any) {
-      this.logger.error(`[Extension] Method 3 error: ${finalError.message}`);
+    } catch (extCheckError: any) {
+      this.logger.warn(`[Extension] Method 4 error: ${extCheckError.message?.substring(0, 100)}`);
     }
 
     this.logger.error(`[Extension] ========== ALL METHODS FAILED ==========`);
