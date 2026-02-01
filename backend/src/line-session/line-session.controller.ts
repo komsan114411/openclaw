@@ -1269,4 +1269,28 @@ export class LineSessionController {
       settings: this.orchestratorService.getCurrentSettings(),
     };
   }
+
+  /**
+   * Clean up corrupted sessions (missing name or ownerId)
+   */
+  @Post('cleanup-corrupted')
+  @ApiOperation({ summary: 'Delete sessions with missing required fields' })
+  async cleanupCorruptedSessions() {
+    const result = await this.lineSessionModel.deleteMany({
+      $or: [
+        { name: { $exists: false } },
+        { name: null },
+        { name: '' },
+        { ownerId: { $exists: false } },
+        { ownerId: null },
+        { ownerId: '' },
+      ],
+    });
+
+    return {
+      success: true,
+      message: `Deleted ${result.deletedCount} corrupted sessions`,
+      deletedCount: result.deletedCount,
+    };
+  }
 }

@@ -162,7 +162,14 @@ export class OrchestratorService implements OnModuleInit, OnModuleDestroy {
     this.isRunning = true;
 
     // Perform initial checks
+    this.logger.log('[Orchestrator] Running initial checks...');
     await this.performHealthCheck();
+
+    // Run initial relogin check after a short delay
+    setTimeout(async () => {
+      this.logger.log('[Orchestrator] Running initial relogin check...');
+      await this.performReloginCheck();
+    }, 10000); // 10 seconds after startup
   }
 
   /**
@@ -206,15 +213,29 @@ export class OrchestratorService implements OnModuleInit, OnModuleDestroy {
 
       for (const session of sessions) {
         try {
+          // Skip corrupted sessions (missing required fields)
+          if (!session.name || !session.ownerId) {
+            this.logger.warn(`[HealthCheck] Skipping corrupted session ${session._id} (missing name or ownerId)`);
+            continue;
+          }
+
           // Use session._id as the primary identifier (lineAccountId might be empty)
           const sessionId = session._id.toString();
           const keysStatus = await this.enhancedAutomationService.getKeysStatus(sessionId);
 
-          // Update session with check result
-          session.lastCheckedAt = new Date();
-          session.lastCheckResult = keysStatus.isValid ? 'valid' :
-                                    keysStatus.keysStatus === KeysStatus.EXPIRED ? 'expired' : 'unknown';
-          await session.save();
+          // Update session with check result (don't save to avoid validation error)
+          try {
+            await this.lineSessionModel.updateOne(
+              { _id: session._id },
+              {
+                lastCheckedAt: new Date(),
+                lastCheckResult: keysStatus.isValid ? 'valid' :
+                                keysStatus.keysStatus === KeysStatus.EXPIRED ? 'expired' : 'unknown',
+              }
+            );
+          } catch (updateError: any) {
+            this.logger.warn(`[HealthCheck] Failed to update session ${session.name}: ${updateError.message}`);
+          }
 
           // Check if needs warning
           if (keysStatus.isExpiringSoon) {
@@ -289,6 +310,12 @@ export class OrchestratorService implements OnModuleInit, OnModuleDestroy {
 
       for (const session of sessions) {
         try {
+          // Skip corrupted sessions (missing required fields)
+          if (!session.name || !session.ownerId) {
+            this.logger.warn(`[ReloginCheck] Skipping corrupted session ${session._id} (missing name or ownerId)`);
+            continue;
+          }
+
           // Use session._id as the primary identifier
           const sessionId = session._id.toString();
 
