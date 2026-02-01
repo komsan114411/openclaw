@@ -1984,6 +1984,115 @@ export class EnhancedAutomationService implements OnModuleDestroy {
   }
 
   /**
+   * Get all pending logins with full details (for admin dashboard)
+   * Shows accounts waiting for PIN verification with session info
+   */
+  async getPendingLogins(): Promise<Array<{
+    lineAccountId: string;
+    sessionId: string;
+    name: string;
+    email: string;
+    pinCode: string | null;
+    pinStatus: PinStatusResult;
+    workerState: string | null;
+    timeRemaining: number;
+    isExpired: boolean;
+  }>> {
+    const results: Array<{
+      lineAccountId: string;
+      sessionId: string;
+      name: string;
+      email: string;
+      pinCode: string | null;
+      pinStatus: PinStatusResult;
+      workerState: string | null;
+      timeRemaining: number;
+      isExpired: boolean;
+    }> = [];
+
+    // Get all PINs (including expired for cleanup info)
+    for (const [lineAccountId, pinData] of this.pinStore) {
+      const pinStatus = this.getPinStatus(lineAccountId);
+      const worker = this.workerPoolService.getWorker(lineAccountId);
+
+      // Get session info from database
+      let session = await this.lineSessionModel.findById(lineAccountId);
+      if (!session) {
+        session = await this.lineSessionModel.findOne({
+          lineAccountId,
+          isActive: true,
+        });
+      }
+
+      results.push({
+        lineAccountId,
+        sessionId: session?._id?.toString() || lineAccountId,
+        name: session?.name || 'Unknown',
+        email: session?.lineEmail || 'N/A',
+        pinCode: pinData.pinCode,
+        pinStatus,
+        workerState: worker?.state || null,
+        timeRemaining: pinStatus.expiresIn,
+        isExpired: !pinStatus.isUsable,
+      });
+    }
+
+    // Sort: usable PINs first (by freshness), then expired
+    results.sort((a, b) => {
+      if (a.isExpired !== b.isExpired) {
+        return a.isExpired ? 1 : -1; // Non-expired first
+      }
+      return b.timeRemaining - a.timeRemaining; // More time remaining first
+    });
+
+    return results;
+  }
+
+  /**
+   * Auto-cleanup expired PINs and release locks
+   * Called periodically by orchestrator
+   */
+  async autoCleanupExpiredLogins(): Promise<{
+    cleaned: number;
+    details: Array<{ lineAccountId: string; reason: string }>;
+  }> {
+    const details: Array<{ lineAccountId: string; reason: string }> = [];
+    let cleaned = 0;
+    const now = new Date();
+    const expiryMs = this.PIN_EXPIRY_MINUTES * 60 * 1000;
+
+    for (const [lineAccountId, pinData] of this.pinStore) {
+      const pinAge = now.getTime() - new Date(pinData.updatedAt).getTime();
+
+      if (pinAge > expiryMs) {
+        // PIN expired - cleanup
+        this.logger.log(`[AutoCleanup] PIN expired for ${lineAccountId}, cleaning up...`);
+
+        // Clear PIN
+        this.pinStore.delete(lineAccountId);
+
+        // Release lock if held
+        this.loginLockService.releaseLock(lineAccountId, 'enhanced');
+
+        // Close worker if exists
+        await this.workerPoolService.closeWorker(lineAccountId);
+
+        // Mark login as failed in coordinator
+        this.loginCoordinatorService.markLoginFailed(lineAccountId, 'PIN expired - user did not verify in time');
+
+        details.push({ lineAccountId, reason: 'PIN expired' });
+        cleaned++;
+      }
+    }
+
+    if (cleaned > 0) {
+      this.logger.log(`[AutoCleanup] Cleaned up ${cleaned} expired logins`);
+    }
+
+    return { cleaned, details };
+  }
+
+  /**
    * Check if relogin is needed based on keys status (ported from GSB)
    */
   async needsRelogin(lineAccountId: string): Promise<{ needsRelogin: boolean; reason: string }> {

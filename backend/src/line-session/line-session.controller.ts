@@ -1113,6 +1113,47 @@ export class LineSessionController {
   }
 
   /**
+   * Get all pending logins with full details (accounts waiting for PIN verification)
+   * Shows PIN code, account name, time remaining, etc.
+   */
+  @Get('logins/pending')
+  @ApiOperation({ summary: 'Get all pending logins waiting for PIN verification' })
+  async getPendingLogins() {
+    const pendingLogins = await this.enhancedAutomationService.getPendingLogins();
+
+    // Separate active and expired
+    const active = pendingLogins.filter(p => !p.isExpired);
+    const expired = pendingLogins.filter(p => p.isExpired);
+
+    return {
+      success: true,
+      total: pendingLogins.length,
+      active: active.length,
+      expired: expired.length,
+      pendingLogins,
+      message: active.length > 0
+        ? `${active.length} account(s) waiting for PIN verification`
+        : 'No pending logins',
+    };
+  }
+
+  /**
+   * Auto-cleanup expired logins and release locks
+   */
+  @Post('logins/cleanup')
+  @ApiOperation({ summary: 'Auto-cleanup expired logins' })
+  async autoCleanupExpiredLogins() {
+    const result = await this.enhancedAutomationService.autoCleanupExpiredLogins();
+    return {
+      success: true,
+      ...result,
+      message: result.cleaned > 0
+        ? `Cleaned up ${result.cleaned} expired login(s)`
+        : 'No expired logins to clean up',
+    };
+  }
+
+  /**
    * Clear PIN for account
    */
   @Delete(':lineAccountId/pin')

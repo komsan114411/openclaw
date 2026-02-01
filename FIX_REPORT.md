@@ -1,130 +1,534 @@
-[Nest] 7  - 02/01/2026, 1:02:50 PM   ERROR [OrchestratorService] [HealthCheck] Error checking session undefined: LineSession validation failed: name: Path `name` is required., ownerId: Path `ownerId` is required.
-[Nest] 7  - 02/01/2026, 1:02:50 PM   ERROR [OrchestratorService] [HealthCheck] Error checking session undefined: LineSession validation failed: name: Path `name` is required., ownerId: Path `ownerId` is required.
-[Nest] 7  - 02/01/2026, 1:02:50 PM     LOG [OrchestratorService] [HealthCheck] Health check completed
-[Nest] 7  - 02/01/2026, 1:02:50 PM     LOG [OrchestratorService] Orchestrator Service initialized
-[Nest] 7  - 02/01/2026, 1:02:50 PM     LOG [NestApplication] Nest application successfully started +43ms
-[Nest] 7  - 02/01/2026, 1:02:50 PM     LOG [Bootstrap] 🚀 Server running on port 8080
-[Nest] 7  - 02/01/2026, 1:02:50 PM     LOG [Bootstrap] 📚 Swagger docs at /api/docs
-[Nest] 7  - 02/01/2026, 1:02:50 PM     LOG [Bootstrap] 🌐 Frontend served from /public
-[Nest] 7  - 02/01/2026, 1:02:50 PM     LOG [Bootstrap] 🌍 CORS enabled for: https://dooslip.com, https://www.dooslip.com
-[Nest] 7  - 02/01/2026, 1:02:55 PM    WARN [WebsocketGateway] [Broadcast] Sockets adapter not ready, broadcasting anyway to admins
-[Nest] 7  - 02/01/2026, 1:03:00 PM    WARN [RedisService] [REDIS] Redis connection lost - using memory fallback
-[Nest] 7  - 02/01/2026, 1:03:00 PM    WARN [WebsocketGateway] [Broadcast] Sockets adapter not ready, broadcasting anyway to admins
-[Nest] 7  - 02/01/2026, 1:03:05 PM    WARN [WebsocketGateway] [Broadcast] Sockets adapter not ready, broadcasting anyway to admins
-[Nest] 7  - 02/01/2026, 1:03:10 PM    WARN [WebsocketGateway] [Broadcast] Sockets adapter not ready, broadcasting anyway to admins
-[Nest] 7  - 02/01/2026, 1:03:15 PM    WARN [WebsocketGateway] [Broadcast] Sockets adapter not ready, broadcasting anyway to admins
-[Nest] 7  - 02/01/2026, 1:03:20 PM    WARN [WebsocketGateway] [Broadcast] Sockets adapter not ready, broadcasting anyway to admins
-[Nest] 7  - 02/01/2026, 1:03:25 PM    WARN [WebsocketGateway] [Broadcast] Sockets adapter not ready, broadcasting anyway to admins
-[Nest] 7  - 02/01/2026, 1:03:30 PM    WARN [WebsocketGateway] [Broadcast] Sockets adapter not ready, broadcasting anyway to admins
-[Nest] 7  - 02/01/2026, 1:03:35 PM    WARN [WebsocketGateway] [Broadcast] Sockets adapter not ready, broadcasting anyway to admins
-[Nest] 7  - 02/01/2026, 1:03:40 PM    WARN [WebsocketGateway] [Broadcast] Sockets adapter not ready, broadcasting anyway to admins
-[Nest] 7  - 02/01/2026, 1:03:45 PM    WARN [WebsocketGateway] [Broadcast] Sockets adapter not ready, broadcasting anyway to admins
-[Nest] 7  - 02/01/2026, 1:03:50 PM    WARN [WebsocketGateway] [Broadcast] Sockets adapter not ready, broadcasting anyway to admins
-[Nest] 7  - 02/01/2026, 1:03:55 PM    WARN [WebsocketGateway] [Broadcast] Sockets adapter not ready, broadcasting anyway to admins
-[Nest] 7  - 02/01/2026, 1:04:00 PM   ERROR [RedisService] [REDIS ALERT] Redis has been down for 60s!
-[Nest] 7  - 02/01/2026, 1:04:00 PM    WARN [WebsocketGateway] [Broadcast] Sockets adapter not ready, broadcasting anyway to admins
-[Nest] 7  - 02/01/2026, 1:04:05 PM    WARN [WebsocketGateway] [Broadcast] Sockets adapter not ready, broadcasting anyway to admins
-[Nest] 7  - 02/01/2026, 1:04:10 PM    WARN [WebsocketGateway] [Broadcast] Sockets adapter not ready, broadcasting anyway to admins
-[Nest] 7  - 02/01/2026, 1:04:15 PM    WARN [WebsocketGateway] [Broadcast] Sockets adapter not ready, broadcasting anyway to admins
-[Nest] 7  - 02/01/2026, 1:04:20 PM    WARN [WebsocketGateway] [Broadcast] Sockets adapter not ready, broadcasting anyway to admins
-[Nest] 7  - 02/01/2026, 1:04:25 PM    WARN [WebsocketGateway] [Broadcast] Sockets adapter not ready, broadcasting anyway to admins
-[Nest] 7  - 02/01/2026, 1:04:30 PM    WARN [WebsocketGateway] [Broadcast] Sockets adapter not ready, broadcasting anyway to admins
-[Nest] 7  - 02/01/2026, 1:04:35 PM    WARN [WebsocketGateway] [Broadcast] Sockets adapter not ready, broadcasting anyway to admins
-[Nest] 7  - 02/01/2026, 1:04:40 PM    WARN [WebsocketGateway] [Broadcast] Sockets adapter not ready, broadcasting anyway to admins
-[Nest] 7  - 02/01/2026, 1:04:45 PM    WARN [WebsocketGateway] [Broadcast] Sockets adapter not ready, broadcasting anyway to admins
-[Nest] 7  - 02/01/2026, 1:04:50 PM    WARN [WebsocketGateway] [Broadcast] Sockets adapter not ready, broadcasting anyway to admins
-[Nest] 7  - 02/01/2026, 1:04:55 PM    WARN [WebsocketGateway] [Broadcast] Sockets adapter not ready, broadcasting anyway to admins
-[Nest] 7  - 02/01/2026, 1:05:00 PM     LOG [TasksService] [HEALTH] WARNING | Memory: 56/58MB (96.6%) | RSS: 140MB | Redis: DOWN | Cache: 2/10000 | Uptime: 0h 2m | Warnings: HIGH_MEMORY: 96.6%, REDIS_DOWN: 120s
-[Nest] 7  - 02/01/2026, 1:05:00 PM    WARN [TasksService] [HEALTH WARNING] HIGH_MEMORY: 96.6% | REDIS_DOWN: 120s
-[Nest] 7  - 02/01/2026, 1:05:00 PM    WARN [WebsocketGateway] [Broadcast] Sockets adapter not ready, broadcasting anyway to admins
-[Nest] 7  - 02/01/2026, 1:05:05 PM    WARN [WebsocketGateway] [Broadcast] Sockets adapter not ready, broadcasting anyway to admins
-[Nest] 7  - 02/01/2026, 1:05:10 PM    WARN [WebsocketGateway] [Broadcast] Sockets adapter not ready, broadcasting anyway to admins
-[Nest] 7  - 02/01/2026, 1:05:15 PM    WARN [WebsocketGateway] [Broadcast] Sockets adapter not ready, broadcasting anyway to admins
-[Nest] 7  - 02/01/2026, 1:05:20 PM    WARN [WebsocketGateway] [Broadcast] Sockets adapter not ready, broadcasting anyway to admins
-[Nest] 7  - 02/01/2026, 1:05:25 PM    WARN [WebsocketGateway] [Broadcast] Sockets adapter not ready, broadcasting anyway to admins
-[Nest] 7  - 02/01/2026, 1:05:30 PM    WARN [WebsocketGateway] [Broadcast] Sockets adapter not ready, broadcasting anyway to admins
-[Nest] 7  - 02/01/2026, 1:05:35 PM    WARN [WebsocketGateway] [Broadcast] Sockets adapter not ready, broadcasting anyway to admins
-[Nest] 7  - 02/01/2026, 1:05:40 PM    WARN [WebsocketGateway] [Broadcast] Sockets adapter not ready, broadcasting anyway to admins
-[Nest] 7  - 02/01/2026, 1:05:45 PM    WARN [WebsocketGateway] [Broadcast] Sockets adapter not ready, broadcasting anyway to admins
-[Nest] 7  - 02/01/2026, 1:05:50 PM    WARN [WebsocketGateway] [Broadcast] Sockets adapter not ready, broadcasting anyway to admins
-[Nest] 7  - 02/01/2026, 1:05:55 PM    WARN [WebsocketGateway] [Broadcast] Sockets adapter not ready, broadcasting anyway to admins
-[Nest] 7  - 02/01/2026, 1:06:00 PM    WARN [WebsocketGateway] [Broadcast] Sockets adapter not ready, broadcasting anyway to admins
-[Nest] 7  - 02/01/2026, 1:06:05 PM    WARN [WebsocketGateway] [Broadcast] Sockets adapter not ready, broadcasting anyway to admins
-[Nest] 7  - 02/01/2026, 1:06:10 PM    WARN [WebsocketGateway] [Broadcast] Sockets adapter not ready, broadcasting anyway to admins
-[Nest] 7  - 02/01/2026, 1:06:15 PM    WARN [WebsocketGateway] [Broadcast] Sockets adapter not ready, broadcasting anyway to admins
-[Nest] 7  - 02/01/2026, 1:06:20 PM    WARN [WebsocketGateway] [Broadcast] Sockets adapter not ready, broadcasting anyway to admins
-[Nest] 7  - 02/01/2026, 1:06:25 PM    WARN [WebsocketGateway] [Broadcast] Sockets adapter not ready, broadcasting anyway to admins
-[Nest] 7  - 02/01/2026, 1:06:30 PM    WARN [WebsocketGateway] [Broadcast] Sockets adapter not ready, broadcasting anyway to admins
-[Nest] 7  - 02/01/2026, 1:06:35 PM    WARN [WebsocketGateway] [Broadcast] Sockets adapter not ready, broadcasting anyway to admins
-[Nest] 7  - 02/01/2026, 1:06:40 PM    WARN [WebsocketGateway] [Broadcast] Sockets adapter not ready, broadcasting anyway to admins
-[Nest] 7  - 02/01/2026, 1:06:45 PM    WARN [WebsocketGateway] [Broadcast] Sockets adapter not ready, broadcasting anyway to admins
-[Nest] 7  - 02/01/2026, 1:06:50 PM    WARN [WebsocketGateway] [Broadcast] Sockets adapter not ready, broadcasting anyway to admins
-[Nest] 7  - 02/01/2026, 1:06:55 PM    WARN [WebsocketGateway] [Broadcast] Sockets adapter not ready, broadcasting anyway to admins
-[Nest] 7  - 02/01/2026, 1:07:00 PM    WARN [WebsocketGateway] [Broadcast] Sockets adapter not ready, broadcasting anyway to admins
-[Nest] 7  - 02/01/2026, 1:07:05 PM    WARN [WebsocketGateway] [Broadcast] Sockets adapter not ready, broadcasting anyway to admins
-[Nest] 7  - 02/01/2026, 1:07:10 PM    WARN [WebsocketGateway] [Broadcast] Sockets adapter not ready, broadcasting anyway to admins
-[Nest] 7  - 02/01/2026, 1:07:15 PM    WARN [WebsocketGateway] [Broadcast] Sockets adapter not ready, broadcasting anyway to admins
-[Nest] 7  - 02/01/2026, 1:07:20 PM    WARN [WebsocketGateway] [Broadcast] Sockets adapter not ready, broadcasting anyway to admins
-[Nest] 7  - 02/01/2026, 1:07:25 PM    WARN [WebsocketGateway] [Broadcast] Sockets adapter not ready, broadcasting anyway to admins
-[Nest] 7  - 02/01/2026, 1:07:30 PM    WARN [WebsocketGateway] [Broadcast] Sockets adapter not ready, broadcasting anyway to admins
-[Nest] 7  - 02/01/2026, 1:07:35 PM    WARN [WebsocketGateway] [Broadcast] Sockets adapter not ready, broadcasting anyway to admins
-[Nest] 7  - 02/01/2026, 1:07:40 PM    WARN [WebsocketGateway] [Broadcast] Sockets adapter not ready, broadcasting anyway to admins
-[Nest] 7  - 02/01/2026, 1:07:45 PM    WARN [WebsocketGateway] [Broadcast] Sockets adapter not ready, broadcasting anyway to admins
-[Nest] 7  - 02/01/2026, 1:07:49 PM     LOG [RedisService] [CACHE STATS] {"cacheSize":1,"rateLimitSize":0,"slidingLogSize":0,"redisConnected":false,"redisDownSince":1769950980005}
-[Nest] 7  - 02/01/2026, 1:07:50 PM     LOG [OrchestratorService] [HealthCheck] Starting health check...
-[Nest] 7  - 02/01/2026, 1:07:50 PM     LOG [OrchestratorService] [HealthCheck] Found 5 active sessions
-[Nest] 7  - 02/01/2026, 1:07:50 PM   ERROR [OrchestratorService] [HealthCheck] Error checking session undefined: LineSession validation failed: name: Path `name` is required., ownerId: Path `ownerId` is required.
-[Nest] 7  - 02/01/2026, 1:07:50 PM   ERROR [OrchestratorService] [HealthCheck] Error checking session undefined: LineSession validation failed: name: Path `name` is required., ownerId: Path `ownerId` is required.
-[Nest] 7  - 02/01/2026, 1:07:50 PM   ERROR [OrchestratorService] [HealthCheck] Error checking session undefined: LineSession validation failed: name: Path `name` is required., ownerId: Path `ownerId` is required.
-[Nest] 7  - 02/01/2026, 1:07:50 PM    WARN [WebsocketGateway] [Broadcast] Sockets adapter not ready, broadcasting anyway to admins
-[Nest] 7  - 02/01/2026, 1:07:50 PM     LOG [OrchestratorService] [HealthCheck] Health check completed
-[Nest] 7  - 02/01/2026, 1:07:55 PM    WARN [WebsocketGateway] [Broadcast] Sockets adapter not ready, broadcasting anyway to admins
-[Nest] 7  - 02/01/2026, 1:08:00 PM    WARN [WebsocketGateway] [Broadcast] Sockets adapter not ready, broadcasting anyway to admins
-[Nest] 7  - 02/01/2026, 1:08:05 PM    WARN [WebsocketGateway] [Broadcast] Sockets adapter not ready, broadcasting anyway to admins
-[Nest] 7  - 02/01/2026, 1:08:10 PM    WARN [WebsocketGateway] [Broadcast] Sockets adapter not ready, broadcasting anyway to admins
-[Nest] 7  - 02/01/2026, 1:08:15 PM    WARN [WebsocketGateway] [Broadcast] Sockets adapter not ready, broadcasting anyway to admins
-[Nest] 7  - 02/01/2026, 1:08:20 PM    WARN [WebsocketGateway] [Broadcast] Sockets adapter not ready, broadcasting anyway to admins
-[Nest] 7  - 02/01/2026, 1:08:25 PM    WARN [WebsocketGateway] [Broadcast] Sockets adapter not ready, broadcasting anyway to admins
-[Nest] 7  - 02/01/2026, 1:08:30 PM    WARN [WebsocketGateway] [Broadcast] Sockets adapter not ready, broadcasting anyway to admins
-[Nest] 7  - 02/01/2026, 1:08:35 PM    WARN [WebsocketGateway] [Broadcast] Sockets adapter not ready, broadcasting anyway to admins
-[Nest] 7  - 02/01/2026, 1:08:40 PM    WARN [WebsocketGateway] [Broadcast] Sockets adapter not ready, broadcasting anyway to admins
-[Nest] 7  - 02/01/2026, 1:08:45 PM    WARN [WebsocketGateway] [Broadcast] Sockets adapter not ready, broadcasting anyway to admins
-[Nest] 7  - 02/01/2026, 1:08:50 PM    WARN [WebsocketGateway] [Broadcast] Sockets adapter not ready, broadcasting anyway to admins
-[Nest] 7  - 02/01/2026, 1:08:55 PM    WARN [WebsocketGateway] [Broadcast] Sockets adapter not ready, broadcasting anyway to admins
-[Nest] 7  - 02/01/2026, 1:09:00 PM    WARN [WebsocketGateway] [Broadcast] Sockets adapter not ready, broadcasting anyway to admins
-[Nest] 7  - 02/01/2026, 1:09:05 PM    WARN [WebsocketGateway] [Broadcast] Sockets adapter not ready, broadcasting anyway to admins
-[Nest] 7  - 02/01/2026, 1:09:10 PM    WARN [WebsocketGateway] [Broadcast] Sockets adapter not ready, broadcasting anyway to admins
-[Nest] 7  - 02/01/2026, 1:09:15 PM    WARN [WebsocketGateway] [Broadcast] Sockets adapter not ready, broadcasting anyway to admins
-[Nest] 7  - 02/01/2026, 1:09:20 PM    WARN [WebsocketGateway] [Broadcast] Sockets adapter not ready, broadcasting anyway to admins
-[Nest] 7  - 02/01/2026, 1:09:25 PM    WARN [WebsocketGateway] [Broadcast] Sockets adapter not ready, broadcasting anyway to admins
-[Nest] 7  - 02/01/2026, 1:09:30 PM    WARN [WebsocketGateway] [Broadcast] Sockets adapter not ready, broadcasting anyway to admins
-[Nest] 7  - 02/01/2026, 1:09:35 PM    WARN [WebsocketGateway] [Broadcast] Sockets adapter not ready, broadcasting anyway to admins
-[Nest] 7  - 02/01/2026, 1:09:40 PM    WARN [WebsocketGateway] [Broadcast] Sockets adapter not ready, broadcasting anyway to admins
-[Nest] 7  - 02/01/2026, 1:09:45 PM    WARN [WebsocketGateway] [Broadcast] Sockets adapter not ready, broadcasting anyway to admins
-[Nest] 7  - 02/01/2026, 1:09:50 PM    WARN [WebsocketGateway] [Broadcast] Sockets adapter not ready, broadcasting anyway to admins
-[Nest] 7  - 02/01/2026, 1:09:55 PM    WARN [WebsocketGateway] [Broadcast] Sockets adapter not ready, broadcasting anyway to admins
-[Nest] 7  - 02/01/2026, 1:10:00 PM     LOG [TasksService] [HEALTH] WARNING | Memory: 56/67MB (83.6%) | RSS: 148MB | Redis: DOWN | Cache: 3/10000 | Uptime: 0h 7m | Warnings: REDIS_DOWN: 420s
-[Nest] 7  - 02/01/2026, 1:10:00 PM    WARN [TasksService] [HEALTH WARNING] REDIS_DOWN: 420s
-[Nest] 7  - 02/01/2026, 1:10:00 PM    WARN [WebsocketGateway] [Broadcast] Sockets adapter not ready, broadcasting anyway to admins
-[Nest] 7  - 02/01/2026, 1:10:04 PM     LOG [EnhancedAutomationService] Display check: DISPLAY=:99, HEADLESS=false
-[Nest] 7  - 02/01/2026, 1:10:04 PM     LOG [LoginLockService] Lock acquired for 697ede693bc06c5c2537636f (source: enhanced)
-[Nest] 7  - 02/01/2026, 1:10:04 PM     LOG [LoginCoordinatorService] Login request approved: req_697ede693bc06c5c2537636f_1769951404621 for 697ede693bc06c5c2537636f (source: relogin)
-[Nest] 7  - 02/01/2026, 1:10:04 PM     LOG [LoginNotificationService] Login requested: 697ede693bc06c5c2537636f (relogin)
-[Nest] 7  - 02/01/2026, 1:10:04 PM    WARN [WebsocketGateway] [Broadcast] Sockets adapter not ready, broadcasting anyway to room line-account:697ede693bc06c5c2537636f
-[Nest] 7  - 02/01/2026, 1:10:04 PM    WARN [WebsocketGateway] [Broadcast] Sockets adapter not ready, broadcasting anyway to admins
-[Nest] 7  - 02/01/2026, 1:10:04 PM     LOG [EnhancedAutomationService] [EnhancedAutomation] Emitting status: requesting for 697ede693bc06c5c2537636f
-[Nest] 7  - 02/01/2026, 1:10:04 PM     LOG [LoginNotificationService] [LoginNotification] Received status: requesting for 697ede693bc06c5c2537636f
-[Nest] 7  - 02/01/2026, 1:10:04 PM    WARN [WebsocketGateway] [Broadcast] Sockets adapter not ready, broadcasting anyway to room line-account:697ede693bc06c5c2537636f
-[Nest] 7  - 02/01/2026, 1:10:04 PM    WARN [WebsocketGateway] [Broadcast] Sockets adapter not ready, broadcasting anyway to admins
-[Nest] 7  - 02/01/2026, 1:10:04 PM     LOG [EnhancedAutomationService] Found existing keys for email redmictg26@gmail.com, copying to 697ede693bc06c5c2537636f
-[Nest] 7  - 02/01/2026, 1:10:04 PM     LOG [KeyStorageService] Saving keys for lineAccountId: 697ede693bc06c5c2537636f
-[Nest] 7  - 02/01/2026, 1:10:04 PM     LOG [KeyStorageService] Keys saved successfully for lineAccountId: 697ede693bc06c5c2537636f
-[Nest] 7  - 02/01/2026, 1:10:04 PM     LOG [LoginCoordinatorService] Login completed for 697ede693bc06c5c2537636f
-[Nest] 7  - 02/01/2026, 1:10:04 PM     LOG [LoginNotificationService] Login completed: 697ede693bc06c5c2537636f
-[Nest] 7  - 02/01/2026, 1:10:04 PM    WARN [WebsocketGateway] [Broadcast] Sockets adapter not ready, broadcasting anyway to room line-account:697ede693bc06c5c2537636f
-[Nest] 7  - 02/01/2026, 1:10:04 PM    WARN [WebsocketGateway] [Broadcast] Sockets adapter not ready, broadcasting anyway to admins
-[Nest] 7  - 02/01/2026, 1:10:05 PM    WARN [WebsocketGateway] [Broadcast] Sockets adapter not ready, broadcasting anyway to admins
-[Nest] 7  - 02/01/2026, 1:10:10 PM    WARN [WebsocketGateway] [Broadcast] Sockets adapter not ready, broadcasting anyway to admins
-[Nest] 7  - 02/01/2026, 1:10:15 PM    WARN [WebsocketGateway] [Broadcast] Sockets adapter not ready, broadcasting anyway to admins
-[Nest] 7  - 02/01/2026, 1:10:20 PM    WARN [WebsocketGateway] [Broadcast] Sockets adapter not ready, broadcasting anyway to admins
-[Nest] 7  - 02/01/2026, 1:10:25 PM    WARN [WebsocketGateway] [Broadcast] Sockets adapter not ready, broadcasting anyway to admins
+2026-02-01T15:39:15.000000000Z [inf]  Starting Container
+2026-02-01T15:39:19.472885116Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[NestFactory] [39m[32mStarting Nest application...[39m
+2026-02-01T15:39:19.472895534Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[EventBusService] [39m[32mEventBus initialized[39m
+2026-02-01T15:39:19.472938292Z [err]  (node:7) [MONGOOSE] Warning: Duplicate schema index on {"type":1} found. This is often due to declaring an index using both "index: true" and "schema.index()". Please remove the duplicate index definition.
+2026-02-01T15:39:19.472943884Z [err]  (Use `node --trace-warnings ...` to show where the warning was created)
+2026-02-01T15:39:19.472949667Z [err]  (node:7) [MONGOOSE] Warning: Duplicate schema index on {"code":1} found. This is often due to declaring an index using both "index: true" and "schema.index()". Please remove the duplicate index definition.
+2026-02-01T15:39:19.472956325Z [err]  (node:7) [MONGOOSE] Warning: Duplicate schema index on {"userId":1} found. This is often due to declaring an index using both "index: true" and "schema.index()". Please remove the duplicate index definition.
+2026-02-01T15:39:19.521804740Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mAppModule dependencies initialized[39m[38;5;3m +163ms[39m
+2026-02-01T15:39:19.521810488Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mEventBusModule dependencies initialized[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:19.521817416Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mSecurityModule dependencies initialized[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:19.521823441Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mMongooseModule dependencies initialized[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:19.521829316Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mDatabaseModule dependencies initialized[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:19.521835498Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mPassportModule dependencies initialized[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:19.523838643Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mConfigHostModule dependencies initialized[39m[38;5;3m +2ms[39m
+2026-02-01T15:39:19.523845881Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mDiscoveryModule dependencies initialized[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:19.523852746Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mServeStaticModule dependencies initialized[39m[38;5;3m +1ms[39m
+2026-02-01T15:39:19.523858264Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mConfigModule dependencies initialized[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:19.523863709Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mConfigModule dependencies initialized[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:19.525321582Z [inf]  [33m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [33m   WARN[39m [38;5;3m[RedisModule] [39m[33m⚠️ REDIS_URL not set, using memory fallback[39m
+2026-02-01T15:39:19.525329139Z [inf]  🔌 Connecting to MongoDB with optimized pooling...
+2026-02-01T15:39:19.525335620Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mScheduleModule dependencies initialized[39m[38;5;3m +1ms[39m
+2026-02-01T15:39:19.525341079Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mEventEmitterModule dependencies initialized[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:19.539010587Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mRedisModule dependencies initialized[39m[38;5;3m +13ms[39m
+2026-02-01T15:39:19.539019143Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mJwtModule dependencies initialized[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:19.782561802Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mMongooseCoreModule dependencies initialized[39m[38;5;3m +242ms[39m
+2026-02-01T15:39:19.801360765Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mMongooseModule dependencies initialized[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:19.801360974Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mMongooseModule dependencies initialized[39m[38;5;3m +19ms[39m
+2026-02-01T15:39:19.801372489Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mMongooseModule dependencies initialized[39m[38;5;3m +1ms[39m
+2026-02-01T15:39:19.801372750Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mMongooseModule dependencies initialized[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:19.801382454Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mMongooseModule dependencies initialized[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:19.801383562Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mMongooseModule dependencies initialized[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:19.801391112Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mMongooseModule dependencies initialized[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:19.801392979Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mMongooseModule dependencies initialized[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:19.801401082Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mMongooseModule dependencies initialized[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:19.801407179Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mMongooseModule dependencies initialized[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:19.803568137Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mMongooseModule dependencies initialized[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:19.803574529Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mMongooseModule dependencies initialized[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:19.803580170Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mMongooseModule dependencies initialized[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:19.803584796Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mMongooseModule dependencies initialized[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:19.803590679Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mMongooseModule dependencies initialized[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:19.803595729Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mMongooseModule dependencies initialized[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:19.803600525Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mMongooseModule dependencies initialized[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:19.803604826Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mMongooseModule dependencies initialized[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:19.803609959Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mMongooseModule dependencies initialized[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:19.803615264Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mMongooseModule dependencies initialized[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:19.805043369Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mMongooseModule dependencies initialized[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:19.810039260Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mWebsocketModule dependencies initialized[39m[38;5;3m +8ms[39m
+2026-02-01T15:39:19.810047311Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mCommonModule dependencies initialized[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:19.812374881Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mTasksModule dependencies initialized[39m[38;5;3m +3ms[39m
+2026-02-01T15:39:19.815889612Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mHealthModule dependencies initialized[39m[38;5;3m +2ms[39m
+2026-02-01T15:39:19.815898152Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mSystemResponseTemplatesModule dependencies initialized[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:19.815904642Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mActivityLogsModule dependencies initialized[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:19.815911660Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mThunderApiModule dependencies initialized[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:19.815918933Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mAnnouncementsModule dependencies initialized[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:19.815927292Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mSlipTemplatesModule dependencies initialized[39m[38;5;3m +2ms[39m
+2026-02-01T15:39:19.815933418Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mBanksModule dependencies initialized[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:19.815940098Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mSubscriptionsModule dependencies initialized[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:19.815945482Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mPackagesModule dependencies initialized[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:19.815951370Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mSystemSettingsModule dependencies initialized[39m[38;5;3m +1ms[39m
+2026-02-01T15:39:19.818149040Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mRateLimitModule dependencies initialized[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:19.818160072Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mChatMessagesModule dependencies initialized[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:19.818168909Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mChatbotModule dependencies initialized[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:19.818174542Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mUsersModule dependencies initialized[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:19.818180565Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mAuthModule dependencies initialized[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:19.818186377Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mLineAccountsModule dependencies initialized[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:19.818191402Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mWalletModule dependencies initialized[39m[38;5;3m +1ms[39m
+2026-02-01T15:39:19.818196480Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mLineSessionModule dependencies initialized[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:19.818204649Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mPaymentsModule dependencies initialized[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:19.818210058Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mSlipVerificationModule dependencies initialized[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:19.886862019Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[WebSocketsController] [39m[32mWebsocketGateway subscribed to the "join" message[39m[38;5;3m +69ms[39m
+2026-02-01T15:39:19.886868069Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[WebSocketsController] [39m[32mWebsocketGateway subscribed to the "subscribe" message[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:19.886872999Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[WebSocketsController] [39m[32mWebsocketGateway subscribed to the "unsubscribe" message[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:19.886877786Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[WebSocketsController] [39m[32mWebsocketGateway subscribed to the "subscribe_chat" message[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:19.886882396Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[WebSocketsController] [39m[32mWebsocketGateway subscribed to the "unsubscribe_chat" message[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:19.886887398Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[WebSocketsController] [39m[32mWebsocketGateway subscribed to the "ping" message[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:19.888758603Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mSystemResponseTemplatesController {/api/admin/system-response-templates}:[39m[38;5;3m +2ms[39m
+2026-02-01T15:39:19.891358432Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/admin/system-response-templates, GET} route[39m[38;5;3m +1ms[39m
+2026-02-01T15:39:19.891369977Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/admin/system-response-templates/:type, GET} route[39m[38;5;3m +1ms[39m
+2026-02-01T15:39:19.891378110Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/admin/system-response-templates/:type, PUT} route[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:19.891383938Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/admin/system-response-templates/:type/reset, POST} route[39m[38;5;3m +1ms[39m
+2026-02-01T15:39:19.893532574Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/admin/system-response-templates/reset-all, POST} route[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:19.893538429Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/admin/system-response-templates/:type/preview, POST} route[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:19.893543265Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/admin/system-response-templates/initialize, POST} route[39m[38;5;3m +1ms[39m
+2026-02-01T15:39:19.893548435Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mHealthController {/api/health}:[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:19.893553705Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/health, GET} route[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:19.893562503Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/health/detailed, GET} route[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:19.893569001Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/health/ping, GET} route[39m[38;5;3m +1ms[39m
+2026-02-01T15:39:19.893574805Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/health/cached, GET} route[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:19.893580777Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mAuthController {/api/auth}:[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:19.893586905Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/auth/login, POST} route[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:19.895597966Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/auth/register, POST} route[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:19.895609563Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/auth/logout, POST} route[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:19.895618018Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/auth/me, GET} route[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:19.895624741Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/auth/change-password, POST} route[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:19.895631765Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/auth/validate, GET} route[39m[38;5;3m +1ms[39m
+2026-02-01T15:39:19.895638684Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/auth/cleanup-sessions, POST} route[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:19.895645225Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mUsersController {/api/users}:[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:19.895651945Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/users, POST} route[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:19.895658319Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/users, GET} route[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:19.895664835Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/users/statistics, GET} route[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:19.897457538Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/users/growth, GET} route[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:19.897464604Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/users/me, GET} route[39m[38;5;3m +1ms[39m
+2026-02-01T15:39:19.897471132Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/users/:id, GET} route[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:19.897477177Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/users/:id, PUT} route[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:19.897482128Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/users/:id, DELETE} route[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:19.897487649Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/users/:id/restore, POST} route[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:19.897494861Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/users/:id/block, POST} route[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:19.897501049Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/users/:id/unblock, POST} route[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:19.897506194Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mActivityLogsController {/api/activity-logs}:[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:19.897510728Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/activity-logs, GET} route[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:19.899610812Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/activity-logs/my, GET} route[39m[38;5;3m +1ms[39m
+2026-02-01T15:39:19.899620232Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mLineAccountsController {/api/line-accounts}:[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:19.899627657Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/line-accounts, POST} route[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:19.899633433Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/line-accounts, GET} route[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:19.899638586Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/line-accounts/my, GET} route[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:19.899643936Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/line-accounts/my/templates, GET} route[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:19.899648186Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/line-accounts/statistics, GET} route[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:19.899652827Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/line-accounts/:id, GET} route[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:19.899657039Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/line-accounts/:id, PUT} route[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:19.899661295Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/line-accounts/:id/settings, PUT} route[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:19.901646859Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/line-accounts/:id, DELETE} route[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:19.901654344Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/line-accounts/:id/regenerate-webhook, POST} route[39m[38;5;3m +1ms[39m
+2026-02-01T15:39:19.901660084Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/line-accounts/:id/chat-history, GET} route[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:19.901665297Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/line-accounts/:id/test-connection, POST} route[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:19.901670891Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/line-accounts/test-connection, POST} route[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:19.901676384Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mLineWebhookController {/api/webhook/line}:[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:19.901681555Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/webhook/line/:slug, POST} route[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:19.901687158Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mSlipVerificationController {/api/slip-verification}:[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:19.901692555Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/slip-verification/test, POST} route[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:19.901698450Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/slip-verification/test-connection, POST} route[39m[38;5;3m +1ms[39m
+2026-02-01T15:39:19.904427160Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/slip-verification/history/:lineAccountId, GET} route[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:19.904437133Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mPublicSlipTemplatesController {/api/slip-templates}:[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:19.904443355Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/slip-templates/global, GET} route[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:19.904448113Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mSlipTemplatesController {/api/line-accounts}:[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:19.904453938Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/line-accounts/:accountId/slip-templates, GET} route[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:19.904459614Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/line-accounts/:accountId/slip-templates-list, GET} route[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:19.904464347Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/line-accounts/:accountId/slip-templates, POST} route[39m[38;5;3m +1ms[39m
+2026-02-01T15:39:19.904469547Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/line-accounts/:accountId/slip-templates/:templateId, PUT} route[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:19.904474385Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/line-accounts/:accountId/slip-templates/:templateId/usage, GET} route[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:19.906483239Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mAdminSlipTemplatesController {/api/admin/slip-templates}:[39m[38;5;3m +1ms[39m
+2026-02-01T15:39:19.906485387Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/line-accounts/:accountId/slip-templates/:templateId/safe-delete, DELETE} route[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:19.906497213Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/line-accounts/:accountId/slip-templates/:templateId, DELETE} route[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:19.906504013Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/line-accounts/:accountId/slip-templates/:templateId/default, PUT} route[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:19.906516064Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/line-accounts/:accountId/slip-templates/:templateId/preview, GET} route[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:19.906522001Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/line-accounts/:accountId/slip-templates/select/:type/:templateId, PUT} route[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:19.906529452Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/line-accounts/:accountId/slip-templates/selected, GET} route[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:19.906536112Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/line-accounts/:accountId/slip-templates/init-defaults, POST} route[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:19.906564113Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/admin/slip-templates/global, GET} route[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:19.908835521Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/admin/slip-templates/global, POST} route[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:19.908843748Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/admin/slip-templates/global/:templateId, PUT} route[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:19.908849924Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/admin/slip-templates/global/:templateId/usage, GET} route[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:19.908856165Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/admin/slip-templates/global/:templateId/safe-delete, DELETE} route[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:19.908862322Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/admin/slip-templates/global/:templateId, DELETE} route[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:19.908868286Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/admin/slip-templates/global/:templateId/default, PUT} route[39m[38;5;3m +1ms[39m
+2026-02-01T15:39:19.908873644Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/admin/slip-templates/global/:templateId/preview, GET} route[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:19.908878947Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/admin/slip-templates/global/init-defaults, POST} route[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:19.908885051Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/admin/slip-templates/global/repair, POST} route[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:19.911574586Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/admin/slip-templates/global/reset, POST} route[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:19.911584892Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/admin/slip-templates/global/debug, GET} route[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:19.911591203Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mSystemSettingsController {/api/system-settings}:[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:19.911598091Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/system-settings/access-status, GET} route[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:19.911606085Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/system-settings/floating-contact, GET} route[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:19.911612940Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/system-settings/access-control, GET} route[39m[38;5;3m +1ms[39m
+2026-02-01T15:39:19.911619056Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/system-settings/access-control, PUT} route[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:19.911626869Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/system-settings/test-usdt-api, POST} route[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:19.911632473Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/system-settings, GET} route[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:19.911638734Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/system-settings, PUT} route[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:19.914876223Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/system-settings/bank-accounts, POST} route[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:19.914888524Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/system-settings/bank-accounts/:index, DELETE} route[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:19.914896601Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/system-settings/api-status, GET} route[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:19.914903049Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/system-settings/payment-info, GET} route[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:19.914909092Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/system-settings/message-settings, GET} route[39m[38;5;3m +1ms[39m
+2026-02-01T15:39:19.914916868Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/system-settings/message-settings, PUT} route[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:19.914925878Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/system-settings/system-health, GET} route[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:19.914931993Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/system-settings/run-cleanup, POST} route[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:19.914938459Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/system-settings/contact-info, GET} route[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:19.914945172Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/system-settings/preview-config, GET} route[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:19.916978703Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/system-settings/ai-settings, GET} route[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:19.916988341Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/system-settings/ai-settings, PUT} route[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:19.916994764Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/system-settings/ai-toggle, PUT} route[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:19.917002280Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/system-settings/slip-provider-settings, GET} route[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:19.917009619Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/system-settings/slip-provider-settings, PUT} route[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:19.917015621Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/system-settings/slip-provider-status, GET} route[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:19.917021350Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/system-settings/test-slip-provider, POST} route[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:19.917026867Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/system-settings/slip-toggle, PUT} route[39m[38;5;3m +1ms[39m
+2026-02-01T15:39:19.917039654Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mSubscriptionsController {/api/subscriptions}:[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:19.917046493Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/subscriptions/my, GET} route[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:19.921110518Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/subscriptions/quota, GET} route[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:19.921118547Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/subscriptions/ai-quota, GET} route[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:19.921125004Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/subscriptions, GET} route[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:19.921130786Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/subscriptions/grant, POST} route[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:19.921136976Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/subscriptions/expire, POST} route[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:19.921143734Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/subscriptions/cleanup-reservations, POST} route[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:19.921149224Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mPackagesController {/api/packages}:[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:19.921154719Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/packages, POST} route[39m[38;5;3m +1ms[39m
+2026-02-01T15:39:19.921160491Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/packages, GET} route[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:19.921166016Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/packages/:id, GET} route[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:20.538500647Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/wallet/transactions, GET} route[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:20.538512889Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/wallet/deposit, POST} route[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:20.538521940Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/wallet/deposit/usdt, POST} route[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:20.538530156Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/wallet/usdt/rate, GET} route[39m[38;5;3m +1ms[39m
+2026-02-01T15:39:20.538662925Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/packages/:id, PUT} route[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:20.538670253Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/packages/:id, DELETE} route[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:20.538677061Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/packages/:id/activate, POST} route[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:20.538683720Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/packages/:id/purchase, POST} route[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:20.538690105Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mWalletController {/api/wallet}:[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:20.538697930Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/wallet/balance, GET} route[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:20.543319584Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/wallet/usdt/calculate, GET} route[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:20.543332663Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/wallet/usdt/verify/:txHash, GET} route[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:20.543340794Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/wallet/admin/transactions, GET} route[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:20.543347879Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/wallet/admin/user/:userId/balance, GET} route[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:20.543355918Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/wallet/admin/user/:userId/transactions, GET} route[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:20.543364423Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/wallet/admin/user/:userId/add-credits, POST} route[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:20.543371982Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/wallet/admin/user/:userId/deduct-credits, POST} route[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:20.543379392Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/wallet/admin/user/:userId/statistics, GET} route[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:20.543392229Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/wallet/admin/statistics, GET} route[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:20.543400720Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/wallet/admin/transaction/:id, GET} route[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:20.543516523Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/wallet/admin/transaction/:id/approve, POST} route[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:20.543524900Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/wallet/admin/transaction/:id/reject, POST} route[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:20.543533617Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/wallet/admin/failed-operations, GET} route[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:20.543548550Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/wallet/admin/operation/:id, GET} route[39m[38;5;3m +1ms[39m
+2026-02-01T15:39:20.543556660Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/wallet/admin/operation/:id/refund, POST} route[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:20.543565588Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/wallet/admin/transaction/:id/refund, POST} route[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:20.543573109Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/wallet/admin/refunds, GET} route[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:20.543582316Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/wallet/admin/user/:userId/audit, GET} route[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:20.543590559Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mBanksController {/api}:[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:20.543600036Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/banks, GET} route[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:20.544182596Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/banks/search, GET} route[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:20.544190554Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/bank-logo/:code, GET} route[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:20.544196949Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/admin/banks, GET} route[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:20.544202893Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/admin/banks, POST} route[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:20.544211349Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/admin/banks/:id, PUT} route[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:20.544360410Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/admin/banks/sync-from-thunder, POST} route[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:20.544368296Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/admin/banks/:id/logo, POST} route[39m[38;5;3m +1ms[39m
+2026-02-01T15:39:20.544375389Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/admin/banks/init-defaults, POST} route[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:20.544384266Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/admin/banks/init-thunder-banks, POST} route[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:20.544390665Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mPaymentsController {/api/payments}:[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:20.546871203Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/payments, POST} route[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:20.546880041Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/payments/slip, POST} route[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:20.546886674Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/payments/usdt, POST} route[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:20.546892138Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/payments, GET} route[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:20.546902851Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/payments/my, GET} route[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:20.546911615Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/payments/check-eligibility/:packageId, GET} route[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:20.546916550Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/payments/:id, GET} route[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:20.546920693Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/payments/:id/approve, POST} route[39m[38;5;3m +1ms[39m
+2026-02-01T15:39:20.546924841Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/payments/:id/reject, POST} route[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:20.546931549Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mChatbotController {/api/chatbot}:[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:20.549755640Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/chatbot/test, POST} route[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:20.549767779Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/chatbot/test-connection, POST} route[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:20.549776347Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/chatbot/history/:userId, DELETE} route[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:20.549784836Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mChatMessagesController {/api/chat-messages}:[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:20.549794215Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/chat-messages/:accountId/users, GET} route[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:20.549801380Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/chat-messages/:accountId/:userId, GET} route[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:20.549809605Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/chat-messages/:accountId/:userId/send, POST} route[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:20.549819004Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/chat-messages/:accountId/broadcast, POST} route[39m[38;5;3m +1ms[39m
+2026-02-01T15:39:20.549827177Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/chat-messages/:accountId/send, POST} route[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:20.549834986Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/chat-messages/:accountId/:userId/read, POST} route[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:20.552152013Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/chat-messages/:accountId/unread-count, GET} route[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:20.552163419Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/chat-messages/:accountId/:userId, DELETE} route[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:20.552171381Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/chat-messages/:accountId/image/:messageId, GET} route[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:20.552178723Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/chat-messages/:accountId/profile/:userId, GET} route[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:20.552186306Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mThunderApiController {/api/thunder}:[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:20.552192330Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/thunder/quota, GET} route[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:20.552200496Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/thunder/health, GET} route[39m[38;5;3m +1ms[39m
+2026-02-01T15:39:20.552207521Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mRateLimitController {/api/rate-limit}:[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:20.552214416Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/rate-limit/stats, GET} route[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:20.552221339Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/rate-limit/logs, GET} route[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:20.554125344Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/rate-limit/metrics, GET} route[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:20.554137221Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/rate-limit/accounts, GET} route[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:20.554143342Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/rate-limit/test, POST} route[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:20.554150767Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/rate-limit/test/webhook, POST} route[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:20.554158274Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/rate-limit/test/quick, POST} route[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:20.554171982Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/rate-limit/test/logs, DELETE} route[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:20.554179308Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/rate-limit/test/history, GET} route[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:20.554186339Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mAnnouncementsController {/api/announcements}:[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:20.554194978Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/announcements/active, GET} route[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:20.554201890Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/announcements/:id/view, POST} route[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:20.559884413Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/announcements/:id/dismiss, POST} route[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:20.559893598Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/announcements/admin, GET} route[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:20.559901206Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/announcements/admin/:id, GET} route[39m[38;5;3m +1ms[39m
+2026-02-01T15:39:20.559907320Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/announcements/admin, POST} route[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:20.559913533Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/announcements/admin/:id, PUT} route[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:20.559919728Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/announcements/admin/:id/toggle, PUT} route[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:20.559925958Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/announcements/admin/:id, DELETE} route[39m[38;5;3m +4ms[39m
+2026-02-01T15:39:20.559933464Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mLineSessionController {/api/admin/line-session}:[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:20.559951885Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/admin/line-session/:lineAccountId, GET} route[39m[38;5;3m +1ms[39m
+2026-02-01T15:39:20.559957449Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/admin/line-session/:lineAccountId/keys, POST} route[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:20.562714014Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/admin/line-session/:lineAccountId/parse-curl, POST} route[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:20.562721759Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/admin/line-session/:lineAccountId/copy-keys, POST} route[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:20.562728793Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/admin/line-session/:lineAccountId/history, GET} route[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:20.562735761Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/admin/line-session/:lineAccountId/health, GET} route[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:20.562741776Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/admin/line-session/health/all, GET} route[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:20.562827262Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/admin/line-session/:lineAccountId/health/check, POST} route[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:20.562835110Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/admin/line-session/:lineAccountId/relogin, POST} route[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:20.562845566Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/admin/line-session/relogin/queue, GET} route[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:20.562851624Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/admin/line-session/relogin/queue/:lineAccountId, DELETE} route[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:20.565109755Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/admin/line-session/automation/enable-all, POST} route[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:20.565125567Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/admin/line-session/automation/disable-all, POST} route[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:20.565133705Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/admin/line-session/automation/health-check/:enabled, POST} route[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:20.565140921Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/admin/line-session/automation/message-fetch/:enabled, POST} route[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:20.565210988Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/admin/line-session/relogin/queue, DELETE} route[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:20.565229581Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/admin/line-session/relogin/auto-status, GET} route[39m[38;5;3m +1ms[39m
+2026-02-01T15:39:20.565237878Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/admin/line-session/relogin/enable, POST} route[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:20.565244612Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/admin/line-session/relogin/disable, POST} route[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:20.565251275Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/admin/line-session/automation/all-status, GET} route[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:20.568046245Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/admin/line-session/automation/status, GET} route[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:20.568054188Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/admin/line-session/:lineAccountId/credentials, POST} route[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:20.568060101Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/admin/line-session/:lineAccountId/login, POST} route[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:20.568065591Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/admin/line-session/:lineAccountId/login/status, GET} route[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:20.568070452Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/admin/line-session/:lineAccountId/login, DELETE} route[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:20.568076023Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/admin/line-session/:lineAccountId/credentials, GET} route[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:20.568083646Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/admin/line-session/banks, GET} route[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:20.568089711Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/admin/line-session/:lineAccountId/bank, POST} route[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:20.568094116Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/admin/line-session/:lineAccountId/bank, GET} route[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:20.571419739Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/admin/line-session/:lineAccountId/messages/fetch, POST} route[39m[38;5;3m +1ms[39m
+2026-02-01T15:39:20.571432382Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/admin/line-session/:lineAccountId/messages, GET} route[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:20.571441569Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/admin/line-session/:lineAccountId/messages/summary, GET} route[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:20.571450781Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/admin/line-session/enhanced/status, GET} route[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:20.571459232Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/admin/line-session/enhanced/pool, GET} route[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:20.571469918Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/admin/line-session/enhanced/coordinator, GET} route[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:20.571478129Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/admin/line-session/:lineAccountId/enhanced-login, POST} route[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:20.571486015Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/admin/line-session/:lineAccountId/enhanced-login/status, GET} route[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:20.571492754Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/admin/line-session/:lineAccountId/enhanced-login, DELETE} route[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:20.575831699Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/admin/line-session/:lineAccountId/cooldown, GET} route[39m[38;5;3m +1ms[39m
+2026-02-01T15:39:20.575841521Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/admin/line-session/:lineAccountId/reset-cooldown, POST} route[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:20.575848259Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/admin/line-session/:lineAccountId/login-history, GET} route[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:20.575854507Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/admin/line-session/:lineAccountId/worker, DELETE} route[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:20.575861033Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/admin/line-session/:lineAccountId/pin-status, GET} route[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:20.575867406Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/admin/line-session/:lineAccountId/session-status, GET} route[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:20.575874181Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/admin/line-session/:lineAccountId/keys-status, GET} route[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:20.575878457Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/admin/line-session/:lineAccountId/needs-relogin, GET} route[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:20.575883151Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/admin/line-session/:lineAccountId/force-relogin, POST} route[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:20.578485414Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/admin/line-session/pins/active, GET} route[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:20.578490603Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/admin/line-session/:lineAccountId/pin, DELETE} route[39m[38;5;3m +1ms[39m
+2026-02-01T15:39:20.578495349Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/admin/line-session/pins/cleanup, POST} route[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:20.578500642Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/admin/line-session/:lineAccountId/curl, GET} route[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:20.578505341Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/admin/line-session/:lineAccountId/details, GET} route[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:20.578510763Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/admin/line-session/orchestrator/status, GET} route[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:20.578515521Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/admin/line-session/orchestrator/sessions, GET} route[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:20.578519955Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/admin/line-session/orchestrator/health-check, POST} route[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:20.578525111Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/admin/line-session/orchestrator/relogin-check, POST} route[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:20.582190024Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/user/line-session/create, POST} route[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:20.582202193Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/user/line-session/:sessionId, DELETE} route[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:20.582211935Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/user/line-session/:sessionId, GET} route[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:20.582227725Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/admin/line-session/:lineAccountId/orchestrator/relogin, POST} route[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:20.582246279Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/admin/line-session/orchestrator/restart, POST} route[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:20.582256825Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/admin/line-session/orchestrator/settings, GET} route[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:20.582265526Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/admin/line-session/cleanup-corrupted, POST} route[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:20.582274048Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mLineSessionUserController {/api/user/line-session}:[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:20.582283977Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/user/line-session/banks/list, GET} route[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:20.582293313Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/user/line-session/my, GET} route[39m[38;5;3m +1ms[39m
+2026-02-01T15:39:20.585977945Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/user/line-session/:sessionId/setup, POST} route[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:20.585992245Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/user/line-session/:sessionId/credentials, GET} route[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:20.586003754Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/user/line-session/:sessionId/enhanced-login, POST} route[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:20.586015145Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/user/line-session/:sessionId/enhanced-login/status, GET} route[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:20.586027280Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/user/line-session/:sessionId/enhanced-login, DELETE} route[39m[38;5;3m +1ms[39m
+2026-02-01T15:39:20.586034434Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/user/line-session/:sessionId/cooldown, GET} route[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:20.586041267Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/user/line-session/:sessionId/reset-cooldown, POST} route[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:20.586048252Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/user/line-session/:sessionId/keys, GET} route[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:20.586055045Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/user/line-session/:sessionId/keys, POST} route[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:20.587879802Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/user/line-session/:sessionId/history, GET} route[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:20.587890707Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/user/line-session/:lineAccountId/setup, POST} route[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:20.587897618Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/user/line-session/:lineAccountId/credentials, GET} route[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:20.587904825Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/user/line-session/:lineAccountId, GET} route[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:20.587914049Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/user/line-session/:lineAccountId/enhanced-login, POST} route[39m[38;5;3m +1ms[39m
+2026-02-01T15:39:20.587920512Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/user/line-session/:lineAccountId/enhanced-login/status, GET} route[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:20.587927002Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/user/line-session/:lineAccountId/enhanced-login, DELETE} route[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:20.587932036Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/user/line-session/:lineAccountId/cooldown, GET} route[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:20.587940500Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/user/line-session/:lineAccountId/reset-cooldown, POST} route[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:20.590322837Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/user/line-session/:lineAccountId/keys, GET} route[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:20.590323283Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:20 PM [32m    LOG[39m [38;5;3m[SystemResponseTemplatesService] [39m[32m[INIT] System response templates count: 17[39m
+2026-02-01T15:39:20.590336340Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/user/line-session/:lineAccountId/keys, POST} route[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:20.590344253Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:20 PM [32m    LOG[39m [38;5;3m[SlipTemplatesService] [39m[32m[INIT] Starting global templates initialization...[39m
+2026-02-01T15:39:20.590348492Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/user/line-session/:lineAccountId/history, GET} route[39m[38;5;3m +0ms[39m
+2026-02-01T15:39:20.590357580Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[SubscriptionEventHandlers] [39m[32mSubscription event handlers registered[39m
+2026-02-01T15:39:20.590366103Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:19 PM [32m    LOG[39m [38;5;3m[SystemResponseTemplatesService] [39m[32m[INIT] Starting system response templates initialization...[39m
+2026-02-01T15:39:20.608101621Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:20 PM [32m    LOG[39m [38;5;3m[SlipTemplatesService] [39m[32m[INIT] Global templates count: 4[39m
+2026-02-01T15:39:20.646682280Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:20 PM [32m    LOG[39m [38;5;3m[ReloginSchedulerService] [39m[32mReloginSchedulerService subscribed to events[39m
+2026-02-01T15:39:20.799683360Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:20 PM [32m    LOG[39m [38;5;3m[LineAutomationService] [39m[32mPuppeteer loaded with stealth plugin[39m
+2026-02-01T15:39:20.799696028Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:20 PM [32m    LOG[39m [38;5;3m[WorkerPoolService] [39m[32mWorkerPool: Puppeteer loaded with stealth plugin[39m
+2026-02-01T15:39:20.799703261Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:20 PM [32m    LOG[39m [38;5;3m[OrchestratorService] [39m[32mOrchestrator Service initializing...[39m
+2026-02-01T15:39:20.811803151Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:20 PM [32m    LOG[39m [38;5;3m[BankListService] [39m[32mBanks already exist (7 records), skipping seed[39m
+2026-02-01T15:39:20.811812234Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:20 PM [32m    LOG[39m [38;5;3m[OrchestratorService] [39m[32m[Cleanup] Found 0 corrupted sessions[39m
+2026-02-01T15:39:20.842151460Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:20 PM [32m    LOG[39m [38;5;3m[OrchestratorService] [39m[32mHealth check loop started (every 5 minutes)[39m
+2026-02-01T15:39:20.842160880Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:20 PM [32m    LOG[39m [38;5;3m[OrchestratorService] [39m[32mRelogin check loop started (every 10 minutes)[39m
+2026-02-01T15:39:20.842168224Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:20 PM [32m    LOG[39m [38;5;3m[OrchestratorService] [39m[32mStatus broadcast loop started (every 5 seconds)[39m
+2026-02-01T15:39:20.842174783Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:20 PM [32m    LOG[39m [38;5;3m[OrchestratorService] [39m[32m[Orchestrator] Running initial checks...[39m
+2026-02-01T15:39:20.842181852Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:20 PM [32m    LOG[39m [38;5;3m[OrchestratorService] [39m[32m[HealthCheck] Starting health check...[39m
+2026-02-01T15:39:20.861160093Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:20 PM [32m    LOG[39m [38;5;3m[OrchestratorService] [39m[32m[HealthCheck] Found 2 active sessions[39m
+2026-02-01T15:39:21.585023681Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:21 PM [32m    LOG[39m [38;5;3m[Bootstrap] [39m[32m🌍 CORS enabled for: https://dooslip.com, https://www.dooslip.com[39m
+2026-02-01T15:39:21.585085570Z [inf]  [33m[Nest] 7  - [39m02/01/2026, 3:39:21 PM [33m   WARN[39m [38;5;3m[EnhancedAutomationService] [39m[33m[ValidateKeys] Keys validation unclear: status=400, code=10005[39m
+2026-02-01T15:39:21.585093630Z [inf]  [33m[Nest] 7  - [39m02/01/2026, 3:39:21 PM [33m   WARN[39m [38;5;3m[OrchestratorService] [39m[33m[HealthCheck] Session 15: keys failed API validation - marking as expired[39m
+2026-02-01T15:39:21.585100270Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:21 PM [32m    LOG[39m [38;5;3m[OrchestratorService] [39m[32m[HealthCheck] Health check completed[39m
+2026-02-01T15:39:21.585116915Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:21 PM [32m    LOG[39m [38;5;3m[OrchestratorService] [39m[32mOrchestrator Service initialized[39m
+2026-02-01T15:39:21.585133942Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:21 PM [32m    LOG[39m [38;5;3m[NestApplication] [39m[32mNest application successfully started[39m[38;5;3m +43ms[39m
+2026-02-01T15:39:21.585142179Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:21 PM [32m    LOG[39m [38;5;3m[Bootstrap] [39m[32m🚀 Server running on port 8080[39m
+2026-02-01T15:39:21.585151860Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:21 PM [32m    LOG[39m [38;5;3m[Bootstrap] [39m[32m📚 Swagger docs at /api/docs[39m
+2026-02-01T15:39:21.585159368Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:21 PM [32m    LOG[39m [38;5;3m[Bootstrap] [39m[32m🌐 Frontend served from /public[39m
+2026-02-01T15:39:25.880751193Z [inf]  [33m[Nest] 7  - [39m02/01/2026, 3:39:25 PM [33m   WARN[39m [38;5;3m[WebsocketGateway] [39m[33m[Broadcast] Sockets adapter not ready, broadcasting anyway to admins[39m
+2026-02-01T15:39:30.856241458Z [inf]  [33m[Nest] 7  - [39m02/01/2026, 3:39:30 PM [33m   WARN[39m [38;5;3m[WebsocketGateway] [39m[33m[Broadcast] Sockets adapter not ready, broadcasting anyway to admins[39m
+2026-02-01T15:39:31.676883860Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:31 PM [32m    LOG[39m [38;5;3m[EnhancedAutomationService] [39m[32mDisplay check: DISPLAY=:99, HEADLESS=false[39m
+2026-02-01T15:39:31.676893796Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:31 PM [32m    LOG[39m [38;5;3m[LoginLockService] [39m[32mLock acquired for 697ede693bc06c5c2537636f (source: enhanced)[39m
+2026-02-01T15:39:31.676904827Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:31 PM [32m    LOG[39m [38;5;3m[OrchestratorService] [39m[32m[ReloginCheck] Auto-relogin enabled: true[39m
+2026-02-01T15:39:31.676927812Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:31 PM [32m    LOG[39m [38;5;3m[OrchestratorService] [39m[32m[ReloginCheck] Starting relogin check...[39m
+2026-02-01T15:39:31.676935812Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:31 PM [32m    LOG[39m [38;5;3m[OrchestratorService] [39m[32m[ReloginCheck] Session: 15, status=expired, hasKeys=true, hasEmail=true, hasPassword=true[39m
+2026-02-01T15:39:31.676949288Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:31 PM [32m    LOG[39m [38;5;3m[OrchestratorService] [39m[32m[Orchestrator] Running initial relogin check...[39m
+2026-02-01T15:39:31.676949664Z [inf]  [33m[Nest] 7  - [39m02/01/2026, 3:39:31 PM [33m   WARN[39m [38;5;3m[OrchestratorService] [39m[33m[ReloginCheck] Session 456 has no credentials, skipping[39m
+2026-02-01T15:39:31.676957846Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:31 PM [32m    LOG[39m [38;5;3m[OrchestratorService] [39m[32m[ReloginCheck] Auto-relogin for session 15 (ID: 697ede693bc06c5c2537636f)[39m
+2026-02-01T15:39:31.676963993Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:31 PM [32m    LOG[39m [38;5;3m[OrchestratorService] [39m[32m[ReloginCheck] Found 2 sessions needing relogin[39m
+2026-02-01T15:39:31.676971799Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:31 PM [32m    LOG[39m [38;5;3m[OrchestratorService] [39m[32m[ReloginCheck] Session: 456, status=expired, hasKeys=false, hasEmail=false, hasPassword=false[39m
+2026-02-01T15:39:31.682616927Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:31 PM [32m    LOG[39m [38;5;3m[LoginCoordinatorService] [39m[32mLogin request approved: req_697ede693bc06c5c2537636f_1769960371145 for 697ede693bc06c5c2537636f (source: auto)[39m
+2026-02-01T15:39:31.682633635Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:31 PM [32m    LOG[39m [38;5;3m[LoginNotificationService] [39m[32mLogin requested: 697ede693bc06c5c2537636f (auto)[39m
+2026-02-01T15:39:31.682640666Z [inf]  [33m[Nest] 7  - [39m02/01/2026, 3:39:31 PM [33m   WARN[39m [38;5;3m[WebsocketGateway] [39m[33m[Broadcast] Sockets adapter not ready, broadcasting anyway to room line-account:697ede693bc06c5c2537636f[39m
+2026-02-01T15:39:31.682647374Z [inf]  [33m[Nest] 7  - [39m02/01/2026, 3:39:31 PM [33m   WARN[39m [38;5;3m[WebsocketGateway] [39m[33m[Broadcast] Sockets adapter not ready, broadcasting anyway to admins[39m
+2026-02-01T15:39:31.682654029Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:31 PM [32m    LOG[39m [38;5;3m[EnhancedAutomationService] [39m[32m[EnhancedAutomation] Emitting status: requesting for 697ede693bc06c5c2537636f[39m
+2026-02-01T15:39:31.682661534Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:31 PM [32m    LOG[39m [38;5;3m[LoginNotificationService] [39m[32m[LoginNotification] Received status: requesting for 697ede693bc06c5c2537636f[39m
+2026-02-01T15:39:31.682668665Z [inf]  [33m[Nest] 7  - [39m02/01/2026, 3:39:31 PM [33m   WARN[39m [38;5;3m[WebsocketGateway] [39m[33m[Broadcast] Sockets adapter not ready, broadcasting anyway to room line-account:697ede693bc06c5c2537636f[39m
+2026-02-01T15:39:31.682735183Z [inf]  [33m[Nest] 7  - [39m02/01/2026, 3:39:31 PM [33m   WARN[39m [38;5;3m[WebsocketGateway] [39m[33m[Broadcast] Sockets adapter not ready, broadcasting anyway to admins[39m
+2026-02-01T15:39:31.682744218Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:31 PM [32m    LOG[39m [38;5;3m[LoginNotificationService] [39m[32mLogin started: 697ede693bc06c5c2537636f[39m
+2026-02-01T15:39:31.684375484Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:31 PM [32m    LOG[39m [38;5;3m[EnhancedAutomationService] [39m[32m[EnhancedAutomation] Emitting status: launching_browser for 697ede693bc06c5c2537636f[39m
+2026-02-01T15:39:31.684385905Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:31 PM [32m    LOG[39m [38;5;3m[LoginNotificationService] [39m[32m[LoginNotification] Received status: launching_browser for 697ede693bc06c5c2537636f[39m
+2026-02-01T15:39:31.684391353Z [inf]  [33m[Nest] 7  - [39m02/01/2026, 3:39:31 PM [33m   WARN[39m [38;5;3m[WebsocketGateway] [39m[33m[Broadcast] Sockets adapter not ready, broadcasting anyway to room line-account:697ede693bc06c5c2537636f[39m
+2026-02-01T15:39:31.684430039Z [inf]  [33m[Nest] 7  - [39m02/01/2026, 3:39:31 PM [33m   WARN[39m [38;5;3m[WebsocketGateway] [39m[33m[Broadcast] Sockets adapter not ready, broadcasting anyway to room line-account:697ede693bc06c5c2537636f[39m
+2026-02-01T15:39:31.684436813Z [inf]  [33m[Nest] 7  - [39m02/01/2026, 3:39:31 PM [33m   WARN[39m [38;5;3m[WebsocketGateway] [39m[33m[Broadcast] Sockets adapter not ready, broadcasting anyway to admins[39m
+2026-02-01T15:39:31.684443130Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:31 PM [32m    LOG[39m [38;5;3m[EnhancedAutomationService] [39m[32m[EnhancedAutomation] Emitting status: initializing for 697ede693bc06c5c2537636f[39m
+2026-02-01T15:39:31.684448807Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:31 PM [32m    LOG[39m [38;5;3m[LoginNotificationService] [39m[32m[LoginNotification] Received status: initializing for 697ede693bc06c5c2537636f[39m
+2026-02-01T15:39:31.684454325Z [inf]  [33m[Nest] 7  - [39m02/01/2026, 3:39:31 PM [33m   WARN[39m [38;5;3m[WebsocketGateway] [39m[33m[Broadcast] Sockets adapter not ready, broadcasting anyway to room line-account:697ede693bc06c5c2537636f[39m
+2026-02-01T15:39:31.684460047Z [inf]  [33m[Nest] 7  - [39m02/01/2026, 3:39:31 PM [33m   WARN[39m [38;5;3m[WebsocketGateway] [39m[33m[Broadcast] Sockets adapter not ready, broadcasting anyway to admins[39m
+2026-02-01T15:39:31.686248464Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:31 PM [32m    LOG[39m [38;5;3m[WorkerPoolService] [39m[32m[WorkerPool] PUPPETEER_HEADLESS: false[39m
+2026-02-01T15:39:31.686254959Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:31 PM [32m    LOG[39m [38;5;3m[WorkerPoolService] [39m[32m[WorkerPool] profileDir: redmictg26_gmail_com_account_697ede693bc06c5c2537636f[39m
+2026-02-01T15:39:31.686261442Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:31 PM [32m    LOG[39m [38;5;3m[WorkerPoolService] [39m[32m[WorkerPool] ===========================================[39m
+2026-02-01T15:39:31.686293343Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:31 PM [32m    LOG[39m [38;5;3m[WorkerPoolService] [39m[32m[WorkerPool] extensionExists: true[39m
+2026-02-01T15:39:31.686298983Z [inf]  [33m[Nest] 7  - [39m02/01/2026, 3:39:31 PM [33m   WARN[39m [38;5;3m[WebsocketGateway] [39m[33m[Broadcast] Sockets adapter not ready, broadcasting anyway to admins[39m
+2026-02-01T15:39:31.686305846Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:31 PM [32m    LOG[39m [38;5;3m[WorkerPoolService] [39m[32m[WorkerPool] executablePath: /usr/bin/chromium[39m
+2026-02-01T15:39:31.686310192Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:31 PM [32m    LOG[39m [38;5;3m[WorkerPoolService] [39m[32m[WorkerPool] ========== BROWSER LAUNCH DEBUG ==========[39m
+2026-02-01T15:39:31.686314544Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:31 PM [32m    LOG[39m [38;5;3m[WorkerPoolService] [39m[32m[WorkerPool] headless: false[39m
+2026-02-01T15:39:31.686320431Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:31 PM [32m    LOG[39m [38;5;3m[WorkerPoolService] [39m[32m[WorkerPool] DISPLAY: :99[39m
+2026-02-01T15:39:31.686344308Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:31 PM [32m    LOG[39m [38;5;3m[WorkerPoolService] [39m[32m[WorkerPool] lineAccountId: 697ede693bc06c5c2537636f[39m
+2026-02-01T15:39:31.686350439Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:31 PM [32m    LOG[39m [38;5;3m[WorkerPoolService] [39m[32m[WorkerPool] extensionPath: /app/extensions/line[39m
+2026-02-01T15:39:31.687767760Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:31 PM [32m    LOG[39m [38;5;3m[WorkerPoolService] [39m[32mUsing custom Chromium path: /usr/bin/chromium[39m
+2026-02-01T15:39:31.687777712Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:31 PM [32m    LOG[39m [38;5;3m[WorkerPoolService] [39m[32m[WorkerPool] Loading extension from: /app/extensions/line[39m
+2026-02-01T15:39:31.904500847Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:31 PM [32m    LOG[39m [38;5;3m[LoginNotificationService] [39m[32mWorker state: 697ede693bc06c5c2537636f -> ready[39m
+2026-02-01T15:39:31.904507925Z [inf]  [33m[Nest] 7  - [39m02/01/2026, 3:39:31 PM [33m   WARN[39m [38;5;3m[WebsocketGateway] [39m[33m[Broadcast] Sockets adapter not ready, broadcasting anyway to room line-account:697ede693bc06c5c2537636f[39m
+2026-02-01T15:39:31.904514279Z [inf]  [33m[Nest] 7  - [39m02/01/2026, 3:39:31 PM [33m   WARN[39m [38;5;3m[WebsocketGateway] [39m[33m[Broadcast] Sockets adapter not ready, broadcasting anyway to admins[39m
+2026-02-01T15:39:31.904520474Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:31 PM [32m    LOG[39m [38;5;3m[WorkerPoolService] [39m[32mWorker initialized for 697ede693bc06c5c2537636f with profile: redmictg26_gmail_com_account_697ede693bc06c5c2537636f[39m
+2026-02-01T15:39:31.904526275Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:31 PM [32m    LOG[39m [38;5;3m[WorkerPoolService] [39m[32mCDP interception setup for 697ede693bc06c5c2537636f[39m
+2026-02-01T15:39:31.904533291Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:31 PM [32m    LOG[39m [38;5;3m[EnhancedAutomationService] [39m[32m[EnhancedAutomation] Emitting status: loading_extension for 697ede693bc06c5c2537636f[39m
+2026-02-01T15:39:31.904539164Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:31 PM [32m    LOG[39m [38;5;3m[LoginNotificationService] [39m[32m[LoginNotification] Received status: loading_extension for 697ede693bc06c5c2537636f[39m
+2026-02-01T15:39:31.904545017Z [inf]  [33m[Nest] 7  - [39m02/01/2026, 3:39:31 PM [33m   WARN[39m [38;5;3m[WebsocketGateway] [39m[33m[Broadcast] Sockets adapter not ready, broadcasting anyway to room line-account:697ede693bc06c5c2537636f[39m
+2026-02-01T15:39:31.904550847Z [inf]  [33m[Nest] 7  - [39m02/01/2026, 3:39:31 PM [33m   WARN[39m [38;5;3m[WebsocketGateway] [39m[33m[Broadcast] Sockets adapter not ready, broadcasting anyway to admins[39m
+2026-02-01T15:39:31.906642925Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:31 PM [32m    LOG[39m [38;5;3m[EnhancedAutomationService] [39m[32m[Extension] ========== EXTENSION LOADING (GSB-style) ==========[39m
+2026-02-01T15:39:31.906650077Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:31 PM [32m    LOG[39m [38;5;3m[EnhancedAutomationService] [39m[32m[Extension] Target URL: chrome-extension://ophjlpahpchlmihnnnihgmmeilfjmjjc/index.html[39m
+2026-02-01T15:39:31.906656419Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:31 PM [32m    LOG[39m [38;5;3m[EnhancedAutomationService] [39m[32m[Extension] Testing browser responsiveness...[39m
+2026-02-01T15:39:31.906662977Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:31 PM [32m    LOG[39m [38;5;3m[EnhancedAutomationService] [39m[32m[Extension] Browser is responsive[39m
+2026-02-01T15:39:31.906669505Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:31 PM [32m    LOG[39m [38;5;3m[EnhancedAutomationService] [39m[32m[Extension] Method 1: Direct navigation (attempt 1/5)...[39m
+2026-02-01T15:39:32.791881265Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:32 PM [32m    LOG[39m [38;5;3m[EnhancedAutomationService] [39m[32m[Extension] Current URL: chrome-extension://ophjlpahpchlmihnnnihgmmeilfjmjjc/index.html[39m
+2026-02-01T15:39:32.791892711Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:32 PM [32m    LOG[39m [38;5;3m[EnhancedAutomationService] [39m[32m[Extension] Method 1 SUCCESS - Extension loaded![39m
+2026-02-01T15:39:35.870912943Z [inf]  [33m[Nest] 7  - [39m02/01/2026, 3:39:35 PM [33m   WARN[39m [38;5;3m[WebsocketGateway] [39m[33m[Broadcast] Sockets adapter not ready, broadcasting anyway to admins[39m
+2026-02-01T15:39:37.802220940Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:37 PM [32m    LOG[39m [38;5;3m[EnhancedAutomationService] [39m[32m[Login] Page content length: 8524 chars[39m
+2026-02-01T15:39:37.802232627Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:37 PM [32m    LOG[39m [38;5;3m[EnhancedAutomationService] [39m[32m[EnhancedAutomation] Emitting status: checking_session for 697ede693bc06c5c2537636f[39m
+2026-02-01T15:39:37.802239355Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:37 PM [32m    LOG[39m [38;5;3m[LoginNotificationService] [39m[32m[LoginNotification] Received status: checking_session for 697ede693bc06c5c2537636f[39m
+2026-02-01T15:39:37.802245917Z [inf]  [33m[Nest] 7  - [39m02/01/2026, 3:39:37 PM [33m   WARN[39m [38;5;3m[WebsocketGateway] [39m[33m[Broadcast] Sockets adapter not ready, broadcasting anyway to room line-account:697ede693bc06c5c2537636f[39m
+2026-02-01T15:39:37.802253680Z [inf]  [33m[Nest] 7  - [39m02/01/2026, 3:39:37 PM [33m   WARN[39m [38;5;3m[WebsocketGateway] [39m[33m[Broadcast] Sockets adapter not ready, broadcasting anyway to admins[39m
+2026-02-01T15:39:37.840866842Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:37 PM [32m    LOG[39m [38;5;3m[EnhancedAutomationService] [39m[32m[Login] Already logged in: false[39m
+2026-02-01T15:39:37.840874049Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:37 PM [32m    LOG[39m [38;5;3m[EnhancedAutomationService] [39m[32m[EnhancedAutomation] Emitting status: entering_credentials for 697ede693bc06c5c2537636f[39m
+2026-02-01T15:39:37.840878796Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:37 PM [32m    LOG[39m [38;5;3m[LoginNotificationService] [39m[32m[LoginNotification] Received status: entering_credentials for 697ede693bc06c5c2537636f[39m
+2026-02-01T15:39:37.840883695Z [inf]  [33m[Nest] 7  - [39m02/01/2026, 3:39:37 PM [33m   WARN[39m [38;5;3m[WebsocketGateway] [39m[33m[Broadcast] Sockets adapter not ready, broadcasting anyway to room line-account:697ede693bc06c5c2537636f[39m
+2026-02-01T15:39:37.840898022Z [inf]  [33m[Nest] 7  - [39m02/01/2026, 3:39:37 PM [33m   WARN[39m [38;5;3m[WebsocketGateway] [39m[33m[Broadcast] Sockets adapter not ready, broadcasting anyway to admins[39m
+2026-02-01T15:39:37.840907691Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:37 PM [32m    LOG[39m [38;5;3m[EnhancedAutomationService] [39m[32m[Login] ========== STARTING LOGIN PROCESS ==========[39m
+2026-02-01T15:39:37.840912533Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:37 PM [32m    LOG[39m [38;5;3m[EnhancedAutomationService] [39m[32m[Login] Waiting for email input field...[39m
+2026-02-01T15:39:37.854229841Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:37 PM [32m    LOG[39m [38;5;3m[EnhancedAutomationService] [39m[32m[Login] Found email input, entering credentials[39m
+2026-02-01T15:39:37.854238255Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:37 PM [32m    LOG[39m [38;5;3m[EnhancedAutomationService] [39m[32m[Login] Clicking email input...[39m
+2026-02-01T15:39:37.891415677Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:37 PM [32m    LOG[39m [38;5;3m[EnhancedAutomationService] [39m[32m[Login] Typing email...[39m
+2026-02-01T15:39:39.055512144Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:39 PM [32m    LOG[39m [38;5;3m[EnhancedAutomationService] [39m[32m[Login] Entered email: red***[39m
+2026-02-01T15:39:39.055521752Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:39 PM [32m    LOG[39m [38;5;3m[EnhancedAutomationService] [39m[32m[Login] Clicking password input...[39m
+2026-02-01T15:39:39.637075203Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:39 PM [32m    LOG[39m [38;5;3m[EnhancedAutomationService] [39m[32m[Login] Typing password...[39m
+2026-02-01T15:39:39.637082190Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:39 PM [32m    LOG[39m [38;5;3m[EnhancedAutomationService] [39m[32m[Login] Entered password: ***8 chars[39m
+2026-02-01T15:39:39.637090381Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:39 PM [32m    LOG[39m [38;5;3m[EnhancedAutomationService] [39m[32m[Login] Looking for login button...[39m
+2026-02-01T15:39:39.637096930Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:39 PM [32m    LOG[39m [38;5;3m[EnhancedAutomationService] [39m[32m[Login] Found login button, clicking...[39m
+2026-02-01T15:39:39.637102975Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:39 PM [32m    LOG[39m [38;5;3m[EnhancedAutomationService] [39m[32m[Login] Clicked login button[39m
+2026-02-01T15:39:39.637109860Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:39 PM [32m    LOG[39m [38;5;3m[EnhancedAutomationService] [39m[32m[Login] Waiting 3 seconds for form submission...[39m
+2026-02-01T15:39:40.871368206Z [inf]  [33m[Nest] 7  - [39m02/01/2026, 3:39:40 PM [33m   WARN[39m [38;5;3m[WebsocketGateway] [39m[33m[Broadcast] Sockets adapter not ready, broadcasting anyway to admins[39m
+2026-02-01T15:39:42.642479408Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:42 PM [32m    LOG[39m [38;5;3m[EnhancedAutomationService] [39m[32m[Login] Current URL after submit: chrome-extension://ophjlpahpchlmihnnnihgmmeilfjmjjc/index.html#/[39m
+2026-02-01T15:39:42.642491042Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:42 PM [32m    LOG[39m [38;5;3m[EnhancedAutomationService] [39m[32m[Login] ========== LOGIN FORM SUBMITTED, WAITING FOR PIN ==========[39m
+2026-02-01T15:39:42.642502509Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:42 PM [32m    LOG[39m [38;5;3m[EnhancedAutomationService] [39m[32m[EnhancedAutomation] Emitting status: waiting_pin for 697ede693bc06c5c2537636f[39m
+2026-02-01T15:39:42.642508158Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:42 PM [32m    LOG[39m [38;5;3m[LoginNotificationService] [39m[32m[LoginNotification] Received status: waiting_pin for 697ede693bc06c5c2537636f[39m
+2026-02-01T15:39:42.642514683Z [inf]  [33m[Nest] 7  - [39m02/01/2026, 3:39:42 PM [33m   WARN[39m [38;5;3m[WebsocketGateway] [39m[33m[Broadcast] Sockets adapter not ready, broadcasting anyway to room line-account:697ede693bc06c5c2537636f[39m
+2026-02-01T15:39:42.642520670Z [inf]  [33m[Nest] 7  - [39m02/01/2026, 3:39:42 PM [33m   WARN[39m [38;5;3m[WebsocketGateway] [39m[33m[Broadcast] Sockets adapter not ready, broadcasting anyway to admins[39m
+2026-02-01T15:39:42.642526958Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:42 PM [32m    LOG[39m [38;5;3m[EnhancedAutomationService] [39m[32m[PIN] Starting PIN detection for 697ede693bc06c5c2537636f, timeout: 180000ms (3 minutes)[39m
+2026-02-01T15:39:42.642533261Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:42 PM [32m    LOG[39m [38;5;3m[EnhancedAutomationService] [39m[32m[PIN] Check #1, elapsed: 0s, URL: chrome-extension://ophjlpahpchlmihnnnihgmmeilfjmjjc/index.html#/[39m
+2026-02-01T15:39:42.642537474Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:42 PM [32m    LOG[39m [38;5;3m[EnhancedAutomationService] [39m[32m[PIN] URL changed:  -> chrome-extension://ophjlpahpchlmihnnnihgmmeilfjmjjc/index.html#/[39m
+2026-02-01T15:39:42.648101087Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:42 PM [32m    LOG[39m [38;5;3m[EnhancedAutomationService] [39m[32m[PIN] PIN detected for 697ede693bc06c5c2537636f: 741823 (after 0s, 1 checks)[39m
+2026-02-01T15:39:42.648110165Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:42 PM [32m    LOG[39m [38;5;3m[EnhancedAutomationService] [39m[32mPIN 741823 detected, returning to frontend immediately for 697ede693bc06c5c2537636f[39m
+2026-02-01T15:39:42.648118349Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:42 PM [32m    LOG[39m [38;5;3m[EnhancedAutomationService] [39m[32m[PIN] Stored PIN for 697ede693bc06c5c2537636f: 741823[39m
+2026-02-01T15:39:42.648125182Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:42 PM [32m    LOG[39m [38;5;3m[LoginNotificationService] [39m[32mWorker state: 697ede693bc06c5c2537636f -> waiting_pin[39m
+2026-02-01T15:39:42.648133445Z [inf]  [33m[Nest] 7  - [39m02/01/2026, 3:39:42 PM [33m   WARN[39m [38;5;3m[WebsocketGateway] [39m[33m[Broadcast] Sockets adapter not ready, broadcasting anyway to room line-account:697ede693bc06c5c2537636f[39m
+2026-02-01T15:39:42.648141564Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:42 PM [32m    LOG[39m [38;5;3m[WebsocketGateway] [39m[32m[Broadcast] PIN 741823 sent to room line-account:697ede693bc06c5c2537636f (adapter not ready)[39m
+2026-02-01T15:39:42.648149157Z [inf]  [33m[Nest] 7  - [39m02/01/2026, 3:39:42 PM [33m   WARN[39m [38;5;3m[WebsocketGateway] [39m[33m[Broadcast] Sockets adapter not ready, broadcasting anyway to admins[39m
+2026-02-01T15:39:42.648156508Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:42 PM [32m    LOG[39m [38;5;3m[EnhancedAutomationService] [39m[32m[EnhancedAutomation] Emitting status: pin_displayed for 697ede693bc06c5c2537636f with PIN 741823[39m
+2026-02-01T15:39:42.648164338Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:42 PM [32m    LOG[39m [38;5;3m[LoginNotificationService] [39m[32m[LoginNotification] Received status: pin_displayed for 697ede693bc06c5c2537636f with PIN 741823[39m
+2026-02-01T15:39:42.648180107Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:42 PM [32m    LOG[39m [38;5;3m[LoginNotificationService] [39m[32mBroadcasting PIN 741823 for account 697ede693bc06c5c2537636f[39m
+2026-02-01T15:39:42.648187557Z [inf]  [33m[Nest] 7  - [39m02/01/2026, 3:39:42 PM [33m   WARN[39m [38;5;3m[WebsocketGateway] [39m[33m[Broadcast] Sockets adapter not ready, broadcasting anyway to room line-account:697ede693bc06c5c2537636f[39m
+2026-02-01T15:39:42.648194770Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:42 PM [32m    LOG[39m [38;5;3m[WebsocketGateway] [39m[32m[Broadcast] PIN 741823 sent to room line-account:697ede693bc06c5c2537636f (adapter not ready)[39m
+2026-02-01T15:39:42.648201104Z [inf]  [33m[Nest] 7  - [39m02/01/2026, 3:39:42 PM [33m   WARN[39m [38;5;3m[WebsocketGateway] [39m[33m[Broadcast] Sockets adapter not ready, broadcasting anyway to admins[39m
+2026-02-01T15:39:42.648210350Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:42 PM [32m    LOG[39m [38;5;3m[EnhancedAutomationService] [39m[32m[PIN] === ABOUT TO RETURN PIN RESULT ===[39m
+2026-02-01T15:39:42.648217177Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:42 PM [32m    LOG[39m [38;5;3m[EnhancedAutomationService] [39m[32m[PIN] pinCode: 741823[39m
+2026-02-01T15:39:42.648225478Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:42 PM [32m    LOG[39m [38;5;3m[EnhancedAutomationService] [39m[32m[PIN] result: {"success":false,"status":"pin_displayed","requestId":"req_697ede693bc06c5c2537636f_1769960371145","pinCode":"741823","message":"PIN displayed. Please verify on your LINE mobile app."}[39m
+2026-02-01T15:39:42.648232427Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:42 PM [32m    LOG[39m [38;5;3m[EnhancedAutomationService] [39m[32m[PIN] === RETURNING NOW ===[39m
+2026-02-01T15:39:42.648240070Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:42 PM [32m    LOG[39m [38;5;3m[OrchestratorService] [39m[32m[ReloginCheck] Relogin initiated for 15, PIN: 741823[39m
+2026-02-01T15:39:42.649956429Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:42 PM [32m    LOG[39m [38;5;3m[WebsocketGateway] [39m[32m[Orchestrator] Relogin started for 15, PIN: 741823[39m
+2026-02-01T15:39:42.649969881Z [inf]  [33m[Nest] 7  - [39m02/01/2026, 3:39:42 PM [33m   WARN[39m [38;5;3m[WebsocketGateway] [39m[33m[Broadcast] Sockets adapter not ready, broadcasting anyway to admins[39m
+2026-02-01T15:39:42.649978404Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:42 PM [32m    LOG[39m [38;5;3m[OrchestratorService] [39m[32m[ReloginCheck] Relogin check completed[39m
+2026-02-01T15:39:42.649984978Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:42 PM [32m    LOG[39m [38;5;3m[EnhancedAutomationService] [39m[32m[EnhancedAutomation] Emitting status: verifying for 697ede693bc06c5c2537636f[39m
+2026-02-01T15:39:42.649992272Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:42 PM [32m    LOG[39m [38;5;3m[LoginNotificationService] [39m[32m[LoginNotification] Received status: verifying for 697ede693bc06c5c2537636f[39m
+2026-02-01T15:39:42.649999273Z [inf]  [33m[Nest] 7  - [39m02/01/2026, 3:39:42 PM [33m   WARN[39m [38;5;3m[WebsocketGateway] [39m[33m[Broadcast] Sockets adapter not ready, broadcasting anyway to room line-account:697ede693bc06c5c2537636f[39m
+2026-02-01T15:39:42.650006718Z [inf]  [33m[Nest] 7  - [39m02/01/2026, 3:39:42 PM [33m   WARN[39m [38;5;3m[WebsocketGateway] [39m[33m[Broadcast] Sockets adapter not ready, broadcasting anyway to admins[39m
+2026-02-01T15:39:42.650013499Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:42 PM [32m    LOG[39m [38;5;3m[EnhancedAutomationService] [39m[32m[LoginComplete] Waiting for PIN verification (timeout: 3 minutes)...[39m
+2026-02-01T15:39:42.650020385Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:39:42 PM [32m    LOG[39m [38;5;3m[EnhancedAutomationService] [39m[32m[LoginComplete] Waiting for page navigation after PIN verification...[39m
+2026-02-01T15:39:45.851540058Z [inf]  [33m[Nest] 7  - [39m02/01/2026, 3:39:45 PM [33m   WARN[39m [38;5;3m[WebsocketGateway] [39m[33m[Broadcast] Sockets adapter not ready, broadcasting anyway to admins[39m
+2026-02-01T15:39:50.853394243Z [inf]  [33m[Nest] 7  - [39m02/01/2026, 3:39:50 PM [33m   WARN[39m [38;5;3m[WebsocketGateway] [39m[33m[Broadcast] Sockets adapter not ready, broadcasting anyway to admins[39m
+2026-02-01T15:39:55.855248311Z [inf]  [33m[Nest] 7  - [39m02/01/2026, 3:39:55 PM [33m   WARN[39m [38;5;3m[WebsocketGateway] [39m[33m[Broadcast] Sockets adapter not ready, broadcasting anyway to admins[39m
+2026-02-01T15:40:00.014046218Z [inf]  [33m[Nest] 7  - [39m02/01/2026, 3:40:00 PM [33m   WARN[39m [38;5;3m[RedisService] [39m[33m[REDIS] Redis connection lost - using memory fallback[39m
+2026-02-01T15:40:00.030307911Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:40:00 PM [32m    LOG[39m [38;5;3m[TasksService] [39m[32m[HEALTH] WARNING | Memory: 56/59MB (94.9%) | RSS: 144MB | Redis: DOWN | Cache: 2/10000 | Uptime: 0h 0m | Warnings: HIGH_MEMORY: 94.9%, REDIS_DOWN: 0s[39m
+2026-02-01T15:40:00.030314963Z [inf]  [33m[Nest] 7  - [39m02/01/2026, 3:40:00 PM [33m   WARN[39m [38;5;3m[TasksService] [39m[33m[HEALTH WARNING] HIGH_MEMORY: 94.9% | REDIS_DOWN: 0s[39m
+2026-02-01T15:40:00.977089812Z [inf]  [33m[Nest] 7  - [39m02/01/2026, 3:40:00 PM [33m   WARN[39m [38;5;3m[WebsocketGateway] [39m[33m[Broadcast] Sockets adapter not ready, broadcasting anyway to admins[39m
+2026-02-01T15:40:05.850382005Z [inf]  [33m[Nest] 7  - [39m02/01/2026, 3:40:05 PM [33m   WARN[39m [38;5;3m[WebsocketGateway] [39m[33m[Broadcast] Sockets adapter not ready, broadcasting anyway to admins[39m
+2026-02-01T15:40:06.967261410Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:40:06 PM [32m    LOG[39m [38;5;3m[EnhancedAutomationService] [39m[32mDisplay check: DISPLAY=:99, HEADLESS=false[39m
+2026-02-01T15:40:06.967268940Z [inf]  [33m[Nest] 7  - [39m02/01/2026, 3:40:06 PM [33m   WARN[39m [38;5;3m[LoginLockService] [39m[33mLock denied for 697ede693bc06c5c2537636f (source: enhanced) - already locked by enhanced[39m
+2026-02-01T15:40:08.765858958Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:40:08 PM [32m    LOG[39m [38;5;3m[EnhancedAutomationService] [39m[32mDisplay check: DISPLAY=:99, HEADLESS=false[39m
+2026-02-01T15:40:08.765868637Z [inf]  [33m[Nest] 7  - [39m02/01/2026, 3:40:08 PM [33m   WARN[39m [38;5;3m[LoginLockService] [39m[33mLock denied for 697ede693bc06c5c2537636f (source: enhanced) - already locked by enhanced[39m
+2026-02-01T15:40:09.811101877Z [inf]  [32m[Nest] 7  - [39m02/01/2026, 3:40:09 PM [32m    LOG[39m [38;5;3m[EnhancedAutomationService] [39m[32mDisplay check: DISPLAY=:99, HEADLESS=false[39m
+2026-02-01T15:40:09.811115391Z [inf]  [33m[Nest] 7  - [39m02/01/2026, 3:40:09 PM [33m   WARN[39m [38;5;3m[LoginLockService] [39m[33mLock denied for 697ede693bc06c5c2537636f (source: enhanced) - already locked by enhanced[39m
+2026-02-01T15:40:10.866057348Z [inf]  [33m[Nest] 7  - [39m02/01/2026, 3:40:10 PM [33m   WARN[39m [38;5;3m[WebsocketGateway] [39m[33m[Broadcast] Sockets adapter not ready, broadcasting anyway to admins[39m
+2026-02-01T15:40:16.035556049Z [inf]  [33m[Nest] 7  - [39m02/01/2026, 3:40:15 PM [33m   WARN[39m [38;5;3m[WebsocketGateway] [39m[33m[Broadcast] Sockets adapter not ready, broadcasting anyway to admins[39m

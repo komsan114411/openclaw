@@ -75,6 +75,7 @@ export class OrchestratorService implements OnModuleInit, OnModuleDestroy {
   private healthCheckInterval: NodeJS.Timeout | null = null;
   private reloginCheckInterval: NodeJS.Timeout | null = null;
   private statusBroadcastInterval: NodeJS.Timeout | null = null;
+  private cleanupInterval: NodeJS.Timeout | null = null;
 
   // State
   private isRunning = false;
@@ -221,6 +222,13 @@ export class OrchestratorService implements OnModuleInit, OnModuleDestroy {
     }, statusBroadcastMs);
     this.logger.log('Status broadcast loop started (every 5 seconds)');
 
+    // Cleanup Loop - Auto-cleanup expired PINs every 1 minute
+    const cleanupMs = 60000; // 1 minute
+    this.cleanupInterval = setInterval(() => {
+      this.performCleanup();
+    }, cleanupMs);
+    this.logger.log('Cleanup loop started (every 1 minute)');
+
     this.isRunning = true;
 
     // Perform initial checks
@@ -250,8 +258,35 @@ export class OrchestratorService implements OnModuleInit, OnModuleDestroy {
       clearInterval(this.statusBroadcastInterval);
       this.statusBroadcastInterval = null;
     }
+    if (this.cleanupInterval) {
+      clearInterval(this.cleanupInterval);
+      this.cleanupInterval = null;
+    }
     this.isRunning = false;
     this.logger.log('All loops stopped');
+  }
+
+  /**
+   * Perform cleanup of expired PINs and stale logins
+   */
+  private async performCleanup(): Promise<void> {
+    try {
+      const result = await this.enhancedAutomationService.autoCleanupExpiredLogins();
+
+      if (result.cleaned > 0) {
+        this.logger.log(`[Cleanup] Cleaned up ${result.cleaned} expired login(s)`);
+
+        // Broadcast cleanup event
+        this.eventEmitter.emit('orchestrator.cleanup', {
+          type: 'cleanup',
+          cleaned: result.cleaned,
+          details: result.details,
+          timestamp: new Date(),
+        });
+      }
+    } catch (error: any) {
+      this.logger.error(`[Cleanup] Error during cleanup: ${error.message}`);
+    }
   }
 
   /**
