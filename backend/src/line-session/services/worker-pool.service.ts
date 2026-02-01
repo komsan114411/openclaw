@@ -271,7 +271,17 @@ export class WorkerPoolService implements OnModuleDestroy, OnModuleInit {
       // 2. DISPLAY is set (Xvfb or real display)
       const isHeadless = headlessEnv !== 'false' && !displayEnv;
 
-      this.logger.log(`Browser config: headless=${isHeadless}, DISPLAY=${displayEnv || 'not set'}, PUPPETEER_HEADLESS=${headlessEnv || 'not set'}`);
+      // Debug logging
+      this.logger.log(`[WorkerPool] ========== BROWSER LAUNCH DEBUG ==========`);
+      this.logger.log(`[WorkerPool] lineAccountId: ${lineAccountId}`);
+      this.logger.log(`[WorkerPool] extensionPath: ${extensionPath}`);
+      this.logger.log(`[WorkerPool] extensionExists: ${fs.existsSync(extensionPath)}`);
+      this.logger.log(`[WorkerPool] executablePath: ${executablePath || 'default'}`);
+      this.logger.log(`[WorkerPool] headless: ${isHeadless}`);
+      this.logger.log(`[WorkerPool] DISPLAY: ${displayEnv || 'not set'}`);
+      this.logger.log(`[WorkerPool] PUPPETEER_HEADLESS: ${headlessEnv || 'not set'}`);
+      this.logger.log(`[WorkerPool] profileDir: ${profileDir}`);
+      this.logger.log(`[WorkerPool] ===========================================`);
 
       const launchOptions: any = {
         headless: isHeadless ? 'new' : false,

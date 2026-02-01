@@ -403,12 +403,39 @@ export class EnhancedAutomationService implements OnModuleDestroy {
       // Step 6: Navigate to LINE extension
       this.emitStatus(lineAccountId, EnhancedLoginStatus.LOADING_EXTENSION, { requestId });
       const extensionUrl = `chrome-extension://${this.LINE_EXTENSION_ID}/index.html`;
-      await worker.page.goto(extensionUrl, { waitUntil: 'domcontentloaded', timeout: 30000 });
+      this.logger.log(`[Login] Navigating to extension: ${extensionUrl}`);
+
+      try {
+        await worker.page.goto(extensionUrl, { waitUntil: 'domcontentloaded', timeout: 30000 });
+        const currentUrl = worker.page.url();
+        this.logger.log(`[Login] Current URL after navigation: ${currentUrl}`);
+
+        // Check if extension loaded successfully
+        if (currentUrl.includes('chrome-error') || currentUrl === 'about:blank') {
+          throw new Error(`Extension failed to load. URL: ${currentUrl}`);
+        }
+      } catch (navError: any) {
+        this.logger.error(`[Login] Extension navigation failed: ${navError.message}`);
+        throw new Error(`Failed to load LINE extension: ${navError.message}`);
+      }
+
       await this.delay(3000);
+
+      // Take screenshot for debugging (only in development)
+      try {
+        const pageContent = await worker.page.content();
+        this.logger.log(`[Login] Page content length: ${pageContent.length} chars`);
+        if (pageContent.length < 500) {
+          this.logger.warn(`[Login] Page content seems too short, might not have loaded properly`);
+        }
+      } catch (e) {
+        // Ignore screenshot errors
+      }
 
       // Step 7: Check if already logged in
       this.emitStatus(lineAccountId, EnhancedLoginStatus.CHECKING_SESSION, { requestId });
       const isLoggedIn = await this.checkLoggedIn(worker.page);
+      this.logger.log(`[Login] Already logged in: ${isLoggedIn}`);
 
       if (isLoggedIn) {
         this.logger.log(`Already logged in for ${lineAccountId}`);
@@ -821,20 +848,36 @@ export class EnhancedAutomationService implements OnModuleDestroy {
    * Perform login
    */
   private async performLogin(page: any, email: string, password: string): Promise<void> {
-    await page.waitForSelector('input[name="email"]', { timeout: 90000 });
+    this.logger.log(`[Login] Waiting for email input field...`);
+
+    try {
+      await page.waitForSelector('input[name="email"]', { timeout: 90000 });
+      this.logger.log(`[Login] Found email input, entering credentials`);
+    } catch (e: any) {
+      this.logger.error(`[Login] Email input not found: ${e.message}`);
+      const currentUrl = page.url();
+      this.logger.error(`[Login] Current URL: ${currentUrl}`);
+      throw e;
+    }
 
     await page.click('input[name="email"]', { clickCount: 3 });
     await page.type('input[name="email"]', email, { delay: 50 });
+    this.logger.log(`[Login] Entered email: ${email.substring(0, 3)}***`);
 
     await page.click('input[name="password"]', { clickCount: 3 });
     await page.type('input[name="password"]', password, { delay: 50 });
+    this.logger.log(`[Login] Entered password (hidden)`);
 
     const loginButton = await page.$('button[type="submit"]');
     if (loginButton) {
       await loginButton.click();
+      this.logger.log(`[Login] Clicked login button`);
+    } else {
+      this.logger.warn(`[Login] Login button not found!`);
     }
 
     await this.delay(2000);
+    this.logger.log(`[Login] Login form submitted, waiting for PIN...`);
   }
 
   /**
@@ -842,9 +885,19 @@ export class EnhancedAutomationService implements OnModuleDestroy {
    */
   private async waitForPin(page: any, lineAccountId: string): Promise<string | null> {
     const startTime = Date.now();
+    let checkCount = 0;
+
+    this.logger.log(`[PIN] Starting PIN detection for ${lineAccountId}, timeout: ${this.PIN_TIMEOUT}ms`);
 
     while (Date.now() - startTime < this.PIN_TIMEOUT) {
+      checkCount++;
       try {
+        // Log every 10 checks
+        if (checkCount % 10 === 1) {
+          const currentUrl = page.url();
+          this.logger.log(`[PIN] Check #${checkCount}, elapsed: ${Date.now() - startTime}ms, URL: ${currentUrl}`);
+        }
+
         const pinCode = await page.evaluate(() => {
           const selectors = [
             '.pinCodeModal-module__pincode__bFKMn',
