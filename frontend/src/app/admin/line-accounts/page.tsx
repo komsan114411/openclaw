@@ -769,6 +769,9 @@ export default function AdminLineAccountsPage() {
     }));
 
     try {
+      console.log('[handleStartLogin] === STARTING LOGIN ===');
+      console.log('[handleStartLogin] Account ID:', selectedAccount._id);
+
       // Use enhanced login API
       const res = await lineSessionApi.startEnhancedLogin(
         selectedAccount._id,
@@ -777,10 +780,14 @@ export default function AdminLineAccountsPage() {
         'manual'
       );
 
+      console.log('[handleStartLogin] === API RESPONSE RECEIVED ===');
+      console.log('[handleStartLogin] Full Response Object:', res);
       const data = res.data;
 
       // Debug: Log the response data
-      console.log('[handleStartLogin] API Response:', JSON.stringify(data, null, 2));
+      console.log('[handleStartLogin] Response Data:', JSON.stringify(data, null, 2));
+      console.log('[handleStartLogin] data.pinCode =', data.pinCode);
+      console.log('[handleStartLogin] typeof data.pinCode =', typeof data.pinCode);
 
       // Handle cooldown
       if (data.status === 'cooldown') {

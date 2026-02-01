@@ -109,25 +109,27 @@ export function useLoginNotifications(options: UseLoginNotificationsOptions = {}
     const prevAccountId = lineAccountIdRef.current;
     lineAccountIdRef.current = lineAccountId;
 
-    // Re-subscribe when account changes
-    if (socketRef.current?.connected && lineAccountId && lineAccountId !== prevAccountId) {
-      // Unsubscribe from previous account
-      if (prevAccountId) {
+    // Subscribe when account is set (even if same - to ensure subscription exists)
+    if (socketRef.current?.connected && lineAccountId) {
+      // Unsubscribe from previous account if different
+      if (prevAccountId && prevAccountId !== lineAccountId) {
         console.log('[LoginNotifications] Unsubscribing from previous account:', prevAccountId);
         socketRef.current.emit('unsubscribe', { channel: `line-account:${prevAccountId}` });
       }
 
-      // Subscribe to new account
-      console.log('[LoginNotifications] Subscribing to new account:', lineAccountId);
+      // Always subscribe to current account (ensure subscription exists)
+      console.log('[LoginNotifications] Subscribing to account:', lineAccountId);
       socketRef.current.emit('subscribe', { channel: `line-account:${lineAccountId}` });
 
-      // Clear previous PIN state to prevent showing wrong PIN
-      setState(prev => ({
-        ...prev,
-        pinCode: null,
-        lastStatus: null,
-        lastEvent: null,
-      }));
+      // Clear previous PIN state if account changed
+      if (prevAccountId !== lineAccountId) {
+        setState(prev => ({
+          ...prev,
+          pinCode: null,
+          lastStatus: null,
+          lastEvent: null,
+        }));
+      }
     }
   }, [lineAccountId]);
 
