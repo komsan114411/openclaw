@@ -161,17 +161,32 @@ export class SlipVerificationService {
     if (!slip) return {};
 
     const rawData = slip.rawData || {};
+
+    // Detect bank code from senderBank/receiverBank fields
+    // For TrueMoney slips, the bank name contains "ทรูมันนี่"
+    const detectBankCode = (bankName: string | undefined): string => {
+      if (!bankName) return '';
+      const name = bankName.toLowerCase();
+      if (name.includes('truemoney') || name.includes('ทรูมันนี่')) return 'TRUEMONEY';
+      if (name.includes('promptpay') || name.includes('พร้อมเพย์')) return 'PROMPTPAY';
+      // Return the bank name as code if no specific match
+      return bankName.toUpperCase().replace(/\s+/g, '');
+    };
+
+    const senderBankCode = rawData.sender?.bank?.short || rawData.senderBankCode || detectBankCode(slip.senderBank);
+    const receiverBankCode = rawData.receiver?.bank?.short || rawData.receiverBankCode || detectBankCode(slip.receiverBank);
+
     return {
       transRef: slip.transRef || '',
       amount: slip.amount,
       amountFormatted: slip.amount ? this.formatAmount(slip.amount) : '',
-      senderName: slip.senderName || rawData.sender?.displayName || '',
+      senderName: slip.senderName || rawData.sender?.displayName || rawData.sender?.name || '',
       senderBank: slip.senderBank || rawData.sender?.bank?.name || '',
-      senderBankCode: rawData.sender?.bank?.short || '',
-      receiverName: slip.receiverName || rawData.receiver?.displayName || '',
+      senderBankCode: senderBankCode,
+      receiverName: slip.receiverName || rawData.receiver?.displayName || rawData.receiver?.name || '',
       receiverBank: slip.receiverBank || rawData.receiver?.bank?.name || '',
-      receiverBankCode: rawData.receiver?.bank?.short || '',
-      receiverAccountNumber: slip.receiverAccountNumber || '',
+      receiverBankCode: receiverBankCode,
+      receiverAccountNumber: slip.receiverAccountNumber || rawData.receiver?.phone || '',
       date: slip.transactionDate ? this.formatDate(new Date(slip.transactionDate)) : '',
       time: slip.transactionDate ? this.formatTime(new Date(slip.transactionDate)) : '',
       isDuplicate: true,
@@ -1371,17 +1386,31 @@ export class SlipVerificationService {
         if (originalSlip) {
           this.logger.log(`[DUPLICATE] Found original slip data: amount=${originalSlip.amount}, sender=${originalSlip.senderName}`);
           const historyData = this.buildSlipDataFromHistory(originalSlip);
-          // Merge history data with API data (API data takes precedence if present)
+
+          // Helper to check if value is meaningful (not empty, not zero)
+          const isMeaningful = (val: any): boolean => {
+            if (val === null || val === undefined || val === '') return false;
+            if (typeof val === 'number' && val === 0) return false;
+            if (typeof val === 'string' && (val === '฿0' || val === '0' || val.trim() === '')) return false;
+            return true;
+          };
+
+          // Prefer history data over API data for empty/zero values
           duplicateData = {
             ...historyData,
-            ...duplicateData, // Keep any data from API response
-            // Ensure these fields are set from history if API didn't provide them
-            amountFormatted: duplicateData.amountFormatted || historyData.amountFormatted,
-            senderName: duplicateData.senderName || historyData.senderName,
-            receiverName: duplicateData.receiverName || historyData.receiverName,
+            transRef: isMeaningful(duplicateData.transRef) ? duplicateData.transRef : historyData.transRef,
+            amount: isMeaningful(duplicateData.amount) ? duplicateData.amount : historyData.amount,
+            amountFormatted: isMeaningful(duplicateData.amountFormatted) ? duplicateData.amountFormatted : historyData.amountFormatted,
+            senderName: isMeaningful(duplicateData.senderName) ? duplicateData.senderName : historyData.senderName,
+            senderBank: isMeaningful(duplicateData.senderBank) ? duplicateData.senderBank : historyData.senderBank,
+            senderBankCode: isMeaningful(duplicateData.senderBankCode) ? duplicateData.senderBankCode : historyData.senderBankCode,
+            receiverName: isMeaningful(duplicateData.receiverName) ? duplicateData.receiverName : historyData.receiverName,
+            receiverBank: isMeaningful(duplicateData.receiverBank) ? duplicateData.receiverBank : historyData.receiverBank,
+            receiverBankCode: isMeaningful(duplicateData.receiverBankCode) ? duplicateData.receiverBankCode : historyData.receiverBankCode,
+            receiverAccountNumber: isMeaningful(duplicateData.receiverAccountNumber) ? duplicateData.receiverAccountNumber : historyData.receiverAccountNumber,
             isDuplicate: true,
           };
-          this.logger.log(`[DUPLICATE] Enriched data: amountFormatted=${duplicateData.amountFormatted}, senderName=${duplicateData.senderName}`);
+          this.logger.log(`[DUPLICATE] Enriched data: amountFormatted=${duplicateData.amountFormatted}, senderName=${duplicateData.senderName}, senderBankCode=${duplicateData.senderBankCode}`);
         } else {
           this.logger.warn(`[DUPLICATE] No original slip found in slip_history for transRef: ${transRef}`);
         }
@@ -1392,15 +1421,32 @@ export class SlipVerificationService {
         if (recentSlip) {
           this.logger.log(`[DUPLICATE] Found recent slip for user: amount=${recentSlip.amount}, sender=${recentSlip.senderName}, transRef=${recentSlip.transRef}`);
           const historyData = this.buildSlipDataFromHistory(recentSlip);
+
+          // Helper to check if value is meaningful (not empty, not zero)
+          const isMeaningful = (val: any): boolean => {
+            if (val === null || val === undefined || val === '') return false;
+            if (typeof val === 'number' && val === 0) return false;
+            if (typeof val === 'string' && (val === '฿0' || val === '0' || val.trim() === '')) return false;
+            return true;
+          };
+
+          // Prefer history data over API data for empty/zero values
           duplicateData = {
-            ...historyData,
-            ...duplicateData, // Keep any data from API response
-            amountFormatted: duplicateData.amountFormatted || historyData.amountFormatted,
-            senderName: duplicateData.senderName || historyData.senderName,
-            receiverName: duplicateData.receiverName || historyData.receiverName,
+            ...historyData, // Start with history data
+            // Only use API data if it's meaningful, otherwise keep history
+            transRef: isMeaningful(duplicateData.transRef) ? duplicateData.transRef : historyData.transRef,
+            amount: isMeaningful(duplicateData.amount) ? duplicateData.amount : historyData.amount,
+            amountFormatted: isMeaningful(duplicateData.amountFormatted) ? duplicateData.amountFormatted : historyData.amountFormatted,
+            senderName: isMeaningful(duplicateData.senderName) ? duplicateData.senderName : historyData.senderName,
+            senderBank: isMeaningful(duplicateData.senderBank) ? duplicateData.senderBank : historyData.senderBank,
+            senderBankCode: isMeaningful(duplicateData.senderBankCode) ? duplicateData.senderBankCode : historyData.senderBankCode,
+            receiverName: isMeaningful(duplicateData.receiverName) ? duplicateData.receiverName : historyData.receiverName,
+            receiverBank: isMeaningful(duplicateData.receiverBank) ? duplicateData.receiverBank : historyData.receiverBank,
+            receiverBankCode: isMeaningful(duplicateData.receiverBankCode) ? duplicateData.receiverBankCode : historyData.receiverBankCode,
+            receiverAccountNumber: isMeaningful(duplicateData.receiverAccountNumber) ? duplicateData.receiverAccountNumber : historyData.receiverAccountNumber,
             isDuplicate: true,
           };
-          this.logger.log(`[DUPLICATE] Enriched from user history: amountFormatted=${duplicateData.amountFormatted}, senderName=${duplicateData.senderName}`);
+          this.logger.log(`[DUPLICATE] Enriched from user history: amountFormatted=${duplicateData.amountFormatted}, senderName=${duplicateData.senderName}, senderBankCode=${duplicateData.senderBankCode}`);
         } else {
           this.logger.warn(`[DUPLICATE] No recent slip found for user: ${context.lineUserId}`);
         }
