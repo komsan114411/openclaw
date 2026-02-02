@@ -190,12 +190,16 @@ export default function LineSessionPage() {
         return true; // Continue polling
       }
 
-      // If completed, refresh session status
+      // If completed, refresh session status and close PIN display
       if (mappedStatus.status === 'completed' || mappedStatus.status === 'success') {
         await fetchSessionStatus(sessionId);
         await fetchData(); // Refresh list
+        // ปิด PIN display โดยการ clear loginStatus
+        setLoginStatus(null);
         toast.success('ดึง Keys สำเร็จ');
       } else if (mappedStatus.status === 'failed' || mappedStatus.status === 'error') {
+        // ปิด PIN display เมื่อ error
+        setLoginStatus(null);
         toast.error(mappedStatus.error || mappedStatus.message || 'เกิดข้อผิดพลาด');
       }
 
@@ -948,6 +952,33 @@ export default function LineSessionPage() {
                     <Copy className="w-4 h-4" />
                   </Button>
                 </div>
+              </div>
+            ) : null}
+
+            {/* cURL Bash Command */}
+            {fullKeys.cUrlBash ? (
+              <div>
+                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+                  cURL Bash
+                </label>
+                <div className="flex gap-2">
+                  <textarea
+                    value={String(fullKeys.cUrlBash) || ''}
+                    readOnly
+                    className="flex-1 p-2 font-mono text-xs bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg resize-none"
+                    rows={4}
+                  />
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    onClick={() => copyToClipboard(String(fullKeys.cUrlBash), 'cURL Bash')}
+                  >
+                    <Copy className="w-4 h-4" />
+                  </Button>
+                </div>
+                <p className="text-xs text-slate-500 mt-1">
+                  คำสั่ง cURL สำหรับทดสอบ API
+                </p>
               </div>
             ) : null}
 

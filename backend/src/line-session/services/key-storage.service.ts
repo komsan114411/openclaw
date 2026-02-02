@@ -16,6 +16,16 @@ export interface SaveKeysInput {
   metadata?: Record<string, any>;
 }
 
+/**
+ * Session lookup result interface
+ * Used to track how a session was found (for debugging ambiguity issues)
+ */
+interface SessionLookupResult {
+  session: LineSessionDocument | null;
+  foundBy: 'objectId' | 'lineAccountId' | 'not_found';
+  searchedId: string;
+}
+
 @Injectable()
 export class KeyStorageService {
   private readonly logger = new Logger(KeyStorageService.name);
@@ -28,33 +38,86 @@ export class KeyStorageService {
   ) {}
 
   /**
+   * [FIX Issue #1] Helper function to find session by ID or lineAccountId field
+   * This resolves the ambiguity where lineAccountId can be either:
+   * - MongoDB ObjectId (_id)
+   * - The actual lineAccountId field value
+   *
+   * Priority: 1) Try as ObjectId first, 2) Then try as lineAccountId field
+   * Returns both the session and how it was found for debugging
+   */
+  private async findSessionByIdOrLineAccountId(
+    identifier: string,
+    requireActive = true,
+  ): Promise<SessionLookupResult> {
+    const result: SessionLookupResult = {
+      session: null,
+      foundBy: 'not_found',
+      searchedId: identifier,
+    };
+
+    // First, check if identifier is a valid MongoDB ObjectId format
+    const isValidObjectId = /^[0-9a-fA-F]{24}$/.test(identifier);
+
+    if (isValidObjectId) {
+      try {
+        // Try finding by _id first
+        const sessionById = await this.lineSessionModel.findById(identifier);
+        if (sessionById && (!requireActive || sessionById.isActive)) {
+          result.session = sessionById;
+          result.foundBy = 'objectId';
+          this.logger.debug(`[SessionLookup] Found session by ObjectId: ${identifier}`);
+          return result;
+        }
+      } catch (error) {
+        // Invalid ObjectId format or DB error, continue to lineAccountId search
+        this.logger.debug(`[SessionLookup] ObjectId lookup failed for ${identifier}: ${error.message}`);
+      }
+    }
+
+    // If not found by _id, try by lineAccountId field
+    const query: any = { lineAccountId: identifier };
+    if (requireActive) {
+      query.isActive = true;
+    }
+
+    const sessionByField = await this.lineSessionModel.findOne(query);
+    if (sessionByField) {
+      result.session = sessionByField;
+      result.foundBy = 'lineAccountId';
+      this.logger.debug(`[SessionLookup] Found session by lineAccountId field: ${identifier}`);
+      return result;
+    }
+
+    this.logger.warn(`[SessionLookup] Session not found for identifier: ${identifier} (tried both ObjectId and lineAccountId field)`);
+    return result;
+  }
+
+  /**
    * บันทึก keys ใหม่
    * - หา session ที่มีอยู่แล้ว update keys
    * - ถ้าไม่มี session ให้ throw error (ต้องสร้าง session ก่อน)
    * - บันทึก history
+   *
+   * [FIX Issue #1] Now uses unified session lookup to avoid ambiguity
    */
   async saveKeys(input: SaveKeysInput): Promise<LineSessionDocument> {
     const startTime = Date.now();
-    this.logger.log(`Saving keys for lineAccountId: ${input.lineAccountId}`);
+    this.logger.log(`[SaveKeys] Saving keys for identifier: ${input.lineAccountId}`);
 
     try {
-      // 1. Find existing session by lineAccountId (which is actually the session _id)
-      // The lineAccountId here could be either:
-      // - The actual LINE Account ID (for admin flow)
-      // - The Session ID (for user flow)
-      let session = await this.lineSessionModel.findById(input.lineAccountId);
-      
-      if (!session) {
-        // Try finding by lineAccountId field
-        session = await this.lineSessionModel.findOne({
-          lineAccountId: input.lineAccountId,
-          isActive: true,
-        });
+      // [FIX Issue #1] Use unified lookup helper to avoid ambiguity
+      const lookupResult = await this.findSessionByIdOrLineAccountId(input.lineAccountId, true);
+
+      if (!lookupResult.session) {
+        const errorMsg = `Session not found for ${input.lineAccountId}. Please create a session first.`;
+        this.logger.error(`[SaveKeys] ${errorMsg}`);
+        throw new Error(errorMsg);
       }
 
-      if (!session) {
-        throw new Error(`Session not found for ${input.lineAccountId}. Please create a session first.`);
-      }
+      const session = lookupResult.session;
+      this.logger.log(`[SaveKeys] Found session (by ${lookupResult.foundBy}): _id=${session._id}, lineAccountId=${session.lineAccountId || 'N/A'}`);
+
 
       // 2. Update existing session with new keys
       session.xLineAccess = input.xLineAccess;

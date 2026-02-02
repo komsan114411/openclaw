@@ -59,6 +59,9 @@ export class LineAutomationService implements OnModuleDestroy, OnModuleInit {
   private readonly LINE_EXTENSION_ID = 'ophjlpahpchlmihnnnihgmmeilfjmjjc';
   private readonly LOGIN_TIMEOUT = 120000; // 2 minutes
   private readonly PIN_TIMEOUT = 90000; // 90 seconds
+  private readonly BROWSER_LAUNCH_TIMEOUT = 30000; // [FIX Issue #4] 30 seconds timeout for browser launch
+  private readonly KEY_CAPTURE_TIMEOUT = 15000; // [FIX Issue #2] 15 seconds timeout for key capture
+  private readonly KEY_CAPTURE_RETRY_COUNT = 3; // [FIX Issue #2] Number of retries for key capture
 
   // Encryption key for passwords
   private readonly ENCRYPTION_KEY: string;
@@ -218,6 +221,7 @@ export class LineAutomationService implements OnModuleDestroy, OnModuleInit {
     }
 
     if (!session?.lineEmail || !session?.linePassword) {
+      this.logger.warn(`[GetCredentials] No credentials found for ${lineAccountId}`);
       return null;
     }
 
@@ -225,7 +229,19 @@ export class LineAutomationService implements OnModuleDestroy, OnModuleInit {
       const password = this.decryptPasswordValue(session.linePassword);
       return { email: session.lineEmail, password };
     } catch (error) {
-      this.logger.error(`Failed to decrypt password for ${lineAccountId}`);
+      // [FIX Issue #3] Better error handling - log detailed error and emit event
+      this.logger.error(`[GetCredentials] Failed to decrypt password for ${lineAccountId}: ${error.message}`);
+      this.logger.error(`[GetCredentials] This may indicate corrupted credentials. User should re-enter password.`);
+
+      // Emit event so frontend can notify user
+      this.eventBusService.publish({
+        eventName: 'line-session.credential-error' as any,
+        occurredAt: new Date(),
+        lineAccountId,
+        error: 'Password decryption failed. Please re-enter your LINE credentials.',
+      });
+
+      // Return null but with clear logging for debugging
       return null;
     }
   }
@@ -423,7 +439,20 @@ export class LineAutomationService implements OnModuleDestroy, OnModuleInit {
       this.logger.warn(`LINE extension not found at ${extensionPath} - login may not work correctly`);
     }
 
-    return this.puppeteer.launch(options);
+    // [FIX Issue #4] Add timeout to browser launch to prevent indefinite hang
+    const launchPromise = this.puppeteer.launch(options);
+    const timeoutPromise = new Promise<never>((_, reject) => {
+      setTimeout(() => {
+        reject(new Error(`Browser launch timed out after ${this.BROWSER_LAUNCH_TIMEOUT}ms`));
+      }, this.BROWSER_LAUNCH_TIMEOUT);
+    });
+
+    try {
+      return await Promise.race([launchPromise, timeoutPromise]);
+    } catch (error) {
+      this.logger.error(`[LaunchBrowser] Browser launch failed: ${error.message}`);
+      throw error;
+    }
   }
 
   /**
@@ -591,30 +620,99 @@ export class LineAutomationService implements OnModuleDestroy, OnModuleInit {
 
   /**
    * Capture keys by triggering requests
+   * [FIX Issue #2] Added retry logic and explicit success checking
    */
   private async captureKeys(page: Page, lineAccountId: string): Promise<{ xLineAccess: string; xHmac: string } | null> {
-    try {
-      // Navigate to chats to trigger API call
-      const currentUrl = page.url();
-      if (!currentUrl.includes('#/chats')) {
-        await page.goto(currentUrl.split('#')[0] + '#/chats', {
-          waitUntil: 'domcontentloaded',
-          timeout: 10000
-        });
-      }
+    this.logger.log(`[CaptureKeys] Starting key capture for ${lineAccountId}`);
 
-      // Click on first chat item to trigger messages fetch
-      await this.delay(3000);
-      await page.evaluate(() => {
-        const chatItems = document.querySelectorAll('[class*="chatItem"], [class*="listItem"]');
-        if (chatItems.length > 0) {
-          (chatItems[0] as HTMLElement).click();
+    for (let attempt = 1; attempt <= this.KEY_CAPTURE_RETRY_COUNT; attempt++) {
+      try {
+        this.logger.log(`[CaptureKeys] Attempt ${attempt}/${this.KEY_CAPTURE_RETRY_COUNT} for ${lineAccountId}`);
+
+        // Navigate to chats to trigger API call
+        const currentUrl = page.url();
+        if (!currentUrl.includes('#/chats')) {
+          this.logger.log(`[CaptureKeys] Navigating to chats...`);
+          await page.goto(currentUrl.split('#')[0] + '#/chats', {
+            waitUntil: 'domcontentloaded',
+            timeout: 10000
+          });
         }
-      });
 
-      await this.delay(5000);
+        await this.delay(2000);
 
-      // Get captured keys from session
+        // [FIX Issue #2] Check if chat items exist before clicking
+        const chatItemsExist = await page.evaluate(() => {
+          const chatItems = document.querySelectorAll('[class*="chatItem"], [class*="listItem"]');
+          return chatItems.length;
+        });
+
+        if (chatItemsExist === 0) {
+          this.logger.warn(`[CaptureKeys] No chat items found on attempt ${attempt}`);
+          // Try different selectors or wait more
+          await this.delay(2000);
+          continue;
+        }
+
+        this.logger.log(`[CaptureKeys] Found ${chatItemsExist} chat items, clicking first one...`);
+
+        // [FIX Issue #2] Click with explicit success check
+        const clickResult = await page.evaluate(() => {
+          const selectors = [
+            '[class*="chatItem"]',
+            '[class*="listItem"]',
+            '[class*="ChatListItem"]',
+            '[data-testid="chat-list-item"]',
+          ];
+
+          for (const selector of selectors) {
+            const chatItems = document.querySelectorAll(selector);
+            if (chatItems.length > 0) {
+              const firstItem = chatItems[0] as HTMLElement;
+              firstItem.click();
+              return { success: true, selector, count: chatItems.length };
+            }
+          }
+          return { success: false, selector: null, count: 0 };
+        });
+
+        if (!clickResult.success) {
+          this.logger.warn(`[CaptureKeys] Click failed on attempt ${attempt}`);
+          continue;
+        }
+
+        this.logger.log(`[CaptureKeys] Clicked chat item (${clickResult.selector}), waiting for keys...`);
+
+        // [FIX Issue #2] Wait for keys with timeout
+        const keysCaptured = await this.waitForKeysCapture(lineAccountId);
+
+        if (keysCaptured) {
+          this.logger.log(`[CaptureKeys] Keys captured successfully on attempt ${attempt}`);
+          return keysCaptured;
+        }
+
+        this.logger.warn(`[CaptureKeys] Keys not captured on attempt ${attempt}, retrying...`);
+        await this.delay(2000);
+
+      } catch (error) {
+        this.logger.error(`[CaptureKeys] Error on attempt ${attempt}: ${error.message}`);
+        if (attempt < this.KEY_CAPTURE_RETRY_COUNT) {
+          await this.delay(2000);
+        }
+      }
+    }
+
+    this.logger.error(`[CaptureKeys] Failed to capture keys after ${this.KEY_CAPTURE_RETRY_COUNT} attempts`);
+    return null;
+  }
+
+  /**
+   * [FIX Issue #2] Wait for keys to be captured with timeout
+   */
+  private async waitForKeysCapture(lineAccountId: string): Promise<{ xLineAccess: string; xHmac: string } | null> {
+    const startTime = Date.now();
+
+    while (Date.now() - startTime < this.KEY_CAPTURE_TIMEOUT) {
       const session = await this.keyStorageService.getActiveSession(lineAccountId);
       if (session?.xLineAccess && session?.xHmac) {
         return {
@@ -622,11 +720,10 @@ export class LineAutomationService implements OnModuleDestroy, OnModuleInit {
           xHmac: session.xHmac,
         };
       }
-
-      return null;
-    } catch {
-      return null;
+      await this.delay(1000);
     }
+
+    return null;
   }
 
   /**

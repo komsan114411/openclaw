@@ -410,6 +410,7 @@ export class LineSessionUserController {
         lineVersion: session.lineVersion,
         extractedAt: session.extractedAt,
         status: session.status,
+        cUrlBash: session.cUrlBash, // เพิ่ม cUrlBash สำหรับ copy
       },
     };
   }
@@ -699,6 +700,7 @@ export class LineSessionUserController {
         lineVersion: session.lineVersion,
         extractedAt: session.extractedAt,
         status: session.status,
+        cUrlBash: session.cUrlBash, // เพิ่ม cUrlBash สำหรับ copy
       },
     };
   }

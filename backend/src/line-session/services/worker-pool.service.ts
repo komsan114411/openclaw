@@ -48,6 +48,8 @@ export interface WorkerPoolConfig {
   recoveryDelayMs: number;
   idleTimeoutMs: number;
   userDataDir: string;
+  staleWorkerTimeoutMs: number; // [FIX Issue #5] TTL for workers
+  cleanupIntervalMs: number; // [FIX Issue #5] How often to run cleanup
 }
 
 /**
@@ -72,6 +74,9 @@ export class WorkerPoolService implements OnModuleDestroy, OnModuleInit {
   private readonly config: WorkerPoolConfig;
   private readonly LINE_EXTENSION_ID = 'ophjlpahpchlmihnnnihgmmeilfjmjjc';
 
+  // [FIX Issue #5] Cleanup interval reference
+  private cleanupInterval: NodeJS.Timeout | null = null;
+
   constructor(
     private configService: ConfigService,
     private eventEmitter: EventEmitter2,
@@ -83,11 +88,103 @@ export class WorkerPoolService implements OnModuleDestroy, OnModuleInit {
       idleTimeoutMs: 300000, // 5 minutes
       userDataDir: this.configService.get('PUPPETEER_USER_DATA_DIR') ||
         path.join(__dirname, '../../extensions/user_data'),
+      staleWorkerTimeoutMs: 600000, // [FIX Issue #5] 10 minutes - workers older than this without activity are considered stale
+      cleanupIntervalMs: 60000, // [FIX Issue #5] Run cleanup every 1 minute
     };
   }
 
   async onModuleInit() {
     await this.initializePuppeteer();
+
+    // [FIX Issue #5] Start periodic cleanup for stale workers
+    this.startPeriodicCleanup();
+  }
+
+  /**
+   * [FIX Issue #5] Start periodic cleanup to prevent memory leaks
+   */
+  private startPeriodicCleanup(): void {
+    this.cleanupInterval = setInterval(async () => {
+      try {
+        await this.cleanupStaleWorkers();
+        await this.cleanupIdleWorkers();
+      } catch (error) {
+        this.logger.error(`[PeriodicCleanup] Error during cleanup: ${error.message}`);
+      }
+    }, this.config.cleanupIntervalMs);
+
+    this.logger.log(`[WorkerPool] Started periodic cleanup (every ${this.config.cleanupIntervalMs / 1000}s)`);
+  }
+
+  /**
+   * [FIX Issue #5] Cleanup stale workers (crashed browsers, unresponsive workers)
+   */
+  private async cleanupStaleWorkers(): Promise<void> {
+    const now = Date.now();
+    const staleCandidates: string[] = [];
+
+    for (const [lineAccountId, worker] of this.workers) {
+      const timeSinceLastActivity = now - worker.lastActivityAt.getTime();
+
+      // Check if worker is stale (no activity for too long)
+      if (timeSinceLastActivity > this.config.staleWorkerTimeoutMs) {
+        // Additional check: is the browser still connected?
+        const isHealthy = await this.testBrowserHealth(worker);
+
+        if (!isHealthy) {
+          staleCandidates.push(lineAccountId);
+          this.logger.warn(`[StaleCleanup] Worker ${lineAccountId} is stale (${Math.round(timeSinceLastActivity / 1000)}s since last activity, browser unhealthy)`);
+        }
+      }
+
+      // Also check for workers in ERROR state that haven't been cleaned up
+      if (worker.state === WorkerState.ERROR || worker.state === WorkerState.CLOSED) {
+        const timeSinceError = now - worker.lastActivityAt.getTime();
+        if (timeSinceError > 60000) { // 1 minute grace period for ERROR state
+          staleCandidates.push(lineAccountId);
+          this.logger.warn(`[StaleCleanup] Worker ${lineAccountId} in ${worker.state} state for too long`);
+        }
+      }
+    }
+
+    // Clean up stale workers
+    for (const lineAccountId of staleCandidates) {
+      try {
+        await this.forceCloseWorker(lineAccountId);
+        this.logger.log(`[StaleCleanup] Cleaned up stale worker: ${lineAccountId}`);
+      } catch (error) {
+        this.logger.error(`[StaleCleanup] Failed to cleanup worker ${lineAccountId}: ${error.message}`);
+        // Force remove from map even if cleanup fails
+        this.workers.delete(lineAccountId);
+        this.releaseLock(lineAccountId);
+      }
+    }
+
+    if (staleCandidates.length > 0) {
+      this.logger.log(`[StaleCleanup] Cleaned up ${staleCandidates.length} stale workers`);
+    }
+  }
+
+  /**
+   * [FIX Issue #5] Force close worker - removes from map even if browser close fails
+   */
+  private async forceCloseWorker(lineAccountId: string): Promise<void> {
+    const worker = this.workers.get(lineAccountId);
+    if (!worker) return;
+
+    // Try to cleanup resources gracefully
+    try {
+      await this.cleanupWorkerResources(worker);
+    } catch (error) {
+      this.logger.warn(`[ForceClose] Resource cleanup failed for ${lineAccountId}: ${error.message}`);
+    }
+
+    // Always remove from map and release lock
+    worker.state = WorkerState.CLOSED;
+    this.workers.delete(lineAccountId);
+    this.releaseLock(lineAccountId);
+
+    this.logger.log(`[ForceClose] Worker forcefully closed: ${lineAccountId}`);
   }
 
   /**
@@ -402,23 +499,44 @@ export class WorkerPoolService implements OnModuleDestroy, OnModuleInit {
 
   /**
    * Handle browser disconnect (crash recovery)
+   * [FIX Issue #5] Improved to properly clean up worker entry on max retries
    */
   private async handleBrowserDisconnect(lineAccountId: string) {
     const worker = this.workers.get(lineAccountId);
     if (!worker) return;
 
-    this.logger.warn(`Browser disconnected for ${lineAccountId}`);
+    this.logger.warn(`[BrowserDisconnect] Browser disconnected for ${lineAccountId}`);
 
+    // [FIX Issue #5] If max recovery attempts reached, fully clean up the worker
     if (worker.recoveryAttempts >= this.config.maxRecoveryAttempts) {
+      this.logger.error(`[BrowserDisconnect] Max recovery attempts (${this.config.maxRecoveryAttempts}) reached for ${lineAccountId}, removing worker`);
       worker.state = WorkerState.ERROR;
-      worker.error = 'Max recovery attempts reached';
+      worker.error = 'Max recovery attempts reached - browser crashed';
+      worker.lastActivityAt = new Date(); // Update for cleanup tracking
       this.emitWorkerStateChanged(worker);
+
+      // [FIX Issue #5] Schedule delayed cleanup to allow error event to propagate
+      setTimeout(async () => {
+        try {
+          await this.forceCloseWorker(lineAccountId);
+          this.logger.log(`[BrowserDisconnect] Worker ${lineAccountId} cleaned up after max recovery attempts`);
+        } catch (error) {
+          this.logger.error(`[BrowserDisconnect] Failed to cleanup worker ${lineAccountId}: ${error.message}`);
+          // Force remove anyway
+          this.workers.delete(lineAccountId);
+          this.releaseLock(lineAccountId);
+        }
+      }, 5000); // 5 second delay to allow error handling
+
       return;
     }
 
     worker.state = WorkerState.RECOVERING;
     worker.recoveryAttempts++;
+    worker.lastActivityAt = new Date();
     this.emitWorkerStateChanged(worker);
+
+    this.logger.log(`[BrowserDisconnect] Attempting recovery ${worker.recoveryAttempts}/${this.config.maxRecoveryAttempts} for ${lineAccountId}`);
 
     await this.delay(this.config.recoveryDelayMs);
 
@@ -428,13 +546,19 @@ export class WorkerPoolService implements OnModuleDestroy, OnModuleInit {
 
       // Re-initialize
       await this.initializeWorker(lineAccountId, worker.email);
-      this.logger.log(`Worker recovered for ${lineAccountId} (attempt ${worker.recoveryAttempts})`);
+      this.logger.log(`[BrowserDisconnect] Worker recovered for ${lineAccountId} (attempt ${worker.recoveryAttempts})`);
 
     } catch (error: any) {
-      this.logger.error(`Recovery failed for ${lineAccountId}: ${error.message}`);
+      this.logger.error(`[BrowserDisconnect] Recovery failed for ${lineAccountId}: ${error.message}`);
       worker.state = WorkerState.ERROR;
       worker.error = error.message;
+      worker.lastActivityAt = new Date();
       this.emitWorkerStateChanged(worker);
+
+      // [FIX Issue #5] If recovery fails, schedule cleanup
+      setTimeout(async () => {
+        await this.forceCloseWorker(lineAccountId);
+      }, 10000); // 10 second delay before force cleanup
     }
   }
 
@@ -768,13 +892,27 @@ export class WorkerPoolService implements OnModuleDestroy, OnModuleInit {
 
   /**
    * Module destroy cleanup
+   * [FIX Issue #5] Also stops the cleanup interval
    */
   async onModuleDestroy(): Promise<void> {
+    // Stop periodic cleanup
+    if (this.cleanupInterval) {
+      clearInterval(this.cleanupInterval);
+      this.cleanupInterval = null;
+      this.logger.log('[WorkerPool] Stopped periodic cleanup');
+    }
+
+    // Close all workers
     for (const [lineAccountId] of this.workers) {
-      await this.closeWorker(lineAccountId);
+      try {
+        await this.closeWorker(lineAccountId);
+      } catch (error) {
+        this.logger.error(`[ModuleDestroy] Failed to close worker ${lineAccountId}: ${error.message}`);
+      }
     }
     this.workers.clear();
     this.locks.clear();
+    this.logger.log('[WorkerPool] All workers cleaned up');
   }
 
   /**

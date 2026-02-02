@@ -256,13 +256,25 @@ export class EnhancedAutomationService implements OnModuleDestroy {
     }
 
     if (!session?.lineEmail || !session?.linePassword) {
+      this.logger.warn(`[GetCredentials] No credentials found for ${lineAccountId}`);
       return null;
     }
 
     try {
       const password = this.decryptPasswordValue(session.linePassword);
       return { email: session.lineEmail, password };
-    } catch {
+    } catch (error: any) {
+      // [FIX Issue #3] Better error handling - log detailed error and emit event
+      this.logger.error(`[GetCredentials] Failed to decrypt password for ${lineAccountId}: ${error.message}`);
+      this.logger.error(`[GetCredentials] This may indicate corrupted credentials. User should re-enter password.`);
+
+      // Emit event so frontend can notify user
+      this.eventEmitter.emit('line-session.credential-error', {
+        lineAccountId,
+        error: 'Password decryption failed. Please re-enter your LINE credentials.',
+        timestamp: new Date(),
+      });
+
       return null;
     }
   }
@@ -616,12 +628,18 @@ export class EnhancedAutomationService implements OnModuleDestroy {
       throw new Error('Login verification failed or timed out');
 
     } catch (error: any) {
-      this.logger.error(`Background login failed for ${lineAccountId}: ${error.message}`);
+      this.logger.error(`[BackgroundLogin] Failed for ${lineAccountId}: ${error.message}`);
       this.loginCoordinatorService.markLoginFailed(lineAccountId, error.message);
       this.emitStatus(lineAccountId, EnhancedLoginStatus.FAILED, { requestId, error: error.message });
     } finally {
-      // Release lock
-      this.loginLockService.releaseLock(lineAccountId, 'enhanced');
+      // [FIX Issue #5] Release lock safely with try-catch
+      try {
+        this.loginLockService.releaseLock(lineAccountId, 'enhanced');
+        this.logger.debug(`[BackgroundLogin] Lock released for ${lineAccountId}`);
+      } catch (lockError: any) {
+        this.logger.error(`[BackgroundLogin] Failed to release lock for ${lineAccountId}: ${lockError.message}`);
+        // Lock will be auto-released by LoginLockService timeout
+      }
     }
   }
 

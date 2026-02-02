@@ -1380,11 +1380,14 @@ export default function AdminLineAccountsPage() {
 
         // Check if completed
         if (data.worker?.state === 'ready' && data.worker?.hasKeys) {
+          // Clear PIN display when login is successful
           setLoginStatus(prev => ({
             ...prev,
             isLoading: false,
             status: 'success',
             chatMid: data.worker?.hasChatMid ? 'captured' : undefined,
+            pinCode: undefined, // Clear PIN to close display
+            pinStatus: undefined, // Clear PIN status
           }));
           toast.success('Login successful - Keys captured');
           pinShownRef.current = null; // Reset for next login
@@ -1395,11 +1398,14 @@ export default function AdminLineAccountsPage() {
 
         // Check if failed
         if (data.worker?.state === 'error' || data.worker?.state === 'closed') {
+          // Clear PIN display when login fails
           setLoginStatus(prev => ({
             ...prev,
             isLoading: false,
             status: 'failed',
             error: data.worker?.error || 'Login failed',
+            pinCode: undefined, // Clear PIN to close display
+            pinStatus: undefined, // Clear PIN status
           }));
           pinShownRef.current = null; // Reset for next login
           return;
