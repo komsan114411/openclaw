@@ -1340,6 +1340,7 @@ export class SlipVerificationService {
       const needsEnrichment = !duplicateData.amountFormatted || !duplicateData.senderName;
 
       this.logger.log(`[DUPLICATE] transRef=${transRef}, needsEnrichment=${needsEnrichment}`);
+      this.logger.log(`[DUPLICATE] Context: lineUserId=${context?.lineUserId}, lineAccountId=${context?.lineAccountId}`);
 
       if (transRef && needsEnrichment) {
         // Method 1: Lookup by transRef
@@ -1381,6 +1382,8 @@ export class SlipVerificationService {
         } else {
           this.logger.warn(`[DUPLICATE] No recent slip found for user: ${context.lineUserId}`);
         }
+      } else {
+        this.logger.warn(`[DUPLICATE] Cannot enrich - conditions not met: transRef=${!!transRef}, needsEnrichment=${needsEnrichment}, hasLineUserId=${!!context?.lineUserId}, hasLineAccountId=${!!context?.lineAccountId}`);
       }
 
       // Check for custom template first
