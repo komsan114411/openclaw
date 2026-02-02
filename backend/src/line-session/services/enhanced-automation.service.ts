@@ -1621,12 +1621,33 @@ export class EnhancedAutomationService implements OnModuleDestroy {
   }
 
   /**
-   * Cancel login
+   * Cancel login - GSB-style: Keep browser open for reuse
+   * This allows faster re-login using the same browser session and profile
    */
   async cancelLogin(lineAccountId: string): Promise<void> {
     this.loginCoordinatorService.cancelRequest(lineAccountId);
+
+    // Clear active PIN tracking
+    this.pinStore.delete(lineAccountId);
+
+    // GSB-style: Soft cancel - keep browser open, just reset state
+    // This allows reusing the same browser for next login attempt
+    await this.workerPoolService.softCancelWorker(lineAccountId);
+
+    // Emit cancelled status
+    this.emitStatus(lineAccountId, EnhancedLoginStatus.FAILED, { error: 'Login cancelled by user' });
+
+    this.logger.log(`Login cancelled for ${lineAccountId} (browser kept open for reuse)`);
+  }
+
+  /**
+   * Force close browser - Use this when you want to completely close the browser
+   */
+  async forceCloseBrowser(lineAccountId: string): Promise<void> {
+    this.loginCoordinatorService.cancelRequest(lineAccountId);
+    this.pinStore.delete(lineAccountId);
     await this.workerPoolService.closeWorker(lineAccountId);
-    this.logger.log(`Login cancelled for ${lineAccountId}`);
+    this.logger.log(`Browser force-closed for ${lineAccountId}`);
   }
 
   /**

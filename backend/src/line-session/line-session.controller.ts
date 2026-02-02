@@ -983,15 +983,29 @@ export class LineSessionController {
   }
 
   /**
-   * Close worker for account
+   * Force close browser for account (completely closes browser)
+   * Use this when you want to fully reset the browser session
    */
   @Delete(':lineAccountId/worker')
-  @ApiOperation({ summary: 'Close worker/browser for account' })
+  @ApiOperation({ summary: 'Force close browser for account' })
   async closeWorker(@Param('lineAccountId') lineAccountId: string) {
-    await this.workerPoolService.closeWorker(lineAccountId);
+    await this.enhancedAutomationService.forceCloseBrowser(lineAccountId);
     return {
       success: true,
-      message: 'Worker closed',
+      message: 'Browser force-closed',
+    };
+  }
+
+  /**
+   * Soft cancel login (keeps browser open for reuse - GSB-style)
+   */
+  @Post(':lineAccountId/soft-cancel')
+  @ApiOperation({ summary: 'Soft cancel login - keeps browser open for reuse' })
+  async softCancelLogin(@Param('lineAccountId') lineAccountId: string) {
+    await this.enhancedAutomationService.cancelLogin(lineAccountId);
+    return {
+      success: true,
+      message: 'Login cancelled (browser kept open for reuse)',
     };
   }
 

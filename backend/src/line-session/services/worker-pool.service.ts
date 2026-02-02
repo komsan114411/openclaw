@@ -598,7 +598,7 @@ export class WorkerPoolService implements OnModuleDestroy, OnModuleInit {
   }
 
   /**
-   * Close worker
+   * Close worker (completely close browser)
    */
   async closeWorker(lineAccountId: string): Promise<void> {
     const worker = this.workers.get(lineAccountId);
@@ -610,6 +610,44 @@ export class WorkerPoolService implements OnModuleDestroy, OnModuleInit {
     this.releaseLock(lineAccountId);
 
     this.logger.log(`Worker closed for ${lineAccountId}`);
+  }
+
+  /**
+   * Soft cancel - GSB-style: Keep browser open, just reset state
+   * This allows reusing the same browser session for next login
+   */
+  async softCancelWorker(lineAccountId: string): Promise<void> {
+    const worker = this.workers.get(lineAccountId);
+    if (!worker) return;
+
+    // Clear login-specific state but keep browser open
+    worker.pinCode = undefined;
+    worker.capturedKeys = undefined;
+    worker.capturedChatMid = undefined;
+    worker.capturedCurl = undefined;
+    worker.error = undefined;
+    worker.state = WorkerState.READY; // Reset to ready for reuse
+    worker.lastActivityAt = new Date();
+
+    this.releaseLock(lineAccountId);
+    this.emitWorkerStateChanged(worker);
+
+    this.logger.log(`Worker soft-cancelled for ${lineAccountId} (browser kept open for reuse)`);
+  }
+
+  /**
+   * Check if worker exists and browser is still alive
+   */
+  hasActiveWorker(lineAccountId: string): boolean {
+    const worker = this.workers.get(lineAccountId);
+    if (!worker || !worker.browser) return false;
+
+    try {
+      // Check if browser is connected
+      return worker.browser.isConnected();
+    } catch {
+      return false;
+    }
   }
 
   /**
