@@ -81,12 +81,12 @@ export class LoginCoordinatorService {
 
   // Configuration
   private readonly config: CooldownConfig = {
-    errorCooldownMs: 2 * 60 * 1000,      // 2 minutes base cooldown
-    successCooldownMs: 30 * 1000,         // 30 seconds after success
+    errorCooldownMs: 60 * 1000,           // 1 minute base cooldown (reduced from 2 min)
+    successCooldownMs: 10 * 1000,         // 10 seconds after success (reduced from 30s)
     loginTimeoutMs: 5 * 60 * 1000,        // 5 minutes timeout
-    maxAutoRetryErrors: 3,                 // Max auto retries
-    backoffMultiplier: 2,                  // Exponential multiplier
-    maxBackoffMs: 30 * 60 * 1000,         // Max 30 minutes backoff
+    maxAutoRetryErrors: 5,                 // Max auto retries (increased from 3)
+    backoffMultiplier: 1.5,                // Exponential multiplier (reduced from 2)
+    maxBackoffMs: 10 * 60 * 1000,         // Max 10 minutes backoff (reduced from 30 min)
   };
 
   constructor(private eventEmitter: EventEmitter2) {

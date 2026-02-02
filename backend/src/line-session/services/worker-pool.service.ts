@@ -77,7 +77,7 @@ export class WorkerPoolService implements OnModuleDestroy, OnModuleInit {
     private eventEmitter: EventEmitter2,
   ) {
     this.config = {
-      maxWorkers: parseInt(this.configService.get('WORKER_POOL_MAX_WORKERS') || '5'),
+      maxWorkers: parseInt(this.configService.get('WORKER_POOL_MAX_WORKERS') || '10'),
       maxRecoveryAttempts: 3,
       recoveryDelayMs: 5000,
       idleTimeoutMs: 300000, // 5 minutes
