@@ -228,9 +228,24 @@ export default function AdminLineAccountsPage() {
     onLoginEvent: (event) => {
       if (event.type === 'login_completed') {
         toast.success('Login completed - Keys saved');
+        // Auto-refresh session data when login completes
+        if (selectedAccount) {
+          fetchSessionData(selectedAccount._id);
+          fetchBankData(selectedAccount._id);
+        }
       } else if (event.type === 'login_failed') {
         toast.error(event.error || 'Login failed');
       }
+    },
+    onKeysCaptured: (event) => {
+      console.log('[WebSocket] Keys captured event:', event);
+      toast.success('Keys captured! cURL command ready', { duration: 5000 });
+      // Auto-refresh session data when keys are captured
+      if (selectedAccount) {
+        fetchSessionData(selectedAccount._id);
+      }
+      // Switch to CURL tab to show the captured command
+      setSessionTab('curl');
     },
   });
 
@@ -1721,11 +1736,14 @@ export default function AdminLineAccountsPage() {
               <button
                 onClick={() => setSessionTab('curl')}
                 className={cn(
-                  "flex-1 py-3 px-4 rounded-xl text-xs font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2",
+                  "flex-1 py-3 px-4 rounded-xl text-xs font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 relative",
                   sessionTab === 'curl' ? "bg-white shadow-sm text-slate-900" : "text-slate-500 hover:text-slate-700"
                 )}
               >
                 <Terminal className="w-4 h-4" /> CURL
+                {sessionData.session?.hasKeys && (
+                  <span className="absolute -top-1 -right-1 w-3 h-3 bg-emerald-500 rounded-full animate-pulse" title="cURL Ready" />
+                )}
               </button>
               <button
                 onClick={() => setSessionTab('history')}
@@ -1890,6 +1908,40 @@ export default function AdminLineAccountsPage() {
                       )}>
                         {loginStatus.pinStatus?.recommendation || 'Please verify this PIN on your mobile LINE app'}
                       </p>
+
+                      {/* Cancel & Restart Button */}
+                      <div className="flex justify-center gap-3 mt-6">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={handleCancelLogin}
+                          className={cn(
+                            "px-6 py-2 rounded-xl font-bold",
+                            loginStatus.pinStatus?.status === 'FRESH' && "border-green-300 text-green-600 hover:bg-green-100",
+                            loginStatus.pinStatus?.status === 'NEW' && "border-amber-300 text-amber-600 hover:bg-amber-100",
+                            loginStatus.pinStatus?.status === 'OLD' && "border-red-300 text-red-600 hover:bg-red-100",
+                            !loginStatus.pinStatus && "border-amber-300 text-amber-600 hover:bg-amber-100"
+                          )}
+                        >
+                          <XCircle className="w-4 h-4 mr-2" /> Cancel
+                        </Button>
+                        {loginStatus.pinStatus?.status === 'OLD' && (
+                          <Button
+                            variant="primary"
+                            size="sm"
+                            onClick={() => {
+                              handleCancelLogin();
+                              // Restart login after short delay
+                              setTimeout(() => {
+                                handleStartLogin();
+                              }, 500);
+                            }}
+                            className="px-6 py-2 rounded-xl font-bold bg-blue-500 hover:bg-blue-600 text-white"
+                          >
+                            <RefreshCw className="w-4 h-4 mr-2" /> Restart Login
+                          </Button>
+                        )}
+                      </div>
                     </div>
                   </div>
                 )}
@@ -2150,8 +2202,77 @@ export default function AdminLineAccountsPage() {
             {/* CURL Tab */}
             {sessionTab === 'curl' && (
               <div className="space-y-6">
+                {/* Captured cURL Command Display */}
+                {sessionData.session && sessionData.session.hasKeys && (
+                  <div className="p-6 bg-gradient-to-br from-emerald-500 to-teal-600 text-white rounded-[2rem] relative overflow-hidden">
+                    <div className="absolute top-0 right-0 w-48 h-48 bg-white/10 rounded-full blur-[60px] -mr-24 -mt-24 pointer-events-none" />
+                    <div className="relative z-10">
+                      <div className="flex items-center justify-between mb-4">
+                        <div className="flex items-center gap-3">
+                          <div className="w-12 h-12 rounded-xl bg-white/20 flex items-center justify-center">
+                            <CheckCircle className="w-6 h-6 text-white" />
+                          </div>
+                          <div>
+                            <p className="text-[10px] font-black text-white/70 uppercase tracking-widest">cURL Command Ready</p>
+                            <p className="text-white font-bold">Captured from Auto-Login</p>
+                          </div>
+                        </div>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={handleCopyCurl}
+                          className="border-white/30 text-white hover:bg-white/10"
+                        >
+                          <Copy className="w-4 h-4 mr-2" /> Copy cURL
+                        </Button>
+                      </div>
+
+                      {/* Keys Info */}
+                      <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mt-4">
+                        <div className="bg-white/10 rounded-xl p-3">
+                          <p className="text-[9px] font-bold text-white/60 uppercase mb-1">X-Line-Access</p>
+                          <p className="font-mono text-xs text-white truncate">
+                            {sessionData.session.xLineAccess ? sessionData.session.xLineAccess.substring(0, 20) + '...' : 'N/A'}
+                          </p>
+                        </div>
+                        <div className="bg-white/10 rounded-xl p-3">
+                          <p className="text-[9px] font-bold text-white/60 uppercase mb-1">Chat MID</p>
+                          <p className="font-mono text-xs text-white truncate">
+                            {sessionData.session.chatMid || 'N/A'}
+                          </p>
+                        </div>
+                        <div className="bg-white/10 rounded-xl p-3">
+                          <p className="text-[9px] font-bold text-white/60 uppercase mb-1">Extracted At</p>
+                          <p className="text-xs text-white">
+                            {sessionData.session.extractedAt
+                              ? new Date(sessionData.session.extractedAt).toLocaleString('th-TH')
+                              : 'N/A'}
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* Copy Success Indicator */}
+                      <p className="text-[10px] text-white/60 mt-4 text-center">
+                        Click "Copy cURL" to copy the full command to clipboard
+                      </p>
+                    </div>
+                  </div>
+                )}
+
+                {/* No Keys Available Message */}
+                {(!sessionData.session || !sessionData.session.hasKeys) && (
+                  <div className="p-6 bg-amber-50 rounded-[2rem] border border-amber-200 text-center">
+                    <AlertCircle className="w-12 h-12 text-amber-400 mx-auto mb-3" />
+                    <p className="text-sm font-bold text-amber-700 mb-1">No cURL Command Available</p>
+                    <p className="text-xs text-amber-600">
+                      Use Auto-Login or paste a cURL command below to capture keys
+                    </p>
+                  </div>
+                )}
+
+                {/* Manual cURL Input */}
                 <div className="p-6 bg-slate-900 text-white rounded-[2rem]">
-                  <p className="text-[10px] font-black text-cyan-400 uppercase tracking-widest mb-4">Extract Keys from CURL</p>
+                  <p className="text-[10px] font-black text-cyan-400 uppercase tracking-widest mb-4">Extract Keys from CURL (Manual)</p>
                   <p className="text-xs text-white/60 mb-4">
                     วาง CURL command จาก Browser DevTools (Network tab) ที่มี X-Line-Access header
                   </p>
@@ -2161,7 +2282,7 @@ export default function AdminLineAccountsPage() {
   -H 'X-Hmac: abc123...'`}
                     value={sessionKeyForm.curlCommand}
                     onChange={(e) => setSessionKeyForm(prev => ({ ...prev, curlCommand: e.target.value }))}
-                    rows={8}
+                    rows={6}
                     className="font-mono text-sm bg-white/5 border-white/10 text-white rounded-xl"
                   />
                   <Button

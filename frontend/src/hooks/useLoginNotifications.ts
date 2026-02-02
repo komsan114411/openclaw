@@ -39,6 +39,28 @@ export interface LoginEvent {
   nextRetryIn?: number;
   requestId?: string;
   timestamp: string;
+  // Keys info from login_completed event
+  keysInfo?: {
+    hasKeys: boolean;
+    chatMid?: string;
+    extractedAt?: string;
+    hasCurl: boolean;
+    status?: string;
+  };
+}
+
+export interface KeysCapturedEvent {
+  type: 'keys_captured';
+  lineAccountId: string;
+  message: string;
+  keys: {
+    xLineAccess: string;
+    xHmac?: string;
+    chatMid?: string;
+    extractedAt?: string;
+  };
+  hasCurl: boolean;
+  timestamp: string;
 }
 
 export interface WorkerStateEvent {
@@ -57,6 +79,7 @@ interface UseLoginNotificationsOptions {
   onStatusChange?: (event: LoginStatusEvent) => void;
   onLoginEvent?: (event: LoginEvent) => void;
   onWorkerState?: (event: WorkerStateEvent) => void;
+  onKeysCaptured?: (event: KeysCapturedEvent) => void;
   showToasts?: boolean;
   autoConnect?: boolean;
 }
@@ -74,6 +97,7 @@ export function useLoginNotifications(options: UseLoginNotificationsOptions = {}
     onStatusChange,
     onLoginEvent,
     onWorkerState,
+    onKeysCaptured,
     showToasts = true,
     autoConnect = true,
   } = options;
@@ -90,6 +114,7 @@ export function useLoginNotifications(options: UseLoginNotificationsOptions = {}
   const onStatusChangeRef = useRef(onStatusChange);
   const onLoginEventRef = useRef(onLoginEvent);
   const onWorkerStateRef = useRef(onWorkerState);
+  const onKeysCapturedRef = useRef(onKeysCaptured);
   const lineAccountIdRef = useRef(lineAccountId);
 
   // Keep refs updated
@@ -104,6 +129,10 @@ export function useLoginNotifications(options: UseLoginNotificationsOptions = {}
   useEffect(() => {
     onWorkerStateRef.current = onWorkerState;
   }, [onWorkerState]);
+
+  useEffect(() => {
+    onKeysCapturedRef.current = onKeysCaptured;
+  }, [onKeysCaptured]);
 
   useEffect(() => {
     const prevAccountId = lineAccountIdRef.current;
@@ -293,10 +322,32 @@ export function useLoginNotifications(options: UseLoginNotificationsOptions = {}
       onWorkerStateRef.current?.(data);
     });
 
+    // Handle keys captured event (for auto-refresh)
+    socket.on('line-session:keys-captured', (data: KeysCapturedEvent) => {
+      console.log('[LoginNotifications] Keys captured:', data);
+
+      // Filter by lineAccountId if specified
+      const currentAccountId = lineAccountIdRef.current;
+      if (currentAccountId && data.lineAccountId !== currentAccountId) {
+        return;
+      }
+
+      if (showToasts) {
+        toast.success('Keys captured! cURL command พร้อมใช้งาน', {
+          icon: '🔑',
+          duration: 5000,
+        });
+      }
+
+      // Call callback via ref (stable reference)
+      onKeysCapturedRef.current?.(data);
+    });
+
     return () => {
       socket.off('line-session:login-status');
       socket.off('line-session:login-event');
       socket.off('line-session:worker-state');
+      socket.off('line-session:keys-captured');
       socket.disconnect();
     };
   }, [autoConnect, showToasts]);

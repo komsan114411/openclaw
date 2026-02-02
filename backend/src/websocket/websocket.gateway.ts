@@ -66,11 +66,28 @@ export class WebsocketGateway implements OnGatewayConnection, OnGatewayDisconnec
   server: Server;
 
   private readonly logger = new Logger(WebsocketGateway.name);
+  // Throttle "adapter not ready" warnings - only log once per 60 seconds
+  private lastAdapterWarningTime = 0;
+  private readonly ADAPTER_WARNING_THROTTLE_MS = 60000;
 
   constructor(
     private websocketService: WebsocketService,
     private authService: AuthService,
   ) { }
+
+  /**
+   * Check if there are any connected clients
+   */
+  hasConnectedClients(): boolean {
+    return this.websocketService.getConnectedClients() > 0;
+  }
+
+  /**
+   * Get count of connected clients
+   */
+  getConnectedClientCount(): number {
+    return this.websocketService.getConnectedClients();
+  }
 
   async handleConnection(client: Socket) {
     this.logger.log(`Client connected: ${client.id}`);
@@ -187,11 +204,17 @@ export class WebsocketGateway implements OnGatewayConnection, OnGatewayDisconnec
 
     // Check if sockets adapter is available
     if (!this.server.sockets?.adapter?.rooms) {
-      this.logger.warn(`[Broadcast] Sockets adapter not ready, broadcasting anyway to room ${room}`);
+      // Throttle adapter warnings to reduce log spam
+      const now = Date.now();
+      if (now - this.lastAdapterWarningTime > this.ADAPTER_WARNING_THROTTLE_MS) {
+        this.logger.warn(`[Broadcast] Sockets adapter not ready (throttled: 60s)`);
+        this.lastAdapterWarningTime = now;
+      }
       // Still try to broadcast - the room might exist
       this.server.to(room).emit(event, data);
+      // Only log PIN broadcasts (important events)
       if (data?.pinCode) {
-        this.logger.log(`[Broadcast] PIN ${data.pinCode} sent to room ${room} (adapter not ready)`);
+        this.logger.log(`[Broadcast] PIN ${data.pinCode} sent to room ${room}`);
       }
       return;
     }
@@ -199,7 +222,11 @@ export class WebsocketGateway implements OnGatewayConnection, OnGatewayDisconnec
     // Get room member count for debugging
     const roomSockets = this.server.sockets.adapter.rooms.get(room);
     const memberCount = roomSockets ? roomSockets.size : 0;
-    this.logger.log(`[Broadcast] Room "${room}" has ${memberCount} members. Event: ${event}`);
+
+    // Only log if there are members or if it's an important event (PIN)
+    if (memberCount > 0 || data?.pinCode) {
+      this.logger.log(`[Broadcast] Room "${room}" has ${memberCount} members. Event: ${event}`);
+    }
     if (data?.pinCode) {
       this.logger.log(`[Broadcast] PIN ${data.pinCode} being sent to room ${room}`);
     }
@@ -222,14 +249,23 @@ export class WebsocketGateway implements OnGatewayConnection, OnGatewayDisconnec
 
     // Check if sockets adapter is available
     if (!this.server.sockets?.adapter?.rooms) {
-      this.logger.warn('[Broadcast] Sockets adapter not ready, broadcasting anyway to admins');
+      // Throttle adapter warnings to reduce log spam
+      const now = Date.now();
+      if (now - this.lastAdapterWarningTime > this.ADAPTER_WARNING_THROTTLE_MS) {
+        this.logger.warn(`[Broadcast] Sockets adapter not ready (throttled: 60s)`);
+        this.lastAdapterWarningTime = now;
+      }
       this.server.to('admins').emit(event, data);
       return;
     }
 
     const roomSockets = this.server.sockets.adapter.rooms.get('admins');
     const memberCount = roomSockets ? roomSockets.size : 0;
-    this.logger.log(`[Broadcast] Admins room has ${memberCount} members. Event: ${event}`);
+
+    // Only log when there are admins connected (reduce spam)
+    if (memberCount > 0) {
+      this.logger.log(`[Broadcast] Admins: ${memberCount} connected. Event: ${event}`);
+    }
     this.server.to('admins').emit(event, data);
   }
 
