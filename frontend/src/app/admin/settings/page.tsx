@@ -193,16 +193,20 @@ export default function SettingsPage() {
     slipProviderFailoverOrder: ['thunder'] as string[],
     hasThunderApiKey: false,
     hasSlipMateApiKey: false,
+    hasSlip2GoApiKey: false,
     slipApiQuotaWarning: true,
     globalSlipVerificationEnabled: true,
   });
   const [slipApiKeyThunder, setSlipApiKeyThunder] = useState('');
   const [slipApiKeySlipMate, setSlipApiKeySlipMate] = useState('');
+  const [slipApiKeySlip2Go, setSlipApiKeySlip2Go] = useState('');
   const [testingThunder, setTestingThunder] = useState(false);
   const [testingSlipMate, setTestingSlipMate] = useState(false);
+  const [testingSlip2Go, setTestingSlip2Go] = useState(false);
   const [providerStatus, setProviderStatus] = useState<{
     thunder?: { success: boolean; message: string; remainingQuota?: number; expiresAt?: string };
     slipmate?: { success: boolean; message: string; remainingQuota?: number; expiresAt?: string };
+    slip2go?: { success: boolean; message: string; remainingQuota?: number; expiresAt?: string };
   }>({});
   const [loadingProviderStatus, setLoadingProviderStatus] = useState(false);
 
@@ -325,6 +329,7 @@ export default function SettingsPage() {
         slipProviderFailoverOrder: data.slipProviderFailoverOrder || ['thunder'],
         hasThunderApiKey: data.hasThunderApiKey ?? false,
         hasSlipMateApiKey: data.hasSlipMateApiKey ?? false,
+        hasSlip2GoApiKey: data.hasSlip2GoApiKey ?? false,
         slipApiQuotaWarning: data.slipApiQuotaWarning ?? true,
         globalSlipVerificationEnabled: data.globalSlipVerificationEnabled ?? true,
       });
@@ -341,7 +346,7 @@ export default function SettingsPage() {
       const providers = response.data.providers || [];
       const statusMap: typeof providerStatus = {};
       providers.forEach((p: any) => {
-        statusMap[p.provider as 'thunder' | 'slipmate'] = {
+        statusMap[p.provider as 'thunder' | 'slipmate' | 'slip2go'] = {
           success: p.success,
           message: p.message,
           remainingQuota: p.remainingQuota,
@@ -357,8 +362,8 @@ export default function SettingsPage() {
   }, []);
 
   // Test specific slip provider
-  const handleTestSlipProvider = async (provider: 'thunder' | 'slipmate') => {
-    const setTesting = provider === 'thunder' ? setTestingThunder : setTestingSlipMate;
+  const handleTestSlipProvider = async (provider: 'thunder' | 'slipmate' | 'slip2go') => {
+    const setTesting = provider === 'thunder' ? setTestingThunder : provider === 'slipmate' ? setTestingSlipMate : setTestingSlip2Go;
     setTesting(true);
     try {
       const response = await systemSettingsApi.testSlipProvider(provider);
@@ -373,9 +378,9 @@ export default function SettingsPage() {
         },
       }));
       if (result.success) {
-        toast.success(`${provider === 'thunder' ? 'Thunder' : 'SlipMate'}: ${result.message} (เหลือ ${result.remainingQuota} quota)`);
+        toast.success(`${provider === 'thunder' ? 'Thunder' : provider === 'slipmate' ? 'SlipMate' : 'Slip2Go'}: ${result.message} (เหลือ ${result.remainingQuota} quota)`);
       } else {
-        toast.error(`${provider === 'thunder' ? 'Thunder' : 'SlipMate'}: ${result.message}`);
+        toast.error(`${provider === 'thunder' ? 'Thunder' : provider === 'slipmate' ? 'SlipMate' : 'Slip2Go'}: ${result.message}`);
       }
     } catch (error) {
       toast.error(`ไม่สามารถทดสอบ ${provider} ได้`);
@@ -385,7 +390,7 @@ export default function SettingsPage() {
   };
 
   // Save slip provider settings
-  const handleSaveSlipProviderSettings = async (updates: Partial<typeof slipProviderSettings & { slipApiKeyThunder?: string; slipApiKeySlipMate?: string }>) => {
+  const handleSaveSlipProviderSettings = async (updates: Partial<typeof slipProviderSettings & { slipApiKeyThunder?: string; slipApiKeySlipMate?: string; slipApiKeySlip2Go?: string }>) => {
     setIsSaving('slip_provider');
     try {
       await systemSettingsApi.updateSlipProviderSettings(updates);
@@ -1218,44 +1223,118 @@ export default function SettingsPage() {
                         </Button>
                       </div>
                     </div>
+
+                    {/* Slip2Go Provider */}
+                    <div className={cn(
+                      "p-5 rounded-2xl border transition-all",
+                      slipProviderSettings.slipApiProvider === 'slip2go'
+                        ? "bg-emerald-500/10 border-emerald-500/30 ring-2 ring-emerald-500/20"
+                        : "bg-white/[0.02] border-white/10"
+                    )}>
+                      <div className="flex items-center gap-4">
+                        {/* Radio Button */}
+                        <button
+                          onClick={() => {
+                            setSlipProviderSettings(prev => ({ ...prev, slipApiProvider: 'slip2go' }));
+                            handleSaveSlipProviderSettings({ slipApiProvider: 'slip2go' });
+                          }}
+                          className={cn(
+                            "w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all flex-shrink-0",
+                            slipProviderSettings.slipApiProvider === 'slip2go'
+                              ? "border-emerald-500 bg-emerald-500"
+                              : "border-slate-500"
+                          )}
+                        >
+                          {slipProviderSettings.slipApiProvider === 'slip2go' && (
+                            <div className="w-2 h-2 rounded-full bg-white" />
+                          )}
+                        </button>
+
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2">
+                            <span className="text-xl">🚀</span>
+                            <span className="font-black text-white">Slip2Go API</span>
+                            {slipProviderSettings.hasSlip2GoApiKey && (
+                              <Badge variant="emerald" size="sm" className="text-[8px]">✓</Badge>
+                            )}
+                          </div>
+                          <p className="text-[10px] text-slate-500">slip2go.com</p>
+                        </div>
+
+                        {/* Status */}
+                        {providerStatus.slip2go?.remainingQuota !== undefined && (
+                          <div className="text-right">
+                            <div className="text-sm font-bold text-emerald-400">{providerStatus.slip2go.remainingQuota.toLocaleString()}</div>
+                            <div className="text-[10px] text-slate-500">quota</div>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* API Key Input */}
+                      <div className="mt-4 flex gap-3">
+                        <Input
+                          type="password"
+                          placeholder="ใส่ Slip2Go API Key..."
+                          value={slipApiKeySlip2Go}
+                          onChange={(e) => setSlipApiKeySlip2Go(e.target.value)}
+                          className="h-11 rounded-xl bg-white/[0.03] border-white/10 text-white font-mono flex-1"
+                        />
+                        <Button
+                          variant="primary"
+                          size="sm"
+                          className="rounded-xl px-4 font-black text-[10px]"
+                          onClick={() => {
+                            handleSaveSlipProviderSettings({ slipApiKeySlip2Go: slipApiKeySlip2Go });
+                            setSlipApiKeySlip2Go('');
+                          }}
+                          isLoading={isSaving === 'slip_provider'}
+                          disabled={!slipApiKeySlip2Go}
+                        >
+                          บันทึก
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="rounded-xl px-4 font-black text-[10px] border border-white/10"
+                          onClick={() => handleTestSlipProvider('slip2go')}
+                          isLoading={testingSlip2Go}
+                        >
+                          ทดสอบ
+                        </Button>
+                      </div>
+                    </div>
                   </div>
 
-                  {/* Auto-Failover Section - Simple Toggle */}
+                  {/* Auto-Failover Section - Info */}
                   <div className="mt-6 p-4 rounded-2xl bg-white/[0.02] border border-white/10">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <span className="text-lg">🔄</span>
-                        <div>
-                          <div className="font-bold text-white text-sm">สลับอัตโนมัติ (Auto-Failover)</div>
-                          <div className="text-[10px] text-slate-500">หาก Provider หลัก quota หมด จะสลับไปใช้ตัวสำรองอัตโนมัติ</div>
-                        </div>
+                    <div className="flex items-center gap-3">
+                      <span className="text-lg">🔄</span>
+                      <div>
+                        <div className="font-bold text-white text-sm">Smart Auto-Failover</div>
+                        <div className="text-[10px] text-slate-500">ระบบจะสลับไปใช้ Provider อื่นอัตโนมัติเมื่อ Provider หลักมีปัญหา (โควต้าหมด, ระบบล่ม, ไม่รองรับสลิปประเภทนั้น)</div>
                       </div>
-                      <Switch
-                        checked={slipProviderSettings.slipApiFallbackEnabled}
-                        onChange={(checked) => {
-                          const secondary = slipProviderSettings.slipApiProvider === 'thunder' ? 'slipmate' : 'thunder';
-                          setSlipProviderSettings(prev => ({
-                            ...prev,
-                            slipApiFallbackEnabled: checked,
-                            slipApiProviderSecondary: checked ? secondary : '',
-                          }));
-                          handleSaveSlipProviderSettings({
-                            slipApiFallbackEnabled: checked,
-                            slipApiProviderSecondary: checked ? secondary : '',
-                            slipProviderFailoverOrder: checked
-                              ? [slipProviderSettings.slipApiProvider, secondary]
-                              : [slipProviderSettings.slipApiProvider],
-                          });
-                        }}
-                      />
                     </div>
-                    {slipProviderSettings.slipApiFallbackEnabled && (
-                      <div className="mt-3 pt-3 border-t border-white/10 text-xs text-slate-400">
-                        ลำดับการใช้งาน: <span className="text-white font-bold">{slipProviderSettings.slipApiProvider === 'thunder' ? 'Thunder' : 'SlipMate'}</span>
-                        {' → '}
-                        <span className="text-slate-300">{slipProviderSettings.slipApiProvider === 'thunder' ? 'SlipMate' : 'Thunder'}</span>
+                    <div className="mt-3 pt-3 border-t border-white/10 text-xs text-slate-400">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span>ลำดับการใช้งาน:</span>
+                        <span className="text-white font-bold">
+                          {slipProviderSettings.slipApiProvider === 'thunder' ? 'Thunder' : 
+                           slipProviderSettings.slipApiProvider === 'slipmate' ? 'SlipMate' : 'Slip2Go'}
+                        </span>
+                        {(slipProviderSettings.hasThunderApiKey || slipProviderSettings.hasSlipMateApiKey || slipProviderSettings.hasSlip2GoApiKey) && (
+                          <>
+                            <span>→</span>
+                            <span className="text-slate-300">
+                              {[
+                                slipProviderSettings.hasThunderApiKey && slipProviderSettings.slipApiProvider !== 'thunder' && 'Thunder',
+                                slipProviderSettings.hasSlipMateApiKey && slipProviderSettings.slipApiProvider !== 'slipmate' && 'SlipMate',
+                                slipProviderSettings.hasSlip2GoApiKey && slipProviderSettings.slipApiProvider !== 'slip2go' && 'Slip2Go',
+                              ].filter(Boolean).join(' → ') || 'ไม่มี Provider สำรอง'}
+                            </span>
+                          </>
+                        )}
                       </div>
-                    )}
+                    </div>
                   </div>
 
                   {/* Refresh Status Button */}

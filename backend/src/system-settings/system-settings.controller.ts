@@ -563,6 +563,7 @@ export class SystemSettingsController {
         // API key status (masked - ไม่แสดง key จริง)
         hasThunderApiKey: !!(settings?.slipApiKey || settings?.slipApiKeyThunder),
         hasSlipMateApiKey: !!(settings?.slipApiKeySecondary || settings?.slipApiKeySlipMate),
+        hasSlip2GoApiKey: !!settings?.slipApiKeySlip2Go,
         // Quota warning settings
         slipApiQuotaWarning: settings?.slipApiQuotaWarning ?? true,
         // Global slip verification enabled
@@ -587,6 +588,7 @@ export class SystemSettingsController {
       slipApiKeySecondary?: string;
       slipApiKeyThunder?: string;
       slipApiKeySlipMate?: string;
+      slipApiKeySlip2Go?: string;
       slipApiQuotaWarning?: boolean;
       globalSlipVerificationEnabled?: boolean;
     },
