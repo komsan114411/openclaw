@@ -118,6 +118,8 @@ export default function AdminLineAccountsPage() {
   });
   // Track if PIN has been shown to avoid duplicate alerts
   const pinShownRef = useRef<string | null>(null);
+  // Track if polling should be cancelled
+  const pollingCancelledRef = useRef<boolean>(false);
   const [loginStatus, setLoginStatus] = useState<{
     status: string;
     pinCode?: string;
@@ -960,7 +962,22 @@ export default function AdminLineAccountsPage() {
 
       // Extract PIN from response (if present)
       const pinCodeValue = data.pinCode || data.pin || data.pin_code || null;
+      console.log('[handleStartLogin] Response data:', JSON.stringify(data));
       console.log('[handleStartLogin] Response PIN:', pinCodeValue);
+
+      // IMPORTANT: Set PIN first if available, before other state updates
+      if (pinCodeValue) {
+        console.log('[handleStartLogin] *** PIN FROM HTTP ***:', pinCodeValue);
+        // Set PIN immediately (before other state updates)
+        setLoginStatus(prev => ({
+          ...prev,
+          pinCode: pinCodeValue,
+          status: 'pin_displayed',
+          isLoading: true, // Keep loading true while waiting for verification
+        }));
+        // Show toast notification
+        toast.success(`PIN: ${pinCodeValue} - Enter on LINE app`, { duration: 120000 });
+      }
 
       // Update state with response
       setLoginStatus(prev => ({
@@ -973,13 +990,6 @@ export default function AdminLineAccountsPage() {
         sessionReused: data.sessionReused,
         isLoading: !data.success && data.status !== 'failed',
       }));
-
-      // Handle PIN from HTTP response
-      if (pinCodeValue) {
-        console.log('[handleStartLogin] *** PIN FROM HTTP ***:', pinCodeValue);
-        alert(`PIN Code: ${pinCodeValue}\n\nกรุณากรอก PIN นี้ในแอป LINE บนมือถือของคุณ`);
-        toast.success(`PIN: ${pinCodeValue}`, { duration: 60000 });
-      }
 
       // Handle success
       if (data.success) {
@@ -1012,7 +1022,16 @@ export default function AdminLineAccountsPage() {
     const maxAttempts = 90; // 3 minutes (2 sec intervals)
     let attempts = 0;
 
+    // Reset cancellation flag when starting new poll
+    pollingCancelledRef.current = false;
+
     const poll = async () => {
+      // Check if polling was cancelled
+      if (pollingCancelledRef.current) {
+        console.log('[pollLoginStatus] Polling cancelled, stopping');
+        return;
+      }
+
       if (attempts >= maxAttempts) {
         setLoginStatus(prev => ({
           ...prev,
@@ -1093,12 +1112,16 @@ export default function AdminLineAccountsPage() {
           return;
         }
 
-        // Continue polling
-        setTimeout(poll, 2000);
+        // Continue polling if not cancelled
+        if (!pollingCancelledRef.current) {
+          setTimeout(poll, 2000);
+        }
       } catch (err) {
         console.log('[pollLoginStatus] Poll error, continuing...', err);
-        // Continue polling on error
-        setTimeout(poll, 2000);
+        // Continue polling on error if not cancelled
+        if (!pollingCancelledRef.current) {
+          setTimeout(poll, 2000);
+        }
       }
     };
 
@@ -1108,30 +1131,43 @@ export default function AdminLineAccountsPage() {
   const handleCancelLogin = async () => {
     if (!selectedAccount) return;
 
+    console.log('[handleCancelLogin] Cancelling login for:', selectedAccount._id);
+
+    // Cancel polling FIRST
+    pollingCancelledRef.current = true;
+    pinShownRef.current = null;
+
+    // Clear local state IMMEDIATELY (before API call)
+    // This ensures UI is responsive even if API is slow
+    loginNotifications.clearState();
+    setLoginStatus({
+      status: 'idle',
+      pinCode: undefined,
+      error: undefined,
+      isLoading: false,
+      requestId: undefined,
+      chatMid: undefined,
+      sessionReused: false,
+      cooldownRemainingMs: undefined,
+      workerState: undefined,
+      pinStatus: undefined,
+    });
+
     try {
-      // Use enhanced cancel API
+      // Call cancel API (don't block on it)
       await lineSessionApi.cancelEnhancedLogin(selectedAccount._id);
-
-      // Clear all PIN state in WebSocket hook
-      loginNotifications.clearState();
-
-      // Clear local login status
-      setLoginStatus({
-        status: 'idle',
-        pinCode: undefined,
-        error: undefined,
-        isLoading: false,
-        requestId: undefined,
-        chatMid: undefined,
-        sessionReused: false,
-        cooldownRemainingMs: undefined,
-        workerState: undefined,
-        pinStatus: undefined,
-      });
-      toast('Login cancelled');
+      console.log('[handleCancelLogin] Cancel API success');
+      toast('Login cancelled - you can start again');
     } catch (error: any) {
-      toast.error(error.response?.data?.message || 'Failed to cancel login');
+      // Even if API fails, we've already cleared local state
+      console.warn('[handleCancelLogin] Cancel API failed:', error.message);
+      // Don't show error toast - user can still retry
     }
+
+    // Reset polling cancelled flag after a short delay (to allow new login to start)
+    setTimeout(() => {
+      pollingCancelledRef.current = false;
+    }, 500);
   };
 
   const handleResetCooldown = async () => {
@@ -1978,7 +2014,7 @@ export default function AdminLineAccountsPage() {
                         {loginStatus.pinStatus?.recommendation || 'Please verify this PIN on your mobile LINE app'}
                       </p>
 
-                      {/* Cancel & Restart Button */}
+                      {/* Cancel & Restart Button - Always visible */}
                       <div className="flex justify-center gap-3 mt-6">
                         <Button
                           variant="outline"
@@ -1994,22 +2030,21 @@ export default function AdminLineAccountsPage() {
                         >
                           <XCircle className="w-4 h-4 mr-2" /> Cancel
                         </Button>
-                        {loginStatus.pinStatus?.status === 'OLD' && (
-                          <Button
-                            variant="primary"
-                            size="sm"
-                            onClick={() => {
-                              handleCancelLogin();
-                              // Restart login after short delay
-                              setTimeout(() => {
-                                handleStartLogin();
-                              }, 500);
-                            }}
-                            className="px-6 py-2 rounded-xl font-bold bg-blue-500 hover:bg-blue-600 text-white"
-                          >
-                            <RefreshCw className="w-4 h-4 mr-2" /> Restart Login
-                          </Button>
-                        )}
+                        <Button
+                          variant="primary"
+                          size="sm"
+                          onClick={async () => {
+                            // Cancel first
+                            await handleCancelLogin();
+                            // Restart login after short delay
+                            setTimeout(() => {
+                              handleStartLogin();
+                            }, 300);
+                          }}
+                          className="px-6 py-2 rounded-xl font-bold bg-blue-500 hover:bg-blue-600 text-white"
+                        >
+                          <RefreshCw className="w-4 h-4 mr-2" /> Restart
+                        </Button>
                       </div>
                     </div>
                   </div>
