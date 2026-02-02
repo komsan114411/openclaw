@@ -210,6 +210,15 @@ export default function AdminLineAccountsPage() {
       // Update login status from WebSocket event
       const isNewPin = event.pinCode && event.pinCode !== pinShownRef.current;
 
+      // Determine if login is in progress (for showing status)
+      const inProgressStatuses = [
+        'requesting', 'initializing', 'launching_browser', 'loading_extension',
+        'checking_session', 'entering_credentials', 'waiting_pin', 'pin_displayed',
+        'verifying', 'extracting_keys', 'triggering_messages'
+      ];
+      const isInProgress = inProgressStatuses.includes(event.status);
+      const isCompleted = ['success', 'failed', 'idle'].includes(event.status);
+
       setLoginStatus(prev => {
         // Create pinStatus with countdown if new PIN received
         let newPinStatus = prev.pinStatus;
@@ -233,6 +242,8 @@ export default function AdminLineAccountsPage() {
           error: event.error,
           workerState: event.status,
           pinStatus: newPinStatus,
+          // CRITICAL: Update isLoading based on status
+          isLoading: isInProgress,
         };
         console.log('[WebSocket] Updating loginStatus:', newState);
         return newState;
@@ -245,21 +256,15 @@ export default function AdminLineAccountsPage() {
         toast.success(`PIN: ${event.pinCode} (5 min)`, { duration: PIN_EXPIRY_SECONDS * 1000 });
       }
 
-      // Handle success/failure
+      // Handle success - show toast and refresh data
       if (event.status === 'success') {
-        setLoginStatus(prev => ({ ...prev, isLoading: false }));
-        toast.success('Login successful - Keys captured');
+        toast.success('เข้าสู่ระบบสำเร็จ - Keys ถูกบันทึกแล้ว', { icon: '✅', duration: 5000 });
         if (selectedAccount) {
           fetchSessionData(selectedAccount._id);
           fetchBankData(selectedAccount._id);
         }
       } else if (event.status === 'failed') {
-        setLoginStatus(prev => ({
-          ...prev,
-          isLoading: false,
-          error: event.error || 'Login failed',
-        }));
-        toast.error(event.error || 'Login failed');
+        toast.error(event.error || 'เข้าสู่ระบบล้มเหลว', { icon: '❌', duration: 5000 });
       }
     },
     onLoginEvent: (event) => {
@@ -2506,6 +2511,18 @@ export default function AdminLineAccountsPage() {
                     </div>
                   </div>
                 )}
+
+                {/* WebSocket Connection Status */}
+                <div className={`p-2 rounded-lg border flex items-center gap-2 text-xs ${
+                  loginNotifications.isConnected
+                    ? 'bg-green-50 border-green-200 text-green-700'
+                    : 'bg-red-50 border-red-200 text-red-700'
+                }`}>
+                  <div className={`w-2 h-2 rounded-full ${
+                    loginNotifications.isConnected ? 'bg-green-500 animate-pulse' : 'bg-red-500'
+                  }`} />
+                  {loginNotifications.isConnected ? 'Real-time เชื่อมต่อแล้ว' : 'Real-time ไม่ได้เชื่อมต่อ'}
+                </div>
 
                 {/* Error Display */}
                 {loginStatus.error && loginStatus.status !== 'cooldown' && (
