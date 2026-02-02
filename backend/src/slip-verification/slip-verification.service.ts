@@ -108,6 +108,31 @@ export class SlipVerificationService {
   }
 
   /**
+   * Get recent slip from slip_history by lineUserId and lineAccountId
+   * Used when transRef is not available (e.g., Slip2Go duplicate without data)
+   */
+  async getRecentSlipByUser(lineUserId: string, lineAccountId: string): Promise<SlipHistoryDocument | null> {
+    if (!lineUserId || !lineAccountId) return null;
+
+    try {
+      // Get the most recent successful slip from this user in the last 24 hours
+      const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+
+      const recentSlip = await this.slipHistoryModel.findOne({
+        lineUserId,
+        lineAccountId,
+        status: 'success',
+        createdAt: { $gte: oneDayAgo },
+      }).sort({ createdAt: -1 }).lean().exec();
+
+      return recentSlip as SlipHistoryDocument | null;
+    } catch (error) {
+      this.logger.warn(`Failed to get recent slip by user: ${lineUserId}`, error);
+      return null;
+    }
+  }
+
+  /**
    * Build slip data from SlipHistory document for template rendering
    */
   buildSlipDataFromHistory(slip: SlipHistoryDocument): Record<string, any> {
@@ -1002,7 +1027,7 @@ export class SlipVerificationService {
    */
   async formatSlipResponseWithConfig(
     result: SlipVerificationResult,
-    context?: { account?: any; quotaRemaining?: number }
+    context?: { account?: any; quotaRemaining?: number; lineUserId?: string; lineAccountId?: string }
   ): Promise<any> {
     this.logger.log(`[SLIP RESPONSE] formatSlipResponseWithConfig called: status=${result.status}, message=${result.message}, hasData=${!!result.data}`);
 
@@ -1317,6 +1342,7 @@ export class SlipVerificationService {
       this.logger.log(`[DUPLICATE] transRef=${transRef}, needsEnrichment=${needsEnrichment}`);
 
       if (transRef && needsEnrichment) {
+        // Method 1: Lookup by transRef
         this.logger.log(`[DUPLICATE] Looking for original slip data with transRef: ${transRef}`);
         const originalSlip = await this.getOriginalSlipByTransRef(transRef);
         if (originalSlip) {
@@ -1335,6 +1361,25 @@ export class SlipVerificationService {
           this.logger.log(`[DUPLICATE] Enriched data: amountFormatted=${duplicateData.amountFormatted}, senderName=${duplicateData.senderName}`);
         } else {
           this.logger.warn(`[DUPLICATE] No original slip found in slip_history for transRef: ${transRef}`);
+        }
+      } else if (!transRef && needsEnrichment && context?.lineUserId && context?.lineAccountId) {
+        // Method 2: Fallback - Lookup by user (Slip2Go duplicate doesn't return transRef)
+        this.logger.log(`[DUPLICATE] No transRef, trying to get recent slip by user: ${context.lineUserId}`);
+        const recentSlip = await this.getRecentSlipByUser(context.lineUserId, context.lineAccountId);
+        if (recentSlip) {
+          this.logger.log(`[DUPLICATE] Found recent slip for user: amount=${recentSlip.amount}, sender=${recentSlip.senderName}, transRef=${recentSlip.transRef}`);
+          const historyData = this.buildSlipDataFromHistory(recentSlip);
+          duplicateData = {
+            ...historyData,
+            ...duplicateData, // Keep any data from API response
+            amountFormatted: duplicateData.amountFormatted || historyData.amountFormatted,
+            senderName: duplicateData.senderName || historyData.senderName,
+            receiverName: duplicateData.receiverName || historyData.receiverName,
+            isDuplicate: true,
+          };
+          this.logger.log(`[DUPLICATE] Enriched from user history: amountFormatted=${duplicateData.amountFormatted}, senderName=${duplicateData.senderName}`);
+        } else {
+          this.logger.warn(`[DUPLICATE] No recent slip found for user: ${context.lineUserId}`);
         }
       }
 
