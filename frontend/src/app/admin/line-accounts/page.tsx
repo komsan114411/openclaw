@@ -14,6 +14,7 @@ import { Modal, ConfirmModal } from '@/components/ui/Modal';
 import { PageLoading, Spinner } from '@/components/ui/Loading';
 import { Input, Select, Textarea, Switch } from '@/components/ui/Input';
 import { cn } from '@/lib/utils';
+import { PIN_EXPIRY_SECONDS } from '@/constants/login';
 import {
   Bot,
   FileCheck,
@@ -207,7 +208,6 @@ export default function AdminLineAccountsPage() {
       });
 
       // Update login status from WebSocket event
-      const PIN_EXPIRY_SECONDS = 180;
       const isNewPin = event.pinCode && event.pinCode !== pinShownRef.current;
 
       setLoginStatus(prev => {
@@ -242,7 +242,7 @@ export default function AdminLineAccountsPage() {
       if (isNewPin) {
         console.log('[WebSocket] PIN RECEIVED via WebSocket:', event.pinCode);
         pinShownRef.current = event.pinCode!;
-        toast.success(`PIN: ${event.pinCode} (3 min)`, { duration: 120000 });
+        toast.success(`PIN: ${event.pinCode} (5 min)`, { duration: PIN_EXPIRY_SECONDS * 1000 });
       }
 
       // Handle success/failure
@@ -302,8 +302,6 @@ export default function AdminLineAccountsPage() {
       lastStatusStatus: lastStatus?.status,
     });
 
-    const PIN_EXPIRY_SECONDS = 180;
-
     // Update PIN from WebSocket if available
     if (loginNotifications.pinCode && loginNotifications.pinCode !== loginStatus.pinCode) {
       // Only accept PIN if it belongs to the current account
@@ -358,6 +356,34 @@ export default function AdminLineAccountsPage() {
       }
     }
   }, [loginNotifications.pinCode, loginNotifications.pinAccountId, loginNotifications.lastStatus, loginStatus.pinCode, selectedAccount?._id]);
+
+  // Sync server-side PIN countdown from WebSocket to local state
+  // This keeps the countdown synchronized with server time
+  useEffect(() => {
+    if (loginNotifications.pinExpiresIn !== null && loginNotifications.pinStatus) {
+      setLoginStatus(prev => {
+        // Only update if we have a PIN and the account matches
+        if (prev.pinCode && loginNotifications.pinAccountId === selectedAccount?._id) {
+          return {
+            ...prev,
+            pinStatus: {
+              status: loginNotifications.pinStatus || prev.pinStatus?.status || 'FRESH',
+              ageMinutes: Math.floor((PIN_EXPIRY_SECONDS - (loginNotifications.pinExpiresIn || 0)) / 60),
+              ageSeconds: PIN_EXPIRY_SECONDS - (loginNotifications.pinExpiresIn || 0),
+              expiresIn: loginNotifications.pinExpiresIn || 0,
+              isFresh: loginNotifications.pinStatus === 'FRESH',
+              isNew: loginNotifications.pinStatus === 'NEW' || loginNotifications.pinStatus === 'FRESH',
+              isUsable: loginNotifications.pinExpiresIn ? loginNotifications.pinExpiresIn > 0 : false,
+              recommendation: loginNotifications.pinExpiresIn && loginNotifications.pinExpiresIn > 0
+                ? `เหลือเวลา ${Math.floor(loginNotifications.pinExpiresIn / 60)}:${(loginNotifications.pinExpiresIn % 60).toString().padStart(2, '0')}`
+                : 'PIN หมดอายุ',
+            },
+          };
+        }
+        return prev;
+      });
+    }
+  }, [loginNotifications.pinExpiresIn, loginNotifications.pinStatus, loginNotifications.pinAccountId, selectedAccount?._id]);
 
   // CRITICAL: Reset login state when selected account changes
   // This prevents PIN from showing for wrong account when switching between accounts
@@ -1202,8 +1228,7 @@ export default function AdminLineAccountsPage() {
       // IMPORTANT: Set PIN first if available, before other state updates
       if (pinCodeValue) {
         console.log('[handleStartLogin] *** PIN FROM HTTP ***:', pinCodeValue);
-        // Set PIN immediately with countdown timer (3 minutes = 180 seconds)
-        const PIN_EXPIRY_SECONDS = 180;
+        // Set PIN immediately with countdown timer (5 minutes = 300 seconds, matches backend)
         setLoginStatus(prev => ({
           ...prev,
           pinCode: pinCodeValue,
@@ -1221,7 +1246,7 @@ export default function AdminLineAccountsPage() {
           },
         }));
         // Show toast notification
-        toast.success(`PIN: ${pinCodeValue} - Enter on LINE app (3 min)`, { duration: 120000 });
+        toast.success(`PIN: ${pinCodeValue} - Enter on LINE app (5 min)`, { duration: PIN_EXPIRY_SECONDS * 1000 });
       }
 
       // Update state with response
@@ -1264,7 +1289,7 @@ export default function AdminLineAccountsPage() {
 
   // Poll login status for PIN verification
   const pollLoginStatus = async (lineAccountId: string) => {
-    const maxAttempts = 90; // 3 minutes (2 sec intervals)
+    const maxAttempts = 150; // 5 minutes (2 sec intervals) - matches PIN_EXPIRY_SECONDS
     let attempts = 0;
 
     // Reset cancellation flag when starting new poll
@@ -1312,7 +1337,6 @@ export default function AdminLineAccountsPage() {
         });
 
         // Update status with GSB-style PIN tracking
-        const PIN_EXPIRY_SECONDS = 180;
         const isNewPin = foundPin && foundPin !== pinShownRef.current;
 
         setLoginStatus(prev => {
@@ -1346,7 +1370,7 @@ export default function AdminLineAccountsPage() {
         if (isNewPin) {
           console.log('[pollLoginStatus] *** PIN FOUND ***:', foundPin);
           pinShownRef.current = foundPin;
-          toast.success(`PIN: ${foundPin} (3 min)`, { duration: 60000 });
+          toast.success(`PIN: ${foundPin} (5 min)`, { duration: PIN_EXPIRY_SECONDS * 1000 });
         }
 
         // Check if completed

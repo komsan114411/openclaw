@@ -93,6 +93,9 @@ interface LoginNotificationState {
   pinAccountId: string | null;
   pinRequestId: string | null;
   pinReceivedAt: Date | null;
+  // Server-synced PIN countdown
+  pinExpiresIn: number | null;
+  pinStatus: 'FRESH' | 'NEW' | 'OLD' | 'NO_PIN' | null;
 }
 
 export function useLoginNotifications(options: UseLoginNotificationsOptions = {}) {
@@ -115,6 +118,8 @@ export function useLoginNotifications(options: UseLoginNotificationsOptions = {}
     pinAccountId: null,
     pinRequestId: null,
     pinReceivedAt: null,
+    pinExpiresIn: null,
+    pinStatus: null,
   });
 
   // Use refs for callbacks and lineAccountId to avoid reconnecting on every render
@@ -166,6 +171,8 @@ export function useLoginNotifications(options: UseLoginNotificationsOptions = {}
           pinAccountId: null,
           pinRequestId: null,
           pinReceivedAt: null,
+          pinExpiresIn: null,
+          pinStatus: null,
           lastStatus: null,
           lastEvent: null,
         }));
@@ -437,11 +444,75 @@ export function useLoginNotifications(options: UseLoginNotificationsOptions = {}
       onKeysCapturedRef.current?.(data);
     });
 
+    // Handle PIN countdown sync from server
+    socket.on('line-session:pin-countdown', (data: {
+      lineAccountId: string;
+      pinCode: string;
+      expiresIn: number;
+      status: 'FRESH' | 'NEW' | 'OLD';
+      ageSeconds: number;
+      isUsable: boolean;
+      timestamp: string;
+    }) => {
+      // Filter by lineAccountId if specified
+      const currentAccountId = lineAccountIdRef.current;
+      if (currentAccountId && data.lineAccountId !== currentAccountId) {
+        return;
+      }
+
+      console.log('[LoginNotifications] PIN countdown update:', data);
+
+      // Update state with server-synced countdown
+      setState(prev => ({
+        ...prev,
+        pinCode: data.pinCode,
+        pinAccountId: data.lineAccountId,
+        pinExpiresIn: data.expiresIn,
+        pinStatus: data.status,
+      }));
+    });
+
+    // Handle PIN expired event
+    socket.on('line-session:pin-expired', (data: {
+      lineAccountId: string;
+      reason: string;
+      timestamp: string;
+    }) => {
+      // Filter by lineAccountId if specified
+      const currentAccountId = lineAccountIdRef.current;
+      if (currentAccountId && data.lineAccountId !== currentAccountId) {
+        return;
+      }
+
+      console.log('[LoginNotifications] PIN expired:', data);
+
+      // Clear PIN state
+      setState(prev => ({
+        ...prev,
+        pinCode: null,
+        pinAccountId: null,
+        pinRequestId: null,
+        pinReceivedAt: null,
+        pinExpiresIn: null,
+        pinStatus: 'NO_PIN',
+      }));
+
+      // Show toast notification
+      if (showToasts) {
+        toast.error('PIN หมดอายุ - กรุณาล็อกอินใหม่', {
+          icon: '⏰',
+          duration: 5000,
+        });
+      }
+    });
+
     return () => {
       socket.off('line-session:login-status');
       socket.off('line-session:login-event');
       socket.off('line-session:worker-state');
       socket.off('line-session:keys-captured');
+      socket.off('line-session:pin-countdown');
+      socket.off('line-session:pin-expired');
       socket.off('connect');
       socket.off('disconnect');
       socket.off('reconnect');
@@ -475,6 +546,8 @@ export function useLoginNotifications(options: UseLoginNotificationsOptions = {}
       pinAccountId: null,
       pinRequestId: null,
       pinReceivedAt: null,
+      pinExpiresIn: null,
+      pinStatus: null,
     });
   }, [state.isConnected]);
 

@@ -76,6 +76,7 @@ export class OrchestratorService implements OnModuleInit, OnModuleDestroy {
   private reloginCheckInterval: NodeJS.Timeout | null = null;
   private statusBroadcastInterval: NodeJS.Timeout | null = null;
   private cleanupInterval: NodeJS.Timeout | null = null;
+  private pinCountdownInterval: NodeJS.Timeout | null = null;
 
   // State
   private isRunning = false;
@@ -229,6 +230,13 @@ export class OrchestratorService implements OnModuleInit, OnModuleDestroy {
     }, cleanupMs);
     this.logger.log('Cleanup loop started (every 1 minute)');
 
+    // PIN Countdown Broadcast Loop - Every 10 seconds for real-time PIN countdown sync
+    const pinCountdownMs = 10000; // 10 seconds
+    this.pinCountdownInterval = setInterval(() => {
+      this.broadcastPinCountdowns();
+    }, pinCountdownMs);
+    this.logger.log('PIN countdown broadcast loop started (every 10 seconds)');
+
     this.isRunning = true;
 
     // Perform initial checks
@@ -262,6 +270,10 @@ export class OrchestratorService implements OnModuleInit, OnModuleDestroy {
       clearInterval(this.cleanupInterval);
       this.cleanupInterval = null;
     }
+    if (this.pinCountdownInterval) {
+      clearInterval(this.pinCountdownInterval);
+      this.pinCountdownInterval = null;
+    }
     this.isRunning = false;
     this.logger.log('All loops stopped');
   }
@@ -276,6 +288,15 @@ export class OrchestratorService implements OnModuleInit, OnModuleDestroy {
       if (result.cleaned > 0) {
         this.logger.log(`[Cleanup] Cleaned up ${result.cleaned} expired login(s)`);
 
+        // Emit PIN expired events for each cleaned up login
+        for (const detail of result.details) {
+          this.eventEmitter.emit('session.pin_expired', {
+            lineAccountId: detail.lineAccountId,
+            reason: detail.reason,
+            timestamp: new Date(),
+          });
+        }
+
         // Broadcast cleanup event
         this.eventEmitter.emit('orchestrator.cleanup', {
           type: 'cleanup',
@@ -286,6 +307,31 @@ export class OrchestratorService implements OnModuleInit, OnModuleDestroy {
       }
     } catch (error: any) {
       this.logger.error(`[Cleanup] Error during cleanup: ${error.message}`);
+    }
+  }
+
+  /**
+   * Broadcast PIN countdown updates for all active PINs
+   * This keeps frontend countdown synchronized with server time
+   */
+  private broadcastPinCountdowns(): void {
+    try {
+      const activePins = this.enhancedAutomationService.getAllActivePins();
+
+      for (const { lineAccountId, status } of activePins) {
+        // Emit PIN countdown event
+        this.eventEmitter.emit('session.pin_countdown', {
+          lineAccountId,
+          pinCode: status.pinCode,
+          expiresIn: status.expiresIn,
+          status: status.status, // FRESH/NEW/OLD
+          ageSeconds: status.ageSeconds,
+          isUsable: status.isUsable,
+          timestamp: new Date(),
+        });
+      }
+    } catch (error: any) {
+      // Silent fail for countdown broadcast
     }
   }
 

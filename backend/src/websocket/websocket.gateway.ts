@@ -372,4 +372,39 @@ export class WebsocketGateway implements OnGatewayConnection, OnGatewayDisconnec
     this.logger.log(`[Orchestrator] Keys extracted for ${payload.name}`);
     this.broadcastToAdmins('orchestrator:keys_extracted', payload);
   }
+
+  /**
+   * Broadcast PIN countdown update to specific account room
+   * This keeps frontend countdown synchronized with server time
+   */
+  @OnEvent('session.pin_countdown')
+  handleSessionPinCountdown(payload: {
+    lineAccountId: string;
+    pinCode: string;
+    expiresIn: number;
+    status: string;
+    ageSeconds: number;
+    isUsable: boolean;
+    timestamp: Date;
+  }) {
+    // Broadcast to the specific account room for real-time countdown sync
+    this.broadcastToRoom(`line-account:${payload.lineAccountId}`, 'line-session:pin-countdown', payload);
+  }
+
+  /**
+   * Broadcast when a PIN has expired
+   * Frontend should clear the PIN and show notification
+   */
+  @OnEvent('session.pin_expired')
+  handleSessionPinExpired(payload: {
+    lineAccountId: string;
+    reason: string;
+    timestamp: Date;
+  }) {
+    this.logger.warn(`[Orchestrator] PIN expired for ${payload.lineAccountId}: ${payload.reason}`);
+    // Broadcast to the specific account room
+    this.broadcastToRoom(`line-account:${payload.lineAccountId}`, 'line-session:pin-expired', payload);
+    // Also broadcast to admins
+    this.broadcastToAdmins('orchestrator:pin_expired', payload);
+  }
 }
