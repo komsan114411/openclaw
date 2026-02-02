@@ -415,16 +415,20 @@ export class Slip2GoProvider implements SlipVerificationProvider {
     const proxyType = (account.proxy?.type || '').toUpperCase();
     const bankId = bank.id || '';
     const bankName = (bank.name || '').toLowerCase();
+    const accountName = (account.name || '').toLowerCase();
 
-    this.logger.debug(`[SLIP2GO] detectPaymentType: proxyType=${proxyType}, bankId=${bankId}, bankName=${bankName}`);
+    this.logger.debug(`[SLIP2GO] detectPaymentType: proxyType=${proxyType}, bankId=${bankId}, bankName=${bankName}, accountName=${accountName}`);
 
-    // TrueMoney Wallet detection
+    // TrueMoney Wallet detection - check bank name AND account name
     if (
       proxyType === 'EWALLTID' ||
       proxyType === 'EWALLETID' ||
       bankName.includes('truemoney') ||
-      bankName.includes('ทรูมันนี่')
+      bankName.includes('ทรูมันนี่') ||
+      accountName.includes('truemoney') ||
+      accountName.includes('ทรูมันนี่')
     ) {
+      this.logger.log(`[SLIP2GO] Detected TrueMoney Wallet from: proxyType=${proxyType}, bankName=${bankName}, accountName=${accountName}`);
       return { bankName: 'ทรูมันนี่ วอลเล็ท', bankCode: 'TRUEMONEY' };
     }
 
