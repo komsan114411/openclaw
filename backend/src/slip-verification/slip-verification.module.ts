@@ -11,6 +11,7 @@ import { BanksModule } from '../banks/banks.module';
 // Multi-Provider System
 import { ThunderProvider } from './providers/thunder.provider';
 import { SlipMateProvider } from './providers/slipmate.provider';
+import { Slip2GoProvider } from './providers/slip2go.provider';
 import { SlipVerificationManager } from './slip-verification.manager';
 
 @Module({
@@ -28,6 +29,7 @@ import { SlipVerificationManager } from './slip-verification.manager';
     // Slip Verification Providers
     ThunderProvider,
     SlipMateProvider,
+    Slip2GoProvider,
 
     // Manager (Auto-Failover)
     SlipVerificationManager,
@@ -41,6 +43,7 @@ import { SlipVerificationManager } from './slip-verification.manager';
     SlipVerificationManager,
     ThunderProvider,
     SlipMateProvider,
+    Slip2GoProvider,
   ],
 })
 export class SlipVerificationModule {}

@@ -3,6 +3,11 @@
  *
  * จัดการการตรวจสอบสลิปจากหลาย Provider พร้อม Auto-Failover
  * ออกแบบให้ผู้ใช้ไม่รู้สึกถึงการสลับ Provider
+ *
+ * Supported Providers:
+ * - Thunder (api.thunder.in.th)
+ * - SlipMate (api.slipmate.ai)
+ * - Slip2Go (connect.slip2go.com) - NEW
  */
 
 import { Injectable, Logger } from '@nestjs/common';
@@ -15,6 +20,7 @@ import {
 } from './providers';
 import { ThunderProvider } from './providers/thunder.provider';
 import { SlipMateProvider } from './providers/slipmate.provider';
+import { Slip2GoProvider } from './providers/slip2go.provider';
 
 export interface VerificationContext {
   lineAccountId?: string;
@@ -41,10 +47,12 @@ export class SlipVerificationManager {
     private readonly systemSettingsService: SystemSettingsService,
     private readonly thunderProvider: ThunderProvider,
     private readonly slipMateProvider: SlipMateProvider,
+    private readonly slip2GoProvider: Slip2GoProvider,
   ) {
     // Register all providers
     this.providers.set(SlipProvider.THUNDER, this.thunderProvider);
     this.providers.set(SlipProvider.SLIPMATE, this.slipMateProvider);
+    this.providers.set(SlipProvider.SLIP2GO, this.slip2GoProvider);
   }
 
   // Track last verification stats (for monitoring)
@@ -67,7 +75,7 @@ export class SlipVerificationManager {
 
     // Log settings for debugging
     this.logger.log(`[MANAGER] Settings: provider=${settings?.slipApiProvider}, failback=${settings?.slipApiFallbackEnabled}, secondary=${settings?.slipApiProviderSecondary}`);
-    this.logger.log(`[MANAGER] API Keys: thunder=${settings?.slipApiKeyThunder ? 'SET' : 'NONE'}, slipmate=${settings?.slipApiKeySlipMate ? 'SET' : 'NONE'}, slipApiKey=${settings?.slipApiKey ? 'SET' : 'NONE'}`);
+    this.logger.log(`[MANAGER] API Keys: thunder=${settings?.slipApiKeyThunder ? 'SET' : 'NONE'}, slipmate=${settings?.slipApiKeySlipMate ? 'SET' : 'NONE'}, slip2go=${settings?.slipApiKeySlip2Go ? 'SET' : 'NONE'}, slipApiKey=${settings?.slipApiKey ? 'SET' : 'NONE'}`);
 
     // Get failover order from settings
     const failoverOrder = this.getFailoverOrder(settings);
@@ -140,7 +148,7 @@ export class SlipVerificationManager {
 
         if (error instanceof ProviderUnavailableError) {
           // Log as WARN for quota/auth issues so admin can see
-          const isQuotaOrAuth = ['Insufficient credits', 'Invalid API key', 'Forbidden'].includes(error.reason);
+          const isQuotaOrAuth = ['Insufficient credits', 'Invalid API key', 'Forbidden', 'Insufficient quota', 'Package expired'].includes(error.reason);
           if (isQuotaOrAuth) {
             this.logger.warn(`[MANAGER] ⚠️ ${providerName} UNAVAILABLE: ${error.reason} - กรุณาตรวจสอบโควต้าหรือ API Key`);
           } else {
@@ -313,6 +321,7 @@ export class SlipVerificationManager {
    * - ถ้า provider หนึ่งหมดโควต้า/หมดอายุ จะ failover ไปอีก provider อัตโนมัติ
    * - ถ้า primary เป็น SlipMate → Thunder รองรับ TrueMoney Wallet
    * - ถ้า primary เป็น Thunder และหมดโควต้า → SlipMate รองรับสลิปธนาคาร
+   * - Slip2Go รองรับสลิปธนาคารผ่าน QR-Code
    */
   private getFailoverOrder(settings: any): SlipProvider[] {
     const order: SlipProvider[] = [];
@@ -327,8 +336,10 @@ export class SlipVerificationManager {
     // เพื่อรองรับกรณี:
     // 1. SlipMate ไม่รองรับ TrueMoney Wallet → failover to Thunder
     // 2. Thunder หมดโควต้า/หมดอายุ → failover to SlipMate (สำหรับสลิปธนาคาร)
+    // 3. Slip2Go รองรับสลิปธนาคารผ่าน QR-Code
     const thunderApiKey = settings.slipApiKeyThunder || settings.slipApiKey;
     const slipmateApiKey = settings.slipApiKeySlipMate || settings.slipApiKeySecondary;
+    const slip2goApiKey = settings.slipApiKeySlip2Go;
 
     // เพิ่ม Thunder ถ้ายังไม่มีและมี API key
     if (thunderApiKey && !order.includes(SlipProvider.THUNDER)) {
@@ -340,6 +351,12 @@ export class SlipVerificationManager {
     if (slipmateApiKey && !order.includes(SlipProvider.SLIPMATE)) {
       order.push(SlipProvider.SLIPMATE);
       this.logger.debug('[MANAGER] Added SlipMate as fallback');
+    }
+
+    // เพิ่ม Slip2Go ถ้ายังไม่มีและมี API key
+    if (slip2goApiKey && !order.includes(SlipProvider.SLIP2GO)) {
+      order.push(SlipProvider.SLIP2GO);
+      this.logger.debug('[MANAGER] Added Slip2Go as fallback');
     }
 
     // Default: at least Thunder
@@ -367,6 +384,11 @@ export class SlipVerificationManager {
       case SlipProvider.SLIPMATE:
         // ใช้ slipApiKeySlipMate ก่อน แล้วค่อย fallback ไป slipApiKeySecondary (เก่า)
         apiKey = settings.slipApiKeySlipMate || settings.slipApiKeySecondary || null;
+        break;
+
+      case SlipProvider.SLIP2GO:
+        // ใช้ slipApiKeySlip2Go
+        apiKey = settings.slipApiKeySlip2Go || null;
         break;
 
       default:

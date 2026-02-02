@@ -7,3 +7,4 @@
 export * from './slip-provider.interface';
 export * from './thunder.provider';
 export * from './slipmate.provider';
+export * from './slip2go.provider';

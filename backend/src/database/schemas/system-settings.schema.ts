@@ -63,6 +63,9 @@ export class SystemSettings {
   @Prop()
   slipApiKeySlipMate: string;
 
+  @Prop()
+  slipApiKeySlip2Go: string;
+
   // AI Settings
   @Prop()
   aiApiKey: string;

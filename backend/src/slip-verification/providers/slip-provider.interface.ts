@@ -8,6 +8,7 @@
 export enum SlipProvider {
   THUNDER = 'thunder',
   SLIPMATE = 'slipmate',
+  SLIP2GO = 'slip2go',
 }
 
 /**
