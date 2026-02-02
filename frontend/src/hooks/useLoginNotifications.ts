@@ -220,9 +220,33 @@ export function useLoginNotifications(options: UseLoginNotificationsOptions = {}
       // This ensures PIN isolation - only receive events for the account being viewed
       const currentAccountId = lineAccountIdRef.current;
       if (currentAccountId) {
-        console.log('[LoginNotifications] Subscribing to account:', currentAccountId);
+        console.log('[LoginNotifications] Subscribing to account on connect:', currentAccountId);
+        socket.emit('subscribe', { channel: `line-account:${currentAccountId}` });
+      } else {
+        console.log('[LoginNotifications] No account selected on connect - will subscribe when account is selected');
+      }
+    });
+
+    // Handle reconnection
+    socket.on('reconnect', () => {
+      console.log('[LoginNotifications] Reconnected:', socket.id);
+      setState(prev => ({ ...prev, isConnected: true }));
+
+      // Re-join admin room
+      socket.emit('join', { userId: 'admin', role: 'admin' });
+
+      // Re-subscribe to account channel if selected
+      const currentAccountId = lineAccountIdRef.current;
+      if (currentAccountId) {
+        console.log('[LoginNotifications] Re-subscribing to account after reconnect:', currentAccountId);
         socket.emit('subscribe', { channel: `line-account:${currentAccountId}` });
       }
+    });
+
+    // Handle connection error
+    socket.on('connect_error', (error) => {
+      console.error('[LoginNotifications] Connection error:', error.message);
+      setState(prev => ({ ...prev, isConnected: false }));
     });
 
     socket.on('disconnect', () => {
@@ -241,15 +265,24 @@ export function useLoginNotifications(options: UseLoginNotificationsOptions = {}
         currentAccountId,
         status: data.status,
         hasPinCode: !!data.pinCode,
+        pinCode: data.pinCode,
+        rawData: data,
       });
 
-      // Strict filtering: only accept events for the account we're viewing
+      // If no current account, still accept PIN events (for debugging and recovery)
+      // but log a warning
       if (!currentAccountId) {
-        console.log('[LoginNotifications] No current account, ignoring event');
-        return;
+        console.warn('[LoginNotifications] No current account set, but event received:', data.lineAccountId);
+        // Still process PIN events even without current account selected
+        // This helps in cases where account selection timing is delayed
+        if (data.pinCode) {
+          console.log('[LoginNotifications] PIN event received without current account - storing anyway');
+        }
       }
 
-      if (data.lineAccountId !== currentAccountId) {
+      // Strict filtering: only accept events for the account we're viewing
+      // But relax filtering for PIN events to ensure they're not missed
+      if (currentAccountId && data.lineAccountId !== currentAccountId) {
         console.warn('[LoginNotifications] Ignoring event for different account:', {
           expected: currentAccountId,
           received: data.lineAccountId,
@@ -257,7 +290,11 @@ export function useLoginNotifications(options: UseLoginNotificationsOptions = {}
         return;
       }
 
-      console.log('[LoginNotifications] Processing event for correct account:', data.lineAccountId);
+      console.log('[LoginNotifications] Processing event:', {
+        account: data.lineAccountId,
+        status: data.status,
+        pin: data.pinCode || 'none',
+      });
 
       setState(prev => {
         // IMPORTANT: Only update PIN if:
@@ -405,6 +442,10 @@ export function useLoginNotifications(options: UseLoginNotificationsOptions = {}
       socket.off('line-session:login-event');
       socket.off('line-session:worker-state');
       socket.off('line-session:keys-captured');
+      socket.off('connect');
+      socket.off('disconnect');
+      socket.off('reconnect');
+      socket.off('connect_error');
       socket.disconnect();
     };
   }, [autoConnect, showToasts]);

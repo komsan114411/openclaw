@@ -39,6 +39,7 @@ export interface Worker {
     xHmac: string;
   };
   capturedChatMid?: string;
+  capturedCurl?: string; // cURL command captured from intercepted request
 }
 
 export interface WorkerPoolConfig {
@@ -454,10 +455,19 @@ export class WorkerPoolService implements OnModuleDestroy, OnModuleInit {
       const url = request.url;
       const headers = request.headers;
 
-      // Capture keys from getRecentMessagesV2
-      if (url.includes('getRecentMessagesV2')) {
+      // Log all LINE API calls for debugging
+      if (url.includes('line-chrome-gw.line-apps.com')) {
+        this.logger.debug(`[CDP] LINE API call detected: ${url.split('?')[0]}`);
+      }
+
+      // Capture keys from getRecentMessagesV2 (primary) or getChats (fallback)
+      if (url.includes('getRecentMessagesV2') || url.includes('getChats')) {
         const xLineAccess = headers['x-line-access'] || headers['X-Line-Access'];
         const xHmac = headers['x-hmac'] || headers['X-Hmac'];
+
+        this.logger.log(`[CDP KeyCapture] Request to ${url.includes('getRecentMessagesV2') ? 'getRecentMessagesV2' : 'getChats'}`);
+        this.logger.log(`[CDP KeyCapture] Has x-line-access: ${!!xLineAccess}, length: ${xLineAccess?.length || 0}`);
+        this.logger.log(`[CDP KeyCapture] Has x-hmac: ${!!xHmac}, length: ${xHmac?.length || 0}`);
 
         if (xLineAccess && xHmac && xLineAccess.length > 50 && xLineAccess.includes('.')) {
           // Extract chatMid from POST data
@@ -477,8 +487,38 @@ export class WorkerPoolService implements OnModuleDestroy, OnModuleInit {
           worker.capturedChatMid = chatMid;
           worker.lastActivityAt = new Date();
 
-          this.logger.log(`CDP: Keys captured for ${worker.lineAccountId}, chatMid: ${chatMid || 'N/A'}`);
+          // Generate cURL command from intercepted request (GSB-style)
+          try {
+            const method = request.method || 'POST';
+            let curlCmd = `curl '${url}' \\\n  -X ${method}`;
+
+            // Add important headers
+            const importantHeaders = ['x-line-access', 'x-hmac', 'content-type', 'x-line-chrome-version', 'x-lal'];
+            for (const [key, value] of Object.entries(headers)) {
+              if (importantHeaders.includes(key.toLowerCase()) || key.toLowerCase().startsWith('x-')) {
+                curlCmd += ` \\\n  -H '${key}: ${value}'`;
+              }
+            }
+
+            // Add data if POST request
+            if (method === 'POST' && request.postData) {
+              const escapedData = request.postData.replace(/'/g, "'\\''");
+              curlCmd += ` \\\n  --data-raw '${escapedData}'`;
+            }
+
+            worker.capturedCurl = curlCmd;
+            this.logger.log(`[CDP KeyCapture SUCCESS] cURL command captured`);
+          } catch (curlError) {
+            this.logger.warn(`[CDP KeyCapture] Failed to generate cURL: ${curlError}`);
+          }
+
+          this.logger.log(`[CDP KeyCapture SUCCESS] Keys captured for ${worker.lineAccountId}!`);
+          this.logger.log(`[CDP KeyCapture SUCCESS] x-line-access: ${xLineAccess.substring(0, 30)}...`);
+          this.logger.log(`[CDP KeyCapture SUCCESS] x-hmac: ${xHmac.substring(0, 30)}...`);
+          this.logger.log(`[CDP KeyCapture SUCCESS] chatMid: ${chatMid || 'N/A'}`);
           onKeyCaptured({ xLineAccess, xHmac }, chatMid);
+        } else {
+          this.logger.warn(`[CDP KeyCapture] Invalid keys format - skipping capture`);
         }
       }
     });

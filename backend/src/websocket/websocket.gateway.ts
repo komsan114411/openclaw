@@ -136,8 +136,13 @@ export class WebsocketGateway implements OnGatewayConnection, OnGatewayDisconnec
     @MessageBody() data: { channel: string },
   ) {
     client.join(data.channel);
-    this.logger.log(`Client ${client.id} subscribed to ${data.channel}`);
-    return { success: true, channel: data.channel };
+
+    // Get current room member count
+    const roomSockets = this.server?.sockets?.adapter?.rooms?.get(data.channel);
+    const memberCount = roomSockets ? roomSockets.size : 0;
+
+    this.logger.log(`[Subscribe] Client ${client.id} joined "${data.channel}" (total members: ${memberCount})`);
+    return { success: true, channel: data.channel, memberCount };
   }
 
   @SubscribeMessage('unsubscribe')
@@ -202,6 +207,11 @@ export class WebsocketGateway implements OnGatewayConnection, OnGatewayDisconnec
       return;
     }
 
+    // Always log PIN broadcasts with full details for debugging
+    if (data?.pinCode) {
+      this.logger.log(`[Broadcast PIN] Room: ${room}, Event: ${event}, PIN: ${data.pinCode}, Status: ${data?.status}`);
+    }
+
     // Check if sockets adapter is available
     if (!this.server.sockets?.adapter?.rooms) {
       // Throttle adapter warnings to reduce log spam
@@ -212,10 +222,6 @@ export class WebsocketGateway implements OnGatewayConnection, OnGatewayDisconnec
       }
       // Still try to broadcast - the room might exist
       this.server.to(room).emit(event, data);
-      // Only log PIN broadcasts (important events)
-      if (data?.pinCode) {
-        this.logger.log(`[Broadcast] PIN ${data.pinCode} sent to room ${room}`);
-      }
       return;
     }
 
@@ -223,13 +229,20 @@ export class WebsocketGateway implements OnGatewayConnection, OnGatewayDisconnec
     const roomSockets = this.server.sockets.adapter.rooms.get(room);
     const memberCount = roomSockets ? roomSockets.size : 0;
 
-    // Only log if there are members or if it's an important event (PIN)
-    if (memberCount > 0 || data?.pinCode) {
+    // Log room status for important events
+    if (data?.pinCode || data?.status === 'pin_displayed') {
+      this.logger.log(`[Broadcast PIN Detail] Room "${room}" has ${memberCount} client(s). Sending PIN event...`);
+      // List socket IDs in the room for debugging
+      if (roomSockets && memberCount > 0) {
+        const socketIds = Array.from(roomSockets).join(', ');
+        this.logger.log(`[Broadcast PIN Detail] Socket IDs in room: ${socketIds}`);
+      } else {
+        this.logger.warn(`[Broadcast PIN Detail] No clients subscribed to room "${room}" - PIN may not be received!`);
+      }
+    } else if (memberCount > 0) {
       this.logger.log(`[Broadcast] Room "${room}" has ${memberCount} members. Event: ${event}`);
     }
-    if (data?.pinCode) {
-      this.logger.log(`[Broadcast] PIN ${data.pinCode} being sent to room ${room}`);
-    }
+
     this.server.to(room).emit(event, data);
   }
 

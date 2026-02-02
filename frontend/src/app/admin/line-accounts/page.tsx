@@ -254,7 +254,18 @@ export default function AdminLineAccountsPage() {
     // CRITICAL: Verify PIN belongs to the currently selected account
     const pinAccountId = loginNotifications.pinAccountId;
     const currentAccountId = selectedAccount?._id;
+    const lastStatus = loginNotifications.lastStatus;
 
+    console.log('[PIN Sync] Checking PIN sync:', {
+      wsPin: loginNotifications.pinCode,
+      localPin: loginStatus.pinCode,
+      pinAccountId,
+      currentAccountId,
+      lastStatusPin: lastStatus?.pinCode,
+      lastStatusStatus: lastStatus?.status,
+    });
+
+    // Update PIN from WebSocket if available
     if (loginNotifications.pinCode && loginNotifications.pinCode !== loginStatus.pinCode) {
       // Only accept PIN if it belongs to the current account
       if (pinAccountId && currentAccountId && pinAccountId === currentAccountId) {
@@ -270,7 +281,18 @@ export default function AdminLineAccountsPage() {
         });
       }
     }
-  }, [loginNotifications.pinCode, loginNotifications.pinAccountId, loginStatus.pinCode, selectedAccount?._id]);
+
+    // Also sync PIN from lastStatus if available (fallback for timing issues)
+    if (lastStatus?.pinCode && lastStatus.pinCode !== loginStatus.pinCode) {
+      if (lastStatus.lineAccountId === currentAccountId) {
+        console.log('[PIN Sync] Updating PIN from lastStatus:', {
+          pin: lastStatus.pinCode,
+          accountId: lastStatus.lineAccountId,
+        });
+        setLoginStatus(prev => ({ ...prev, pinCode: lastStatus.pinCode }));
+      }
+    }
+  }, [loginNotifications.pinCode, loginNotifications.pinAccountId, loginNotifications.lastStatus, loginStatus.pinCode, selectedAccount?._id]);
 
   // CRITICAL: Reset login state when selected account changes
   // This prevents PIN from showing for wrong account when switching between accounts

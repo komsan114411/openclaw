@@ -497,7 +497,7 @@ export class EnhancedAutomationService implements OnModuleDestroy {
         // Trigger keys capture
         const capturedData = await this.triggerAndCaptureKeys(worker, keyCapturedPromise, requestId, lineAccountId);
         if (capturedData) {
-          await this.saveKeysToDatabase(lineAccountId, capturedData.keys, capturedData.chatMid);
+          await this.saveKeysToDatabase(lineAccountId, capturedData.keys, capturedData.chatMid, capturedData.cUrlBash);
           this.loginCoordinatorService.markLoginCompleted(lineAccountId);
           return {
             success: true,
@@ -600,7 +600,7 @@ export class EnhancedAutomationService implements OnModuleDestroy {
         const capturedData = await this.triggerAndCaptureKeys(worker, keyCapturedPromise, requestId, lineAccountId);
 
         if (capturedData) {
-          await this.saveKeysToDatabase(lineAccountId, capturedData.keys, capturedData.chatMid);
+          await this.saveKeysToDatabase(lineAccountId, capturedData.keys, capturedData.chatMid, capturedData.cUrlBash);
           this.loginCoordinatorService.markLoginCompleted(lineAccountId);
           this.emitStatus(lineAccountId, EnhancedLoginStatus.SUCCESS, {
             requestId,
@@ -737,7 +737,7 @@ export class EnhancedAutomationService implements OnModuleDestroy {
     keyCapturedPromise: Promise<{ keys: any; chatMid?: string }>,
     requestId: string,
     lineAccountId: string,
-  ): Promise<{ keys: { xLineAccess: string; xHmac: string }; chatMid?: string } | null> {
+  ): Promise<{ keys: { xLineAccess: string; xHmac: string }; chatMid?: string; cUrlBash?: string } | null> {
     this.emitStatus(lineAccountId, EnhancedLoginStatus.TRIGGERING_MESSAGES, { requestId });
 
     for (let attempt = 1; attempt <= this.MESSAGE_TRIGGER_ATTEMPTS; attempt++) {
@@ -793,6 +793,7 @@ export class EnhancedAutomationService implements OnModuleDestroy {
         return {
           keys: worker.capturedKeys,
           chatMid: worker.capturedChatMid,
+          cUrlBash: worker.capturedCurl,
         };
       }
 
@@ -816,6 +817,7 @@ export class EnhancedAutomationService implements OnModuleDestroy {
       return {
         keys: worker.capturedKeys,
         chatMid: worker.capturedChatMid,
+        cUrlBash: worker.capturedCurl,
       };
     }
 
@@ -1590,6 +1592,7 @@ export class EnhancedAutomationService implements OnModuleDestroy {
     lineAccountId: string,
     keys: { xLineAccess: string; xHmac: string },
     chatMid?: string,
+    cUrlBash?: string,
   ): Promise<void> {
     await this.keyStorageService.saveKeys({
       lineAccountId,
@@ -1598,15 +1601,23 @@ export class EnhancedAutomationService implements OnModuleDestroy {
       source: 'enhanced_auto_login',
     });
 
-    // Update chatMid if captured
+    // Update chatMid and cUrlBash if captured
+    const updateData: Record<string, any> = {};
     if (chatMid) {
+      updateData.chatMid = chatMid;
+    }
+    if (cUrlBash) {
+      updateData.cUrlBash = cUrlBash;
+    }
+
+    if (Object.keys(updateData).length > 0) {
       await this.lineSessionModel.updateOne(
         { lineAccountId, isActive: true },
-        { $set: { chatMid } },
+        { $set: updateData },
       );
     }
 
-    this.logger.log(`Keys saved for ${lineAccountId}, chatMid: ${chatMid || 'N/A'}`);
+    this.logger.log(`Keys saved for ${lineAccountId}, chatMid: ${chatMid || 'N/A'}, hasCurl: ${!!cUrlBash}`);
   }
 
   /**
