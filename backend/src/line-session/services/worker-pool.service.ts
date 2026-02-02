@@ -510,6 +510,12 @@ export class WorkerPoolService implements OnModuleDestroy, OnModuleInit {
             }
           }
 
+          // CRITICAL: Final validation - chatMid MUST be a string
+          if (chatMid && typeof chatMid !== 'string') {
+            this.logger.warn(`[CDP KeyCapture] chatMid is not a string (${typeof chatMid}), setting to undefined`);
+            chatMid = undefined;
+          }
+
           worker.capturedKeys = { xLineAccess, xHmac };
           worker.capturedChatMid = chatMid;
           worker.lastActivityAt = new Date();
@@ -616,6 +622,12 @@ export class WorkerPoolService implements OnModuleDestroy, OnModuleInit {
             }
           }
 
+          // CRITICAL: Final validation - chatMid MUST be a string
+          if (chatMid && typeof chatMid !== 'string') {
+            this.logger.warn(`[Puppeteer KeyCapture] chatMid is not a string (${typeof chatMid}), setting to undefined`);
+            chatMid = undefined;
+          }
+
           worker.capturedKeys = { xLineAccess, xHmac };
           worker.capturedChatMid = chatMid;
           worker.lastActivityAt = new Date();
@@ -635,15 +647,15 @@ export class WorkerPoolService implements OnModuleDestroy, OnModuleInit {
   private async cleanupWorkerResources(worker: Worker): Promise<void> {
     try {
       if (worker.cdpClient) {
-        await worker.cdpClient.detach().catch(() => {});
+        await worker.cdpClient.detach().catch(() => { });
         worker.cdpClient = null;
       }
       if (worker.page) {
-        await worker.page.close().catch(() => {});
+        await worker.page.close().catch(() => { });
         worker.page = null;
       }
       if (worker.browser) {
-        await worker.browser.close().catch(() => {});
+        await worker.browser.close().catch(() => { });
         worker.browser = null;
       }
     } catch (error: any) {
@@ -745,7 +757,7 @@ export class WorkerPoolService implements OnModuleDestroy, OnModuleInit {
       const idleTime = now - worker.lastActivityAt.getTime();
 
       if (idleTime > this.config.idleTimeoutMs &&
-          (worker.state === WorkerState.IDLE || worker.state === WorkerState.READY)) {
+        (worker.state === WorkerState.IDLE || worker.state === WorkerState.READY)) {
         this.logger.log(`Closing idle worker: ${lineAccountId}`);
         await this.closeWorker(lineAccountId);
       }

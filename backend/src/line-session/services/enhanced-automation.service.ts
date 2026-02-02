@@ -1628,10 +1628,18 @@ export class EnhancedAutomationService implements OnModuleDestroy {
     }
 
     if (Object.keys(updateData).length > 0) {
-      await this.lineSessionModel.updateOne(
-        { lineAccountId, isActive: true },
-        { $set: updateData },
-      );
+      // Final safety check: ensure chatMid is a string before saving
+      if (updateData.chatMid && typeof updateData.chatMid !== 'string') {
+        this.logger.error(`[SaveKeys] CRITICAL: chatMid is still not a string after extraction: ${typeof updateData.chatMid} - ${JSON.stringify(updateData.chatMid).substring(0, 100)}`);
+        delete updateData.chatMid; // Remove to prevent Mongoose casting error
+      }
+
+      if (Object.keys(updateData).length > 0) {
+        await this.lineSessionModel.updateOne(
+          { lineAccountId, isActive: true },
+          { $set: updateData },
+        );
+      }
     }
 
     this.logger.log(`Keys saved for ${lineAccountId}, chatMid: ${chatMid || 'N/A'}, hasCurl: ${!!cUrlBash}`);
