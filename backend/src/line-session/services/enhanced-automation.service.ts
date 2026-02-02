@@ -1603,9 +1603,26 @@ export class EnhancedAutomationService implements OnModuleDestroy {
 
     // Update chatMid and cUrlBash if captured
     const updateData: Record<string, any> = {};
+
+    // Safety check: chatMid must be a string (not an object)
     if (chatMid) {
-      updateData.chatMid = chatMid;
+      if (typeof chatMid === 'string') {
+        updateData.chatMid = chatMid;
+      } else if (typeof chatMid === 'object') {
+        // Handle case where chatMid is an object (e.g., { targetUserMids: [...] })
+        this.logger.warn(`[SaveKeys] chatMid is an object, attempting to extract: ${JSON.stringify(chatMid).substring(0, 100)}`);
+        const chatMidObj = chatMid as any;
+        if (Array.isArray(chatMidObj.targetUserMids) && chatMidObj.targetUserMids[0]) {
+          updateData.chatMid = chatMidObj.targetUserMids[0];
+          this.logger.log(`[SaveKeys] Extracted chatMid from targetUserMids: ${updateData.chatMid}`);
+        } else if (chatMidObj.chatMid) {
+          updateData.chatMid = chatMidObj.chatMid;
+        } else if (chatMidObj.mid) {
+          updateData.chatMid = chatMidObj.mid;
+        }
+      }
     }
+
     if (cUrlBash) {
       updateData.cUrlBash = cUrlBash;
     }

@@ -475,11 +475,38 @@ export class WorkerPoolService implements OnModuleDestroy, OnModuleInit {
           if (request.postData) {
             try {
               const bodyData = JSON.parse(request.postData);
+              this.logger.debug(`[CDP KeyCapture] POST data: ${JSON.stringify(bodyData).substring(0, 200)}`);
+
+              // Handle different LINE API formats
               if (Array.isArray(bodyData) && bodyData[0]) {
-                chatMid = bodyData[0];
+                const firstElement = bodyData[0];
+                if (typeof firstElement === 'string') {
+                  // Simple format: ["mid123"]
+                  chatMid = firstElement;
+                } else if (typeof firstElement === 'object' && firstElement !== null) {
+                  // Object format: [{ targetUserMids: ["mid123"], ... }]
+                  if (Array.isArray(firstElement.targetUserMids) && firstElement.targetUserMids[0]) {
+                    chatMid = firstElement.targetUserMids[0];
+                  } else if (firstElement.chatMid) {
+                    chatMid = firstElement.chatMid;
+                  } else if (firstElement.mid) {
+                    chatMid = firstElement.mid;
+                  }
+                }
+              } else if (typeof bodyData === 'object' && bodyData !== null) {
+                // Direct object format: { targetUserMids: ["mid123"], ... }
+                if (Array.isArray(bodyData.targetUserMids) && bodyData.targetUserMids[0]) {
+                  chatMid = bodyData.targetUserMids[0];
+                } else if (bodyData.chatMid) {
+                  chatMid = bodyData.chatMid;
+                } else if (bodyData.mid) {
+                  chatMid = bodyData.mid;
+                }
               }
-            } catch {
-              // Ignore parse errors
+
+              this.logger.debug(`[CDP KeyCapture] Extracted chatMid: ${chatMid || 'none'}`);
+            } catch (parseError) {
+              this.logger.warn(`[CDP KeyCapture] Failed to parse POST data: ${parseError}`);
             }
           }
 
@@ -554,11 +581,38 @@ export class WorkerPoolService implements OnModuleDestroy, OnModuleInit {
           if (postData) {
             try {
               const bodyData = JSON.parse(postData);
+              this.logger.debug(`[Puppeteer KeyCapture] POST data: ${JSON.stringify(bodyData).substring(0, 200)}`);
+
+              // Handle different LINE API formats
               if (Array.isArray(bodyData) && bodyData[0]) {
-                chatMid = bodyData[0];
+                const firstElement = bodyData[0];
+                if (typeof firstElement === 'string') {
+                  // Simple format: ["mid123"]
+                  chatMid = firstElement;
+                } else if (typeof firstElement === 'object' && firstElement !== null) {
+                  // Object format: [{ targetUserMids: ["mid123"], ... }]
+                  if (Array.isArray(firstElement.targetUserMids) && firstElement.targetUserMids[0]) {
+                    chatMid = firstElement.targetUserMids[0];
+                  } else if (firstElement.chatMid) {
+                    chatMid = firstElement.chatMid;
+                  } else if (firstElement.mid) {
+                    chatMid = firstElement.mid;
+                  }
+                }
+              } else if (typeof bodyData === 'object' && bodyData !== null) {
+                // Direct object format: { targetUserMids: ["mid123"], ... }
+                if (Array.isArray(bodyData.targetUserMids) && bodyData.targetUserMids[0]) {
+                  chatMid = bodyData.targetUserMids[0];
+                } else if (bodyData.chatMid) {
+                  chatMid = bodyData.chatMid;
+                } else if (bodyData.mid) {
+                  chatMid = bodyData.mid;
+                }
               }
-            } catch {
-              // Ignore
+
+              this.logger.debug(`[Puppeteer KeyCapture] Extracted chatMid: ${chatMid || 'none'}`);
+            } catch (parseError) {
+              this.logger.warn(`[Puppeteer KeyCapture] Failed to parse POST data: ${parseError}`);
             }
           }
 
