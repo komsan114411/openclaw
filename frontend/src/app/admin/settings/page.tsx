@@ -1305,36 +1305,52 @@ export default function SettingsPage() {
                     </div>
                   </div>
 
-                  {/* Auto-Failover Section - Info */}
+                  {/* Auto-Failover Section - Simple Toggle */}
                   <div className="mt-6 p-4 rounded-2xl bg-white/[0.02] border border-white/10">
-                    <div className="flex items-center gap-3">
-                      <span className="text-lg">🔄</span>
-                      <div>
-                        <div className="font-bold text-white text-sm">Smart Auto-Failover</div>
-                        <div className="text-[10px] text-slate-500">ระบบจะสลับไปใช้ Provider อื่นอัตโนมัติเมื่อ Provider หลักมีปัญหา (โควต้าหมด, ระบบล่ม, ไม่รองรับสลิปประเภทนั้น)</div>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <span className="text-lg">🔄</span>
+                        <div>
+                          <div className="font-bold text-white text-sm">สลับอัตโนมัติ (Auto-Failover)</div>
+                          <div className="text-[10px] text-slate-500">หาก Provider หลัก quota หมด จะสลับไปใช้ตัวสำรองอัตโนมัติ</div>
+                        </div>
                       </div>
+                      <Switch
+                        checked={slipProviderSettings.slipApiFallbackEnabled}
+                        onChange={(checked) => {
+                          setSlipProviderSettings(prev => ({
+                            ...prev,
+                            slipApiFallbackEnabled: checked,
+                          }));
+                          handleSaveSlipProviderSettings({
+                            slipApiFallbackEnabled: checked,
+                          });
+                        }}
+                      />
                     </div>
-                    <div className="mt-3 pt-3 border-t border-white/10 text-xs text-slate-400">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <span>ลำดับการใช้งาน:</span>
-                        <span className="text-white font-bold">
-                          {slipProviderSettings.slipApiProvider === 'thunder' ? 'Thunder' : 
-                           slipProviderSettings.slipApiProvider === 'slipmate' ? 'SlipMate' : 'Slip2Go'}
-                        </span>
-                        {(slipProviderSettings.hasThunderApiKey || slipProviderSettings.hasSlipMateApiKey || slipProviderSettings.hasSlip2GoApiKey) && (
-                          <>
-                            <span>→</span>
-                            <span className="text-slate-300">
-                              {[
-                                slipProviderSettings.hasThunderApiKey && slipProviderSettings.slipApiProvider !== 'thunder' && 'Thunder',
-                                slipProviderSettings.hasSlipMateApiKey && slipProviderSettings.slipApiProvider !== 'slipmate' && 'SlipMate',
-                                slipProviderSettings.hasSlip2GoApiKey && slipProviderSettings.slipApiProvider !== 'slip2go' && 'Slip2Go',
-                              ].filter(Boolean).join(' → ') || 'ไม่มี Provider สำรอง'}
-                            </span>
-                          </>
-                        )}
+                    {slipProviderSettings.slipApiFallbackEnabled && (
+                      <div className="mt-3 pt-3 border-t border-white/10 text-xs text-slate-400">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span>ลำดับการใช้งาน:</span>
+                          <span className="text-white font-bold">
+                            {slipProviderSettings.slipApiProvider === 'thunder' ? 'Thunder' : 
+                             slipProviderSettings.slipApiProvider === 'slipmate' ? 'SlipMate' : 'Slip2Go'}
+                          </span>
+                          {(slipProviderSettings.hasThunderApiKey || slipProviderSettings.hasSlipMateApiKey || slipProviderSettings.hasSlip2GoApiKey) && (
+                            <>
+                              <span>→</span>
+                              <span className="text-slate-300">
+                                {[
+                                  slipProviderSettings.hasThunderApiKey && slipProviderSettings.slipApiProvider !== 'thunder' && 'Thunder',
+                                  slipProviderSettings.hasSlipMateApiKey && slipProviderSettings.slipApiProvider !== 'slipmate' && 'SlipMate',
+                                  slipProviderSettings.hasSlip2GoApiKey && slipProviderSettings.slipApiProvider !== 'slip2go' && 'Slip2Go',
+                                ].filter(Boolean).join(' → ') || 'ไม่มี Provider สำรอง'}
+                              </span>
+                            </>
+                          )}
+                        </div>
                       </div>
-                    </div>
+                    )}
                   </div>
 
                   {/* Refresh Status Button */}
