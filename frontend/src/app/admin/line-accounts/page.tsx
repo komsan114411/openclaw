@@ -614,6 +614,14 @@ export default function AdminLineAccountsPage() {
   const openSettingsModal = (account: ExtendedLineAccount) => {
     setSelectedAccount(account);
     const s = account.settings || {};
+    console.log('[openSettingsModal] Loading settings:', {
+      accountId: account._id,
+      accountName: account.accountName,
+      rawSettings: s,
+      enableBot: s.enableBot,
+      enableSlipVerification: s.enableSlipVerification,
+      enableAi: s.enableAi,
+    });
     const boolToString = (val: boolean | null | undefined): string => {
       if (val === null || val === undefined) return 'default';
       return val ? 'true' : 'false';
@@ -655,12 +663,19 @@ export default function AdminLineAccountsPage() {
         sendMessageWhenSlipDisabled: stringToBool(settingsData.sendMessageWhenSlipDisabled),
         sendMessageWhenAiDisabled: stringToBool(settingsData.sendMessageWhenAiDisabled),
       };
+      console.log('[handleSaveSettings] Saving settings:', {
+        accountId: selectedAccount._id,
+        enableBot: dataToSave.enableBot,
+        enableSlipVerification: dataToSave.enableSlipVerification,
+        enableAi: dataToSave.enableAi,
+      });
       await lineAccountsApi.updateSettings(selectedAccount._id, dataToSave);
       toast.success('บันทึกการตั้งค่าสำเร็จ');
       setShowSettingsModal(false);
       fetchData();
-    } catch (error) {
-      toast.error('เกิดข้อผิดพลาด');
+    } catch (error: any) {
+      console.error('[handleSaveSettings] Error:', error);
+      toast.error(error.response?.data?.message || 'เกิดข้อผิดพลาด');
     } finally {
       setIsProcessing(false);
     }
