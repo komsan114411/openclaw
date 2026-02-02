@@ -120,6 +120,8 @@ export default function AdminLineAccountsPage() {
   const pinShownRef = useRef<string | null>(null);
   // Track if polling should be cancelled
   const pollingCancelledRef = useRef<boolean>(false);
+  // Countdown timer for loginStatus PIN
+  const loginPinCountdownRef = useRef<NodeJS.Timeout | null>(null);
   const [loginStatus, setLoginStatus] = useState<{
     status: string;
     pinCode?: string;
@@ -205,23 +207,42 @@ export default function AdminLineAccountsPage() {
       });
 
       // Update login status from WebSocket event
+      const PIN_EXPIRY_SECONDS = 180;
+      const isNewPin = event.pinCode && event.pinCode !== pinShownRef.current;
+
       setLoginStatus(prev => {
+        // Create pinStatus with countdown if new PIN received
+        let newPinStatus = prev.pinStatus;
+        if (isNewPin) {
+          newPinStatus = {
+            status: 'FRESH' as const,
+            ageMinutes: 0,
+            ageSeconds: 0,
+            expiresIn: PIN_EXPIRY_SECONDS,
+            isFresh: true,
+            isNew: true,
+            isUsable: true,
+            recommendation: 'กรุณากรอก PIN บนมือถือทันที',
+          };
+        }
+
         const newState = {
           ...prev,
           status: event.status,
           pinCode: event.pinCode || prev.pinCode,
           error: event.error,
           workerState: event.status,
+          pinStatus: newPinStatus,
         };
         console.log('[WebSocket] Updating loginStatus:', newState);
         return newState;
       });
 
-      // Handle PIN display - show popup immediately
-      if (event.pinCode) {
+      // Handle PIN display - show toast only (no popup)
+      if (isNewPin) {
         console.log('[WebSocket] PIN RECEIVED via WebSocket:', event.pinCode);
-        alert(`PIN Code: ${event.pinCode}\n\nกรุณากรอก PIN นี้ในแอป LINE บนมือถือ`);
-        toast.success(`PIN: ${event.pinCode}`, { duration: 60000, icon: '🔑' });
+        pinShownRef.current = event.pinCode!;
+        toast.success(`PIN: ${event.pinCode} (3 min)`, { duration: 120000 });
       }
 
       // Handle success/failure
@@ -281,6 +302,8 @@ export default function AdminLineAccountsPage() {
       lastStatusStatus: lastStatus?.status,
     });
 
+    const PIN_EXPIRY_SECONDS = 180;
+
     // Update PIN from WebSocket if available
     if (loginNotifications.pinCode && loginNotifications.pinCode !== loginStatus.pinCode) {
       // Only accept PIN if it belongs to the current account
@@ -289,7 +312,20 @@ export default function AdminLineAccountsPage() {
           pin: loginNotifications.pinCode,
           accountId: pinAccountId,
         });
-        setLoginStatus(prev => ({ ...prev, pinCode: loginNotifications.pinCode || undefined }));
+        setLoginStatus(prev => ({
+          ...prev,
+          pinCode: loginNotifications.pinCode || undefined,
+          pinStatus: prev.pinStatus?.expiresIn ? prev.pinStatus : {
+            status: 'FRESH' as const,
+            ageMinutes: 0,
+            ageSeconds: 0,
+            expiresIn: PIN_EXPIRY_SECONDS,
+            isFresh: true,
+            isNew: true,
+            isUsable: true,
+            recommendation: 'กรุณากรอก PIN บนมือถือทันที',
+          },
+        }));
       } else if (pinAccountId !== currentAccountId) {
         console.warn('[PIN Sync] Ignoring PIN for different account:', {
           pinAccountId,
@@ -305,7 +341,20 @@ export default function AdminLineAccountsPage() {
           pin: lastStatus.pinCode,
           accountId: lastStatus.lineAccountId,
         });
-        setLoginStatus(prev => ({ ...prev, pinCode: lastStatus.pinCode }));
+        setLoginStatus(prev => ({
+          ...prev,
+          pinCode: lastStatus.pinCode,
+          pinStatus: prev.pinStatus?.expiresIn ? prev.pinStatus : {
+            status: 'FRESH' as const,
+            ageMinutes: 0,
+            ageSeconds: 0,
+            expiresIn: PIN_EXPIRY_SECONDS,
+            isFresh: true,
+            isNew: true,
+            isUsable: true,
+            recommendation: 'กรุณากรอก PIN บนมือถือทันที',
+          },
+        }));
       }
     }
   }, [loginNotifications.pinCode, loginNotifications.pinAccountId, loginNotifications.lastStatus, loginStatus.pinCode, selectedAccount?._id]);
@@ -834,6 +883,67 @@ export default function AdminLineAccountsPage() {
     setServerPinStatus(null);
   }, [selectedAccount?._id]);
 
+  // Countdown timer effect for loginStatus PIN expiration
+  useEffect(() => {
+    // Clear existing interval
+    if (loginPinCountdownRef.current) {
+      clearInterval(loginPinCountdownRef.current);
+      loginPinCountdownRef.current = null;
+    }
+
+    // Start countdown if there's an active PIN with expiration
+    if (loginStatus.pinCode && loginStatus.pinStatus?.expiresIn && loginStatus.pinStatus.expiresIn > 0) {
+      console.log('[PIN Countdown] Starting countdown:', loginStatus.pinStatus.expiresIn);
+
+      loginPinCountdownRef.current = setInterval(() => {
+        setLoginStatus(prev => {
+          if (!prev.pinStatus || prev.pinStatus.expiresIn <= 0) {
+            // PIN expired - clear interval and auto-cancel login
+            if (loginPinCountdownRef.current) {
+              clearInterval(loginPinCountdownRef.current);
+              loginPinCountdownRef.current = null;
+            }
+            // Auto cancel login when PIN expires
+            console.log('[PIN Countdown] PIN expired - auto cancelling');
+            toast('PIN หมดอายุ - ยกเลิก Login อัตโนมัติ', { icon: '⏰' });
+            // Clear login state
+            pollingCancelledRef.current = true;
+            pinShownRef.current = null;
+            return {
+              ...prev,
+              status: 'idle',
+              pinCode: undefined,
+              isLoading: false,
+              pinStatus: undefined,
+              error: 'PIN expired',
+            };
+          }
+
+          // Decrement expiresIn
+          const newExpiresIn = prev.pinStatus!.expiresIn - 1;
+          return {
+            ...prev,
+            pinStatus: {
+              ...prev.pinStatus!,
+              expiresIn: newExpiresIn,
+              ageSeconds: prev.pinStatus!.ageSeconds + 1,
+              status: newExpiresIn <= 0 ? 'OLD' : prev.pinStatus!.status,
+              isUsable: newExpiresIn > 0,
+            },
+          };
+        });
+      }, 1000);
+    }
+
+    // Cleanup
+    return () => {
+      if (loginPinCountdownRef.current) {
+        clearInterval(loginPinCountdownRef.current);
+        loginPinCountdownRef.current = null;
+      }
+    };
+  }, [loginStatus.pinCode, loginStatus.pinStatus?.expiresIn ? Math.floor(loginStatus.pinStatus.expiresIn / 60) : 0]);
+
   // Save bank configuration
   const handleSaveBank = async () => {
     if (!selectedAccount) return;
@@ -1077,15 +1187,26 @@ export default function AdminLineAccountsPage() {
       // IMPORTANT: Set PIN first if available, before other state updates
       if (pinCodeValue) {
         console.log('[handleStartLogin] *** PIN FROM HTTP ***:', pinCodeValue);
-        // Set PIN immediately (before other state updates)
+        // Set PIN immediately with countdown timer (3 minutes = 180 seconds)
+        const PIN_EXPIRY_SECONDS = 180;
         setLoginStatus(prev => ({
           ...prev,
           pinCode: pinCodeValue,
           status: 'pin_displayed',
           isLoading: true, // Keep loading true while waiting for verification
+          pinStatus: {
+            status: 'FRESH',
+            ageMinutes: 0,
+            ageSeconds: 0,
+            expiresIn: PIN_EXPIRY_SECONDS,
+            isFresh: true,
+            isNew: true,
+            isUsable: true,
+            recommendation: 'กรุณากรอก PIN บนมือถือทันที',
+          },
         }));
         // Show toast notification
-        toast.success(`PIN: ${pinCodeValue} - Enter on LINE app`, { duration: 120000 });
+        toast.success(`PIN: ${pinCodeValue} - Enter on LINE app (3 min)`, { duration: 120000 });
       }
 
       // Update state with response
@@ -1176,22 +1297,41 @@ export default function AdminLineAccountsPage() {
         });
 
         // Update status with GSB-style PIN tracking
-        setLoginStatus(prev => ({
-          ...prev,
-          pinCode: foundPin || prev.pinCode,
-          workerState: data.worker?.state || data.status,
-          status: (data.worker?.state === 'waiting_pin' || data.status === 'waiting_for_pin')
-            ? 'pin_displayed'
-            : prev.status,
-          pinStatus: pinStatus || prev.pinStatus,
-        }));
+        const PIN_EXPIRY_SECONDS = 180;
+        const isNewPin = foundPin && foundPin !== pinShownRef.current;
+
+        setLoginStatus(prev => {
+          // If new PIN found and no pinStatus yet, create one with countdown
+          let newPinStatus = pinStatus || prev.pinStatus;
+          if (isNewPin && !newPinStatus?.expiresIn) {
+            newPinStatus = {
+              status: 'FRESH' as const,
+              ageMinutes: 0,
+              ageSeconds: 0,
+              expiresIn: PIN_EXPIRY_SECONDS,
+              isFresh: true,
+              isNew: true,
+              isUsable: true,
+              recommendation: 'กรุณากรอก PIN บนมือถือทันที',
+            };
+          }
+
+          return {
+            ...prev,
+            pinCode: foundPin || prev.pinCode,
+            workerState: data.worker?.state || data.status,
+            status: (data.worker?.state === 'waiting_pin' || data.status === 'waiting_for_pin')
+              ? 'pin_displayed'
+              : prev.status,
+            pinStatus: newPinStatus,
+          };
+        });
 
         // CRITICAL: Show PIN alert if found and not shown before
-        if (foundPin && foundPin !== pinShownRef.current) {
+        if (isNewPin) {
           console.log('[pollLoginStatus] *** PIN FOUND ***:', foundPin);
           pinShownRef.current = foundPin;
-          alert(`PIN Code: ${foundPin}\n\nกรุณากรอก PIN นี้ในแอป LINE บนมือถือของคุณ`);
-          toast.success(`PIN: ${foundPin}`, { duration: 60000 });
+          toast.success(`PIN: ${foundPin} (3 min)`, { duration: 60000 });
         }
 
         // Check if completed
