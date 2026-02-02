@@ -89,6 +89,10 @@ interface LoginNotificationState {
   lastStatus: LoginStatusEvent | null;
   lastEvent: LoginEvent | null;
   pinCode: string | null;
+  // Track which account and request the PIN belongs to
+  pinAccountId: string | null;
+  pinRequestId: string | null;
+  pinReceivedAt: Date | null;
 }
 
 export function useLoginNotifications(options: UseLoginNotificationsOptions = {}) {
@@ -108,6 +112,9 @@ export function useLoginNotifications(options: UseLoginNotificationsOptions = {}
     lastStatus: null,
     lastEvent: null,
     pinCode: null,
+    pinAccountId: null,
+    pinRequestId: null,
+    pinReceivedAt: null,
   });
 
   // Use refs for callbacks and lineAccountId to avoid reconnecting on every render
@@ -150,11 +157,15 @@ export function useLoginNotifications(options: UseLoginNotificationsOptions = {}
       console.log('[LoginNotifications] Subscribing to account:', lineAccountId);
       socketRef.current.emit('subscribe', { channel: `line-account:${lineAccountId}` });
 
-      // Clear previous PIN state if account changed
+      // Clear previous PIN state if account changed - CRITICAL for PIN isolation
       if (prevAccountId !== lineAccountId) {
+        console.log('[LoginNotifications] Account changed, clearing all PIN state');
         setState(prev => ({
           ...prev,
           pinCode: null,
+          pinAccountId: null,
+          pinRequestId: null,
+          pinReceivedAt: null,
           lastStatus: null,
           lastEvent: null,
         }));
@@ -248,11 +259,57 @@ export function useLoginNotifications(options: UseLoginNotificationsOptions = {}
 
       console.log('[LoginNotifications] Processing event for correct account:', data.lineAccountId);
 
-      setState(prev => ({
-        ...prev,
-        lastStatus: data,
-        pinCode: data.pinCode || prev.pinCode,
-      }));
+      setState(prev => {
+        // IMPORTANT: Only update PIN if:
+        // 1. New PIN is provided in this event, OR
+        // 2. This is for the same request as the existing PIN
+        // This prevents old PINs from persisting incorrectly
+
+        let newPinCode = prev.pinCode;
+        let newPinAccountId = prev.pinAccountId;
+        let newPinRequestId = prev.pinRequestId;
+        let newPinReceivedAt = prev.pinReceivedAt;
+
+        // If we have a new PIN, update all PIN tracking fields
+        if (data.pinCode) {
+          newPinCode = data.pinCode;
+          newPinAccountId = data.lineAccountId;
+          newPinRequestId = data.requestId || null;
+          newPinReceivedAt = new Date();
+          console.log('[LoginNotifications] New PIN received:', {
+            pin: data.pinCode,
+            accountId: data.lineAccountId,
+            requestId: data.requestId,
+          });
+        }
+
+        // Clear PIN on success, failure, or idle status (login completed/cancelled)
+        if (['success', 'failed', 'idle'].includes(data.status)) {
+          newPinCode = null;
+          newPinAccountId = null;
+          newPinRequestId = null;
+          newPinReceivedAt = null;
+          console.log('[LoginNotifications] Clearing PIN due to status:', data.status);
+        }
+
+        // Verify PIN still belongs to current account (extra safety)
+        if (newPinCode && newPinAccountId !== currentAccountId) {
+          console.warn('[LoginNotifications] Clearing stale PIN for different account');
+          newPinCode = null;
+          newPinAccountId = null;
+          newPinRequestId = null;
+          newPinReceivedAt = null;
+        }
+
+        return {
+          ...prev,
+          lastStatus: data,
+          pinCode: newPinCode,
+          pinAccountId: newPinAccountId,
+          pinRequestId: newPinRequestId,
+          pinReceivedAt: newPinReceivedAt,
+        };
+      });
 
       // Show toast notification
       if (showToasts) {
@@ -366,13 +423,17 @@ export function useLoginNotifications(options: UseLoginNotificationsOptions = {}
     }
   }, []);
 
-  // Clear state
+  // Clear state - resets all PIN tracking for clean slate
   const clearState = useCallback(() => {
+    console.log('[LoginNotifications] Clearing all state');
     setState({
       isConnected: state.isConnected,
       lastStatus: null,
       lastEvent: null,
       pinCode: null,
+      pinAccountId: null,
+      pinRequestId: null,
+      pinReceivedAt: null,
     });
   }, [state.isConnected]);
 

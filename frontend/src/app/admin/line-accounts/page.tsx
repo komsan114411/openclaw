@@ -249,12 +249,50 @@ export default function AdminLineAccountsPage() {
     },
   });
 
-  // Update login PIN from WebSocket
+  // Update login PIN from WebSocket - ONLY if it matches current account
   useEffect(() => {
+    // CRITICAL: Verify PIN belongs to the currently selected account
+    const pinAccountId = loginNotifications.pinAccountId;
+    const currentAccountId = selectedAccount?._id;
+
     if (loginNotifications.pinCode && loginNotifications.pinCode !== loginStatus.pinCode) {
-      setLoginStatus(prev => ({ ...prev, pinCode: loginNotifications.pinCode || undefined }));
+      // Only accept PIN if it belongs to the current account
+      if (pinAccountId && currentAccountId && pinAccountId === currentAccountId) {
+        console.log('[PIN Sync] Updating PIN for correct account:', {
+          pin: loginNotifications.pinCode,
+          accountId: pinAccountId,
+        });
+        setLoginStatus(prev => ({ ...prev, pinCode: loginNotifications.pinCode || undefined }));
+      } else if (pinAccountId !== currentAccountId) {
+        console.warn('[PIN Sync] Ignoring PIN for different account:', {
+          pinAccountId,
+          currentAccountId,
+        });
+      }
     }
-  }, [loginNotifications.pinCode, loginStatus.pinCode]);
+  }, [loginNotifications.pinCode, loginNotifications.pinAccountId, loginStatus.pinCode, selectedAccount?._id]);
+
+  // CRITICAL: Reset login state when selected account changes
+  // This prevents PIN from showing for wrong account when switching between accounts
+  useEffect(() => {
+    console.log('[Account Changed] Resetting login state for account:', selectedAccount?._id);
+    // Clear WebSocket state
+    loginNotifications.clearState();
+    // Clear local login status
+    setLoginStatus({
+      status: 'idle',
+      pinCode: undefined,
+      error: undefined,
+      isLoading: false,
+      requestId: undefined,
+      chatMid: undefined,
+      sessionReused: false,
+      cooldownRemainingMs: undefined,
+      workerState: undefined,
+      pinStatus: undefined,
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedAccount?._id]);
 
   const [formData, setFormData] = useState({
     accountName: '',
@@ -838,6 +876,10 @@ export default function AdminLineAccountsPage() {
     console.log('[handleStartLogin] Account ID:', accountId);
     console.log('[handleStartLogin] WebSocket connected:', loginNotifications.isConnected);
 
+    // STEP 0: Clear any existing PIN state to prevent showing old PINs
+    console.log('[handleStartLogin] Clearing previous PIN state');
+    loginNotifications.clearState();
+
     // STEP 1: Subscribe to WebSocket channel BEFORE starting login
     if (loginNotifications.isConnected) {
       console.log('[handleStartLogin] Subscribing to WebSocket channel:', `line-account:${accountId}`);
@@ -1047,6 +1089,11 @@ export default function AdminLineAccountsPage() {
     try {
       // Use enhanced cancel API
       await lineSessionApi.cancelEnhancedLogin(selectedAccount._id);
+
+      // Clear all PIN state in WebSocket hook
+      loginNotifications.clearState();
+
+      // Clear local login status
       setLoginStatus({
         status: 'idle',
         pinCode: undefined,
