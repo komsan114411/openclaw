@@ -110,24 +110,46 @@ export class SlipVerificationService {
   /**
    * Get recent slip from slip_history by lineUserId and lineAccountId
    * Used when transRef is not available (e.g., Slip2Go duplicate without data)
+   * Falls back to searching by lineAccountId only if user-specific search fails
    */
   async getRecentSlipByUser(lineUserId: string, lineAccountId: string): Promise<SlipHistoryDocument | null> {
-    if (!lineUserId || !lineAccountId) return null;
+    if (!lineAccountId) return null;
 
     try {
-      // Get the most recent successful slip from this user in the last 24 hours
-      const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+      // Search in the last 30 days
+      const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
 
-      const recentSlip = await this.slipHistoryModel.findOne({
-        lineUserId,
+      // First: Try to find by specific user
+      if (lineUserId) {
+        const userSlip = await this.slipHistoryModel.findOne({
+          lineUserId,
+          lineAccountId,
+          status: 'success',
+          createdAt: { $gte: thirtyDaysAgo },
+        }).sort({ createdAt: -1 }).lean().exec();
+
+        if (userSlip) {
+          this.logger.log(`[DUPLICATE] Found slip by user: ${lineUserId}`);
+          return userSlip as unknown as SlipHistoryDocument;
+        }
+      }
+
+      // Fallback: Find any recent successful slip in this LINE account
+      this.logger.log(`[DUPLICATE] User slip not found, searching by lineAccountId only`);
+      const accountSlip = await this.slipHistoryModel.findOne({
         lineAccountId,
         status: 'success',
-        createdAt: { $gte: oneDayAgo },
+        createdAt: { $gte: thirtyDaysAgo },
       }).sort({ createdAt: -1 }).lean().exec();
 
-      return recentSlip as SlipHistoryDocument | null;
+      if (accountSlip) {
+        this.logger.log(`[DUPLICATE] Found slip by lineAccountId: ${lineAccountId}`);
+        return accountSlip as unknown as SlipHistoryDocument;
+      }
+
+      return null;
     } catch (error) {
-      this.logger.warn(`Failed to get recent slip by user: ${lineUserId}`, error);
+      this.logger.warn(`Failed to get recent slip: ${error}`);
       return null;
     }
   }
