@@ -224,11 +224,30 @@ export class Slip2GoProvider implements SlipVerificationProvider {
     // ===== DUPLICATE SLIP (200501) =====
     if (code === '200501') {
       this.logger.log('[SLIP2GO] Duplicate slip detected');
+      this.logger.log(`[SLIP2GO] Duplicate raw data: ${JSON.stringify(data).substring(0, 1000)}`);
+
+      // Slip2Go may return slip data in different locations for duplicate
+      const slipData = data?.data || data?.slipData || data?.slip || data?.transaction;
+
+      if (slipData) {
+        this.logger.log(`[SLIP2GO] Duplicate slip data found: ${JSON.stringify(slipData).substring(0, 500)}`);
+        const extractedData = this.extractSlipData(slipData);
+        this.logger.log(`[SLIP2GO] Duplicate extracted: sender=${extractedData.senderName}, receiver=${extractedData.receiverName}, amount=${extractedData.amount}`);
+        return {
+          status: 'duplicate',
+          provider: SlipProvider.SLIP2GO,
+          message: 'สลิปนี้เคยถูกใช้แล้ว',
+          data: extractedData,
+          shouldFailover: false,
+        };
+      }
+
+      this.logger.warn('[SLIP2GO] Duplicate slip but no data returned from API');
       return {
         status: 'duplicate',
         provider: SlipProvider.SLIP2GO,
         message: 'สลิปนี้เคยถูกใช้แล้ว',
-        data: data?.data ? this.extractSlipData(data.data) : undefined,
+        data: undefined,
         shouldFailover: false,
       };
     }

@@ -613,7 +613,7 @@ export class LineWebhookController {
           
           const duplicateMsg = await this.slipVerificationService.formatSlipResponseWithConfig(
             result,
-            { account, quotaRemaining: newQuota.remainingQuota }
+            { account, quotaRemaining: newQuota.remainingQuota, lineUserId, lineAccountId: accountId }
           );
           
           this.logger.log(`[SLIP] Duplicate response generated: type=${duplicateMsg?.type}, hasContents=${!!duplicateMsg?.contents}`);
