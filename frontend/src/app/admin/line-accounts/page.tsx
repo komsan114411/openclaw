@@ -170,6 +170,20 @@ export default function AdminLineAccountsPage() {
     isLoading: false,
     isFetching: false,
   });
+
+  // Server-side PIN status (GSB-style tracking)
+  const [serverPinStatus, setServerPinStatus] = useState<{
+    pinCode: string | null;
+    status: 'FRESH' | 'NEW' | 'OLD' | 'NO_PIN';
+    ageSeconds: number;
+    expiresIn: number;
+    isUsable: boolean;
+    recommendation: string;
+    lastFetched: Date | null;
+  } | null>(null);
+
+  // Countdown timer interval ref
+  const countdownIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const [bankForm, setBankForm] = useState({
     bankCode: '',
     bankName: '',
@@ -726,6 +740,100 @@ export default function AdminLineAccountsPage() {
     }
   };
 
+  // Fetch PIN status from server (GSB-style tracking)
+  const fetchPinStatus = async (accountId: string) => {
+    try {
+      const res = await lineSessionApi.getPinStatus(accountId);
+      if (res.data.success) {
+        const pinData = res.data;
+        setServerPinStatus({
+          pinCode: pinData.pinCode,
+          status: pinData.status || 'NO_PIN',
+          ageSeconds: pinData.ageSeconds || 0,
+          expiresIn: pinData.expiresIn || 0,
+          isUsable: pinData.isUsable || false,
+          recommendation: pinData.recommendation || '',
+          lastFetched: new Date(),
+        });
+
+        // If there's an active PIN, update login status as well
+        if (pinData.pinCode && pinData.isUsable) {
+          setLoginStatus(prev => ({
+            ...prev,
+            pinCode: pinData.pinCode,
+            status: 'pin_displayed',
+            pinStatus: {
+              status: pinData.status,
+              ageMinutes: Math.floor(pinData.ageSeconds / 60),
+              ageSeconds: pinData.ageSeconds,
+              expiresIn: pinData.expiresIn,
+              isFresh: pinData.isFresh,
+              isNew: pinData.isNew,
+              isUsable: pinData.isUsable,
+              recommendation: pinData.recommendation,
+            },
+          }));
+        }
+
+        console.log('[fetchPinStatus] Server PIN status:', pinData);
+      }
+    } catch (error) {
+      console.log('[fetchPinStatus] No active PIN or error:', error);
+      setServerPinStatus(null);
+    }
+  };
+
+  // Countdown timer effect for PIN expiration
+  useEffect(() => {
+    // Clear existing interval
+    if (countdownIntervalRef.current) {
+      clearInterval(countdownIntervalRef.current);
+      countdownIntervalRef.current = null;
+    }
+
+    // Start countdown if there's an active PIN
+    if (serverPinStatus?.isUsable && serverPinStatus.expiresIn > 0) {
+      countdownIntervalRef.current = setInterval(() => {
+        setServerPinStatus(prev => {
+          if (!prev || prev.expiresIn <= 0) {
+            // PIN expired - clear interval
+            if (countdownIntervalRef.current) {
+              clearInterval(countdownIntervalRef.current);
+              countdownIntervalRef.current = null;
+            }
+            // Clear PIN state when expired
+            toast('PIN หมดอายุแล้ว', { icon: '⏰' });
+            return {
+              ...prev!,
+              isUsable: false,
+              expiresIn: 0,
+              status: 'OLD' as const,
+              recommendation: 'PIN หมดอายุแล้ว กรุณาล็อกอินใหม่',
+            };
+          }
+          return {
+            ...prev,
+            expiresIn: prev.expiresIn - 1,
+            ageSeconds: prev.ageSeconds + 1,
+          };
+        });
+      }, 1000);
+    }
+
+    // Cleanup on unmount or when PIN changes
+    return () => {
+      if (countdownIntervalRef.current) {
+        clearInterval(countdownIntervalRef.current);
+        countdownIntervalRef.current = null;
+      }
+    };
+  }, [serverPinStatus?.pinCode, serverPinStatus?.isUsable]);
+
+  // Clear server PIN status when account changes
+  useEffect(() => {
+    setServerPinStatus(null);
+  }, [selectedAccount?._id]);
+
   // Save bank configuration
   const handleSaveBank = async () => {
     if (!selectedAccount) return;
@@ -810,6 +918,7 @@ export default function AdminLineAccountsPage() {
     await Promise.all([
       fetchSessionData(account._id),
       fetchBankData(account._id),
+      fetchPinStatus(account._id), // Fetch current PIN status on account select
     ]);
   };
 
@@ -1873,6 +1982,120 @@ export default function AdminLineAccountsPage() {
             {/* Login Tab */}
             {sessionTab === 'login' && (
               <div className="space-y-6">
+                {/* Server PIN Status - Shows active PIN from auto-relogin loop */}
+                {serverPinStatus?.pinCode && serverPinStatus.isUsable && !loginStatus.pinCode && (
+                  <div className={cn(
+                    "p-6 rounded-[2rem] border-2 relative overflow-hidden",
+                    serverPinStatus.status === 'FRESH' && "bg-gradient-to-br from-emerald-500 to-green-600 border-emerald-400",
+                    serverPinStatus.status === 'NEW' && "bg-gradient-to-br from-amber-500 to-orange-600 border-amber-400"
+                  )}>
+                    <div className="absolute top-0 right-0 w-48 h-48 bg-white/10 rounded-full blur-[60px] -mr-24 -mt-24 pointer-events-none" />
+                    <div className="relative z-10 text-center text-white">
+                      {/* Header with status */}
+                      <div className="flex items-center justify-center gap-3 mb-4">
+                        <div className={cn(
+                          "w-10 h-10 rounded-xl flex items-center justify-center",
+                          serverPinStatus.status === 'FRESH' ? "bg-white/30" : "bg-white/20"
+                        )}>
+                          <Key className="w-5 h-5" />
+                        </div>
+                        <div>
+                          <span className={cn(
+                            "px-3 py-1 rounded-full text-xs font-bold uppercase",
+                            serverPinStatus.status === 'FRESH' && "bg-emerald-200 text-emerald-800",
+                            serverPinStatus.status === 'NEW' && "bg-amber-200 text-amber-800"
+                          )}>
+                            {serverPinStatus.status === 'FRESH' ? 'PIN Fresh' : 'PIN Active'}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* PIN Digits */}
+                      <p className="text-[10px] font-black text-white/80 uppercase tracking-widest mb-3">
+                        PIN Code - Enter on LINE App
+                      </p>
+                      <div className="flex items-center justify-center gap-2 mb-4">
+                        {serverPinStatus.pinCode.split('').map((digit, i) => (
+                          <span key={i} className="w-14 h-16 flex items-center justify-center text-3xl font-black bg-white/20 backdrop-blur rounded-xl border-2 border-white/30 shadow-lg">
+                            {digit}
+                          </span>
+                        ))}
+                      </div>
+
+                      {/* Countdown Timer */}
+                      <div className="flex items-center justify-center gap-2 mb-4">
+                        <Clock className="w-5 h-5" />
+                        <span className="text-lg font-bold">
+                          {Math.floor(serverPinStatus.expiresIn / 60)}:{String(serverPinStatus.expiresIn % 60).padStart(2, '0')}
+                        </span>
+                        <span className="text-sm text-white/70">remaining</span>
+                      </div>
+
+                      <p className="text-sm text-white/90 mb-4">
+                        {serverPinStatus.recommendation}
+                      </p>
+
+                      {/* Refresh Button */}
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => selectedAccount && fetchPinStatus(selectedAccount._id)}
+                        className="border-white/30 text-white hover:bg-white/10"
+                      >
+                        <RefreshCw className="w-4 h-4 mr-2" /> Refresh Status
+                      </Button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Expired PIN Notice */}
+                {serverPinStatus && !serverPinStatus.isUsable && serverPinStatus.status === 'OLD' && !loginStatus.pinCode && (
+                  <div className="p-4 bg-slate-100 rounded-xl border border-slate-200">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-xl bg-slate-200 flex items-center justify-center">
+                        <Clock className="w-5 h-5 text-slate-500" />
+                      </div>
+                      <div className="flex-1">
+                        <p className="text-sm font-bold text-slate-700">Previous PIN Expired</p>
+                        <p className="text-xs text-slate-500">Start a new login or wait for auto-relogin</p>
+                      </div>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => selectedAccount && fetchPinStatus(selectedAccount._id)}
+                        className="border-slate-300 text-slate-600 hover:bg-slate-200"
+                      >
+                        <RefreshCw className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Quick cURL Copy Button - Prominent position */}
+                {sessionData.session?.hasKeys && (
+                  <div className="p-4 bg-gradient-to-r from-slate-800 to-slate-900 rounded-xl border border-slate-700">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-xl bg-emerald-500/20 flex items-center justify-center">
+                          <Terminal className="w-5 h-5 text-emerald-400" />
+                        </div>
+                        <div>
+                          <p className="text-sm font-bold text-white">cURL Command Ready</p>
+                          <p className="text-xs text-slate-400">Copy for use in terminal or scripts</p>
+                        </div>
+                      </div>
+                      <Button
+                        variant="primary"
+                        size="sm"
+                        onClick={handleCopyCurl}
+                        className="bg-emerald-500 hover:bg-emerald-600 text-white px-6"
+                      >
+                        <Copy className="w-4 h-4 mr-2" /> Copy cURL
+                      </Button>
+                    </div>
+                  </div>
+                )}
+
                 {/* Login Form */}
                 <div className="p-6 bg-gradient-to-br from-blue-500 to-indigo-600 text-white rounded-[2rem] relative overflow-hidden">
                   <div className="absolute top-0 right-0 w-48 h-48 bg-white/10 rounded-full blur-[60px] -mr-24 -mt-24 pointer-events-none" />
@@ -2355,10 +2578,14 @@ export default function AdminLineAccountsPage() {
                         </div>
                       </div>
 
-                      {/* Copy Success Indicator */}
-                      <p className="text-[10px] text-white/60 mt-4 text-center">
-                        Click "Copy cURL" to copy the full command to clipboard
-                      </p>
+                      {/* Large Copy Button */}
+                      <Button
+                        variant="primary"
+                        onClick={handleCopyCurl}
+                        className="w-full mt-6 h-14 rounded-xl font-bold bg-white text-emerald-600 hover:bg-white/90 shadow-lg"
+                      >
+                        <Copy className="w-5 h-5 mr-2" /> Copy cURL to Clipboard
+                      </Button>
                     </div>
                   </div>
                 )}
