@@ -2523,14 +2523,27 @@ export default function AdminLineAccountsPage() {
                     <div className="flex items-center gap-3">
                       <Loader2 className="w-5 h-5 text-blue-500 animate-spin" />
                       <div>
-                        <p className="text-sm font-bold text-blue-700">Processing</p>
-                        <p className="text-xs text-blue-600 capitalize">
-                          {loginStatus.workerState.replace(/_/g, ' ')}
-                          {loginStatus.requestId && (
-                            <span className="ml-2 text-blue-400 font-mono">
-                              (Request: {loginStatus.requestId.substring(0, 8)}...)
-                            </span>
-                          )}
+                        <p className="text-sm font-bold text-blue-700">กำลังดำเนินการ</p>
+                        <p className="text-xs text-blue-600">
+                          {(() => {
+                            const stateMap: Record<string, string> = {
+                              'idle': 'พร้อมใช้งาน',
+                              'requesting': 'กำลังส่งคำขอ...',
+                              'initializing': 'กำลังเริ่มต้น...',
+                              'launching_browser': 'กำลังเปิด Browser...',
+                              'loading_extension': 'กำลังโหลด LINE Extension...',
+                              'checking_session': 'กำลังตรวจสอบ Session...',
+                              'entering_credentials': 'กำลังกรอกข้อมูล...',
+                              'waiting_pin': 'รอการยืนยัน PIN...',
+                              'pin_displayed': 'รอกรอก PIN บน LINE App',
+                              'verifying': 'กำลังตรวจสอบ...',
+                              'extracting_keys': 'กำลังดึง Keys...',
+                              'triggering_messages': 'กำลังดึงข้อมูล Chat...',
+                              'success': 'สำเร็จ!',
+                              'failed': 'ล้มเหลว',
+                            };
+                            return stateMap[loginStatus.workerState] || loginStatus.workerState.replace(/_/g, ' ');
+                          })()}
                         </p>
                       </div>
                     </div>
@@ -2543,8 +2556,8 @@ export default function AdminLineAccountsPage() {
                     <div className="flex items-center gap-3">
                       <CheckCircle className="w-5 h-5 text-emerald-500" />
                       <div>
-                        <p className="text-sm font-bold text-emerald-700">Login Successful</p>
-                        <p className="text-xs text-emerald-600">Keys have been captured and saved</p>
+                        <p className="text-sm font-bold text-emerald-700">เข้าสู่ระบบสำเร็จ!</p>
+                        <p className="text-xs text-emerald-600">Keys ถูกบันทึกเรียบร้อยแล้ว</p>
                       </div>
                     </div>
                   </div>

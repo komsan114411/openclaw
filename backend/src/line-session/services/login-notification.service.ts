@@ -266,7 +266,7 @@ export class LoginNotificationService {
   }
 
   /**
-   * Get user-friendly status message
+   * Get user-friendly status message (Thai)
    */
   private getStatusMessage(
     status: EnhancedLoginStatus,
@@ -275,39 +275,39 @@ export class LoginNotificationService {
   ): string {
     switch (status) {
       case EnhancedLoginStatus.IDLE:
-        return 'Idle';
+        return 'พร้อมใช้งาน';
       case EnhancedLoginStatus.REQUESTING:
-        return 'Requesting login...';
+        return 'กำลังส่งคำขอ...';
       case EnhancedLoginStatus.INITIALIZING:
-        return 'Initializing...';
+        return 'กำลังเริ่มต้น...';
       case EnhancedLoginStatus.LAUNCHING_BROWSER:
-        return 'Launching browser...';
+        return 'กำลังเปิด Browser...';
       case EnhancedLoginStatus.LOADING_EXTENSION:
-        return 'Loading LINE extension...';
+        return 'กำลังโหลด LINE Extension...';
       case EnhancedLoginStatus.CHECKING_SESSION:
-        return 'Checking existing session...';
+        return 'กำลังตรวจสอบ Session...';
       case EnhancedLoginStatus.ENTERING_CREDENTIALS:
-        return 'Entering credentials...';
+        return 'กำลังกรอกข้อมูลเข้าสู่ระบบ...';
       case EnhancedLoginStatus.WAITING_PIN:
-        return 'Waiting for PIN verification...';
+        return 'รอการยืนยัน PIN...';
       case EnhancedLoginStatus.PIN_DISPLAYED:
         return pinCode
-          ? `PIN Code: ${pinCode} - Enter on your LINE app`
-          : 'PIN displayed - Enter on your LINE app';
+          ? `PIN: ${pinCode} - กรุณากรอกบน LINE App`
+          : 'รอกรอก PIN บน LINE App';
       case EnhancedLoginStatus.VERIFYING:
-        return 'Verifying login...';
+        return 'กำลังตรวจสอบการเข้าสู่ระบบ...';
       case EnhancedLoginStatus.EXTRACTING_KEYS:
-        return 'Extracting keys...';
+        return 'กำลังดึง Keys...';
       case EnhancedLoginStatus.TRIGGERING_MESSAGES:
-        return 'Triggering messages to capture keys...';
+        return 'กำลังดึงข้อมูล Chat...';
       case EnhancedLoginStatus.SUCCESS:
-        return 'Login successful! Keys captured.';
+        return 'เข้าสู่ระบบสำเร็จ! Keys ถูกบันทึกแล้ว';
       case EnhancedLoginStatus.FAILED:
-        return error ? `Login failed: ${error}` : 'Login failed';
+        return error ? `ล้มเหลว: ${error}` : 'เข้าสู่ระบบล้มเหลว';
       case EnhancedLoginStatus.COOLDOWN:
-        return 'In cooldown period. Please wait.';
+        return 'อยู่ในช่วง Cooldown กรุณารอสักครู่';
       default:
-        return 'Unknown status';
+        return 'ไม่ทราบสถานะ';
     }
   }
 }
