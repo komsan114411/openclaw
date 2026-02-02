@@ -460,8 +460,9 @@ export class WorkerPoolService implements OnModuleDestroy, OnModuleInit {
         this.logger.debug(`[CDP] LINE API call detected: ${url.split('?')[0]}`);
       }
 
-      // Capture keys from getRecentMessagesV2 (primary) or getChats (fallback)
-      if (url.includes('getRecentMessagesV2') || url.includes('getChats')) {
+      // Phase 88: ONLY capture from getRecentMessagesV2 endpoint (like GSB)
+      // Don't capture from getChats - keys must match the HMAC for getRecentMessagesV2
+      if (url.includes('getRecentMessagesV2') && !worker.capturedKeys) {
         const xLineAccess = headers['x-line-access'] || headers['X-Line-Access'];
         const xHmac = headers['x-hmac'] || headers['X-Hmac'];
 
@@ -576,7 +577,8 @@ export class WorkerPoolService implements OnModuleDestroy, OnModuleInit {
       const url = request.url();
       const headers = request.headers();
 
-      if (url.includes('getRecentMessagesV2') || url.includes('TalkService')) {
+      // Phase 88: ONLY capture from getRecentMessagesV2 endpoint (like GSB)
+      if (url.includes('getRecentMessagesV2') && !worker.capturedKeys) {
         const xLineAccess = headers['x-line-access'];
         const xHmac = headers['x-hmac'];
 

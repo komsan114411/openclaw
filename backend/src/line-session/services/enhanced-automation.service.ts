@@ -209,7 +209,7 @@ export class EnhancedAutomationService implements OnModuleDestroy {
   async saveCredentials(lineAccountId: string, email: string, password: string): Promise<boolean> {
     // Check if session exists first - try by _id first, then by lineAccountId field
     let existingSession = await this.lineSessionModel.findById(lineAccountId);
-    
+
     if (!existingSession) {
       existingSession = await this.lineSessionModel.findOne({
         lineAccountId,
@@ -246,7 +246,7 @@ export class EnhancedAutomationService implements OnModuleDestroy {
   async getCredentials(lineAccountId: string): Promise<{ email: string; password: string } | null> {
     // Try by _id first, then by lineAccountId field
     let session = await this.lineSessionModel.findById(lineAccountId);
-    
+
     if (!session) {
       session = await this.lineSessionModel.findOne({
         lineAccountId,
@@ -281,7 +281,7 @@ export class EnhancedAutomationService implements OnModuleDestroy {
   ): Promise<EnhancedLoginResult> {
     // Step 0: Check if session exists in database - try by _id first, then by lineAccountId
     let existingSession = await this.lineSessionModel.findById(lineAccountId);
-    
+
     if (!existingSession) {
       existingSession = await this.lineSessionModel.findOne({
         lineAccountId,
@@ -757,24 +757,24 @@ export class EnhancedAutomationService implements OnModuleDestroy {
 
           case 3:
             // Attempt 3: Click first chat item
-            await this.clickFirstChatItem(worker.page);
+            await this.clickFirstChatItem(worker.page, worker.cdpClient);
             break;
 
           case 4:
             // Attempt 4: Auto-detect and click bank notification chat
-            await this.clickBankChat(worker.page);
+            await this.clickBankChat(worker.page, worker.cdpClient);
             break;
 
           case 5:
             // Attempt 5: Scroll chat list and click second item
-            await this.scrollAndClickChat(worker.page);
+            await this.scrollAndClickChat(worker.page, worker.cdpClient);
             break;
 
           case 6:
             // Attempt 6: Reload and retry
             await worker.page.reload({ waitUntil: 'domcontentloaded' });
             await this.delay(3000);
-            await this.clickFirstChatItem(worker.page);
+            await this.clickFirstChatItem(worker.page, worker.cdpClient);
             break;
         }
       } catch (error: any) {
@@ -911,11 +911,11 @@ export class EnhancedAutomationService implements OnModuleDestroy {
   }
 
   /**
-   * Click first chat item
+   * Click first chat item (Enhanced with CDP)
    */
-  private async clickFirstChatItem(page: any): Promise<void> {
+  private async clickFirstChatItem(page: any, cdpClient?: any): Promise<void> {
     try {
-      await page.evaluate(() => {
+      const elementInfo = await page.evaluate(() => {
         const selectors = [
           '[class*="chatItem"]',
           '[class*="listItem"]',
@@ -926,64 +926,165 @@ export class EnhancedAutomationService implements OnModuleDestroy {
         for (const selector of selectors) {
           const items = document.querySelectorAll(selector);
           if (items.length > 0) {
-            (items[0] as HTMLElement).click();
-            return;
+            const el = items[0] as HTMLElement;
+            const rect = el.getBoundingClientRect();
+            return {
+              found: true,
+              x: rect.x + rect.width / 2,
+              y: rect.y + rect.height / 2,
+              selector
+            };
           }
         }
+        return { found: false, x: 0, y: 0 };
       });
-      await this.delay(1000);
+
+      if (elementInfo.found) {
+        if (cdpClient) {
+          try {
+            await cdpClient.send('Input.dispatchMouseEvent', {
+              type: 'mousePressed',
+              x: elementInfo.x,
+              y: elementInfo.y,
+              button: 'left',
+              clickCount: 1,
+            });
+            await cdpClient.send('Input.dispatchMouseEvent', {
+              type: 'mouseReleased',
+              x: elementInfo.x,
+              y: elementInfo.y,
+              button: 'left',
+              clickCount: 1,
+            });
+            this.logger.log(`[CDP Click] Clicked first chat item (${elementInfo.selector})`);
+            await this.delay(1000);
+            return;
+          } catch (e) {
+            // Fallback
+          }
+        }
+
+        // Fallback or if CDP fails
+        await page.evaluate((sel: string) => {
+          const el = document.querySelector(sel) as HTMLElement;
+          if (el) el.click();
+        }, elementInfo.selector);
+        this.logger.log(`[Click] Clicked first chat item (${elementInfo.selector})`);
+        await this.delay(1000);
+      }
     } catch (error: any) {
       this.logger.warn(`clickFirstChatItem failed: ${error.message}`);
     }
   }
 
   /**
-   * Click bank notification chat
+   * Click bank notification chat (Enhanced with CDP)
    */
-  private async clickBankChat(page: any): Promise<void> {
+  private async clickBankChat(page: any, cdpClient?: any): Promise<void> {
     try {
       const bankPatterns = ['SCB', 'GSB', 'KBANK', 'KBank', 'ธนาคาร', 'ออมสิน', 'กสิกร', 'ไทยพาณิชย์', 'กรุงเทพ', 'กรุงไทย'];
 
-      await page.evaluate((patterns: string[]) => {
+      const elementInfo = await page.evaluate((patterns: string[]) => {
         const chatItems = document.querySelectorAll('[class*="chatItem"], [class*="listItem"]');
 
         for (const item of chatItems) {
           const text = item.textContent || '';
           for (const pattern of patterns) {
             if (text.includes(pattern)) {
-              (item as HTMLElement).click();
-              return;
+              const rect = item.getBoundingClientRect();
+              return {
+                found: true,
+                x: rect.x + rect.width / 2,
+                y: rect.y + rect.height / 2,
+                text: text.substring(0, 30)
+              };
             }
           }
         }
+        return { found: false, x: 0, y: 0 };
       }, bankPatterns);
 
-      await this.delay(1000);
+      if (elementInfo.found) {
+        if (cdpClient) {
+          try {
+            await cdpClient.send('Input.dispatchMouseEvent', { type: 'mousePressed', x: elementInfo.x, y: elementInfo.y, button: 'left', clickCount: 1 });
+            await cdpClient.send('Input.dispatchMouseEvent', { type: 'mouseReleased', x: elementInfo.x, y: elementInfo.y, button: 'left', clickCount: 1 });
+            this.logger.log(`[CDP Click] Clicked bank chat "${elementInfo.text}..."`);
+            await this.delay(1000);
+            return;
+          } catch (e) { /* Fallback */ }
+        }
+
+        // Fallback: DOM click
+        await page.evaluate((patterns: string[]) => {
+          const chatItems = document.querySelectorAll('[class*="chatItem"], [class*="listItem"]');
+          for (const item of chatItems) {
+            const text = item.textContent || '';
+            for (const pattern of patterns) {
+              if (text.includes(pattern)) {
+                (item as HTMLElement).click();
+                return;
+              }
+            }
+          }
+        }, bankPatterns);
+        this.logger.log(`[Click] Clicked bank chat (fallback)`);
+        await this.delay(1000);
+      }
     } catch (error: any) {
       this.logger.warn(`clickBankChat failed: ${error.message}`);
     }
   }
 
   /**
-   * Scroll and click second chat
+   * Scroll and click second chat (Enhanced with CDP)
    */
-  private async scrollAndClickChat(page: any): Promise<void> {
+  private async scrollAndClickChat(page: any, cdpClient?: any): Promise<void> {
     try {
-      await page.evaluate(() => {
+      const elementInfo = await page.evaluate(async () => {
         const chatList = document.querySelector('[class*="chatList"], [class*="ChatList"]');
         if (chatList) {
           chatList.scrollTop = 100;
         }
 
-        setTimeout(() => {
+        // Wait a bit for scroll - logic inside evaluate is sync, so we can't wait well.
+        // We'll return finding info and click from outside
+        const items = document.querySelectorAll('[class*="chatItem"], [class*="listItem"]');
+        if (items.length > 1) {
+          const el = items[1] as HTMLElement;
+          const rect = el.getBoundingClientRect();
+          return {
+            found: true,
+            x: rect.x + rect.width / 2,
+            y: rect.y + rect.height / 2
+          };
+        }
+        return { found: false, x: 0, y: 0 };
+      });
+
+      await this.delay(500); // Wait for scroll effect
+
+      if (elementInfo.found) {
+        if (cdpClient) {
+          try {
+            await cdpClient.send('Input.dispatchMouseEvent', { type: 'mousePressed', x: elementInfo.x, y: elementInfo.y, button: 'left', clickCount: 1 });
+            await cdpClient.send('Input.dispatchMouseEvent', { type: 'mouseReleased', x: elementInfo.x, y: elementInfo.y, button: 'left', clickCount: 1 });
+            this.logger.log(`[CDP Click] Clicked second chat item`);
+            await this.delay(1000);
+            return;
+          } catch (e) { }
+        }
+
+        // Fallback: DOM click
+        await page.evaluate(() => {
           const items = document.querySelectorAll('[class*="chatItem"], [class*="listItem"]');
           if (items.length > 1) {
             (items[1] as HTMLElement).click();
           }
-        }, 500);
-      });
-
-      await this.delay(1500);
+        });
+        this.logger.log(`[Click] Clicked second chat item (fallback)`);
+        await this.delay(1000);
+      }
     } catch (error: any) {
       this.logger.warn(`scrollAndClickChat failed: ${error.message}`);
     }
