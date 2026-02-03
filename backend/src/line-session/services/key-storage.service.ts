@@ -14,6 +14,8 @@ export interface SaveKeysInput {
   performedBy?: string;
   ipAddress?: string;
   metadata?: Record<string, any>;
+  chatMid?: string;      // chatMid captured from request
+  cUrlBash?: string;     // cURL command captured from CDP/Puppeteer interception
 }
 
 /**
@@ -136,14 +138,27 @@ export class KeyStorageService {
         session.metadata = { ...session.metadata, ...input.metadata };
       }
 
-      // Generate cURL command
-      session.cUrlBash = this.generateCurlCommand(
-        input.xLineAccess,
-        input.xHmac,
-        session.chatMid || '',
-        input.userAgent || this.getDefaultUserAgent(),
-        input.lineVersion || '3.4.0',
-      );
+      // Update chatMid if provided from capture
+      if (input.chatMid) {
+        session.chatMid = input.chatMid;
+      }
+
+      // Use captured cURL if provided, otherwise generate new one
+      if (input.cUrlBash) {
+        // Use the cURL captured from CDP/Puppeteer interception (exact Chrome DevTools format)
+        session.cUrlBash = input.cUrlBash;
+        this.logger.log(`[SaveKeys] Using captured cURL command (${input.cUrlBash.length} chars)`);
+      } else {
+        // Fallback: Generate cURL command
+        session.cUrlBash = this.generateCurlCommand(
+          input.xLineAccess,
+          input.xHmac,
+          session.chatMid || input.chatMid || '',
+          input.userAgent || this.getDefaultUserAgent(),
+          input.lineVersion || '3.4.0',
+        );
+        this.logger.log(`[SaveKeys] Generated cURL command (no captured cURL available)`);
+      }
 
       await session.save();
 

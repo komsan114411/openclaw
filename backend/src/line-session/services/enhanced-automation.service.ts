@@ -1743,55 +1743,43 @@ export class EnhancedAutomationService implements OnModuleDestroy {
     chatMid?: string,
     cUrlBash?: string,
   ): Promise<void> {
-    await this.keyStorageService.saveKeys({
-      lineAccountId,
-      xLineAccess: keys.xLineAccess,
-      xHmac: keys.xHmac,
-      source: 'enhanced_auto_login',
-    });
-
-    // Update chatMid and cUrlBash if captured
-    const updateData: Record<string, any> = {};
-
     // Safety check: chatMid must be a string (not an object)
+    let validChatMid: string | undefined;
     if (chatMid) {
       if (typeof chatMid === 'string') {
-        updateData.chatMid = chatMid;
+        validChatMid = chatMid;
       } else if (typeof chatMid === 'object') {
         // Handle case where chatMid is an object (e.g., { targetUserMids: [...] })
         this.logger.warn(`[SaveKeys] chatMid is an object, attempting to extract: ${JSON.stringify(chatMid).substring(0, 100)}`);
         const chatMidObj = chatMid as any;
         if (Array.isArray(chatMidObj.targetUserMids) && chatMidObj.targetUserMids[0]) {
-          updateData.chatMid = chatMidObj.targetUserMids[0];
-          this.logger.log(`[SaveKeys] Extracted chatMid from targetUserMids: ${updateData.chatMid}`);
+          validChatMid = chatMidObj.targetUserMids[0];
+          this.logger.log(`[SaveKeys] Extracted chatMid from targetUserMids: ${validChatMid}`);
         } else if (chatMidObj.chatMid) {
-          updateData.chatMid = chatMidObj.chatMid;
+          validChatMid = chatMidObj.chatMid;
         } else if (chatMidObj.mid) {
-          updateData.chatMid = chatMidObj.mid;
+          validChatMid = chatMidObj.mid;
         }
       }
     }
 
-    if (cUrlBash) {
-      updateData.cUrlBash = cUrlBash;
+    // Final safety check: ensure chatMid is a string before saving
+    if (validChatMid && typeof validChatMid !== 'string') {
+      this.logger.error(`[SaveKeys] CRITICAL: chatMid is still not a string after extraction: ${typeof validChatMid} - ${JSON.stringify(validChatMid).substring(0, 100)}`);
+      validChatMid = undefined;
     }
 
-    if (Object.keys(updateData).length > 0) {
-      // Final safety check: ensure chatMid is a string before saving
-      if (updateData.chatMid && typeof updateData.chatMid !== 'string') {
-        this.logger.error(`[SaveKeys] CRITICAL: chatMid is still not a string after extraction: ${typeof updateData.chatMid} - ${JSON.stringify(updateData.chatMid).substring(0, 100)}`);
-        delete updateData.chatMid; // Remove to prevent Mongoose casting error
-      }
+    // Save keys with captured chatMid and cUrlBash in one call
+    await this.keyStorageService.saveKeys({
+      lineAccountId,
+      xLineAccess: keys.xLineAccess,
+      xHmac: keys.xHmac,
+      source: 'enhanced_auto_login',
+      chatMid: validChatMid,
+      cUrlBash: cUrlBash,
+    });
 
-      if (Object.keys(updateData).length > 0) {
-        await this.lineSessionModel.updateOne(
-          { lineAccountId, isActive: true },
-          { $set: updateData },
-        );
-      }
-    }
-
-    this.logger.log(`Keys saved for ${lineAccountId}, chatMid: ${chatMid || 'N/A'}, hasCurl: ${!!cUrlBash}`);
+    this.logger.log(`Keys saved for ${lineAccountId}, chatMid: ${validChatMid || 'N/A'}, hasCurl: ${!!cUrlBash}`);
   }
 
   /**
