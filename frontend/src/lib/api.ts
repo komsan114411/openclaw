@@ -897,3 +897,76 @@ export const rateLimitApi = {
   // Clear test logs
   clearTestLogs: () => api.delete('/rate-limit/test/logs'),
 };
+
+// Auto-Slip Bank Account data types
+interface CreateAutoSlipBankAccountData {
+  bankType: string;
+  bankCode: string;
+  accountNumber: string;
+  accountName: string;
+  lineEmail?: string;
+  linePassword?: string;
+}
+
+interface UpdateAutoSlipBankAccountData {
+  accountNumber?: string;
+  accountName?: string;
+  lineEmail?: string;
+  linePassword?: string;
+  monitoringEnabled?: boolean;
+  checkInterval?: number;
+  isActive?: boolean;
+}
+
+interface SetAutoSlipKeysData {
+  xLineAccess: string;
+  xHmac: string;
+  chatMid?: string;
+  userAgent?: string;
+  lineVersion?: string;
+}
+
+// Auto-Slip API (User endpoints)
+export const autoSlipApi = {
+  // Bank Account CRUD
+  getMyAccounts: () => api.get('/auto-slip/bank-accounts'),
+  getAccount: (id: string) => api.get(`/auto-slip/bank-accounts/${id}`),
+  createAccount: (data: CreateAutoSlipBankAccountData) =>
+    api.post('/auto-slip/bank-accounts', data),
+  updateAccount: (id: string, data: UpdateAutoSlipBankAccountData) =>
+    api.patch(`/auto-slip/bank-accounts/${id}`, data),
+  deleteAccount: (id: string) => api.delete(`/auto-slip/bank-accounts/${id}`),
+
+  // Login & Keys
+  triggerLogin: (id: string, email?: string, password?: string) =>
+    api.post(`/auto-slip/bank-accounts/${id}/login`, { email, password }),
+  setKeys: (id: string, data: SetAutoSlipKeysData) =>
+    api.post(`/auto-slip/bank-accounts/${id}/keys`, data),
+  getStatus: (id: string) => api.get(`/auto-slip/bank-accounts/${id}/status`),
+
+  // Transactions
+  getTransactions: (id: string, params?: { limit?: number; offset?: number; type?: string }) =>
+    api.get(`/auto-slip/bank-accounts/${id}/transactions`, { params }),
+};
+
+// Auto-Slip Admin API
+export const autoSlipAdminApi = {
+  // View all accounts
+  getAllAccounts: () => api.get('/admin/auto-slip/accounts'),
+  getAccountDetails: (id: string) => api.get(`/admin/auto-slip/accounts/${id}`),
+
+  // Admin actions
+  resetAccount: (id: string) => api.post(`/admin/auto-slip/accounts/${id}/reset`),
+  enableMonitoring: (id: string) => api.post(`/admin/auto-slip/accounts/${id}/enable-monitoring`),
+  disableMonitoring: (id: string) => api.post(`/admin/auto-slip/accounts/${id}/disable-monitoring`),
+  updateCheckInterval: (id: string, intervalMs: number) =>
+    api.post(`/admin/auto-slip/accounts/${id}/check-interval`, { intervalMs }),
+  triggerFetch: (id: string) => api.post(`/admin/auto-slip/accounts/${id}/fetch`),
+
+  // System management
+  getOrchestratorStats: () => api.get('/admin/auto-slip/orchestrator/stats'),
+  getOrchestratorStatus: () => api.get('/admin/auto-slip/orchestrator/status'),
+  getGlobalSettings: () => api.get('/admin/auto-slip/settings'),
+  getFetcherStatus: () => api.get('/admin/auto-slip/fetcher/status'),
+  releaseAllLocks: () => api.post('/admin/auto-slip/locks/release-all'),
+};

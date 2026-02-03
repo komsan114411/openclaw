@@ -32,6 +32,7 @@ import { EventBusModule } from './core/events';
 import { SecurityModule } from './utils/security.module';
 import { RateLimitModule } from './common/rate-limit.module';
 import { LineSessionModule } from './line-session/line-session.module';
+import { AutoSlipExtractionModule } from './auto-slip-extraction/auto-slip-extraction.module';
 
 @Module({
   imports: [
@@ -121,6 +122,11 @@ import { LineSessionModule } from './line-session/line-session.module';
     // LINE Session Management (Standalone Module)
     // ลบได้ง่าย: ลบ folder src/line-session/ และลบบรรทัดนี้
     LineSessionModule,
+
+    // Auto-Slip Extraction (Standalone Module)
+    // ไม่กระทบกับระบบ Slip Verification และ AI ที่มีอยู่
+    // ลบได้ง่าย: ลบ folder src/auto-slip-extraction/ และลบบรรทัดนี้
+    AutoSlipExtractionModule,
   ],
 })
 export class AppModule { }

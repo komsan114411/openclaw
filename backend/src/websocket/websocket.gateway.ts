@@ -407,4 +407,118 @@ export class WebsocketGateway implements OnGatewayConnection, OnGatewayDisconnec
     // Also broadcast to admins
     this.broadcastToAdmins('orchestrator:pin_expired', payload);
   }
+
+  // ============================================
+  // Auto-Slip Extraction Events
+  // ============================================
+
+  /**
+   * Broadcast when bank account status changes
+   */
+  @OnEvent('bank.status_changed')
+  handleBankStatusChanged(payload: {
+    bankAccountId: string;
+    userId: string;
+    previousStatus: string;
+    newStatus: string;
+    reason?: string;
+    metadata?: Record<string, unknown>;
+    timestamp: Date;
+  }) {
+    this.logger.log(`[AutoSlip] Bank ${payload.bankAccountId}: ${payload.previousStatus} → ${payload.newStatus}`);
+    // Broadcast to the specific user
+    this.broadcastToUser(payload.userId, 'auto-slip:status_changed', payload);
+    // Broadcast to admins
+    this.broadcastToAdmins('auto-slip:status_changed', payload);
+  }
+
+  /**
+   * Broadcast when PIN is required for bank login
+   */
+  @OnEvent('bank.pin_required')
+  handleBankPinRequired(payload: {
+    bankAccountId: string;
+    userId: string;
+    pinCode: string;
+    displayedAt: Date;
+    expiresAt: Date;
+    status: string;
+  }) {
+    this.logger.log(`[AutoSlip] PIN required for bank ${payload.bankAccountId}: ${payload.pinCode}`);
+    // Broadcast to the specific user
+    this.broadcastToUser(payload.userId, 'auto-slip:pin_required', payload);
+    // Broadcast to admins
+    this.broadcastToAdmins('auto-slip:pin_required', payload);
+  }
+
+  /**
+   * Broadcast when keys are successfully extracted
+   */
+  @OnEvent('bank.keys_extracted')
+  handleBankKeysExtracted(payload: {
+    bankAccountId: string;
+    userId: string;
+    extractedAt: Date;
+    source: string;
+  }) {
+    this.logger.log(`[AutoSlip] Keys extracted for bank ${payload.bankAccountId}`);
+    // Broadcast to the specific user
+    this.broadcastToUser(payload.userId, 'auto-slip:keys_extracted', payload);
+    // Broadcast to admins
+    this.broadcastToAdmins('auto-slip:keys_extracted', payload);
+  }
+
+  /**
+   * Broadcast when new transaction message is received
+   */
+  @OnEvent('bank.message_received')
+  handleBankMessageReceived(payload: {
+    bankAccountId: string;
+    userId: string;
+    type: 'deposit' | 'withdraw' | 'transfer';
+    amount: number;
+    balance?: number;
+    messageId: string;
+    transactionDate: Date;
+  }) {
+    this.logger.log(`[AutoSlip] Transaction ${payload.type}: ${payload.amount} for bank ${payload.bankAccountId}`);
+    // Broadcast to the specific user
+    this.broadcastToUser(payload.userId, 'auto-slip:message_received', payload);
+    // Broadcast to admins
+    this.broadcastToAdmins('auto-slip:message_received', payload);
+  }
+
+  /**
+   * Broadcast when balance is updated
+   */
+  @OnEvent('bank.balance_updated')
+  handleBankBalanceUpdated(payload: {
+    bankAccountId: string;
+    userId: string;
+    previousBalance: number;
+    newBalance: number;
+    timestamp: Date;
+  }) {
+    this.logger.log(`[AutoSlip] Balance updated for bank ${payload.bankAccountId}: ${payload.newBalance}`);
+    // Broadcast to the specific user
+    this.broadcastToUser(payload.userId, 'auto-slip:balance_updated', payload);
+  }
+
+  /**
+   * Broadcast when error occurs on bank account
+   */
+  @OnEvent('bank.error')
+  handleBankError(payload: {
+    bankAccountId: string;
+    userId: string;
+    error: string;
+    errorCode?: string;
+    timestamp: Date;
+  }) {
+    this.logger.warn(`[AutoSlip] Error for bank ${payload.bankAccountId}: ${payload.error}`);
+    // Broadcast to the specific user
+    this.broadcastToUser(payload.userId, 'auto-slip:error', payload);
+    // Broadcast to admins
+    this.broadcastToAdmins('auto-slip:error', payload);
+  }
 }

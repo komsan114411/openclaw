@@ -32,6 +32,8 @@ import { WorkerPoolService } from './services/worker-pool.service';
 import { LoginCoordinatorService } from './services/login-coordinator.service';
 import { OrchestratorService } from './services/orchestrator.service';
 import { SetKeysDto, CopyKeysDto, ParseCurlDto, TriggerLoginDto } from './dto/set-keys.dto';
+import { BatchOperationDto, BatchReloginDto, BatchOperationResponse, BatchOperationResult } from './dto/batch-operation.dto';
+import { LoginLockService } from './services/login-lock.service';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { BankList, BankListDocument, DEFAULT_BANKS } from './schemas/bank-list.schema';
@@ -56,6 +58,7 @@ export class LineSessionController {
     private workerPoolService: WorkerPoolService,
     private loginCoordinatorService: LoginCoordinatorService,
     private orchestratorService: OrchestratorService,
+    private loginLockService: LoginLockService,
     @InjectModel(BankList.name)
     private bankListModel: Model<BankListDocument>,
     @InjectModel(LineSession.name)
@@ -1379,6 +1382,235 @@ export class LineSessionController {
     return {
       success: true,
       settings: this.orchestratorService.getCurrentSettings(),
+    };
+  }
+
+  // ================================
+  // BATCH OPERATIONS
+  // ================================
+
+  /**
+   * Batch health check for multiple sessions
+   */
+  @Post('batch/health-check')
+  @ApiOperation({ summary: 'Check health of multiple sessions at once' })
+  async batchHealthCheck(@Body() dto: BatchOperationDto): Promise<BatchOperationResponse> {
+    const results: BatchOperationResult[] = [];
+
+    for (const sessionId of dto.sessionIds) {
+      try {
+        const session = await this.keyStorageService.getActiveSession(sessionId);
+        if (!session) {
+          results.push({
+            sessionId,
+            success: false,
+            error: 'Session not found',
+          });
+          continue;
+        }
+
+        const health = await this.sessionHealthService.checkSessionHealth(session);
+        results.push({
+          sessionId,
+          success: true,
+          data: {
+            status: health.status,
+            checkedAt: health.checkedAt,
+            message: health.message,
+            consecutiveFailures: health.consecutiveFailures,
+          },
+        });
+      } catch (error: any) {
+        results.push({
+          sessionId,
+          success: false,
+          error: error.message,
+        });
+      }
+    }
+
+    const succeeded = results.filter(r => r.success).length;
+    return {
+      success: succeeded > 0,
+      total: dto.sessionIds.length,
+      succeeded,
+      failed: dto.sessionIds.length - succeeded,
+      results,
+    };
+  }
+
+  /**
+   * Batch relogin for multiple sessions
+   */
+  @Post('batch/relogin')
+  @ApiOperation({ summary: 'Trigger relogin for multiple sessions' })
+  async batchRelogin(@Body() dto: BatchReloginDto): Promise<BatchOperationResponse> {
+    const results: BatchOperationResult[] = [];
+    const source = dto.source || 'manual';
+
+    for (const sessionId of dto.sessionIds) {
+      try {
+        // Check cooldown unless force is true
+        if (!dto.force) {
+          const cooldownInfo = this.loginCoordinatorService.getCooldownInfo(sessionId);
+          if (cooldownInfo.inCooldown) {
+            results.push({
+              sessionId,
+              success: false,
+              error: `In cooldown, retry after ${Math.ceil(cooldownInfo.remainingMs / 1000)}s`,
+            });
+            continue;
+          }
+        }
+
+        await this.reloginSchedulerService.triggerRelogin(sessionId, source);
+        results.push({
+          sessionId,
+          success: true,
+          message: 'Relogin triggered',
+        });
+      } catch (error: any) {
+        results.push({
+          sessionId,
+          success: false,
+          error: error.message,
+        });
+      }
+    }
+
+    const succeeded = results.filter(r => r.success).length;
+    return {
+      success: succeeded > 0,
+      total: dto.sessionIds.length,
+      succeeded,
+      failed: dto.sessionIds.length - succeeded,
+      results,
+    };
+  }
+
+  /**
+   * Batch validate keys for multiple sessions
+   */
+  @Post('batch/validate-keys')
+  @ApiOperation({ summary: 'Validate keys for multiple sessions' })
+  async batchValidateKeys(@Body() dto: BatchOperationDto): Promise<BatchOperationResponse> {
+    const results: BatchOperationResult[] = [];
+
+    for (const sessionId of dto.sessionIds) {
+      try {
+        const session = await this.keyStorageService.getActiveSession(sessionId);
+        if (!session) {
+          results.push({
+            sessionId,
+            success: false,
+            error: 'Session not found',
+          });
+          continue;
+        }
+
+        const hasValidKeys = !!(session.xLineAccess && session.xHmac);
+        const isExpired = session.status === 'expired' || session.lastCheckResult === 'expired';
+
+        results.push({
+          sessionId,
+          success: true,
+          data: {
+            hasKeys: hasValidKeys,
+            isExpired,
+            status: session.status,
+            lastCheckResult: session.lastCheckResult,
+            extractedAt: session.extractedAt,
+          },
+        });
+      } catch (error: any) {
+        results.push({
+          sessionId,
+          success: false,
+          error: error.message,
+        });
+      }
+    }
+
+    const succeeded = results.filter(r => r.success).length;
+    return {
+      success: succeeded > 0,
+      total: dto.sessionIds.length,
+      succeeded,
+      failed: dto.sessionIds.length - succeeded,
+      results,
+    };
+  }
+
+  // ================================
+  // LOCK MANAGEMENT
+  // ================================
+
+  /**
+   * Get all active locks
+   */
+  @Get('locks')
+  @ApiOperation({ summary: 'Get all active login locks' })
+  async getAllLocks() {
+    const locks = this.loginLockService.getAllLocks();
+    return {
+      success: true,
+      total: locks.length,
+      locks: locks.map(l => ({
+        lineAccountId: l.lineAccountId,
+        source: l.info.source,
+        lockedAt: l.info.lockedAt,
+        duration: Date.now() - l.info.lockedAt.getTime(),
+      })),
+    };
+  }
+
+  /**
+   * Force release a lock
+   */
+  @Delete('locks/:lineAccountId')
+  @ApiOperation({ summary: 'Force release a login lock' })
+  async forceReleaseLock(@Param('lineAccountId') lineAccountId: string) {
+    const lockInfo = this.loginLockService.getLockInfo(lineAccountId);
+    if (!lockInfo) {
+      return {
+        success: false,
+        message: 'No lock found for this account',
+      };
+    }
+
+    this.loginLockService.forceRelease(lineAccountId);
+    return {
+      success: true,
+      message: `Lock released for ${lineAccountId}`,
+      previousLock: {
+        source: lockInfo.source,
+        lockedAt: lockInfo.lockedAt,
+      },
+    };
+  }
+
+  // ================================
+  // POOL METRICS
+  // ================================
+
+  /**
+   * Get worker pool metrics
+   */
+  @Get('pool-metrics')
+  @ApiOperation({ summary: 'Get worker pool metrics and statistics' })
+  async getPoolMetrics() {
+    const poolStatus = this.workerPoolService.getPoolStatus();
+    return {
+      success: true,
+      metrics: {
+        available: poolStatus.available,
+        maxWorkers: poolStatus.maxWorkers,
+        activeWorkers: poolStatus.activeWorkers,
+        utilizationPercent: poolStatus.maxWorkers > 0
+          ? Math.round((poolStatus.activeWorkers / poolStatus.maxWorkers) * 100)
+          : 0,
+      },
+      workers: poolStatus.workers,
     };
   }
 
