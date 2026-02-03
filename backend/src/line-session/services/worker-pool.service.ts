@@ -645,27 +645,85 @@ export class WorkerPoolService implements OnModuleDestroy, OnModuleInit {
           worker.capturedChatMid = chatMid;
           worker.lastActivityAt = new Date();
 
-          // Generate cURL command from intercepted request (GSB-style)
+          // Generate cURL command from intercepted request (Chrome DevTools "Copy as cURL (bash)" style)
+          // Capture ALL headers exactly as they appear in the request - like Chrome DevTools does
+          // Note: CDP Network.requestWillBeSent provides all headers including cookies
           try {
-            const method = request.method || 'POST';
-            let curlCmd = `curl '${url}' \\\n  -X ${method}`;
-
-            // Add important headers
-            const importantHeaders = ['x-line-access', 'x-hmac', 'content-type', 'x-line-chrome-version', 'x-lal'];
+            // Build cURL command exactly like Chrome DevTools "Copy as cURL (bash)"
+            let curlCmd = `curl '${url}'`;
+            
+            // Get cookies from headers (CDP includes cookies in request headers)
+            const cookieString = headers['cookie'] || headers['Cookie'] || '';
+            
+            // Chrome DevTools header order (alphabetical with some exceptions)
+            const chromeHeaderOrder = [
+              'accept',
+              'accept-encoding',
+              'accept-language',
+              'content-type',
+              'origin',
+              'priority',
+              'referer',
+              'sec-ch-ua',
+              'sec-ch-ua-mobile',
+              'sec-ch-ua-platform',
+              'sec-fetch-dest',
+              'sec-fetch-mode',
+              'sec-fetch-site',
+              'sec-fetch-storage-access',
+              'user-agent',
+              'x-hmac',
+              'x-lal',
+              'x-line-access',
+              'x-line-chrome-version',
+              'x-lpqs',
+            ];
+            
+            // Track which headers we've added
+            const addedHeaders = new Set<string>();
+            
+            // First add headers in Chrome DevTools order (except cookie)
+            for (const headerName of chromeHeaderOrder) {
+              // Find header case-insensitively
+              const headerKey = Object.keys(headers).find(
+                k => k.toLowerCase() === headerName.toLowerCase()
+              );
+              
+              if (headerKey && headers[headerKey]) {
+                const value = headers[headerKey];
+                curlCmd += ` \\\n  -H '${headerName}: ${value}'`;
+                addedHeaders.add(headerKey.toLowerCase());
+              }
+            }
+            
+            // Add cookie with -b flag (Chrome DevTools style)
+            if (cookieString) {
+              curlCmd += ` \\\n  -b '${cookieString}'`;
+              addedHeaders.add('cookie');
+            }
+            
+            // Then add any remaining headers not in the predefined order
             for (const [key, value] of Object.entries(headers)) {
-              if (importantHeaders.includes(key.toLowerCase()) || key.toLowerCase().startsWith('x-')) {
+              if (!addedHeaders.has(key.toLowerCase()) && value) {
+                // Skip pseudo-headers (start with :) and cookie (already added)
+                if (key.startsWith(':')) continue;
+                if (key.toLowerCase() === 'cookie') continue;
+                
                 curlCmd += ` \\\n  -H '${key}: ${value}'`;
               }
             }
 
             // Add data if POST request
-            if (method === 'POST' && request.postData) {
-              const escapedData = request.postData.replace(/'/g, "'\\''");
+            if (request.postData) {
+              const postData = request.postData;
+              // Escape single quotes for bash
+              const escapedData = postData.replace(/'/g, "'\\''");
               curlCmd += ` \\\n  --data-raw '${escapedData}'`;
             }
 
             worker.capturedCurl = curlCmd;
-            this.logger.log(`[CDP KeyCapture SUCCESS] cURL command captured`);
+            this.logger.log(`[CDP KeyCapture SUCCESS] cURL command captured (${curlCmd.length} chars)`);
+            this.logger.debug(`[CDP KeyCapture] Full cURL:\n${curlCmd}`);
           } catch (curlError) {
             this.logger.warn(`[CDP KeyCapture] Failed to generate cURL: ${curlError}`);
           }
@@ -920,5 +978,124 @@ export class WorkerPoolService implements OnModuleDestroy, OnModuleInit {
    */
   private delay(ms: number): Promise<void> {
     return new Promise(resolve => setTimeout(resolve, ms));
+  }
+
+  /**
+   * Check if data contains binary/non-printable characters
+   * LINE API uses Thrift binary protocol for getRecentMessagesV2
+   */
+  private isBinaryData(data: string): boolean {
+    // Check for common Thrift binary markers or non-printable characters
+    for (let i = 0; i < Math.min(data.length, 100); i++) {
+      const charCode = data.charCodeAt(i);
+      // Non-printable ASCII characters (except common whitespace)
+      if (charCode < 32 && charCode !== 9 && charCode !== 10 && charCode !== 13) {
+        return true;
+      }
+      // High bytes (extended ASCII / binary)
+      if (charCode > 126) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  /**
+   * Convert binary data to hex-escaped string for bash $'...' syntax
+   * This matches Chrome DevTools "Copy as cURL (bash)" format
+   */
+  private convertToHexEscape(data: string): string {
+    let result = '';
+    for (let i = 0; i < data.length; i++) {
+      const charCode = data.charCodeAt(i);
+      
+      // Printable ASCII (except special chars that need escaping)
+      if (charCode >= 32 && charCode <= 126) {
+        const char = data[i];
+        // Escape special bash characters
+        if (char === '\\') {
+          result += '\\\\';
+        } else if (char === "'") {
+          result += "\\'";
+        } else if (char === '$') {
+          result += '\\$';
+        } else if (char === '`') {
+          result += '\\`';
+        } else if (char === '!') {
+          result += '\\!';
+        } else {
+          result += char;
+        }
+      } else {
+        // Non-printable: use hex escape
+        result += '\\x' + charCode.toString(16).padStart(2, '0');
+      }
+    }
+    return result;
+  }
+
+  /**
+   * Generate cURL command from captured request data
+   * Matches Chrome DevTools "Copy as cURL (bash)" format exactly
+   */
+  generateCurlFromRequest(
+    url: string,
+    method: string,
+    headers: Record<string, string>,
+    postData?: string,
+  ): string {
+    let curlCmd = `curl '${url}'`;
+    
+    // Add all headers
+    const headerOrder = [
+      'accept',
+      'accept-language',
+      'content-type',
+      'origin',
+      'referer',
+      'sec-ch-ua',
+      'sec-ch-ua-mobile',
+      'sec-ch-ua-platform',
+      'sec-fetch-dest',
+      'sec-fetch-mode',
+      'sec-fetch-site',
+      'user-agent',
+      'x-line-access',
+      'x-hmac',
+      'x-lal',
+      'x-line-application',
+      'x-line-chrome-version',
+      'x-lpqs',
+    ];
+    
+    // Add headers in preferred order
+    for (const headerName of headerOrder) {
+      const value = headers[headerName] || headers[headerName.toLowerCase()] ||
+                    headers[headerName.charAt(0).toUpperCase() + headerName.slice(1)];
+      if (value) {
+        curlCmd += ` \\\n  -H '${headerName}: ${value}'`;
+      }
+    }
+    
+    // Add remaining x- headers
+    for (const [key, value] of Object.entries(headers)) {
+      const lowerKey = key.toLowerCase();
+      if (lowerKey.startsWith('x-') && !headerOrder.includes(lowerKey)) {
+        curlCmd += ` \\\n  -H '${key}: ${value}'`;
+      }
+    }
+
+    // Add POST data
+    if (method === 'POST' && postData) {
+      if (this.isBinaryData(postData)) {
+        const hexEscaped = this.convertToHexEscape(postData);
+        curlCmd += ` \\\n  --data-binary $'${hexEscaped}'`;
+      } else {
+        const escapedData = postData.replace(/'/g, "'\\''");
+        curlCmd += ` \\\n  --data-raw '${escapedData}'`;
+      }
+    }
+
+    return curlCmd;
   }
 }

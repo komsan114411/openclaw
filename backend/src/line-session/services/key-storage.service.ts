@@ -320,21 +320,36 @@ export class KeyStorageService {
 
   /**
    * Generate cURL command from keys
+   * Format matches Chrome DevTools "Copy as cURL (bash)" for getRecentMessagesV2
    */
   generateCurlCommand(
     xLineAccess: string,
     xHmac: string,
     chatMid: string,
     userAgent: string,
-    lineVersion: string = '3.4.0',
+    lineVersion: string = '3.7.1',
   ): string {
-    return `curl 'https://gd2.line.naver.jp/enc' \\
-  -H 'X-Line-Access: ${xLineAccess}' \\
-  -H 'X-Hmac: ${xHmac}' \\
-  -H 'User-Agent: ${userAgent}' \\
-  -H 'Content-Type: application/x-thrift' \\
-  -H 'x-line-application: CHROMEOS\t${lineVersion}\tChrome OS\t1' \\
-  --data-binary $'\\x80\\x01\\x00\\x01\\x00\\x00\\x00\\x14getRecentMessagesV2\\x00\\x00\\x00\\x00\\x0b\\x00\\x02\\x00\\x00\\x00${chatMid ? chatMid.length.toString(16).padStart(2, '0') : '00'}${chatMid}\\x08\\x00\\x03\\x00\\x00\\x00\\x32\\x00'`;
+    // Build JSON request body for getRecentMessagesV2: ["chatMid", limit]
+    const jsonBody = JSON.stringify([chatMid, 50]);
+    
+    return `curl 'https://line-chrome-gw.line-apps.com/api/talk/thrift/Talk/TalkService/getRecentMessagesV2' \\
+  -H 'accept: application/json, text/plain, */*' \\
+  -H 'accept-language: th-TH' \\
+  -H 'content-type: application/json' \\
+  -b 'lct=${xLineAccess}' \\
+  -H 'origin: chrome-extension://ophjlpahpchlmihnnnihgmmeilfjmjjc' \\
+  -H 'sec-ch-ua: "Google Chrome";v="143", "Chromium";v="143", "Not A(Brand";v="24"' \\
+  -H 'sec-ch-ua-mobile: ?0' \\
+  -H 'sec-ch-ua-platform: "Windows"' \\
+  -H 'sec-fetch-dest: empty' \\
+  -H 'sec-fetch-mode: cors' \\
+  -H 'sec-fetch-site: none' \\
+  -H 'user-agent: ${userAgent}' \\
+  -H 'x-hmac: ${xHmac}' \\
+  -H 'x-lal: th_TH' \\
+  -H 'x-line-access: ${xLineAccess}' \\
+  -H 'x-line-chrome-version: ${lineVersion}' \\
+  --data-raw '${jsonBody}'`;
   }
 
   /**
