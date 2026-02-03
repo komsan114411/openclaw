@@ -70,10 +70,53 @@ export class WebsocketGateway implements OnGatewayConnection, OnGatewayDisconnec
   private lastAdapterWarningTime = 0;
   private readonly ADAPTER_WARNING_THROTTLE_MS = 60000;
 
+  // Track connected clients by bankAccountId for direct messaging
+  private bankAccountClients: Map<string, Set<string>> = new Map();
+
   constructor(
     private websocketService: WebsocketService,
     private authService: AuthService,
   ) { }
+
+  /**
+   * Get all connected socket IDs
+   */
+  private getAllConnectedSockets(): string[] {
+    if (!this.server?.sockets?.sockets) return [];
+    return Array.from(this.server.sockets.sockets.keys());
+  }
+
+  /**
+   * Broadcast critical auto-slip events with fallback to all clients
+   * Use this for important events that MUST reach the frontend
+   */
+  private broadcastCriticalAutoSlipEvent(
+    bankAccountId: string,
+    userId: string,
+    event: string,
+    data: any,
+  ): void {
+    // Strategy 1: Broadcast to user room
+    this.broadcastToUser(userId, event, data);
+
+    // Strategy 2: Broadcast to bank account room
+    this.broadcastToRoom(`bank-account:${bankAccountId}`, event, data);
+
+    // Strategy 3: Broadcast to admins
+    this.broadcastToAdmins(event, data);
+
+    // Strategy 4: If no clients in rooms, broadcast to ALL connected clients
+    // This is a fallback for when Redis is down or rooms aren't working
+    const userRoomSize = this.server?.sockets?.adapter?.rooms?.get(`user:${userId}`)?.size || 0;
+    const bankRoomSize = this.server?.sockets?.adapter?.rooms?.get(`bank-account:${bankAccountId}`)?.size || 0;
+
+    if (userRoomSize === 0 && bankRoomSize === 0) {
+      this.logger.warn(`[CriticalBroadcast] No clients in rooms for ${bankAccountId}, broadcasting to ALL clients`);
+      this.server?.emit(event, data);
+    }
+
+    this.logger.log(`[CriticalBroadcast] Event: ${event}, BankAccount: ${bankAccountId}, UserRoom: ${userRoomSize}, BankRoom: ${bankRoomSize}`);
+  }
 
   /**
    * Check if there are any connected clients
@@ -166,6 +209,34 @@ export class WebsocketGateway implements OnGatewayConnection, OnGatewayDisconnec
     const channel = `chat:${data.lineAccountId}`;
     client.join(channel);
     this.logger.log(`Client ${client.id} subscribed to chat: ${data.lineAccountId}`);
+    return { success: true, channel };
+  }
+
+  /**
+   * Subscribe to a bank account for auto-slip events (PIN, keys, status)
+   */
+  @SubscribeMessage('subscribe_bank_account')
+  handleSubscribeBankAccount(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() data: { bankAccountId: string },
+  ) {
+    const channel = `bank-account:${data.bankAccountId}`;
+    client.join(channel);
+    this.logger.log(`Client ${client.id} subscribed to bank account: ${data.bankAccountId}`);
+    return { success: true, channel };
+  }
+
+  /**
+   * Unsubscribe from a bank account
+   */
+  @SubscribeMessage('unsubscribe_bank_account')
+  handleUnsubscribeBankAccount(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() data: { bankAccountId: string },
+  ) {
+    const channel = `bank-account:${data.bankAccountId}`;
+    client.leave(channel);
+    this.logger.log(`Client ${client.id} unsubscribed from bank account: ${data.bankAccountId}`);
     return { success: true, channel };
   }
 
@@ -430,10 +501,13 @@ export class WebsocketGateway implements OnGatewayConnection, OnGatewayDisconnec
     this.broadcastToUser(payload.userId, 'auto-slip:status_changed', payload);
     // Broadcast to admins
     this.broadcastToAdmins('auto-slip:status_changed', payload);
+    // Also broadcast to the bank account room for direct listeners
+    this.broadcastToRoom(`bank-account:${payload.bankAccountId}`, 'auto-slip:status_changed', payload);
   }
 
   /**
    * Broadcast when PIN is required for bank login
+   * CRITICAL EVENT - uses fallback broadcast to ensure delivery
    */
   @OnEvent('bank.pin_required')
   handleBankPinRequired(payload: {
@@ -444,15 +518,42 @@ export class WebsocketGateway implements OnGatewayConnection, OnGatewayDisconnec
     expiresAt: Date;
     status: string;
   }) {
-    this.logger.log(`[AutoSlip] PIN required for bank ${payload.bankAccountId}: ${payload.pinCode}`);
-    // Broadcast to the specific user
-    this.broadcastToUser(payload.userId, 'auto-slip:pin_required', payload);
-    // Broadcast to admins
-    this.broadcastToAdmins('auto-slip:pin_required', payload);
+    this.logger.log(`[AutoSlip] ⚡ PIN REQUIRED for bank ${payload.bankAccountId}: ${payload.pinCode}`);
+
+    // Use critical broadcast with fallback
+    this.broadcastCriticalAutoSlipEvent(
+      payload.bankAccountId,
+      payload.userId,
+      'auto-slip:pin_required',
+      payload,
+    );
+  }
+
+  /**
+   * Broadcast when PIN is cleared (login success or timeout)
+   * CRITICAL EVENT - tells frontend to stop countdown
+   */
+  @OnEvent('bank.pin_cleared')
+  handleBankPinCleared(payload: {
+    bankAccountId: string;
+    userId: string;
+    reason: 'success' | 'timeout' | 'cancelled';
+    timestamp: Date;
+  }) {
+    this.logger.log(`[AutoSlip] ⚡ PIN CLEARED for bank ${payload.bankAccountId}: ${payload.reason}`);
+
+    // Use critical broadcast with fallback
+    this.broadcastCriticalAutoSlipEvent(
+      payload.bankAccountId,
+      payload.userId,
+      'auto-slip:pin_cleared',
+      payload,
+    );
   }
 
   /**
    * Broadcast when keys are successfully extracted
+   * CRITICAL EVENT - tells frontend login is complete
    */
   @OnEvent('bank.keys_extracted')
   handleBankKeysExtracted(payload: {
@@ -461,11 +562,30 @@ export class WebsocketGateway implements OnGatewayConnection, OnGatewayDisconnec
     extractedAt: Date;
     source: string;
   }) {
-    this.logger.log(`[AutoSlip] Keys extracted for bank ${payload.bankAccountId}`);
-    // Broadcast to the specific user
-    this.broadcastToUser(payload.userId, 'auto-slip:keys_extracted', payload);
-    // Broadcast to admins
-    this.broadcastToAdmins('auto-slip:keys_extracted', payload);
+    this.logger.log(`[AutoSlip] ✅ KEYS EXTRACTED for bank ${payload.bankAccountId}`);
+
+    // Use critical broadcast for keys_extracted
+    this.broadcastCriticalAutoSlipEvent(
+      payload.bankAccountId,
+      payload.userId,
+      'auto-slip:keys_extracted',
+      payload,
+    );
+
+    // IMPORTANT: Also emit login_complete to explicitly close PIN modal on frontend
+    const loginCompletePayload = {
+      ...payload,
+      success: true,
+      message: 'Login successful, keys extracted',
+    };
+
+    // Use critical broadcast for login_complete
+    this.broadcastCriticalAutoSlipEvent(
+      payload.bankAccountId,
+      payload.userId,
+      'auto-slip:login_complete',
+      loginCompletePayload,
+    );
   }
 
   /**
@@ -506,6 +626,7 @@ export class WebsocketGateway implements OnGatewayConnection, OnGatewayDisconnec
 
   /**
    * Broadcast when error occurs on bank account
+   * CRITICAL EVENT - tells frontend login failed
    */
   @OnEvent('bank.error')
   handleBankError(payload: {
@@ -515,10 +636,14 @@ export class WebsocketGateway implements OnGatewayConnection, OnGatewayDisconnec
     errorCode?: string;
     timestamp: Date;
   }) {
-    this.logger.warn(`[AutoSlip] Error for bank ${payload.bankAccountId}: ${payload.error}`);
-    // Broadcast to the specific user
-    this.broadcastToUser(payload.userId, 'auto-slip:error', payload);
-    // Broadcast to admins
-    this.broadcastToAdmins('auto-slip:error', payload);
+    this.logger.warn(`[AutoSlip] ❌ ERROR for bank ${payload.bankAccountId}: ${payload.error}`);
+
+    // Use critical broadcast for error
+    this.broadcastCriticalAutoSlipEvent(
+      payload.bankAccountId,
+      payload.userId,
+      'auto-slip:error',
+      payload,
+    );
   }
 }

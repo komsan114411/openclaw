@@ -161,12 +161,19 @@ export class AutoSlipLoginService {
           { reason: 'PIN displayed', triggeredBy: 'system' },
         );
 
-        // Emit event for frontend
-        this.eventEmitter.emit('auto-slip.pin-displayed', {
+        const expiresAt = new Date(Date.now() + 3 * 60 * 1000); // 3 minutes
+
+        // Emit event for WebSocket (matches websocket.gateway.ts handler)
+        this.eventEmitter.emit('bank.pin_required', {
           bankAccountId,
+          userId: account.userId.toString(),
           pinCode: result.pinCode,
-          expiresAt: new Date(Date.now() + 3 * 60 * 1000), // 3 minutes
+          displayedAt: new Date(),
+          expiresAt,
+          status: BankStatus.AWAITING_PIN,
         });
+
+        this.logger.log(`[AutoSlipLogin] Emitted bank.pin_required for ${bankAccountId} with PIN ${result.pinCode}`);
       }
 
       // Handle success (keys captured)
@@ -273,11 +280,43 @@ export class AutoSlipLoginService {
         { reason: 'Keys captured from login', triggeredBy: 'system' },
       );
 
-      // Emit success event
-      this.eventEmitter.emit('auto-slip.keys-captured', {
-        bankAccountId,
-        hasKeys: true,
-      });
+      // IMPORTANT: Clear PIN from MongoDB - stops countdown and API returns no PIN
+      const clearedPins = await this.pinCodeModel.updateMany(
+        {
+          bankAccountId: new Types.ObjectId(bankAccountId),
+          status: { $in: ['fresh', 'new'] },
+        },
+        {
+          status: 'used',
+          usedAt: new Date(),
+        },
+      );
+      this.logger.log(`[AutoSlipLogin] Cleared ${clearedPins.modifiedCount} PIN(s) from MongoDB for ${bankAccountId}`);
+
+      // Emit success event for WebSocket (matches websocket.gateway.ts handler)
+      // First get userId from database for proper event routing
+      const bankAccount = await this.bankAccountModel.findById(bankAccountId);
+      if (bankAccount) {
+        const userId = bankAccount.userId.toString();
+
+        // Emit PIN cleared event - tells frontend to stop countdown
+        this.eventEmitter.emit('bank.pin_cleared', {
+          bankAccountId,
+          userId,
+          reason: 'success',
+          timestamp: new Date(),
+        });
+        this.logger.log(`[AutoSlipLogin] Emitted bank.pin_cleared for ${bankAccountId}`);
+
+        // Emit keys extracted event
+        this.eventEmitter.emit('bank.keys_extracted', {
+          bankAccountId,
+          userId,
+          extractedAt: new Date(),
+          source: 'auto_login',
+        });
+        this.logger.log(`[AutoSlipLogin] Emitted bank.keys_extracted for ${bankAccountId}`);
+      }
 
       this.logger.log(`[AutoSlipLogin] Keys saved for ${bankAccountId}`);
     } catch (error: any) {
@@ -332,14 +371,8 @@ export class AutoSlipLoginService {
     }
 
     const bankAccountId = bankAccount._id.toString();
-    this.logger.log(`[AutoSlipLogin] Processing status update: ${status} for ${bankAccountId}`);
-
-    // Emit status update to frontend
-    this.eventEmitter.emit('auto-slip.login-status', {
-      bankAccountId,
-      status,
-      pinCode,
-    });
+    const userId = bankAccount.userId.toString();
+    this.logger.log(`[AutoSlipLogin] Processing status update: ${status} for ${bankAccountId} (user: ${userId})`);
 
     // Handle different statuses
     switch (status) {
@@ -351,6 +384,20 @@ export class AutoSlipLoginService {
             BankStatus.AWAITING_PIN,
             { reason: 'PIN displayed', triggeredBy: 'system' },
           );
+
+          const expiresAt = new Date(Date.now() + 3 * 60 * 1000); // 3 minutes
+
+          // Emit event for WebSocket (matches websocket.gateway.ts handler)
+          this.eventEmitter.emit('bank.pin_required', {
+            bankAccountId,
+            userId,
+            pinCode,
+            displayedAt: new Date(),
+            expiresAt,
+            status: BankStatus.AWAITING_PIN,
+          });
+
+          this.logger.log(`[AutoSlipLogin] Emitted bank.pin_required for ${bankAccountId} with PIN ${pinCode}`);
         }
         break;
 
@@ -389,24 +436,66 @@ export class AutoSlipLoginService {
           BankStatus.ERROR_SOFT,
           { reason: 'Login failed', triggeredBy: 'system' },
         );
+
+        // Clear PIN from MongoDB on error
+        await this.pinCodeModel.updateMany(
+          {
+            bankAccountId: new Types.ObjectId(bankAccountId),
+            status: { $in: ['fresh', 'new'] },
+          },
+          {
+            status: 'expired',
+            expiredAt: new Date(),
+          },
+        );
+        this.logger.log(`[AutoSlipLogin] Cleared PIN on error for ${bankAccountId}`);
+
+        // Emit PIN cleared event - tells frontend to stop countdown
+        this.eventEmitter.emit('bank.pin_cleared', {
+          bankAccountId,
+          userId,
+          reason: 'cancelled',
+          timestamp: new Date(),
+        });
+
+        // Emit error event for WebSocket
+        this.eventEmitter.emit('bank.error', {
+          bankAccountId,
+          userId,
+          error: 'Login failed',
+          errorCode: status,
+          timestamp: new Date(),
+        });
+
         this.loginMapping.delete(bankAccountId);
         break;
     }
   }
 
   /**
-   * Get current login status for a bank account
+   * Get current login status for a bank account (comprehensive)
    */
   async getLoginStatus(bankAccountId: string): Promise<{
     status: string;
     pinCode?: string;
     pinExpiresAt?: Date;
+    pinRemainingSeconds?: number;
     hasKeys: boolean;
-    message?: string;
+    hasCUrl: boolean;
+    message: string;
+    loginProgress: string;
+    canTriggerLogin: boolean;
   }> {
     const account = await this.bankAccountModel.findById(bankAccountId);
     if (!account) {
-      return { status: 'not_found', hasKeys: false };
+      return {
+        status: 'not_found',
+        hasKeys: false,
+        hasCUrl: false,
+        message: 'ไม่พบบัญชี',
+        loginProgress: 'not_found',
+        canTriggerLogin: false,
+      };
     }
 
     const activePIN = await this.pinCodeModel.findOne({
@@ -415,12 +504,37 @@ export class AutoSlipLoginService {
       expiresAt: { $gt: new Date() },
     });
 
+    // Calculate PIN remaining time
+    let pinRemainingSeconds = 0;
+    if (activePIN?.expiresAt) {
+      pinRemainingSeconds = Math.max(0, Math.floor((activePIN.expiresAt.getTime() - Date.now()) / 1000));
+    }
+
+    // Determine login progress
+    let loginProgress = 'idle';
+    let canTriggerLogin = true;
+    if (account.status === BankStatus.LOGGING_IN) {
+      loginProgress = 'logging_in';
+      canTriggerLogin = false;
+    } else if (account.status === BankStatus.AWAITING_PIN && activePIN && pinRemainingSeconds > 0) {
+      loginProgress = 'waiting_for_pin';
+      canTriggerLogin = false;
+    } else if (account.status === BankStatus.KEYS_READY || account.status === BankStatus.ACTIVE) {
+      loginProgress = 'completed';
+    } else if (account.status === BankStatus.ERROR_SOFT || account.status === BankStatus.ERROR_FATAL) {
+      loginProgress = 'failed';
+    }
+
     return {
       status: account.status,
       pinCode: activePIN?.pinCode,
       pinExpiresAt: activePIN?.expiresAt,
+      pinRemainingSeconds,
       hasKeys: !!(account.xLineAccess && account.xHmac),
+      hasCUrl: !!account.cUrlBash,
       message: this.getStatusMessage(account.status),
+      loginProgress,
+      canTriggerLogin,
     };
   }
 

@@ -205,6 +205,11 @@ export class AutoSlipBankAccountController {
         monitoringEnabled: account.monitoringEnabled,
         checkInterval: account.checkInterval,
         hasKeys: !!(account.xLineAccess && account.xHmac),
+        // Keys for manual copy (admin use)
+        xLineAccess: account.xLineAccess,
+        xHmac: account.xHmac,
+        chatMid: account.chatMid,
+        cUrlBash: account.cUrlBash,
         lastMessageFetch: account.lastMessageFetch,
         lastKeyCheck: account.lastKeyCheck,
         keysExtractedAt: account.keysExtractedAt,
@@ -310,17 +315,49 @@ export class AutoSlipBankAccountController {
       expiresAt: { $gt: new Date() },
     });
 
+    // Calculate PIN remaining time
+    let pinRemainingSeconds = 0;
+    if (activePIN?.expiresAt) {
+      pinRemainingSeconds = Math.max(0, Math.floor((activePIN.expiresAt.getTime() - Date.now()) / 1000));
+    }
+
+    // Determine login progress for frontend
+    let loginProgress = 'idle';
+    if (account.status === BankStatus.LOGGING_IN) {
+      loginProgress = 'logging_in';
+    } else if (account.status === BankStatus.AWAITING_PIN && activePIN) {
+      loginProgress = 'waiting_for_pin';
+    } else if (account.status === BankStatus.KEYS_READY || account.status === BankStatus.ACTIVE) {
+      loginProgress = 'completed';
+    } else if (account.status === BankStatus.ERROR_SOFT || account.status === BankStatus.ERROR_FATAL) {
+      loginProgress = 'failed';
+    }
+
     return {
       success: true,
+      // Basic status
       status: account.status,
       statusLabel: STATUS_LABELS_TH[account.status],
-      hasKeys: !!(account.xLineAccess && account.xHmac),
-      hasActivePIN: !!activePIN,
+      loginProgress,
+      // PIN info
+      hasActivePIN: !!activePIN && pinRemainingSeconds > 0,
       pinCode: activePIN?.pinCode,
       pinExpiresAt: activePIN?.expiresAt,
+      pinRemainingSeconds,
+      pinStatus: activePIN?.status,
+      // Keys info
+      hasKeys: !!(account.xLineAccess && account.xHmac),
+      keysExtractedAt: account.keysExtractedAt,
+      // Balance and error
       balance: account.balance,
       lastError: account.lastError,
       errorCount: account.errorCount,
+      lastStatusChange: account.lastStatusChange,
+      // Keys for copy (only if hasKeys)
+      xLineAccess: account.xLineAccess || null,
+      xHmac: account.xHmac || null,
+      chatMid: account.chatMid || null,
+      cUrlBash: account.cUrlBash || null,
     };
   }
 
@@ -563,6 +600,11 @@ export class AutoSlipAdminController {
         balance: acc.balance,
         monitoringEnabled: acc.monitoringEnabled,
         hasKeys: !!(acc.xLineAccess && acc.xHmac),
+        // Keys for admin copy
+        xLineAccess: acc.xLineAccess,
+        xHmac: acc.xHmac,
+        chatMid: acc.chatMid,
+        cUrlBash: acc.cUrlBash,
         errorCount: acc.errorCount,
         lastError: acc.lastError,
         lastMessageFetch: acc.lastMessageFetch,
