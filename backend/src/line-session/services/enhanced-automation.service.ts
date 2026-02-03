@@ -614,10 +614,16 @@ export class EnhancedAutomationService implements OnModuleDestroy {
         if (capturedData) {
           await this.saveKeysToDatabase(lineAccountId, capturedData.keys, capturedData.chatMid, capturedData.cUrlBash);
           this.loginCoordinatorService.markLoginCompleted(lineAccountId);
+
+          // Clear PIN from store after successful login to stop PIN countdown broadcasts
+          this.pinStore.delete(lineAccountId);
+          this.logger.log(`[PIN] Cleared PIN for ${lineAccountId} after successful login`);
+
           this.emitStatus(lineAccountId, EnhancedLoginStatus.SUCCESS, {
             requestId,
             pinCode,
             chatMid: capturedData.chatMid,
+            keys: capturedData.keys, // Include keys for auto-slip module
           });
           this.logger.log(`Background login completed for ${lineAccountId}`);
           return;

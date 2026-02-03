@@ -260,19 +260,22 @@ export class AutoSlipLoginService {
   }
 
   /**
-   * Listen for LINE-Session login status events
+   * Listen for Enhanced-Login status events
+   * This listens to 'enhanced-login.status' which is emitted by EnhancedAutomationService
    */
-  @OnEvent('line-session.login-status')
-  async onLineSessionLoginStatus(data: {
+  @OnEvent('enhanced-login.status')
+  async onEnhancedLoginStatus(data: {
     lineAccountId: string;
     status: string;
     pinCode?: string;
     keys?: { xLineAccess: string; xHmac: string; chatMid?: string };
+    chatMid?: string;
   }): Promise<void> {
-    const { lineAccountId, status, pinCode, keys } = data;
+    const { lineAccountId, status, pinCode, keys, chatMid } = data;
 
     // Check if this is an Auto-Slip managed login
     if (!this.loginMapping.has(lineAccountId)) {
+      this.logger.debug(`[AutoSlipLogin] Ignoring status ${status} - not in loginMapping: ${lineAccountId}`);
       return;
     }
 
@@ -300,8 +303,29 @@ export class AutoSlipLoginService {
         break;
 
       case 'success':
+        this.logger.log(`[AutoSlipLogin] Success received for ${bankAccountId}, keys: ${keys ? 'YES' : 'NO'}, chatMid: ${chatMid || 'NO'}`);
         if (keys) {
-          await this.handleKeysCapture(bankAccountId, keys);
+          // Merge chatMid into keys if provided separately
+          const keysWithChatMid = {
+            ...keys,
+            chatMid: keys.chatMid || chatMid,
+          };
+          await this.handleKeysCapture(bankAccountId, keysWithChatMid);
+        } else {
+          // Even without keys, try to get them from the LINE session via keyStorageService
+          this.logger.warn(`[AutoSlipLogin] No keys in success event for ${bankAccountId}, trying to fetch from session`);
+          try {
+            const session = await this.keyStorageService.getActiveSession(bankAccountId);
+            if (session?.xLineAccess && session?.xHmac) {
+              await this.handleKeysCapture(bankAccountId, {
+                xLineAccess: session.xLineAccess,
+                xHmac: session.xHmac,
+                chatMid: session.chatMid || chatMid,
+              });
+            }
+          } catch (err: any) {
+            this.logger.error(`[AutoSlipLogin] Failed to fetch keys from session: ${err.message}`);
+          }
         }
         this.loginMapping.delete(bankAccountId);
         break;
