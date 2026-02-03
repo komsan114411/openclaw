@@ -416,15 +416,32 @@ export class WorkerPoolService implements OnModuleDestroy, OnModuleInit {
         this.logger.log(`Using custom Chromium path: ${executablePath}`);
       }
 
-      // Add extension if exists (only works in non-headless mode)
+      // Add extensions if exists (only works in non-headless mode)
       // GSB-style: Just use --load-extension (ignoreDefaultArgs already removes --disable-extensions)
-      if (!isHeadless && fs.existsSync(extensionPath)) {
-        launchOptions.args.push(`--load-extension=${extensionPath}`);
-        this.logger.log(`[WorkerPool] Loading extension from: ${extensionPath}`);
-      } else if (!isHeadless) {
-        this.logger.warn(`LINE extension not found at ${extensionPath} - login may not work correctly`);
+      if (!isHeadless) {
+        const extensions: string[] = [];
+        
+        // LINE extension
+        if (fs.existsSync(extensionPath)) {
+          extensions.push(extensionPath);
+          this.logger.log(`[WorkerPool] Loading LINE extension from: ${extensionPath}`);
+        } else {
+          this.logger.warn(`LINE extension not found at ${extensionPath} - login may not work correctly`);
+        }
+        
+        // cURL Capture extension (for capturing cURL like Chrome DevTools)
+        const curlCaptureExtPath = this.configService.get('CURL_CAPTURE_EXTENSION_PATH') ||
+          path.join(__dirname, '../../extensions/curl-capture');
+        if (fs.existsSync(curlCaptureExtPath)) {
+          extensions.push(curlCaptureExtPath);
+          this.logger.log(`[WorkerPool] Loading cURL Capture extension from: ${curlCaptureExtPath}`);
+        }
+        
+        if (extensions.length > 0) {
+          launchOptions.args.push(`--load-extension=${extensions.join(',')}`);
+        }
       } else {
-        this.logger.warn(`[WorkerPool] Running in headless mode - extension will NOT load (LINE login requires non-headless)`);
+        this.logger.warn(`[WorkerPool] Running in headless mode - extensions will NOT load (LINE login requires non-headless)`);
       }
 
       worker.browser = await this.puppeteer.launch(launchOptions);
@@ -564,6 +581,7 @@ export class WorkerPoolService implements OnModuleDestroy, OnModuleInit {
 
   /**
    * Setup CDP network interception
+   * Uses Network.requestWillBeSentExtraInfo to get actual cookies sent by browser (like Chrome DevTools)
    */
   async setupCDPInterception(
     worker: Worker,
@@ -573,11 +591,23 @@ export class WorkerPoolService implements OnModuleDestroy, OnModuleInit {
       throw new Error('CDP client not initialized');
     }
 
+    // Store extra headers by requestId (contains actual cookies from browser)
+    const extraHeadersMap = new Map<string, Record<string, string>>();
+
+    // Listen for extra info FIRST (contains actual cookies sent by browser - like Chrome DevTools sees)
+    worker.cdpClient.on('Network.requestWillBeSentExtraInfo', (params: any) => {
+      const { requestId, headers } = params;
+      if (headers) {
+        extraHeadersMap.set(requestId, headers);
+        this.logger.debug(`[CDP ExtraInfo] Captured extra headers for ${requestId}, has cookie: ${!!headers.cookie || !!headers.Cookie}`);
+      }
+    });
+
     // Listen for requests via CDP
     worker.cdpClient.on('Network.requestWillBeSent', (params: any) => {
-      const { request } = params;
+      const { request, requestId } = params;
       const url = request.url;
-      const headers = request.headers;
+      const baseHeaders = request.headers;
 
       // Log all LINE API calls for debugging
       if (url.includes('line-chrome-gw.line-apps.com')) {
@@ -585,157 +615,161 @@ export class WorkerPoolService implements OnModuleDestroy, OnModuleInit {
       }
 
       // Phase 88: ONLY capture from getRecentMessagesV2 endpoint (like GSB)
-      // Don't capture from getChats - keys must match the HMAC for getRecentMessagesV2
       if (url.includes('getRecentMessagesV2') && !worker.capturedKeys) {
-        const xLineAccess = headers['x-line-access'] || headers['X-Line-Access'];
-        const xHmac = headers['x-hmac'] || headers['X-Hmac'];
+        // Wait a bit for extra headers to arrive, then process
+        setTimeout(() => {
+          // Merge base headers with extra headers (extra headers have actual cookies)
+          const extraHeaders = extraHeadersMap.get(requestId) || {};
+          const headers = { ...baseHeaders, ...extraHeaders };
+          
+          this.logger.debug(`[CDP KeyCapture] Processing request ${requestId}`);
+          this.logger.debug(`[CDP KeyCapture] Base headers: ${Object.keys(baseHeaders).length}, Extra headers: ${Object.keys(extraHeaders).length}`);
+          this.logger.debug(`[CDP KeyCapture] Has cookie in merged: ${!!headers.cookie || !!headers.Cookie}`);
+          
+          const xLineAccess = headers['x-line-access'] || headers['X-Line-Access'];
+          const xHmac = headers['x-hmac'] || headers['X-Hmac'];
 
-        this.logger.log(`[CDP KeyCapture] Request to ${url.includes('getRecentMessagesV2') ? 'getRecentMessagesV2' : 'getChats'}`);
-        this.logger.log(`[CDP KeyCapture] Has x-line-access: ${!!xLineAccess}, length: ${xLineAccess?.length || 0}`);
-        this.logger.log(`[CDP KeyCapture] Has x-hmac: ${!!xHmac}, length: ${xHmac?.length || 0}`);
+          this.logger.log(`[CDP KeyCapture] Request to getRecentMessagesV2`);
+          this.logger.log(`[CDP KeyCapture] Has x-line-access: ${!!xLineAccess}, length: ${xLineAccess?.length || 0}`);
+          this.logger.log(`[CDP KeyCapture] Has x-hmac: ${!!xHmac}, length: ${xHmac?.length || 0}`);
 
-        if (xLineAccess && xHmac && xLineAccess.length > 50 && xLineAccess.includes('.')) {
-          // Extract chatMid from POST data
-          let chatMid: string | undefined;
-          if (request.postData) {
-            try {
-              const bodyData = JSON.parse(request.postData);
-              this.logger.debug(`[CDP KeyCapture] POST data: ${JSON.stringify(bodyData).substring(0, 200)}`);
+          if (xLineAccess && xHmac && xLineAccess.length > 50 && xLineAccess.includes('.')) {
+            // Extract chatMid from POST data
+            let chatMid: string | undefined;
+            if (request.postData) {
+              try {
+                const bodyData = JSON.parse(request.postData);
+                this.logger.debug(`[CDP KeyCapture] POST data: ${JSON.stringify(bodyData).substring(0, 200)}`);
 
-              // Handle different LINE API formats
-              if (Array.isArray(bodyData) && bodyData[0]) {
-                const firstElement = bodyData[0];
-                if (typeof firstElement === 'string') {
-                  // Simple format: ["mid123"]
-                  chatMid = firstElement;
-                } else if (typeof firstElement === 'object' && firstElement !== null) {
-                  // Object format: [{ targetUserMids: ["mid123"], ... }]
-                  if (Array.isArray(firstElement.targetUserMids) && firstElement.targetUserMids[0]) {
-                    chatMid = firstElement.targetUserMids[0];
-                  } else if (firstElement.chatMid) {
-                    chatMid = firstElement.chatMid;
-                  } else if (firstElement.mid) {
-                    chatMid = firstElement.mid;
+                // Handle different LINE API formats
+                if (Array.isArray(bodyData) && bodyData[0]) {
+                  const firstElement = bodyData[0];
+                  if (typeof firstElement === 'string') {
+                    chatMid = firstElement;
+                  } else if (typeof firstElement === 'object' && firstElement !== null) {
+                    if (Array.isArray(firstElement.targetUserMids) && firstElement.targetUserMids[0]) {
+                      chatMid = firstElement.targetUserMids[0];
+                    } else if (firstElement.chatMid) {
+                      chatMid = firstElement.chatMid;
+                    } else if (firstElement.mid) {
+                      chatMid = firstElement.mid;
+                    }
+                  }
+                } else if (typeof bodyData === 'object' && bodyData !== null) {
+                  if (Array.isArray(bodyData.targetUserMids) && bodyData.targetUserMids[0]) {
+                    chatMid = bodyData.targetUserMids[0];
+                  } else if (bodyData.chatMid) {
+                    chatMid = bodyData.chatMid;
+                  } else if (bodyData.mid) {
+                    chatMid = bodyData.mid;
                   }
                 }
-              } else if (typeof bodyData === 'object' && bodyData !== null) {
-                // Direct object format: { targetUserMids: ["mid123"], ... }
-                if (Array.isArray(bodyData.targetUserMids) && bodyData.targetUserMids[0]) {
-                  chatMid = bodyData.targetUserMids[0];
-                } else if (bodyData.chatMid) {
-                  chatMid = bodyData.chatMid;
-                } else if (bodyData.mid) {
-                  chatMid = bodyData.mid;
+
+                this.logger.debug(`[CDP KeyCapture] Extracted chatMid: ${chatMid || 'none'}`);
+              } catch (parseError) {
+                this.logger.warn(`[CDP KeyCapture] Failed to parse POST data: ${parseError}`);
+              }
+            }
+
+            // CRITICAL: Final validation - chatMid MUST be a string
+            if (chatMid && typeof chatMid !== 'string') {
+              this.logger.warn(`[CDP KeyCapture] chatMid is not a string (${typeof chatMid}), setting to undefined`);
+              chatMid = undefined;
+            }
+
+            worker.capturedKeys = { xLineAccess, xHmac };
+            worker.capturedChatMid = chatMid;
+            worker.lastActivityAt = new Date();
+
+            // Generate cURL command from intercepted request (Chrome DevTools "Copy as cURL (bash)" style)
+            // This captures ALL headers exactly as Chrome DevTools does, including cookies from extraInfo
+            try {
+              // Build cURL command exactly like Chrome DevTools "Copy as cURL (bash)"
+              let curlCmd = `curl '${url}'`;
+              
+              // Get cookies from merged headers (extraInfo contains actual cookies)
+              const cookieString = headers['cookie'] || headers['Cookie'] || '';
+              
+              // Chrome DevTools header order
+              const chromeHeaderOrder = [
+                'accept',
+                'accept-encoding',
+                'accept-language',
+                'content-type',
+                'origin',
+                'priority',
+                'referer',
+                'sec-ch-ua',
+                'sec-ch-ua-mobile',
+                'sec-ch-ua-platform',
+                'sec-fetch-dest',
+                'sec-fetch-mode',
+                'sec-fetch-site',
+                'sec-fetch-storage-access',
+                'user-agent',
+                'x-hmac',
+                'x-lal',
+                'x-line-access',
+                'x-line-chrome-version',
+                'x-lpqs',
+              ];
+              
+              const addedHeaders = new Set<string>();
+              
+              // Add headers in Chrome DevTools order
+              for (const headerName of chromeHeaderOrder) {
+                const headerKey = Object.keys(headers).find(
+                  k => k.toLowerCase() === headerName.toLowerCase()
+                );
+                
+                if (headerKey && headers[headerKey]) {
+                  const value = headers[headerKey];
+                  curlCmd += ` \\\n  -H '${headerName}: ${value}'`;
+                  addedHeaders.add(headerKey.toLowerCase());
+                }
+              }
+              
+              // Add cookie with -b flag (Chrome DevTools style)
+              if (cookieString) {
+                curlCmd += ` \\\n  -b '${cookieString}'`;
+                addedHeaders.add('cookie');
+              }
+              
+              // Add remaining headers
+              for (const [key, value] of Object.entries(headers)) {
+                if (!addedHeaders.has(key.toLowerCase()) && value) {
+                  if (key.startsWith(':')) continue;
+                  if (key.toLowerCase() === 'cookie') continue;
+                  curlCmd += ` \\\n  -H '${key}: ${value}'`;
                 }
               }
 
-              this.logger.debug(`[CDP KeyCapture] Extracted chatMid: ${chatMid || 'none'}`);
-            } catch (parseError) {
-              this.logger.warn(`[CDP KeyCapture] Failed to parse POST data: ${parseError}`);
-            }
-          }
-
-          // CRITICAL: Final validation - chatMid MUST be a string
-          if (chatMid && typeof chatMid !== 'string') {
-            this.logger.warn(`[CDP KeyCapture] chatMid is not a string (${typeof chatMid}), setting to undefined`);
-            chatMid = undefined;
-          }
-
-          worker.capturedKeys = { xLineAccess, xHmac };
-          worker.capturedChatMid = chatMid;
-          worker.lastActivityAt = new Date();
-
-          // Generate cURL command from intercepted request (Chrome DevTools "Copy as cURL (bash)" style)
-          // Capture ALL headers exactly as they appear in the request - like Chrome DevTools does
-          // Note: CDP Network.requestWillBeSent provides all headers including cookies
-          try {
-            // Build cURL command exactly like Chrome DevTools "Copy as cURL (bash)"
-            let curlCmd = `curl '${url}'`;
-            
-            // Get cookies from headers (CDP includes cookies in request headers)
-            const cookieString = headers['cookie'] || headers['Cookie'] || '';
-            
-            // Chrome DevTools header order (alphabetical with some exceptions)
-            const chromeHeaderOrder = [
-              'accept',
-              'accept-encoding',
-              'accept-language',
-              'content-type',
-              'origin',
-              'priority',
-              'referer',
-              'sec-ch-ua',
-              'sec-ch-ua-mobile',
-              'sec-ch-ua-platform',
-              'sec-fetch-dest',
-              'sec-fetch-mode',
-              'sec-fetch-site',
-              'sec-fetch-storage-access',
-              'user-agent',
-              'x-hmac',
-              'x-lal',
-              'x-line-access',
-              'x-line-chrome-version',
-              'x-lpqs',
-            ];
-            
-            // Track which headers we've added
-            const addedHeaders = new Set<string>();
-            
-            // First add headers in Chrome DevTools order (except cookie)
-            for (const headerName of chromeHeaderOrder) {
-              // Find header case-insensitively
-              const headerKey = Object.keys(headers).find(
-                k => k.toLowerCase() === headerName.toLowerCase()
-              );
-              
-              if (headerKey && headers[headerKey]) {
-                const value = headers[headerKey];
-                curlCmd += ` \\\n  -H '${headerName}: ${value}'`;
-                addedHeaders.add(headerKey.toLowerCase());
+              // Add POST data
+              if (request.postData) {
+                const escapedData = request.postData.replace(/'/g, "'\\''");
+                curlCmd += ` \\\n  --data-raw '${escapedData}'`;
               }
-            }
-            
-            // Add cookie with -b flag (Chrome DevTools style)
-            if (cookieString) {
-              curlCmd += ` \\\n  -b '${cookieString}'`;
-              addedHeaders.add('cookie');
-            }
-            
-            // Then add any remaining headers not in the predefined order
-            for (const [key, value] of Object.entries(headers)) {
-              if (!addedHeaders.has(key.toLowerCase()) && value) {
-                // Skip pseudo-headers (start with :) and cookie (already added)
-                if (key.startsWith(':')) continue;
-                if (key.toLowerCase() === 'cookie') continue;
-                
-                curlCmd += ` \\\n  -H '${key}: ${value}'`;
-              }
+
+              worker.capturedCurl = curlCmd;
+              this.logger.log(`[CDP KeyCapture SUCCESS] cURL command captured (${curlCmd.length} chars)`);
+              this.logger.log(`[CDP KeyCapture SUCCESS] cURL has cookie: ${cookieString ? 'YES' : 'NO'}`);
+              this.logger.debug(`[CDP KeyCapture] Full cURL:\n${curlCmd}`);
+            } catch (curlError) {
+              this.logger.warn(`[CDP KeyCapture] Failed to generate cURL: ${curlError}`);
             }
 
-            // Add data if POST request
-            if (request.postData) {
-              const postData = request.postData;
-              // Escape single quotes for bash
-              const escapedData = postData.replace(/'/g, "'\\''");
-              curlCmd += ` \\\n  --data-raw '${escapedData}'`;
-            }
-
-            worker.capturedCurl = curlCmd;
-            this.logger.log(`[CDP KeyCapture SUCCESS] cURL command captured (${curlCmd.length} chars)`);
-            this.logger.debug(`[CDP KeyCapture] Full cURL:\n${curlCmd}`);
-          } catch (curlError) {
-            this.logger.warn(`[CDP KeyCapture] Failed to generate cURL: ${curlError}`);
+            this.logger.log(`[CDP KeyCapture SUCCESS] Keys captured for ${worker.lineAccountId}!`);
+            this.logger.log(`[CDP KeyCapture SUCCESS] x-line-access: ${xLineAccess.substring(0, 30)}...`);
+            this.logger.log(`[CDP KeyCapture SUCCESS] x-hmac: ${xHmac.substring(0, 30)}...`);
+            this.logger.log(`[CDP KeyCapture SUCCESS] chatMid: ${chatMid || 'N/A'}`);
+            onKeyCaptured({ xLineAccess, xHmac }, chatMid);
+          } else {
+            this.logger.warn(`[CDP KeyCapture] Invalid keys format - skipping capture`);
           }
-
-          this.logger.log(`[CDP KeyCapture SUCCESS] Keys captured for ${worker.lineAccountId}!`);
-          this.logger.log(`[CDP KeyCapture SUCCESS] x-line-access: ${xLineAccess.substring(0, 30)}...`);
-          this.logger.log(`[CDP KeyCapture SUCCESS] x-hmac: ${xHmac.substring(0, 30)}...`);
-          this.logger.log(`[CDP KeyCapture SUCCESS] chatMid: ${chatMid || 'N/A'}`);
-          onKeyCaptured({ xLineAccess, xHmac }, chatMid);
-        } else {
-          this.logger.warn(`[CDP KeyCapture] Invalid keys format - skipping capture`);
-        }
+          
+          // Cleanup
+          extraHeadersMap.delete(requestId);
+        }, 50); // Small delay to allow extra info to arrive
       }
     });
 
