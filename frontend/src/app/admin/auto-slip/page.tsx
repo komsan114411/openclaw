@@ -270,21 +270,21 @@ export default function AutoSlipAdminPage() {
             <StatCard
               title="มี Keys"
               value={stats.accountsWithKeys}
-              color="cyan"
+              color="blue"
               variant="glass"
               className="rounded-[2.5rem] border border-white/5 shadow-2xl"
             />
             <StatCard
               title="รอ PIN"
               value={stats.accountsAwaitingPin}
-              color="purple"
+              color="violet"
               variant="glass"
               className="rounded-[2.5rem] border border-white/5 shadow-2xl"
             />
             <StatCard
               title="กำลังล็อกอิน"
               value={stats.accountsLoggingIn}
-              color="blue"
+              color="indigo"
               variant="glass"
               className="rounded-[2.5rem] border border-white/5 shadow-2xl"
             />
