@@ -5,6 +5,7 @@ import { EventEmitter2, OnEvent } from '@nestjs/event-emitter';
 
 import { EnhancedAutomationService } from '../../line-session/services/enhanced-automation.service';
 import { KeyStorageService } from '../../line-session/services/key-storage.service';
+import { LineSession, LineSessionDocument } from '../../line-session/schemas/line-session.schema';
 import { BankStateMachineService } from './bank-state-machine.service';
 import { BankStatus } from '../constants/bank-status.enum';
 import { SecurityUtil } from '../../utils/security.util';
@@ -52,6 +53,8 @@ export class AutoSlipLoginService {
     private pinCodeModel: Model<AutoSlipPinCodeDocument>,
     @InjectModel(AutoSlipKeyHistory.name)
     private keyHistoryModel: Model<AutoSlipKeyHistoryDocument>,
+    @InjectModel(LineSession.name)
+    private lineSessionModel: Model<LineSessionDocument>,
     @Inject(forwardRef(() => EnhancedAutomationService))
     private enhancedAutomationService: EnhancedAutomationService,
     @Inject(forwardRef(() => KeyStorageService))
@@ -105,6 +108,21 @@ export class AutoSlipLoginService {
         await account.save();
       }
 
+      // Find or create LINE session for this bank account
+      const lineSessionId = await this.findOrCreateLineSession(
+        bankAccountId,
+        account.userId,
+        loginEmail,
+        `Auto-Slip: ${account.bankType} ${account.accountNumber}`,
+      );
+
+      // Link LINE session to bank account (persists across restarts)
+      if (!account.lineSessionId || account.lineSessionId.toString() !== lineSessionId) {
+        account.lineSessionId = new Types.ObjectId(lineSessionId);
+        await account.save();
+        this.logger.log(`[AutoSlipLogin] Linked LINE session ${lineSessionId} to bank account ${bankAccountId}`);
+      }
+
       // Update status to LOGGING_IN
       await this.stateMachineService.transition(
         bankAccountId,
@@ -112,13 +130,13 @@ export class AutoSlipLoginService {
         { reason: 'Login triggered', triggeredBy: 'user' },
       );
 
-      // Store mapping for callback
-      this.loginMapping.set(bankAccountId, bankAccountId);
+      // Store mapping for callback (bankAccountId -> lineSessionId)
+      this.loginMapping.set(bankAccountId, lineSessionId);
 
-      // Call EnhancedAutomationService
-      // Note: We use bankAccountId as the session identifier
+      // Call EnhancedAutomationService with LINE session ID
+      // This ensures events will be emitted with the correct ID that we can correlate back
       const result = await this.enhancedAutomationService.startLogin(
-        bankAccountId,
+        lineSessionId,
         loginEmail,
         loginPassword,
         'manual',
@@ -285,15 +303,35 @@ export class AutoSlipLoginService {
     this.logger.log(`[AutoSlipLogin] Received event: ${status} for ${lineAccountId}`);
 
     // Check if this lineAccountId corresponds to an Auto-Slip bank account
-    // Don't rely on loginMapping as it's in-memory and lost on restart
-    const bankAccount = await this.bankAccountModel.findById(lineAccountId);
+    // Try multiple lookup strategies:
+    // 1. By _id (if bankAccountId was passed to startLogin)
+    // 2. By lineSessionId (if LINE session ID was linked to bank account)
+    // 3. By in-memory mapping (for current session)
+    let bankAccount = await this.bankAccountModel.findById(lineAccountId);
+
+    if (!bankAccount) {
+      // Try to find by lineSessionId field
+      bankAccount = await this.bankAccountModel.findOne({
+        lineSessionId: lineAccountId,
+        isActive: true,
+      });
+    }
+
+    if (!bankAccount) {
+      // Try in-memory mapping (for current session only)
+      const mappedBankAccountId = this.findBankAccountIdByLineSession(lineAccountId);
+      if (mappedBankAccountId) {
+        bankAccount = await this.bankAccountModel.findById(mappedBankAccountId);
+      }
+    }
+
     if (!bankAccount) {
       // Not an Auto-Slip bank account, might be a regular LINE session
       this.logger.debug(`[AutoSlipLogin] Not a bank account, ignoring: ${lineAccountId}`);
       return;
     }
 
-    const bankAccountId = lineAccountId;
+    const bankAccountId = bankAccount._id.toString();
     this.logger.log(`[AutoSlipLogin] Processing status update: ${status} for ${bankAccountId}`);
 
     // Emit status update to frontend
@@ -403,5 +441,101 @@ export class AutoSlipLoginService {
       [BankStatus.ERROR_FATAL]: 'เกิดข้อผิดพลาดร้ายแรง',
     };
     return messages[status] || status;
+  }
+
+  /**
+   * Find bank account ID by LINE session ID from in-memory mapping
+   * Note: This mapping is lost on server restart, so we also store lineSessionId in DB
+   */
+  private findBankAccountIdByLineSession(lineSessionId: string): string | null {
+    for (const [bankAccountId, sessionId] of this.loginMapping.entries()) {
+      if (sessionId === lineSessionId) {
+        return bankAccountId;
+      }
+    }
+    return null;
+  }
+
+  /**
+   * Link a LINE session ID to a bank account
+   * This allows events from LINE session to be correlated with bank account
+   */
+  async linkLineSession(bankAccountId: string, lineSessionId: string): Promise<void> {
+    this.logger.log(`[AutoSlipLogin] Linking LINE session ${lineSessionId} to bank account ${bankAccountId}`);
+
+    // Update database
+    await this.bankAccountModel.updateOne(
+      { _id: new Types.ObjectId(bankAccountId) },
+      { lineSessionId: new Types.ObjectId(lineSessionId) },
+    );
+
+    // Update in-memory mapping
+    this.loginMapping.set(bankAccountId, lineSessionId);
+  }
+
+  /**
+   * Get linked LINE session ID for a bank account
+   */
+  async getLinkedLineSession(bankAccountId: string): Promise<string | null> {
+    const account = await this.bankAccountModel.findById(bankAccountId).select('lineSessionId');
+    return account?.lineSessionId?.toString() || null;
+  }
+
+  /**
+   * Find or create a LINE session for a bank account
+   * Returns the LINE session ID
+   */
+  private async findOrCreateLineSession(
+    bankAccountId: string,
+    userId: Types.ObjectId,
+    email: string,
+    name: string,
+  ): Promise<string> {
+    // First, check if bank account already has a linked LINE session
+    const existingAccount = await this.bankAccountModel.findById(bankAccountId).select('lineSessionId');
+    if (existingAccount?.lineSessionId) {
+      const existingSession = await this.lineSessionModel.findById(existingAccount.lineSessionId);
+      if (existingSession && existingSession.isActive) {
+        this.logger.log(`[AutoSlipLogin] Using existing LINE session: ${existingSession._id}`);
+        return existingSession._id.toString();
+      }
+    }
+
+    // Check if there's a LINE session with lineAccountId = bankAccountId
+    let session = await this.lineSessionModel.findOne({
+      lineAccountId: bankAccountId,
+      isActive: true,
+    });
+
+    if (session) {
+      this.logger.log(`[AutoSlipLogin] Found LINE session by lineAccountId: ${session._id}`);
+      return session._id.toString();
+    }
+
+    // Check if there's a LINE session with the same email
+    session = await this.lineSessionModel.findOne({
+      email: email,
+      isActive: true,
+    });
+
+    if (session) {
+      this.logger.log(`[AutoSlipLogin] Found LINE session by email: ${session._id}`);
+      return session._id.toString();
+    }
+
+    // Create a new LINE session
+    this.logger.log(`[AutoSlipLogin] Creating new LINE session for bank account: ${bankAccountId}`);
+    const newSession = await this.lineSessionModel.create({
+      ownerId: userId,
+      lineAccountId: bankAccountId, // Use bankAccountId as lineAccountId for correlation
+      email: email,
+      name: name,
+      status: 'pending',
+      isActive: true,
+      source: 'auto-slip',
+    });
+
+    this.logger.log(`[AutoSlipLogin] Created LINE session: ${newSession._id}`);
+    return newSession._id.toString();
   }
 }

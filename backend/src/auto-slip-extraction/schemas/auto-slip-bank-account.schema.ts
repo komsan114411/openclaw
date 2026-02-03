@@ -50,6 +50,10 @@ export class AutoSlipBankAccount {
   @Prop()
   cUrlBash: string; // cURL command for API calls
 
+  // Link to LINE Session (for event correlation)
+  @Prop({ type: Types.ObjectId, ref: 'LineSession', index: true })
+  lineSessionId: Types.ObjectId;
+
   // Status (State Machine)
   @Prop({
     type: String,

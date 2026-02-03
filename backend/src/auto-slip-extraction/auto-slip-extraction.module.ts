@@ -24,6 +24,12 @@ import {
   AutoSlipStatusHistorySchema,
 } from './schemas/auto-slip-status-history.schema';
 
+// LINE Session schema (for creating sessions from auto-slip)
+import {
+  LineSession,
+  LineSessionSchema,
+} from '../line-session/schemas/line-session.schema';
+
 // Services
 import { BankStateMachineService } from './services/bank-state-machine.service';
 import { MessageParserService } from './services/message-parser.service';
@@ -69,6 +75,8 @@ import { LineSessionModule } from '../line-session/line-session.module';
       { name: AutoSlipKeyHistory.name, schema: AutoSlipKeyHistorySchema },
       { name: AutoSlipPinCode.name, schema: AutoSlipPinCodeSchema },
       { name: AutoSlipStatusHistory.name, schema: AutoSlipStatusHistorySchema },
+      // LINE Session schema (for creating/linking sessions from auto-slip)
+      { name: LineSession.name, schema: LineSessionSchema },
     ]),
     // EventBus for publishing/subscribing to events
     EventBusModule,
