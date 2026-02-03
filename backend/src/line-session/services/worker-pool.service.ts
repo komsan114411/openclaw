@@ -744,10 +744,19 @@ export class WorkerPoolService implements OnModuleDestroy, OnModuleInit {
                 }
               }
 
-              // Add POST data
+              // Add POST data with proper binary handling (like GSB)
               if (request.postData) {
-                const escapedData = request.postData.replace(/'/g, "'\\''");
-                curlCmd += ` \\\n  --data-raw '${escapedData}'`;
+                const isBinary = this.isBinaryData(request.postData);
+                if (isBinary) {
+                  // Binary data (Thrift protocol) - use hex escape like Chrome DevTools
+                  const hexEscaped = this.convertToHexEscape(request.postData);
+                  curlCmd += ` \\\n  --data-binary $'${hexEscaped}'`;
+                  this.logger.debug(`[CDP KeyCapture] POST data is binary, using hex escape`);
+                } else {
+                  // Regular JSON data
+                  const escapedData = request.postData.replace(/'/g, "'\\''");
+                  curlCmd += ` \\\n  --data-raw '${escapedData}'`;
+                }
               }
 
               worker.capturedCurl = curlCmd;
@@ -849,6 +858,55 @@ export class WorkerPoolService implements OnModuleDestroy, OnModuleInit {
           worker.capturedKeys = { xLineAccess, xHmac };
           worker.capturedChatMid = chatMid;
           worker.lastActivityAt = new Date();
+
+          // Generate cURL command (like GSB)
+          try {
+            let curlCmd = `curl '${url}'`;
+            
+            // Chrome DevTools header order
+            const chromeHeaderOrder = [
+              'accept', 'accept-language', 'content-type', 'origin', 'referer',
+              'sec-ch-ua', 'sec-ch-ua-mobile', 'sec-ch-ua-platform',
+              'sec-fetch-dest', 'sec-fetch-mode', 'sec-fetch-site',
+              'user-agent', 'x-line-access', 'x-hmac', 'x-lal',
+              'x-line-application', 'x-line-chrome-version', 'x-lpqs'
+            ];
+            
+            const addedHeaders = new Set<string>();
+            
+            // Add headers in Chrome DevTools order
+            for (const headerName of chromeHeaderOrder) {
+              const value = headers[headerName] || headers[headerName.toLowerCase()];
+              if (value) {
+                curlCmd += ` \\\n  -H '${headerName}: ${value}'`;
+                addedHeaders.add(headerName.toLowerCase());
+              }
+            }
+            
+            // Add remaining x- headers
+            for (const [key, value] of Object.entries(headers)) {
+              const lowerKey = key.toLowerCase();
+              if (lowerKey.startsWith('x-') && !addedHeaders.has(lowerKey)) {
+                curlCmd += ` \\\n  -H '${key}: ${value}'`;
+              }
+            }
+            
+            // Add POST data with proper binary handling (like GSB)
+            if (postData) {
+              const isBinary = this.isBinaryData(postData);
+              if (isBinary) {
+                const hexEscaped = this.convertToHexEscape(postData);
+                curlCmd += ` \\\n  --data-binary $'${hexEscaped}'`;
+              } else {
+                curlCmd += ` \\\n  --data-raw '${postData.replace(/'/g, "'\\''")}'`;
+              }
+            }
+            
+            worker.capturedCurl = curlCmd;
+            this.logger.log(`[Puppeteer KeyCapture] cURL command captured (${curlCmd.length} chars)`);
+          } catch (curlError) {
+            this.logger.warn(`[Puppeteer KeyCapture] Failed to generate cURL: ${curlError}`);
+          }
 
           this.logger.log(`Puppeteer: Keys captured for ${worker.lineAccountId}`);
           onKeyCaptured({ xLineAccess, xHmac }, chatMid);
