@@ -44,11 +44,11 @@ export class TransactionFetcherService implements OnModuleInit, OnModuleDestroy 
   private pollingInterval: NodeJS.Timeout | null = null;
   private isPolling = false;
 
-  // Configuration
-  private readonly DEFAULT_CHECK_INTERVAL_MS = 300000; // 5 minutes
-  private readonly MAX_CONCURRENT_FETCHES = 5;
-  private readonly MAX_CONSECUTIVE_ERRORS = 3;
-  private readonly ERROR_PAUSE_MS = 300000; // 5 minutes pause after max errors
+  // Configuration - Optimized for 100+ users
+  private readonly DEFAULT_CHECK_INTERVAL_MS = 180000; // 3 minutes (reduced from 5)
+  private readonly MAX_CONCURRENT_FETCHES = 30; // Increased from 5 to 30
+  private readonly MAX_CONSECUTIVE_ERRORS = 5; // Increased tolerance
+  private readonly ERROR_PAUSE_MS = 60000; // 1 minute pause (reduced from 5)
 
   // LINE API endpoint
   private readonly LINE_API_URL = 'https://gd2.line.naver.jp/enc';

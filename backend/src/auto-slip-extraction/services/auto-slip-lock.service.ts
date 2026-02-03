@@ -17,7 +17,15 @@ export interface LockInfo {
 export class AutoSlipLockService {
   private readonly logger = new Logger(AutoSlipLockService.name);
   private locks: Map<string, LockInfo> = new Map();
-  private readonly DEFAULT_LOCK_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes
+  private readonly DEFAULT_LOCK_TIMEOUT_MS = 3 * 60 * 1000; // 3 minutes (reduced for faster recovery)
+  private cleanupInterval: NodeJS.Timeout | null = null;
+
+  constructor() {
+    // Start periodic cleanup every 30 seconds
+    this.cleanupInterval = setInterval(() => {
+      this.cleanupExpiredLocks();
+    }, 30000);
+  }
 
   /**
    * Try to acquire a lock for a bank account
@@ -124,11 +132,18 @@ export class AutoSlipLockService {
    */
   private cleanupExpiredLocks(): void {
     const now = new Date();
+    let cleanedCount = 0;
+
     for (const [bankAccountId, lock] of this.locks.entries()) {
       if (lock.expiresAt < now) {
         this.locks.delete(bankAccountId);
+        cleanedCount++;
         this.logger.warn(`Lock expired and auto-released: ${bankAccountId}`);
       }
+    }
+
+    if (cleanedCount > 0) {
+      this.logger.log(`[Cleanup] Released ${cleanedCount} expired locks`);
     }
   }
 

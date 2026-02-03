@@ -82,14 +82,14 @@ export class WorkerPoolService implements OnModuleDestroy, OnModuleInit {
     private eventEmitter: EventEmitter2,
   ) {
     this.config = {
-      maxWorkers: parseInt(this.configService.get('WORKER_POOL_MAX_WORKERS') || '10'),
+      maxWorkers: parseInt(this.configService.get('WORKER_POOL_MAX_WORKERS') || '30'), // Increased for 100+ users
       maxRecoveryAttempts: 3,
-      recoveryDelayMs: 5000,
-      idleTimeoutMs: 300000, // 5 minutes
+      recoveryDelayMs: 3000, // Reduced from 5000 for faster recovery
+      idleTimeoutMs: 180000, // 3 minutes (reduced from 5) for faster recycling
       userDataDir: this.configService.get('PUPPETEER_USER_DATA_DIR') ||
         path.join(__dirname, '../../extensions/user_data'),
-      staleWorkerTimeoutMs: 600000, // [FIX Issue #5] 10 minutes - workers older than this without activity are considered stale
-      cleanupIntervalMs: 60000, // [FIX Issue #5] Run cleanup every 1 minute
+      staleWorkerTimeoutMs: 300000, // 5 minutes (reduced from 10) for faster cleanup
+      cleanupIntervalMs: 30000, // 30 seconds (reduced from 1 minute) for more frequent cleanup
     };
   }
 

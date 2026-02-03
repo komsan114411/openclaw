@@ -15,7 +15,35 @@ export interface LockInfo {
 export class LoginLockService {
   private readonly logger = new Logger(LoginLockService.name);
   private locks: Map<string, LockInfo> = new Map();
-  private readonly LOCK_TIMEOUT_MS = 10 * 60 * 1000; // 10 minutes
+  private readonly LOCK_TIMEOUT_MS = 3 * 60 * 1000; // 3 minutes (reduced for faster recovery)
+  private cleanupInterval: NodeJS.Timeout | null = null;
+
+  constructor() {
+    // Start periodic cleanup every 30 seconds
+    this.cleanupInterval = setInterval(() => {
+      this.cleanupAllExpiredLocks();
+    }, 30000);
+  }
+
+  /**
+   * Cleanup all expired locks
+   */
+  private cleanupAllExpiredLocks(): void {
+    const now = Date.now();
+    let cleanedCount = 0;
+
+    for (const [lineAccountId, lockInfo] of this.locks.entries()) {
+      if (now - lockInfo.lockedAt.getTime() >= this.LOCK_TIMEOUT_MS) {
+        this.locks.delete(lineAccountId);
+        cleanedCount++;
+        this.logger.warn(`Lock auto-released for ${lineAccountId} (expired after ${this.LOCK_TIMEOUT_MS / 1000}s)`);
+      }
+    }
+
+    if (cleanedCount > 0) {
+      this.logger.log(`[Cleanup] Released ${cleanedCount} expired locks`);
+    }
+  }
 
   /**
    * Attempt to acquire a lock for the given lineAccountId

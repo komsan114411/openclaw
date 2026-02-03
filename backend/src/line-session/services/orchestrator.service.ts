@@ -502,10 +502,10 @@ export class OrchestratorService implements OnModuleInit, OnModuleDestroy {
             }
           }
 
-          // Check recovery attempts (cooldown)
+          // Check recovery attempts (cooldown) - Optimized for 100+ users
           const recovery = this.recoveryAttempts.get(sessionId);
-          if (recovery && recovery.attempts >= 3) {
-            const cooldownMs = 30 * 60 * 1000; // 30 minutes
+          if (recovery && recovery.attempts >= 5) { // Increased from 3 to 5
+            const cooldownMs = 10 * 60 * 1000; // 10 minutes (reduced from 30)
             if (Date.now() - recovery.lastAttempt.getTime() < cooldownMs) {
               this.logger.log(`[ReloginCheck] Session ${session.name} in cooldown, skipping`);
               continue;

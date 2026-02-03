@@ -226,26 +226,63 @@ export class SessionHealthService {
 
   /**
    * Validate keys โดยเรียก LINE API
-   * ถ้ายังไม่ต้องการ validate จริง สามารถ return true ได้
    */
   private async validateKeysWithApi(session: LineSessionDocument): Promise<boolean> {
-    // TODO: Implement actual LINE API validation
-    // For now, assume keys are valid if they exist
-    // Can be implemented later with actual API call
+    if (!session.xLineAccess || !session.xHmac) {
+      return false;
+    }
 
-    // Example implementation:
-    // try {
-    //   const response = await axios.get('https://api.line.me/v2/profile', {
-    //     headers: {
-    //       'Authorization': `Bearer ${session.xLineAccess}`,
-    //     },
-    //   });
-    //   return response.status === 200;
-    // } catch {
-    //   return false;
-    // }
+    try {
+      const axios = require('axios');
+      const response = await axios.post(
+        'https://line-chrome-gw.line-apps.com/api/talk/thrift/Talk/TalkService/getChats',
+        ['', 50, ''],
+        {
+          headers: {
+            'x-line-access': session.xLineAccess,
+            'x-hmac': session.xHmac,
+            'content-type': 'application/json',
+            'x-line-chrome-version': '3.4.0',
+          },
+          timeout: 10000,
+          validateStatus: (status: number) => status < 500,
+        },
+      );
 
-    return true;
+      // Success
+      if (response.status === 200 && response.data?.code === 0) {
+        return true;
+      }
+
+      // Expired
+      if (response.status === 401 || response.status === 403) {
+        return false;
+      }
+
+      // Handle specific error codes
+      const errorCode = response.data?.code;
+      if (response.status === 400) {
+        // 10005: Session expired, 20: Invalid session, 35: Auth required
+        if (errorCode === 10005 || errorCode === 20 || errorCode === 35) {
+          return false;
+        }
+        // 10008: Rate limited - assume valid
+        if (errorCode === 10008) {
+          return true;
+        }
+      }
+
+      // Status 200 with non-zero code might still work
+      if (response.status === 200) {
+        return true;
+      }
+
+      this.logger.warn(`Keys validation unclear for ${session.lineAccountId}: status=${response.status}, code=${errorCode}`);
+      return false;
+    } catch (error: any) {
+      this.logger.error(`Error validating keys for ${session.lineAccountId}: ${error.message}`);
+      return false;
+    }
   }
 
   /**

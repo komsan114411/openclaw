@@ -20,10 +20,10 @@ export class ReloginSchedulerService implements OnModuleInit {
   private reloginQueue: ReloginJob[] = [];
   private isProcessing = false;
 
-  // Configuration
-  private readonly RELOGIN_INTERVAL_MINUTES = 20;
-  private readonly MAX_CONCURRENT_RELOGINS = 5; // Allow up to 5 concurrent relogins
-  private readonly RELOGIN_COOLDOWN_MS = 30000; // 30 seconds between relogins (reduced from 60s)
+  // Configuration - Optimized for 100+ users
+  private readonly RELOGIN_INTERVAL_MINUTES = 15;
+  private readonly MAX_CONCURRENT_RELOGINS = 20; // Increased from 5 to 20 for 100+ users
+  private readonly RELOGIN_COOLDOWN_MS = 5000; // Reduced to 5 seconds for faster processing
 
   // Flag to enable/disable auto-relogin globally
   private autoReloginEnabled = false; // Disabled by default - must be enabled manually

@@ -676,7 +676,30 @@ export class EnhancedAutomationService implements OnModuleDestroy {
         return false;
       }
 
-      this.logger.warn(`[ValidateKeys] Keys validation unclear: status=${response.status}, code=${response.data?.code}`);
+      // Handle specific LINE API error codes for status 400
+      const errorCode = response.data?.code;
+      if (response.status === 400) {
+        // Error code 10005: Session expired/invalid token
+        // Error code 20: Invalid session
+        // Error code 35: Authentication required
+        if (errorCode === 10005 || errorCode === 20 || errorCode === 35) {
+          this.logger.warn(`[ValidateKeys] Keys are EXPIRED (status=400, code=${errorCode})`);
+          return false;
+        }
+        // Error code 10008: Rate limited - assume keys are still valid
+        if (errorCode === 10008) {
+          this.logger.log(`[ValidateKeys] Rate limited (code=10008) - assuming keys are VALID`);
+          return true;
+        }
+      }
+
+      // For 200 with non-zero code, keys might still work for messages
+      if (response.status === 200) {
+        this.logger.log(`[ValidateKeys] Status 200 with code=${errorCode} - assuming keys are VALID`);
+        return true;
+      }
+
+      this.logger.warn(`[ValidateKeys] Keys validation unclear: status=${response.status}, code=${errorCode}`);
       return false;
     } catch (error: any) {
       this.logger.error(`[ValidateKeys] Error validating keys: ${error.message}`);
