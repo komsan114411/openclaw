@@ -943,6 +943,7 @@ export const autoSlipApi = {
   setKeys: (id: string, data: SetAutoSlipKeysData) =>
     api.post(`/auto-slip/bank-accounts/${id}/keys`, data),
   getStatus: (id: string) => api.get(`/auto-slip/bank-accounts/${id}/status`),
+  getLoginStatus: (id: string) => api.get(`/auto-slip/bank-accounts/${id}/login-status`),
 
   // Transactions
   getTransactions: (id: string, params?: { limit?: number; offset?: number; type?: string }) =>

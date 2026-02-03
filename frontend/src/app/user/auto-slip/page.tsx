@@ -263,7 +263,8 @@ export default function AutoSlipPage() {
       }
 
       try {
-        const res = await autoSlipApi.getStatus(accountId);
+        // Use the login-status endpoint for more accurate status during login
+        const res = await autoSlipApi.getLoginStatus(accountId);
         if (res.data) {
           setLoginStatus({
             status: res.data.status,
@@ -271,21 +272,27 @@ export default function AutoSlipPage() {
             message: res.data.message,
           });
 
-          if (['ACTIVE', 'KEYS_READY', 'LOGGED_IN'].includes(res.data.status)) {
+          // Check for success conditions: has keys or status is active/ready
+          if (res.data.hasKeys || ['ACTIVE', 'KEYS_READY', 'LOGGED_IN'].includes(res.data.status)) {
             setIsPollingLogin(false);
-            toast.success('ล็อกอินสำเร็จ!');
+            toast.success('ล็อกอินสำเร็จ! ดึง Keys เรียบร้อย');
+            resetWizard();
             await fetchAccounts();
             return;
           }
 
-          if (['ERROR_SOFT', 'ERROR_FATAL'].includes(res.data.status)) {
-            setIsPollingLogin(false);
-            toast.error('เกิดข้อผิดพลาด: ' + (res.data.message || 'กรุณาลองใหม่'));
-            return;
+          // Check for error conditions
+          if (['ERROR_SOFT', 'ERROR_FATAL', 'LOGIN_REQUIRED'].includes(res.data.status)) {
+            // Only stop if not waiting for PIN
+            if (!res.data.pinCode) {
+              setIsPollingLogin(false);
+              toast.error('เกิดข้อผิดพลาด: ' + (res.data.message || 'กรุณาลองใหม่'));
+              return;
+            }
           }
         }
       } catch (err) {
-        // Continue polling
+        // Continue polling on error
       }
 
       attempts++;

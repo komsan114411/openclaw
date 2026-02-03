@@ -33,6 +33,7 @@ import { BankStateMachineService } from './services/bank-state-machine.service';
 import { MessageParserService } from './services/message-parser.service';
 import { AutoSlipOrchestratorService, AccountStatus, OrchestratorStats } from './services/auto-slip-orchestrator.service';
 import { AutoSlipLockService } from './services/auto-slip-lock.service';
+import { AutoSlipLoginService } from './services/auto-slip-login.service';
 import { BankStatus, STATUS_LABELS_TH } from './constants/bank-status.enum';
 import { getBankConfig, isValidBankCode } from './constants/bank-codes';
 
@@ -75,6 +76,7 @@ export class AutoSlipBankAccountController {
     private pinCodeModel: Model<AutoSlipPinCodeDocument>,
     private stateMachineService: BankStateMachineService,
     private messageParserService: MessageParserService,
+    private loginService: AutoSlipLoginService,
   ) {}
 
   /**
@@ -370,6 +372,74 @@ export class AutoSlipBankAccountController {
         rawMessage: t.rawMessage,
         isProcessed: t.isProcessed,
       })),
+    };
+  }
+
+  /**
+   * Trigger LINE login for bank account
+   */
+  @Post(':id/login')
+  @ApiOperation({ summary: 'Trigger LINE login' })
+  async triggerLogin(
+    @Param('id') id: string,
+    @Body() dto: TriggerAutoSlipLoginDto,
+    @CurrentUser() user: AuthUser,
+  ) {
+    // Verify ownership
+    const account = await this.bankAccountModel.findOne({
+      _id: new Types.ObjectId(id),
+      userId: new Types.ObjectId(user.userId),
+    });
+
+    if (!account) {
+      throw new NotFoundException('Bank account not found');
+    }
+
+    this.logger.log(`[Login] Triggering login for bank account ${id}`);
+
+    // Call login service
+    const result = await this.loginService.triggerLogin(
+      id,
+      dto.email,
+      dto.password,
+    );
+
+    return {
+      success: result.success,
+      status: result.status,
+      pinCode: result.pinCode,
+      message: result.message || (result.pinCode
+        ? 'PIN displayed. Please verify on your LINE mobile app.'
+        : 'Login initiated'),
+      error: result.error,
+    };
+  }
+
+  /**
+   * Get login status (poll-able endpoint)
+   */
+  @Get(':id/login-status')
+  @ApiOperation({ summary: 'Get login status' })
+  async getLoginStatus(
+    @Param('id') id: string,
+    @CurrentUser() user: AuthUser,
+  ) {
+    // Verify ownership
+    const account = await this.bankAccountModel.findOne({
+      _id: new Types.ObjectId(id),
+      userId: new Types.ObjectId(user.userId),
+    });
+
+    if (!account) {
+      throw new NotFoundException('Bank account not found');
+    }
+
+    const status = await this.loginService.getLoginStatus(id);
+
+    return {
+      success: true,
+      ...status,
+      statusLabel: STATUS_LABELS_TH[status.status] || status.status,
     };
   }
 

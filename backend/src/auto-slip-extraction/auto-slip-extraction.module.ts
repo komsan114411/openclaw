@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
 import { ConfigModule } from '@nestjs/config';
 
@@ -30,6 +30,7 @@ import { MessageParserService } from './services/message-parser.service';
 import { AutoSlipLockService } from './services/auto-slip-lock.service';
 import { TransactionFetcherService } from './services/transaction-fetcher.service';
 import { AutoSlipOrchestratorService } from './services/auto-slip-orchestrator.service';
+import { AutoSlipLoginService } from './services/auto-slip-login.service';
 
 // Controllers
 import {
@@ -39,6 +40,9 @@ import {
 
 // Event Bus
 import { EventBusModule } from '../core/events';
+
+// LINE Session Module for login automation
+import { LineSessionModule } from '../line-session/line-session.module';
 
 /**
  * Auto-Slip Extraction Module
@@ -70,6 +74,8 @@ import { EventBusModule } from '../core/events';
     EventBusModule,
     // Config for environment variables
     ConfigModule,
+    // LINE Session Module for login automation (use forwardRef to avoid circular dependency)
+    forwardRef(() => LineSessionModule),
   ],
   controllers: [
     AutoSlipBankAccountController,
@@ -82,6 +88,8 @@ import { EventBusModule } from '../core/events';
     AutoSlipLockService,
     TransactionFetcherService,
     AutoSlipOrchestratorService,
+    // Login service (bridges Auto-Slip with LINE-Session)
+    AutoSlipLoginService,
   ],
   exports: [
     // Export services for use by other modules if needed
@@ -90,6 +98,7 @@ import { EventBusModule } from '../core/events';
     AutoSlipLockService,
     TransactionFetcherService,
     AutoSlipOrchestratorService,
+    AutoSlipLoginService,
   ],
 })
 export class AutoSlipExtractionModule {}
