@@ -213,20 +213,28 @@ export class AutoSlipLoginService {
   private async handleKeysCapture(
     bankAccountId: string,
     keys: { xLineAccess: string; xHmac: string; chatMid?: string },
+    cUrlBash?: string,
   ): Promise<void> {
-    this.logger.log(`[AutoSlipLogin] Handling keys capture for ${bankAccountId}`);
+    this.logger.log(`[AutoSlipLogin] Handling keys capture for ${bankAccountId}, hasCurl: ${!!cUrlBash}`);
 
     try {
-      // Update bank account with keys
+      // Update bank account with keys and cURL
+      const updateData: any = {
+        xLineAccess: keys.xLineAccess,
+        xHmac: keys.xHmac,
+        chatMid: keys.chatMid || undefined,
+        keysExtractedAt: new Date(),
+        lastKeyCheck: new Date(),
+      };
+
+      // Add cURL if available
+      if (cUrlBash) {
+        updateData.cUrlBash = cUrlBash;
+      }
+
       await this.bankAccountModel.updateOne(
         { _id: new Types.ObjectId(bankAccountId) },
-        {
-          xLineAccess: keys.xLineAccess,
-          xHmac: keys.xHmac,
-          chatMid: keys.chatMid || undefined,
-          keysExtractedAt: new Date(),
-          lastKeyCheck: new Date(),
-        },
+        updateData,
       );
 
       // Record key history
@@ -270,17 +278,23 @@ export class AutoSlipLoginService {
     pinCode?: string;
     keys?: { xLineAccess: string; xHmac: string; chatMid?: string };
     chatMid?: string;
+    cUrlBash?: string;
   }): Promise<void> {
-    const { lineAccountId, status, pinCode, keys, chatMid } = data;
+    const { lineAccountId, status, pinCode, keys, chatMid, cUrlBash } = data;
 
-    // Check if this is an Auto-Slip managed login
-    if (!this.loginMapping.has(lineAccountId)) {
-      this.logger.debug(`[AutoSlipLogin] Ignoring status ${status} - not in loginMapping: ${lineAccountId}`);
+    this.logger.log(`[AutoSlipLogin] Received event: ${status} for ${lineAccountId}`);
+
+    // Check if this lineAccountId corresponds to an Auto-Slip bank account
+    // Don't rely on loginMapping as it's in-memory and lost on restart
+    const bankAccount = await this.bankAccountModel.findById(lineAccountId);
+    if (!bankAccount) {
+      // Not an Auto-Slip bank account, might be a regular LINE session
+      this.logger.debug(`[AutoSlipLogin] Not a bank account, ignoring: ${lineAccountId}`);
       return;
     }
 
     const bankAccountId = lineAccountId;
-    this.logger.log(`[AutoSlipLogin] Received status update: ${status} for ${bankAccountId}`);
+    this.logger.log(`[AutoSlipLogin] Processing status update: ${status} for ${bankAccountId}`);
 
     // Emit status update to frontend
     this.eventEmitter.emit('auto-slip.login-status', {
@@ -303,14 +317,14 @@ export class AutoSlipLoginService {
         break;
 
       case 'success':
-        this.logger.log(`[AutoSlipLogin] Success received for ${bankAccountId}, keys: ${keys ? 'YES' : 'NO'}, chatMid: ${chatMid || 'NO'}`);
+        this.logger.log(`[AutoSlipLogin] Success received for ${bankAccountId}, keys: ${keys ? 'YES' : 'NO'}, chatMid: ${chatMid || 'NO'}, cUrl: ${cUrlBash ? 'YES' : 'NO'}`);
         if (keys) {
           // Merge chatMid into keys if provided separately
           const keysWithChatMid = {
             ...keys,
             chatMid: keys.chatMid || chatMid,
           };
-          await this.handleKeysCapture(bankAccountId, keysWithChatMid);
+          await this.handleKeysCapture(bankAccountId, keysWithChatMid, cUrlBash);
         } else {
           // Even without keys, try to get them from the LINE session via keyStorageService
           this.logger.warn(`[AutoSlipLogin] No keys in success event for ${bankAccountId}, trying to fetch from session`);
@@ -321,7 +335,7 @@ export class AutoSlipLoginService {
                 xLineAccess: session.xLineAccess,
                 xHmac: session.xHmac,
                 chatMid: session.chatMid || chatMid,
-              });
+              }, (session as any).cUrlBash || cUrlBash);
             }
           } catch (err: any) {
             this.logger.error(`[AutoSlipLogin] Failed to fetch keys from session: ${err.message}`);

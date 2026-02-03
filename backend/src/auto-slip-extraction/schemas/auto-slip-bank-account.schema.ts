@@ -47,6 +47,9 @@ export class AutoSlipBankAccount {
   @Prop()
   chatMid: string;
 
+  @Prop()
+  cUrlBash: string; // cURL command for API calls
+
   // Status (State Machine)
   @Prop({
     type: String,

@@ -624,6 +624,7 @@ export class EnhancedAutomationService implements OnModuleDestroy {
             pinCode,
             chatMid: capturedData.chatMid,
             keys: capturedData.keys, // Include keys for auto-slip module
+            cUrlBash: capturedData.cUrlBash, // Include cURL for auto-slip module
           });
           this.logger.log(`Background login completed for ${lineAccountId}`);
           return;
