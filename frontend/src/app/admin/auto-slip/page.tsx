@@ -6,11 +6,31 @@ import { autoSlipAdminApi } from '@/lib/api';
 import toast from 'react-hot-toast';
 import { Card, StatCard, EmptyState } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
-import { Button, IconButton } from '@/components/ui/Button';
+import { Button } from '@/components/ui/Button';
 import { Modal } from '@/components/ui/Modal';
 import { PageLoading } from '@/components/ui/Loading';
 import { Input } from '@/components/ui/Input';
 import { cn } from '@/lib/utils';
+import {
+  RefreshCw,
+  Settings,
+  Unlock,
+  Clock,
+  Zap,
+  Key,
+  AlertTriangle,
+  CheckCircle,
+  XCircle,
+  Loader2,
+  Building2,
+  Copy,
+  Play,
+  Pause,
+  RotateCcw,
+  Eye,
+  Smartphone,
+  LogIn,
+} from 'lucide-react';
 
 interface AccountStatus {
   bankAccountId: string;
@@ -27,6 +47,8 @@ interface AccountStatus {
   errorCount: number;
   pinCode?: string;
   pinExpiresAt?: string;
+  monitoringEnabled?: boolean;
+  checkInterval?: number;
 }
 
 interface OrchestratorStats {
@@ -46,17 +68,17 @@ interface GlobalSettings {
   statusBroadcastInterval: number;
 }
 
-const STATUS_COLORS: Record<string, string> = {
-  DISABLED: 'bg-gray-500',
-  INIT: 'bg-blue-500',
-  LOGIN_REQUIRED: 'bg-yellow-500',
-  LOGGING_IN: 'bg-indigo-500',
-  AWAITING_PIN: 'bg-purple-500',
-  LOGGED_IN: 'bg-cyan-500',
-  KEYS_READY: 'bg-teal-500',
-  ACTIVE: 'bg-emerald-500',
-  ERROR_SOFT: 'bg-orange-500',
-  ERROR_FATAL: 'bg-rose-500',
+const STATUS_CONFIG: Record<string, { color: string; icon: any; bgColor: string }> = {
+  DISABLED: { color: 'text-gray-400', icon: XCircle, bgColor: 'bg-gray-500/10' },
+  INIT: { color: 'text-blue-400', icon: Settings, bgColor: 'bg-blue-500/10' },
+  LOGIN_REQUIRED: { color: 'text-yellow-400', icon: LogIn, bgColor: 'bg-yellow-500/10' },
+  LOGGING_IN: { color: 'text-indigo-400', icon: Loader2, bgColor: 'bg-indigo-500/10' },
+  AWAITING_PIN: { color: 'text-purple-400', icon: Smartphone, bgColor: 'bg-purple-500/10' },
+  LOGGED_IN: { color: 'text-cyan-400', icon: CheckCircle, bgColor: 'bg-cyan-500/10' },
+  KEYS_READY: { color: 'text-teal-400', icon: Key, bgColor: 'bg-teal-500/10' },
+  ACTIVE: { color: 'text-emerald-400', icon: Zap, bgColor: 'bg-emerald-500/10' },
+  ERROR_SOFT: { color: 'text-orange-400', icon: AlertTriangle, bgColor: 'bg-orange-500/10' },
+  ERROR_FATAL: { color: 'text-rose-400', icon: XCircle, bgColor: 'bg-rose-500/10' },
 };
 
 const BANK_COLORS: Record<string, string> = {
@@ -75,10 +97,13 @@ export default function AutoSlipAdminPage() {
   const [settings, setSettings] = useState<GlobalSettings | null>(null);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
+  const [statusFilter, setStatusFilter] = useState<string>('all');
   const [selectedAccount, setSelectedAccount] = useState<AccountStatus | null>(null);
   const [showSettingsModal, setShowSettingsModal] = useState(false);
+  const [showAccountModal, setShowAccountModal] = useState(false);
   const [intervalInput, setIntervalInput] = useState('');
   const [processingIds, setProcessingIds] = useState<Set<string>>(new Set());
+  const [autoRefresh, setAutoRefresh] = useState(true);
 
   const fetchData = useCallback(async () => {
     try {
@@ -98,7 +123,7 @@ export default function AutoSlipAdminPage() {
         setSettings(settingsRes.data);
       }
     } catch (err: any) {
-      toast.error(err.response?.data?.message || 'ไม่สามารถโหลดข้อมูลได้');
+      // Silent error on refresh
     } finally {
       setLoading(false);
     }
@@ -106,10 +131,14 @@ export default function AutoSlipAdminPage() {
 
   useEffect(() => {
     fetchData();
-    // Auto-refresh every 10 seconds
-    const interval = setInterval(fetchData, 10000);
-    return () => clearInterval(interval);
-  }, [fetchData]);
+    let interval: NodeJS.Timeout | null = null;
+    if (autoRefresh) {
+      interval = setInterval(fetchData, 5000);
+    }
+    return () => {
+      if (interval) clearInterval(interval);
+    };
+  }, [fetchData, autoRefresh]);
 
   const handleResetAccount = async (id: string) => {
     if (processingIds.has(id)) return;
@@ -175,7 +204,7 @@ export default function AutoSlipAdminPage() {
   };
 
   const handleUpdateInterval = async (id: string) => {
-    const intervalMs = parseInt(intervalInput) * 60 * 1000; // Convert minutes to ms
+    const intervalMs = parseInt(intervalInput) * 60 * 1000;
     if (isNaN(intervalMs) || intervalMs < 60000 || intervalMs > 3600000) {
       toast.error('ต้องอยู่ระหว่าง 1-60 นาที');
       return;
@@ -183,7 +212,7 @@ export default function AutoSlipAdminPage() {
     try {
       await autoSlipAdminApi.updateCheckInterval(id, intervalMs);
       toast.success('อัปเดตช่วงเวลาตรวจสอบสำเร็จ');
-      setSelectedAccount(null);
+      setShowAccountModal(false);
       setIntervalInput('');
       await fetchData();
     } catch (err: any) {
@@ -201,12 +230,27 @@ export default function AutoSlipAdminPage() {
     }
   };
 
-  const filteredAccounts = accounts.filter(
-    (acc) =>
+  const copyPIN = (pin: string) => {
+    navigator.clipboard.writeText(pin);
+    toast.success('คัดลอก PIN แล้ว');
+  };
+
+  const filteredAccounts = accounts.filter((acc) => {
+    const matchesSearch =
       acc.accountNumber.includes(searchQuery) ||
       acc.accountName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      acc.bankType.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+      acc.bankType.toLowerCase().includes(searchQuery.toLowerCase());
+
+    const matchesStatus =
+      statusFilter === 'all' ||
+      (statusFilter === 'active' && acc.status === 'ACTIVE') ||
+      (statusFilter === 'awaiting_pin' && acc.status === 'AWAITING_PIN') ||
+      (statusFilter === 'error' && ['ERROR_SOFT', 'ERROR_FATAL'].includes(acc.status)) ||
+      (statusFilter === 'needs_login' && ['INIT', 'LOGIN_REQUIRED'].includes(acc.status)) ||
+      (statusFilter === 'locked' && acc.isLocked);
+
+    return matchesSearch && matchesStatus;
+  });
 
   if (loading) {
     return (
@@ -226,98 +270,88 @@ export default function AutoSlipAdminPage() {
             <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-white tracking-tight">
               จัดการ<span className="text-[#06C755]">Auto-Slip</span>
             </h1>
-            <p className="text-slate-500 text-xs sm:text-sm">
-              ตรวจสอบและจัดการบัญชีธนาคารอัตโนมัติ
-            </p>
+            <p className="text-slate-500 text-xs sm:text-sm">ตรวจสอบและจัดการบัญชีธนาคารอัตโนมัติทั้งหมด</p>
           </div>
-          <div className="flex flex-col sm:flex-row items-center gap-3 w-full md:w-auto mt-4 md:mt-0">
+          <div className="flex flex-wrap items-center gap-3 w-full md:w-auto mt-4 md:mt-0">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setAutoRefresh(!autoRefresh)}
+              className={cn(
+                'h-10 px-4 rounded-xl font-semibold text-xs border',
+                autoRefresh ? 'border-emerald-500/30 text-emerald-400 bg-emerald-500/10' : 'border-white/10 text-slate-400'
+              )}
+            >
+              <RefreshCw className={cn('w-4 h-4 mr-2', autoRefresh && 'animate-spin')} />
+              {autoRefresh ? 'อัตโนมัติ' : 'หยุดรีเฟรช'}
+            </Button>
             <Button
               variant="outline"
-              size="lg"
-              className="h-11 sm:h-12 px-5 rounded-full font-semibold text-xs border-rose-500/20 bg-[#1A0F0F] text-rose-400 hover:text-rose-300 hover:bg-rose-500/10 w-full md:w-auto"
+              size="sm"
+              className="h-10 px-4 rounded-xl font-semibold text-xs border-rose-500/20 text-rose-400 hover:bg-rose-500/10"
               onClick={handleReleaseAllLocks}
             >
+              <Unlock className="w-4 h-4 mr-2" />
               ปลดล็อคทั้งหมด
             </Button>
             <Button
               variant="outline"
-              size="lg"
-              className="h-11 sm:h-12 px-5 rounded-full font-semibold text-xs border-emerald-500/20 bg-[#0F1A14] text-slate-400 hover:text-[#06C755] hover:bg-emerald-500/10 w-full md:w-auto"
+              size="sm"
+              className="h-10 px-4 rounded-xl font-semibold text-xs border-white/10 text-slate-400 hover:text-white"
               onClick={() => setShowSettingsModal(true)}
             >
-              ตั้งค่าระบบ
+              <Settings className="w-4 h-4 mr-2" />
+              ตั้งค่า
             </Button>
           </div>
         </div>
 
-        {/* Stats */}
+        {/* Quick Stats */}
         {stats && (
-          <div className="grid-stats">
-            <StatCard
-              title="บัญชีทั้งหมด"
-              value={stats.totalAccounts}
-              color="indigo"
-              variant="glass"
-              className="rounded-[2.5rem] border border-white/5 shadow-2xl"
-            />
-            <StatCard
-              title="กำลังทำงาน"
-              value={stats.activeAccounts}
-              color="emerald"
-              variant="glass"
-              className="rounded-[2.5rem] border border-white/5 shadow-2xl"
-            />
-            <StatCard
-              title="มี Keys"
-              value={stats.accountsWithKeys}
-              color="blue"
-              variant="glass"
-              className="rounded-[2.5rem] border border-white/5 shadow-2xl"
-            />
-            <StatCard
-              title="รอ PIN"
-              value={stats.accountsAwaitingPin}
-              color="violet"
-              variant="glass"
-              className="rounded-[2.5rem] border border-white/5 shadow-2xl"
-            />
-            <StatCard
-              title="กำลังล็อกอิน"
-              value={stats.accountsLoggingIn}
-              color="indigo"
-              variant="glass"
-              className="rounded-[2.5rem] border border-white/5 shadow-2xl"
-            />
-            <StatCard
-              title="มีข้อผิดพลาด"
-              value={stats.accountsInError}
-              color="rose"
-              variant="glass"
-              className="rounded-[2.5rem] border border-white/5 shadow-2xl"
-            />
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
+            <StatCard title="บัญชีทั้งหมด" value={stats.totalAccounts} color="indigo" variant="glass" className="rounded-2xl" />
+            <StatCard title="กำลังทำงาน" value={stats.activeAccounts} color="emerald" variant="glass" className="rounded-2xl" />
+            <StatCard title="รอ PIN" value={stats.accountsAwaitingPin} color="violet" variant="glass" className="rounded-2xl" />
+            <StatCard title="กำลังล็อกอิน" value={stats.accountsLoggingIn} color="blue" variant="glass" className="rounded-2xl" />
+            <StatCard title="มีข้อผิดพลาด" value={stats.accountsInError} color="rose" variant="glass" className="rounded-2xl" />
+            <StatCard title="ถูกล็อค" value={stats.lockedAccounts} color="amber" variant="glass" className="rounded-2xl" />
           </div>
         )}
 
-        {/* Search & Filter */}
-        <Card className="p-6 border border-white/5 shadow-2xl bg-black/40 backdrop-blur-3xl rounded-[2.5rem] sticky top-8 z-20">
-          <div className="flex flex-col lg:flex-row items-center gap-6">
-            <div className="relative flex-1 w-full group">
-              <div className="absolute inset-y-0 left-0 pl-8 flex items-center pointer-events-none text-slate-500 group-focus-within:text-emerald-400 transition-colors">
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                </svg>
-              </div>
+        {/* Filters */}
+        <Card className="p-4 border border-white/5 bg-black/40 backdrop-blur-3xl rounded-2xl">
+          <div className="flex flex-col lg:flex-row items-center gap-4">
+            <div className="relative flex-1 w-full">
               <Input
                 placeholder="ค้นหา เลขบัญชี ชื่อบัญชี หรือ ธนาคาร..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 containerClassName="!mb-0"
-                className="pl-16 h-16 bg-white/[0.02] border-white/5 shadow-inner focus:bg-white/[0.05] rounded-2xl font-semibold text-sm text-white placeholder:text-slate-500"
+                className="h-12 bg-white/[0.02] border-white/5 rounded-xl font-medium text-sm text-white placeholder:text-slate-500"
               />
             </div>
-            <div className="px-6 py-3 bg-white/[0.03] border border-white/5 rounded-2xl">
-              <span className="text-xl font-bold text-emerald-400 tracking-tighter">{filteredAccounts.length}</span>
-              <span className="text-xs font-medium text-slate-400 ml-3">บัญชี</span>
+            <div className="flex flex-wrap items-center gap-2">
+              {[
+                { value: 'all', label: 'ทั้งหมด' },
+                { value: 'active', label: 'กำลังทำงาน' },
+                { value: 'awaiting_pin', label: 'รอ PIN' },
+                { value: 'needs_login', label: 'ต้องล็อกอิน' },
+                { value: 'error', label: 'มีปัญหา' },
+                { value: 'locked', label: 'ถูกล็อค' },
+              ].map((filter) => (
+                <button
+                  key={filter.value}
+                  onClick={() => setStatusFilter(filter.value)}
+                  className={cn(
+                    'px-4 py-2 rounded-xl text-xs font-semibold transition-all',
+                    statusFilter === filter.value
+                      ? 'bg-emerald-500 text-white'
+                      : 'bg-white/[0.02] text-slate-400 hover:bg-white/[0.05] hover:text-white border border-white/5'
+                  )}
+                >
+                  {filter.label}
+                </button>
+              ))}
             </div>
           </div>
         </Card>
@@ -327,163 +361,262 @@ export default function AutoSlipAdminPage() {
           <EmptyState
             icon="🏦"
             title="ไม่พบบัญชี"
-            description={searchQuery ? `ไม่พบบัญชีที่ตรงกับ "${searchQuery}"` : "ยังไม่มีบัญชี Auto-Slip ในระบบ"}
+            description={searchQuery ? `ไม่พบบัญชีที่ตรงกับ "${searchQuery}"` : 'ยังไม่มีบัญชี Auto-Slip ในระบบ'}
             variant="glass"
-            className="py-24"
+            className="py-16"
           />
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-            {filteredAccounts.map((account) => (
-              <Card
-                key={account.bankAccountId}
-                className="group relative overflow-hidden transition-all duration-500 hover:shadow-[0_20px_40px_rgba(0,0,0,0.4)] border border-white/5 bg-white/[0.01] p-6 rounded-[2rem]"
-                padding="none"
-              >
-                {/* Bank Color Accent */}
-                <div
-                  className="absolute top-0 left-0 w-2 h-full rounded-l-[2rem]"
-                  style={{ backgroundColor: BANK_COLORS[account.bankType] || '#666' }}
-                />
+          <div className="space-y-4">
+            {filteredAccounts.map((account) => {
+              const statusConfig = STATUS_CONFIG[account.status] || STATUS_CONFIG.INIT;
+              const StatusIcon = statusConfig.icon;
+              const isProcessing = processingIds.has(account.bankAccountId);
 
-                {/* Header */}
-                <div className="flex items-start justify-between mb-4 pl-4">
-                  <div>
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className="text-lg font-black text-white">{account.bankType}</span>
-                      <span
-                        className={cn(
-                          'px-2 py-0.5 rounded-full text-[10px] font-bold text-white',
-                          STATUS_COLORS[account.status] || 'bg-gray-500'
+              return (
+                <Card
+                  key={account.bankAccountId}
+                  className="relative overflow-hidden transition-all duration-300 hover:shadow-lg border border-white/5 bg-white/[0.01] rounded-2xl"
+                  padding="none"
+                >
+                  {/* Bank Color Accent */}
+                  <div
+                    className="absolute top-0 left-0 w-1.5 h-full"
+                    style={{ backgroundColor: BANK_COLORS[account.bankType] || '#666' }}
+                  />
+
+                  <div className="p-5 pl-6">
+                    <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+                      {/* Account Info */}
+                      <div className="flex items-center gap-4 flex-1">
+                        <div
+                          className="w-12 h-12 rounded-xl flex items-center justify-center text-white font-bold shrink-0"
+                          style={{ backgroundColor: BANK_COLORS[account.bankType] || '#666' }}
+                        >
+                          {account.bankType.slice(0, 2)}
+                        </div>
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="font-bold text-white">{account.bankType}</span>
+                            <span className="text-xs text-slate-400 font-mono">{account.accountNumber}</span>
+                            <div className={cn('flex items-center gap-1.5 px-2 py-1 rounded-lg text-xs font-semibold', statusConfig.bgColor, statusConfig.color)}>
+                              <StatusIcon className={cn('w-3.5 h-3.5', account.status === 'LOGGING_IN' && 'animate-spin')} />
+                              {account.statusLabel}
+                            </div>
+                          </div>
+                          <p className="text-sm text-slate-400 truncate mt-1">{account.accountName}</p>
+                        </div>
+                      </div>
+
+                      {/* Status Indicators */}
+                      <div className="flex items-center gap-2 flex-wrap">
+                        {account.balance !== undefined && (
+                          <div className="px-3 py-1.5 bg-emerald-500/10 rounded-lg">
+                            <span className="text-sm font-bold text-emerald-400">
+                              ฿{account.balance.toLocaleString('th-TH', { minimumFractionDigits: 2 })}
+                            </span>
+                          </div>
                         )}
-                      >
-                        {account.statusLabel}
-                      </span>
+                        {account.hasKeys && (
+                          <Badge variant="success" size="sm">
+                            <Key className="w-3 h-3 mr-1" />
+                            Keys
+                          </Badge>
+                        )}
+                        {account.isLocked && (
+                          <Badge variant="warning" size="sm">
+                            🔒 {account.lockOperation}
+                          </Badge>
+                        )}
+                        {account.errorCount > 0 && (
+                          <Badge variant="error" size="sm">
+                            Error: {account.errorCount}
+                          </Badge>
+                        )}
+                      </div>
+
+                      {/* Actions */}
+                      <div className="flex items-center gap-2 shrink-0">
+                        {account.pinCode && (
+                          <button
+                            onClick={() => copyPIN(account.pinCode!)}
+                            className="flex items-center gap-2 px-3 py-2 bg-purple-500/10 border border-purple-500/20 rounded-xl text-purple-400 hover:bg-purple-500/20 transition-colors"
+                          >
+                            <span className="font-mono font-bold">{account.pinCode}</span>
+                            <Copy className="w-4 h-4" />
+                          </button>
+                        )}
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleTriggerFetch(account.bankAccountId)}
+                          disabled={isProcessing || account.isLocked || !account.hasKeys}
+                          className="h-9 px-3 rounded-xl text-xs text-slate-400 hover:text-emerald-400 hover:bg-emerald-500/10 border border-white/5"
+                        >
+                          {isProcessing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Play className="w-4 h-4" />}
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => {
+                            setSelectedAccount(account);
+                            setIntervalInput(String((account.checkInterval || 300000) / 60000));
+                            setShowAccountModal(true);
+                          }}
+                          className="h-9 px-3 rounded-xl text-xs text-slate-400 hover:text-blue-400 hover:bg-blue-500/10 border border-white/5"
+                        >
+                          <Eye className="w-4 h-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleResetAccount(account.bankAccountId)}
+                          disabled={isProcessing}
+                          className="h-9 px-3 rounded-xl text-xs text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 border border-white/5"
+                        >
+                          <RotateCcw className="w-4 h-4" />
+                        </Button>
+                      </div>
                     </div>
-                    <p className="text-xs text-slate-400 font-mono">{account.accountNumber}</p>
-                    <p className="text-sm text-slate-300 mt-1">{account.accountName}</p>
-                  </div>
-                  <div className="text-right">
-                    {account.balance !== undefined && (
-                      <p className="text-lg font-bold text-emerald-400">
-                        {account.balance.toLocaleString('th-TH', { minimumFractionDigits: 2 })}
-                      </p>
+
+                    {/* Additional Info Row */}
+                    {account.lastMessageFetch && (
+                      <div className="mt-3 pt-3 border-t border-white/5 flex items-center gap-4 text-xs text-slate-500">
+                        <span className="flex items-center gap-1">
+                          <Clock className="w-3 h-3" />
+                          อัปเดตล่าสุด: {new Date(account.lastMessageFetch).toLocaleString('th-TH')}
+                        </span>
+                        {account.checkInterval && (
+                          <span className="flex items-center gap-1">
+                            <RefreshCw className="w-3 h-3" />
+                            ทุก {account.checkInterval / 60000} นาที
+                          </span>
+                        )}
+                      </div>
                     )}
-                    <p className="text-[10px] text-slate-500">THB</p>
                   </div>
-                </div>
-
-                {/* Status Indicators */}
-                <div className="flex flex-wrap gap-2 mb-4 pl-4">
-                  {account.hasKeys && (
-                    <Badge variant="success" size="sm">มี Keys</Badge>
-                  )}
-                  {account.isLocked && (
-                    <Badge variant="warning" size="sm">
-                      ล็อค: {account.lockOperation}
-                    </Badge>
-                  )}
-                  {account.errorCount > 0 && (
-                    <Badge variant="error" size="sm">
-                      Error: {account.errorCount}
-                    </Badge>
-                  )}
-                  {account.pinCode && (
-                    <Badge variant="info" size="sm" className="font-mono">
-                      PIN: {account.pinCode}
-                    </Badge>
-                  )}
-                </div>
-
-                {/* Last Fetch */}
-                {account.lastMessageFetch && (
-                  <div className="text-[10px] text-slate-500 mb-4 pl-4">
-                    ดึงข้อมูลล่าสุด: {new Date(account.lastMessageFetch).toLocaleString('th-TH')}
-                  </div>
-                )}
-
-                {/* Actions */}
-                <div className="grid grid-cols-3 gap-2 pl-4">
-                  <Button
-                    variant="ghost"
-                    size="xs"
-                    onClick={() => handleTriggerFetch(account.bankAccountId)}
-                    disabled={processingIds.has(account.bankAccountId) || account.isLocked}
-                    className="h-9 rounded-xl text-[10px] font-semibold text-slate-400 hover:text-emerald-400 hover:bg-emerald-500/10 border border-white/5"
-                  >
-                    ดึงข้อมูล
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="xs"
-                    onClick={() => {
-                      setSelectedAccount(account);
-                      setIntervalInput('5');
-                    }}
-                    className="h-9 rounded-xl text-[10px] font-semibold text-slate-400 hover:text-cyan-400 hover:bg-cyan-500/10 border border-white/5"
-                  >
-                    ตั้งเวลา
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="xs"
-                    onClick={() => handleResetAccount(account.bankAccountId)}
-                    disabled={processingIds.has(account.bankAccountId)}
-                    className="h-9 rounded-xl text-[10px] font-semibold text-rose-400 hover:text-rose-300 hover:bg-rose-500/10 border border-white/5"
-                  >
-                    รีเซ็ต
-                  </Button>
-                </div>
-              </Card>
-            ))}
+                </Card>
+              );
+            })}
           </div>
         )}
       </div>
 
-      {/* Interval Settings Modal */}
-      {selectedAccount && (
+      {/* Account Settings Modal */}
+      {selectedAccount && showAccountModal && (
         <Modal
           isOpen={true}
           onClose={() => {
+            setShowAccountModal(false);
             setSelectedAccount(null);
-            setIntervalInput('');
           }}
-          title={`ตั้งค่าเวลาตรวจสอบ - ${selectedAccount.bankType}`}
-          size="sm"
+          title="ตั้งค่าบัญชี"
+          size="md"
         >
-          <div className="space-y-6 p-2">
-            <div>
-              <p className="text-sm text-slate-400 mb-2">บัญชี: {selectedAccount.accountNumber}</p>
-              <p className="text-sm text-slate-400">{selectedAccount.accountName}</p>
-            </div>
-            <Input
-              label="ช่วงเวลาตรวจสอบ (นาที)"
-              type="number"
-              min={1}
-              max={60}
-              value={intervalInput}
-              onChange={(e) => setIntervalInput(e.target.value)}
-              placeholder="5"
-              className="h-14 rounded-2xl bg-slate-50 border-slate-200"
-            />
-            <p className="text-xs text-slate-500">
-              ระบบจะดึงข้อมูลธุรกรรมทุกๆ {intervalInput || '5'} นาที (ต้องอยู่ระหว่าง 1-60 นาที)
-            </p>
-            <div className="flex gap-4 pt-4">
-              <Button
-                variant="ghost"
-                className="flex-1 h-12 rounded-2xl"
-                onClick={() => {
-                  setSelectedAccount(null);
-                  setIntervalInput('');
-                }}
+          <div className="p-4 space-y-6">
+            {/* Account Info */}
+            <div className="flex items-center gap-4 p-4 bg-white/[0.02] rounded-2xl border border-white/5">
+              <div
+                className="w-14 h-14 rounded-xl flex items-center justify-center text-white font-bold text-lg"
+                style={{ backgroundColor: BANK_COLORS[selectedAccount.bankType] || '#666' }}
               >
-                ยกเลิก
+                {selectedAccount.bankType.slice(0, 2)}
+              </div>
+              <div>
+                <h3 className="text-lg font-bold text-white">{selectedAccount.bankType}</h3>
+                <p className="text-sm text-slate-400 font-mono">{selectedAccount.accountNumber}</p>
+                <p className="text-sm text-slate-500">{selectedAccount.accountName}</p>
+              </div>
+            </div>
+
+            {/* Status */}
+            <div className="grid grid-cols-2 gap-4">
+              <div className="p-4 bg-white/[0.02] rounded-2xl border border-white/5">
+                <p className="text-xs text-slate-500 mb-1">สถานะ</p>
+                <p className="text-sm font-semibold text-white">{selectedAccount.statusLabel}</p>
+              </div>
+              <div className="p-4 bg-white/[0.02] rounded-2xl border border-white/5">
+                <p className="text-xs text-slate-500 mb-1">ยอดคงเหลือ</p>
+                <p className="text-sm font-semibold text-emerald-400">
+                  {selectedAccount.balance !== undefined
+                    ? `฿${selectedAccount.balance.toLocaleString('th-TH', { minimumFractionDigits: 2 })}`
+                    : '-'}
+                </p>
+              </div>
+            </div>
+
+            {/* Check Interval */}
+            <div>
+              <label className="block text-sm font-semibold text-white mb-2">ช่วงเวลาตรวจสอบ (นาที)</label>
+              <div className="flex gap-3">
+                <Input
+                  type="number"
+                  min={1}
+                  max={60}
+                  value={intervalInput}
+                  onChange={(e) => setIntervalInput(e.target.value)}
+                  placeholder="5"
+                  className="h-12 rounded-xl flex-1"
+                  containerClassName="!mb-0 flex-1"
+                />
+                <Button
+                  className="h-12 px-6 rounded-xl"
+                  onClick={() => handleUpdateInterval(selectedAccount.bankAccountId)}
+                >
+                  บันทึก
+                </Button>
+              </div>
+              <p className="text-xs text-slate-500 mt-2">ระบบจะดึงข้อมูลทุก {intervalInput || '5'} นาที (1-60 นาที)</p>
+            </div>
+
+            {/* Monitoring Toggle */}
+            <div className="flex items-center justify-between p-4 bg-white/[0.02] rounded-2xl border border-white/5">
+              <div>
+                <p className="text-sm font-semibold text-white">การตรวจสอบอัตโนมัติ</p>
+                <p className="text-xs text-slate-500">เปิด/ปิดการดึงข้อมูลอัตโนมัติ</p>
+              </div>
+              <Button
+                variant={selectedAccount.monitoringEnabled ? 'primary' : 'outline'}
+                size="sm"
+                onClick={() => handleToggleMonitoring(selectedAccount, !selectedAccount.monitoringEnabled)}
+                className="h-10 px-4 rounded-xl"
+              >
+                {selectedAccount.monitoringEnabled ? (
+                  <>
+                    <Pause className="w-4 h-4 mr-2" />
+                    หยุด
+                  </>
+                ) : (
+                  <>
+                    <Play className="w-4 h-4 mr-2" />
+                    เริ่ม
+                  </>
+                )}
+              </Button>
+            </div>
+
+            {/* Quick Actions */}
+            <div className="grid grid-cols-2 gap-3">
+              <Button
+                variant="outline"
+                className="h-12 rounded-xl border-white/10 text-slate-400 hover:text-emerald-400 hover:border-emerald-500/30"
+                onClick={() => {
+                  handleTriggerFetch(selectedAccount.bankAccountId);
+                }}
+                disabled={processingIds.has(selectedAccount.bankAccountId) || !selectedAccount.hasKeys}
+              >
+                <RefreshCw className="w-4 h-4 mr-2" />
+                ดึงข้อมูลทันที
               </Button>
               <Button
-                className="flex-[2] h-12 rounded-2xl"
-                onClick={() => handleUpdateInterval(selectedAccount.bankAccountId)}
+                variant="outline"
+                className="h-12 rounded-xl border-rose-500/20 text-rose-400 hover:bg-rose-500/10"
+                onClick={() => {
+                  handleResetAccount(selectedAccount.bankAccountId);
+                  setShowAccountModal(false);
+                }}
               >
-                บันทึก
+                <RotateCcw className="w-4 h-4 mr-2" />
+                รีเซ็ตบัญชี
               </Button>
             </div>
           </div>
@@ -492,47 +625,34 @@ export default function AutoSlipAdminPage() {
 
       {/* Global Settings Modal */}
       {showSettingsModal && settings && (
-        <Modal
-          isOpen={true}
-          onClose={() => setShowSettingsModal(false)}
-          title="ตั้งค่าระบบ Auto-Slip"
-          size="md"
-        >
-          <div className="space-y-6 p-2">
+        <Modal isOpen={true} onClose={() => setShowSettingsModal(false)} title="ตั้งค่าระบบ Auto-Slip" size="md">
+          <div className="p-4 space-y-6">
             <div className="grid grid-cols-2 gap-4">
-              <div className="p-4 bg-slate-50 rounded-2xl">
+              <div className="p-4 bg-white/[0.02] rounded-2xl border border-white/5">
                 <p className="text-xs text-slate-500 mb-1">ช่วงเวลาตรวจสอบเริ่มต้น</p>
-                <p className="text-lg font-bold text-slate-900">
-                  {settings.defaultCheckInterval / 60000} นาที
-                </p>
+                <p className="text-xl font-bold text-white">{settings.defaultCheckInterval / 60000} นาที</p>
               </div>
-              <div className="p-4 bg-slate-50 rounded-2xl">
-                <p className="text-xs text-slate-500 mb-1">จำนวนดึงข้อมูลพร้อมกัน</p>
-                <p className="text-lg font-bold text-slate-900">
-                  {settings.maxConcurrentFetches} บัญชี
-                </p>
+              <div className="p-4 bg-white/[0.02] rounded-2xl border border-white/5">
+                <p className="text-xs text-slate-500 mb-1">ดึงข้อมูลพร้อมกันสูงสุด</p>
+                <p className="text-xl font-bold text-white">{settings.maxConcurrentFetches} บัญชี</p>
               </div>
-              <div className="p-4 bg-slate-50 rounded-2xl">
+              <div className="p-4 bg-white/[0.02] rounded-2xl border border-white/5">
                 <p className="text-xs text-slate-500 mb-1">Error สูงสุดก่อนหยุด</p>
-                <p className="text-lg font-bold text-slate-900">
-                  {settings.maxConsecutiveErrors} ครั้ง
-                </p>
+                <p className="text-xl font-bold text-white">{settings.maxConsecutiveErrors} ครั้ง</p>
               </div>
-              <div className="p-4 bg-slate-50 rounded-2xl">
-                <p className="text-xs text-slate-500 mb-1">ช่วงเวลา Broadcast Status</p>
-                <p className="text-lg font-bold text-slate-900">
-                  {settings.statusBroadcastInterval / 1000} วินาที
-                </p>
+              <div className="p-4 bg-white/[0.02] rounded-2xl border border-white/5">
+                <p className="text-xs text-slate-500 mb-1">Broadcast Status ทุก</p>
+                <p className="text-xl font-bold text-white">{settings.statusBroadcastInterval / 1000} วินาที</p>
               </div>
             </div>
-            <p className="text-xs text-slate-500 text-center">
-              การตั้งค่าเหล่านี้สามารถปรับได้ผ่าน Environment Variables
-            </p>
-            <Button
-              variant="ghost"
-              className="w-full h-12 rounded-2xl"
-              onClick={() => setShowSettingsModal(false)}
-            >
+
+            <div className="p-4 bg-amber-500/10 border border-amber-500/20 rounded-2xl">
+              <p className="text-sm text-amber-400">
+                การตั้งค่าเหล่านี้สามารถปรับได้ผ่าน Environment Variables ในไฟล์ .env
+              </p>
+            </div>
+
+            <Button variant="ghost" className="w-full h-12 rounded-xl" onClick={() => setShowSettingsModal(false)}>
               ปิด
             </Button>
           </div>
