@@ -872,10 +872,14 @@ export class EnhancedAutomationService implements OnModuleDestroy {
         // Wait a bit more for messages
         await this.delay(5000);
 
+        // [NEW] Prefer getRecentMessagesV2 cURL if available, fallback to general cURL
+        const preferredCurl = worker.capturedCurlRecentMessages || worker.capturedCurl;
+        this.logger.log(`[TriggerKeys] Using cURL: ${worker.capturedCurlRecentMessages ? 'getRecentMessagesV2 (preferred)' : 'general'}`);
+
         return {
           keys: worker.capturedKeys,
           chatMid: worker.capturedChatMid,
-          cUrlBash: worker.capturedCurl,
+          cUrlBash: preferredCurl,
         };
       }
 
@@ -896,10 +900,14 @@ export class EnhancedAutomationService implements OnModuleDestroy {
 
     // Final check
     if (worker.capturedKeys) {
+      // [NEW] Prefer getRecentMessagesV2 cURL if available, fallback to general cURL
+      const preferredCurl = worker.capturedCurlRecentMessages || worker.capturedCurl;
+      this.logger.log(`[TriggerKeys] Final check - Using cURL: ${worker.capturedCurlRecentMessages ? 'getRecentMessagesV2 (preferred)' : 'general'}`);
+
       return {
         keys: worker.capturedKeys,
         chatMid: worker.capturedChatMid,
-        cUrlBash: worker.capturedCurl,
+        cUrlBash: preferredCurl,
       };
     }
 

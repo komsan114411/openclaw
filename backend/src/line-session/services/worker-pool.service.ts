@@ -40,6 +40,7 @@ export interface Worker {
   };
   capturedChatMid?: string;
   capturedCurl?: string; // cURL command captured from intercepted request
+  capturedCurlRecentMessages?: string; // cURL command specifically for getRecentMessagesV2
 }
 
 export interface WorkerPoolConfig {
@@ -627,6 +628,9 @@ export class WorkerPoolService implements OnModuleDestroy, OnModuleInit {
                                   url.includes('getRecentMessages') ||
                                   url.includes('sendMessage') ||
                                   url.includes('TalkService');
+      
+      // [NEW] Check if this is specifically getRecentMessagesV2 for dedicated cURL capture
+      const isGetRecentMessagesV2 = url.includes('getRecentMessagesV2');
 
       if (isLineApiRequest && isPriorityEndpoint && !worker.capturedKeys) {
         this.logger.log(`[CDP KeyCapture] 🎯 Attempting capture from: ${url.split('/').pop()?.split('?')[0]}`);
@@ -778,6 +782,13 @@ export class WorkerPoolService implements OnModuleDestroy, OnModuleInit {
               }
 
               worker.capturedCurl = curlCmd;
+              
+              // [NEW] If this is getRecentMessagesV2, also save to dedicated field
+              if (isGetRecentMessagesV2) {
+                worker.capturedCurlRecentMessages = curlCmd;
+                this.logger.log(`[CDP KeyCapture SUCCESS] ✅ getRecentMessagesV2 cURL captured specifically!`);
+              }
+              
               this.logger.log(`[CDP KeyCapture SUCCESS] cURL command captured (${curlCmd.length} chars)`);
               this.logger.log(`[CDP KeyCapture SUCCESS] cURL has cookie: ${cookieString ? 'YES' : 'NO'}`);
               this.logger.debug(`[CDP KeyCapture] Full cURL:\n${curlCmd}`);
@@ -792,6 +803,7 @@ export class WorkerPoolService implements OnModuleDestroy, OnModuleInit {
             this.logger.log(`[CDP KeyCapture] ✅ x-hmac: ${xHmac.substring(0, 30)}...`);
             this.logger.log(`[CDP KeyCapture] ✅ chatMid: ${chatMid || 'N/A'}`);
             this.logger.log(`[CDP KeyCapture] ✅ cURL length: ${worker.capturedCurl?.length || 0} chars`);
+            this.logger.log(`[CDP KeyCapture] ✅ getRecentMessagesV2 cURL: ${worker.capturedCurlRecentMessages ? 'YES' : 'NO'}`);
             this.logger.log(`[CDP KeyCapture] ✅ ==========================================`);
             onKeyCaptured({ xLineAccess, xHmac }, chatMid);
           } else {
@@ -840,6 +852,9 @@ export class WorkerPoolService implements OnModuleDestroy, OnModuleInit {
                                   url.includes('getRecentMessages') ||
                                   url.includes('sendMessage') ||
                                   url.includes('TalkService');
+      
+      // [NEW] Check if this is specifically getRecentMessagesV2 for dedicated cURL capture
+      const isGetRecentMessagesV2 = url.includes('getRecentMessagesV2');
 
       if (isLineApiRequest && isPriorityEndpoint && !worker.capturedKeys) {
         this.logger.log(`[Puppeteer KeyCapture] 🎯 Attempting capture from: ${url.split('/').pop()?.split('?')[0]}`);
@@ -944,6 +959,13 @@ export class WorkerPoolService implements OnModuleDestroy, OnModuleInit {
             }
             
             worker.capturedCurl = curlCmd;
+            
+            // [NEW] If this is getRecentMessagesV2, also save to dedicated field
+            if (isGetRecentMessagesV2) {
+              worker.capturedCurlRecentMessages = curlCmd;
+              this.logger.log(`[Puppeteer KeyCapture] ✅ getRecentMessagesV2 cURL captured specifically!`);
+            }
+            
             this.logger.log(`[Puppeteer KeyCapture] ✅ cURL command captured (${curlCmd.length} chars)`);
           } catch (curlError) {
             this.logger.warn(`[Puppeteer KeyCapture] Failed to generate cURL: ${curlError}`);
@@ -955,6 +977,7 @@ export class WorkerPoolService implements OnModuleDestroy, OnModuleInit {
           this.logger.log(`[Puppeteer KeyCapture] ✅ x-line-access: ${xLineAccess.substring(0, 50)}...`);
           this.logger.log(`[Puppeteer KeyCapture] ✅ x-hmac: ${xHmac.substring(0, 30)}...`);
           this.logger.log(`[Puppeteer KeyCapture] ✅ chatMid: ${chatMid || 'N/A'}`);
+          this.logger.log(`[Puppeteer KeyCapture] ✅ getRecentMessagesV2 cURL: ${worker.capturedCurlRecentMessages ? 'YES' : 'NO'}`);
           this.logger.log(`[Puppeteer KeyCapture] ✅ ==========================================`);
           onKeyCaptured({ xLineAccess, xHmac }, chatMid);
         } else {
@@ -1018,6 +1041,7 @@ export class WorkerPoolService implements OnModuleDestroy, OnModuleInit {
     worker.capturedKeys = undefined;
     worker.capturedChatMid = undefined;
     worker.capturedCurl = undefined;
+    worker.capturedCurlRecentMessages = undefined; // [NEW] Clear getRecentMessagesV2 cURL
     worker.error = undefined;
     worker.state = WorkerState.READY; // Reset to ready for reuse
     worker.lastActivityAt = new Date();
