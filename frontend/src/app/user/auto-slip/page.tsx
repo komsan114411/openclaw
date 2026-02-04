@@ -460,6 +460,26 @@ export default function AutoSlipPage() {
     try {
       const res = await autoSlipApi.triggerLogin(accountId, wizardForm.lineEmail, wizardForm.linePassword);
       if (res.data.success) {
+        // Check if existing keys are valid (no need to login)
+        if (res.data.status === 'keys_valid') {
+          toast.success('Keys ยังใช้งานได้! ไม่ต้อง Login ใหม่', { icon: '✅', duration: 5000 });
+          setLoginStatus({
+            status: 'KEYS_READY',
+            hasKeys: true,
+            hasCUrl: false,
+            message: res.data.message,
+            loginProgress: 'success',
+            canTriggerLogin: true,
+          });
+          setIsPollingLogin(false);
+          await fetchAccounts();
+          // Auto close wizard after 2 seconds
+          setTimeout(() => {
+            resetWizard();
+          }, 2000);
+          return;
+        }
+
         setLoginStatus({
           status: res.data.status || 'LOGGING_IN',
           pinCode: res.data.pinCode,
@@ -473,6 +493,7 @@ export default function AutoSlipPage() {
 
         if (res.data.pinCode) {
           toast.success('ได้รับ PIN แล้ว กรุณายืนยันบนมือถือ', { icon: '🔑' });
+          setPinCountdown(res.data.pinRemainingSeconds || 180);
         } else {
           toast.success('เริ่มล็อกอินแล้ว รอสักครู่...');
         }

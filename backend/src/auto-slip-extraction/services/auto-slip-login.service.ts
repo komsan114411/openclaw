@@ -117,6 +117,29 @@ export class AutoSlipLoginService {
           };
         } else {
           this.logger.log(`[AutoSlipLogin] ⚠️ Existing keys are EXPIRED - need to login`);
+
+          // Update status to show keys expired
+          await this.stateMachineService.transition(
+            bankAccountId,
+            BankStatus.LOGIN_REQUIRED,
+            { reason: 'Existing keys expired', triggeredBy: 'system' },
+          );
+
+          // Clear expired keys from database
+          account.xLineAccess = undefined;
+          account.xHmac = undefined;
+          account.keysExtractedAt = undefined;
+          await account.save();
+
+          // Emit status change event for frontend
+          this.eventEmitter.emit('bank.status_changed', {
+            bankAccountId,
+            userId: account.userId.toString(),
+            previousStatus: 'KEYS_READY',
+            newStatus: 'LOGIN_REQUIRED',
+            reason: 'Keys expired',
+            timestamp: new Date(),
+          });
         }
       }
 
