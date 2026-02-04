@@ -309,6 +309,75 @@ export class LineSessionController {
     };
   }
 
+  /**
+   * ทดสอบ keys โดยเรียก LINE API โดยตรง
+   * ให้ผลลัพธ์ที่ละเอียดกว่า health check ปกติ
+   */
+  @Post(':lineAccountId/validate-keys')
+  @ApiOperation({ summary: 'Validate keys by calling LINE API directly' })
+  async validateKeys(@Param('lineAccountId') lineAccountId: string) {
+    this.logger.log(`Validating keys for ${lineAccountId}`);
+
+    const result = await this.sessionHealthService.validateKeysDirectly(lineAccountId);
+
+    return {
+      success: true,
+      validation: result,
+      summary: {
+        keysStatus: result.isValid ? 'VALID' : 'EXPIRED',
+        statusEmoji: result.isValid ? '✅' : '❌',
+        needsRelogin: !result.isValid && result.reasonCode !== 'RATE_LIMITED',
+        message: result.reason,
+      },
+    };
+  }
+
+  /**
+   * ทดสอบ keys แบบ batch สำหรับหลาย accounts
+   */
+  @Post('batch/validate-keys')
+  @ApiOperation({ summary: 'Validate keys for multiple accounts' })
+  async batchValidateKeys(@Body() dto: BatchOperationDto) {
+    const results: BatchOperationResult[] = [];
+
+    for (const sessionId of dto.sessionIds) {
+      try {
+        const validation = await this.sessionHealthService.validateKeysDirectly(sessionId);
+        results.push({
+          sessionId,
+          success: true,
+          data: {
+            isValid: validation.isValid,
+            reason: validation.reason,
+            reasonCode: validation.reasonCode,
+            responseTime: validation.responseTime,
+          },
+        });
+      } catch (error: any) {
+        results.push({
+          sessionId,
+          success: false,
+          error: error.message,
+        });
+      }
+    }
+
+    const validCount = results.filter(r => r.success && r.data?.isValid).length;
+    const expiredCount = results.filter(r => r.success && !r.data?.isValid).length;
+    const errorCount = results.filter(r => !r.success).length;
+
+    return {
+      success: true,
+      summary: {
+        total: results.length,
+        valid: validCount,
+        expired: expiredCount,
+        errors: errorCount,
+      },
+      results,
+    };
+  }
+
   // ================================
   // RELOGIN
   // ================================
@@ -498,6 +567,85 @@ export class LineSessionController {
       success: true,
       message: `Auto message fetch ${isEnabled ? 'enabled' : 'disabled'}`,
       autoMessageFetch: isEnabled,
+    };
+  }
+
+  // ================================
+  // HEALTH CHECK SETTINGS (Admin)
+  // ================================
+
+  /**
+   * ดึงการตั้งค่า health check ปัจจุบัน
+   */
+  @Get('settings/health-check')
+  @ApiOperation({ summary: 'Get health check settings' })
+  async getHealthCheckSettings() {
+    const config = this.sessionHealthService.getConfig();
+    return {
+      success: true,
+      settings: config,
+      description: {
+        enabled: 'เปิด/ปิด auto health check',
+        intervalMinutes: 'ความถี่ในการตรวจสอบ (นาที)',
+        maxConsecutiveFailures: 'จำนวนครั้งล้มเหลวก่อน mark expired',
+        expiryWarningMinutes: 'เตือนก่อนหมดอายุกี่นาที',
+        autoReloginEnabled: 'เปิด/ปิด auto relogin เมื่อ keys หมดอายุ',
+        reloginCheckIntervalMinutes: 'ความถี่ในการตรวจสอบ relogin (นาที)',
+      },
+    };
+  }
+
+  /**
+   * อัปเดตการตั้งค่า health check
+   */
+  @Put('settings/health-check')
+  @ApiOperation({ summary: 'Update health check settings' })
+  async updateHealthCheckSettings(
+    @Body() body: {
+      enabled?: boolean;
+      intervalMinutes?: number;
+      maxConsecutiveFailures?: number;
+      expiryWarningMinutes?: number;
+      autoReloginEnabled?: boolean;
+      reloginCheckIntervalMinutes?: number;
+    },
+  ) {
+    // Validate intervalMinutes (1-60 minutes)
+    if (body.intervalMinutes !== undefined) {
+      if (body.intervalMinutes < 1 || body.intervalMinutes > 60) {
+        throw new BadRequestException('intervalMinutes ต้องอยู่ระหว่าง 1-60 นาที');
+      }
+    }
+
+    // Validate maxConsecutiveFailures (1-10)
+    if (body.maxConsecutiveFailures !== undefined) {
+      if (body.maxConsecutiveFailures < 1 || body.maxConsecutiveFailures > 10) {
+        throw new BadRequestException('maxConsecutiveFailures ต้องอยู่ระหว่าง 1-10');
+      }
+    }
+
+    const updatedConfig = await this.sessionHealthService.updateConfig(body);
+
+    this.logger.log(`Health check settings updated: ${JSON.stringify(body)}`);
+
+    return {
+      success: true,
+      message: 'อัปเดตการตั้งค่าสำเร็จ',
+      settings: updatedConfig,
+    };
+  }
+
+  /**
+   * Reload settings จาก database
+   */
+  @Post('settings/health-check/reload')
+  @ApiOperation({ summary: 'Reload health check settings from database' })
+  async reloadHealthCheckSettings() {
+    const config = await this.sessionHealthService.loadSettingsFromDatabase();
+    return {
+      success: true,
+      message: 'โหลดการตั้งค่าจาก database สำเร็จ',
+      settings: config,
     };
   }
 
@@ -1468,59 +1616,6 @@ export class LineSessionController {
           sessionId,
           success: true,
           message: 'Relogin triggered',
-        });
-      } catch (error: any) {
-        results.push({
-          sessionId,
-          success: false,
-          error: error.message,
-        });
-      }
-    }
-
-    const succeeded = results.filter(r => r.success).length;
-    return {
-      success: succeeded > 0,
-      total: dto.sessionIds.length,
-      succeeded,
-      failed: dto.sessionIds.length - succeeded,
-      results,
-    };
-  }
-
-  /**
-   * Batch validate keys for multiple sessions
-   */
-  @Post('batch/validate-keys')
-  @ApiOperation({ summary: 'Validate keys for multiple sessions' })
-  async batchValidateKeys(@Body() dto: BatchOperationDto): Promise<BatchOperationResponse> {
-    const results: BatchOperationResult[] = [];
-
-    for (const sessionId of dto.sessionIds) {
-      try {
-        const session = await this.keyStorageService.getActiveSession(sessionId);
-        if (!session) {
-          results.push({
-            sessionId,
-            success: false,
-            error: 'Session not found',
-          });
-          continue;
-        }
-
-        const hasValidKeys = !!(session.xLineAccess && session.xHmac);
-        const isExpired = session.status === 'expired' || session.lastCheckResult === 'expired';
-
-        results.push({
-          sessionId,
-          success: true,
-          data: {
-            hasKeys: hasValidKeys,
-            isExpired,
-            status: session.status,
-            lastCheckResult: session.lastCheckResult,
-            extractedAt: session.extractedAt,
-          },
         });
       } catch (error: any) {
         results.push({

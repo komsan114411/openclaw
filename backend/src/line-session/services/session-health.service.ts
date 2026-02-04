@@ -1,10 +1,10 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, OnModuleInit, OnModuleDestroy } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
-import { Cron, CronExpression } from '@nestjs/schedule';
 import { LineSession, LineSessionDocument } from '../schemas/line-session.schema';
 import { KeyStorageService } from './key-storage.service';
 import { EventBusService } from '../../core/events';
+import { SystemSettings, SystemSettingsDocument } from '../../database/schemas/system-settings.schema';
 
 export enum HealthStatus {
   HEALTHY = 'healthy',
@@ -21,45 +21,195 @@ export interface HealthCheckResult {
   consecutiveFailures: number;
 }
 
+/**
+ * ผลลัพธ์การ validate keys แบบละเอียด
+ */
+export interface KeyValidationResult {
+  isValid: boolean;
+  validatedAt: Date;
+  httpStatus: number | null;
+  responseCode: number | null;
+  reason: string;
+  reasonCode: 'VALID' | 'EXPIRED' | 'INVALID_SESSION' | 'AUTH_REQUIRED' | 'RATE_LIMITED' | 'NO_KEYS' | 'NETWORK_ERROR' | 'UNKNOWN';
+  responseTime: number;
+}
+
+/**
+ * Configuration from system settings
+ */
+export interface HealthCheckConfig {
+  enabled: boolean;
+  intervalMinutes: number;
+  maxConsecutiveFailures: number;
+  expiryWarningMinutes: number;
+  autoReloginEnabled: boolean;
+  reloginCheckIntervalMinutes: number;
+}
+
 @Injectable()
-export class SessionHealthService {
+export class SessionHealthService implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(SessionHealthService.name);
   private isChecking = false;
 
-  // Configuration
-  private readonly MAX_CONSECUTIVE_FAILURES = 3;
-  private readonly EXPIRY_WARNING_MINUTES = 5;
+  // Dynamic configuration from system settings
+  private config: HealthCheckConfig = {
+    enabled: false,
+    intervalMinutes: 5,
+    maxConsecutiveFailures: 3,
+    expiryWarningMinutes: 5,
+    autoReloginEnabled: false,
+    reloginCheckIntervalMinutes: 10,
+  };
+
+  // Interval timer for dynamic scheduling
+  private healthCheckInterval: NodeJS.Timeout | null = null;
+  private lastHealthCheckTime: Date | null = null;
 
   constructor(
     @InjectModel(LineSession.name)
     private lineSessionModel: Model<LineSessionDocument>,
+    @InjectModel(SystemSettings.name)
+    private systemSettingsModel: Model<SystemSettingsDocument>,
     private keyStorageService: KeyStorageService,
     private eventBusService: EventBusService,
   ) {}
 
-  // Flag to enable/disable automatic health check
-  private autoHealthCheckEnabled = false; // Disabled by default
+  /**
+   * Initialize on module start - load settings and start scheduler
+   */
+  async onModuleInit(): Promise<void> {
+    await this.loadSettingsFromDatabase();
+    this.startHealthCheckScheduler();
+    this.logger.log('SessionHealthService initialized with settings from database');
+  }
+
+  /**
+   * Cleanup on module destroy
+   */
+  onModuleDestroy(): void {
+    this.stopHealthCheckScheduler();
+  }
+
+  /**
+   * Load settings from database
+   */
+  async loadSettingsFromDatabase(): Promise<HealthCheckConfig> {
+    try {
+      const settings = await this.systemSettingsModel.findOne({ settingsId: 'main' });
+      if (settings) {
+        this.config = {
+          enabled: settings.lineSessionHealthCheckEnabled ?? false,
+          intervalMinutes: settings.lineSessionHealthCheckIntervalMinutes ?? 5,
+          maxConsecutiveFailures: settings.lineSessionMaxConsecutiveFailures ?? 3,
+          expiryWarningMinutes: settings.lineSessionExpiryWarningMinutes ?? 5,
+          autoReloginEnabled: settings.lineSessionAutoReloginEnabled ?? false,
+          reloginCheckIntervalMinutes: settings.lineSessionReloginCheckIntervalMinutes ?? 10,
+        };
+        this.logger.log(`Loaded health check settings: enabled=${this.config.enabled}, interval=${this.config.intervalMinutes}min`);
+      }
+    } catch (error) {
+      this.logger.error(`Failed to load settings: ${error.message}`);
+    }
+    return this.config;
+  }
+
+  /**
+   * Get current configuration
+   */
+  getConfig(): HealthCheckConfig {
+    return { ...this.config };
+  }
+
+  /**
+   * Update configuration and restart scheduler
+   */
+  async updateConfig(newConfig: Partial<HealthCheckConfig>): Promise<HealthCheckConfig> {
+    // Update local config
+    this.config = { ...this.config, ...newConfig };
+
+    // Save to database
+    try {
+      await this.systemSettingsModel.updateOne(
+        { settingsId: 'main' },
+        {
+          $set: {
+            lineSessionHealthCheckEnabled: this.config.enabled,
+            lineSessionHealthCheckIntervalMinutes: this.config.intervalMinutes,
+            lineSessionMaxConsecutiveFailures: this.config.maxConsecutiveFailures,
+            lineSessionExpiryWarningMinutes: this.config.expiryWarningMinutes,
+            lineSessionAutoReloginEnabled: this.config.autoReloginEnabled,
+            lineSessionReloginCheckIntervalMinutes: this.config.reloginCheckIntervalMinutes,
+          },
+        },
+        { upsert: true },
+      );
+      this.logger.log(`Saved health check settings to database`);
+    } catch (error) {
+      this.logger.error(`Failed to save settings: ${error.message}`);
+    }
+
+    // Restart scheduler with new interval
+    this.restartHealthCheckScheduler();
+
+    return this.config;
+  }
+
+  /**
+   * Start the health check scheduler with dynamic interval
+   */
+  private startHealthCheckScheduler(): void {
+    if (this.healthCheckInterval) {
+      clearInterval(this.healthCheckInterval);
+    }
+
+    // Run health check based on configured interval
+    const intervalMs = this.config.intervalMinutes * 60 * 1000;
+    this.healthCheckInterval = setInterval(async () => {
+      await this.runScheduledHealthCheck();
+    }, intervalMs);
+
+    this.logger.log(`Health check scheduler started: interval=${this.config.intervalMinutes} minutes`);
+  }
+
+  /**
+   * Stop the health check scheduler
+   */
+  private stopHealthCheckScheduler(): void {
+    if (this.healthCheckInterval) {
+      clearInterval(this.healthCheckInterval);
+      this.healthCheckInterval = null;
+      this.logger.log('Health check scheduler stopped');
+    }
+  }
+
+  /**
+   * Restart scheduler (when settings change)
+   */
+  private restartHealthCheckScheduler(): void {
+    this.stopHealthCheckScheduler();
+    if (this.config.enabled) {
+      this.startHealthCheckScheduler();
+    }
+  }
 
   /**
    * Enable/Disable automatic health check
    */
-  setAutoHealthCheckEnabled(enabled: boolean): void {
-    this.autoHealthCheckEnabled = enabled;
+  async setAutoHealthCheckEnabled(enabled: boolean): Promise<void> {
+    await this.updateConfig({ enabled });
     this.logger.log(`Auto health check ${enabled ? 'enabled' : 'disabled'}`);
   }
 
   isAutoHealthCheckEnabled(): boolean {
-    return this.autoHealthCheckEnabled;
+    return this.config.enabled;
   }
 
   /**
-   * Cron Job: ตรวจสอบ health ทุก 1 นาที
-   * ปิดโดย default - ต้องเปิดผ่าน API
+   * Scheduled health check runner
    */
-  @Cron(CronExpression.EVERY_MINUTE)
-  async scheduledHealthCheck(): Promise<void> {
+  private async runScheduledHealthCheck(): Promise<void> {
     // Skip if auto health check is disabled
-    if (!this.autoHealthCheckEnabled) {
+    if (!this.config.enabled) {
       return;
     }
 
@@ -153,12 +303,12 @@ export class SessionHealthService {
       };
     }
 
-    // 3. Check expiry warning
+    // 3. Check expiry warning (use config from settings)
     if (session.expiresAt) {
       const minutesUntilExpiry =
         (session.expiresAt.getTime() - Date.now()) / 1000 / 60;
 
-      if (minutesUntilExpiry <= this.EXPIRY_WARNING_MINUTES) {
+      if (minutesUntilExpiry <= this.config.expiryWarningMinutes) {
         this.eventBusService.publish({
           eventName: 'line-session.expiring-soon' as any,
           occurredAt: new Date(),
@@ -168,8 +318,7 @@ export class SessionHealthService {
       }
     }
 
-    // 4. Validate keys by making a test request (optional - implement if needed)
-    // For now, we assume keys are valid if they exist and not expired
+    // 4. Validate keys by making a test request to LINE API
     const isValid = await this.validateKeysWithApi(session);
 
     if (isValid) {
@@ -180,6 +329,7 @@ export class SessionHealthService {
         false,
       );
 
+      this.lastHealthCheckTime = new Date();
       return {
         lineAccountId,
         status: HealthStatus.HEALTHY,
@@ -190,7 +340,8 @@ export class SessionHealthService {
     } else {
       const newFailureCount = session.consecutiveFailures + 1;
 
-      if (newFailureCount >= this.MAX_CONSECUTIVE_FAILURES) {
+      // Use config from settings
+      if (newFailureCount >= this.config.maxConsecutiveFailures) {
         await this.keyStorageService.updateSessionStatus(
           lineAccountId,
           'pending_relogin',
@@ -217,7 +368,7 @@ export class SessionHealthService {
       return {
         lineAccountId,
         status: HealthStatus.UNHEALTHY,
-        message: `Validation failed (${newFailureCount}/${this.MAX_CONSECUTIVE_FAILURES})`,
+        message: `Validation failed (${newFailureCount}/${this.config.maxConsecutiveFailures})`,
         checkedAt: new Date(),
         consecutiveFailures: newFailureCount,
       };
@@ -225,7 +376,169 @@ export class SessionHealthService {
   }
 
   /**
-   * Validate keys โดยเรียก LINE API
+   * Validate keys โดยเรียก LINE API - Public method สำหรับทดสอบ keys โดยตรง
+   */
+  async validateKeysDirectly(lineAccountId: string): Promise<KeyValidationResult> {
+    const startTime = Date.now();
+    const session = await this.keyStorageService.getActiveSession(lineAccountId);
+
+    if (!session || !session.xLineAccess || !session.xHmac) {
+      return {
+        isValid: false,
+        validatedAt: new Date(),
+        httpStatus: null,
+        responseCode: null,
+        reason: 'ไม่พบ keys หรือ session',
+        reasonCode: 'NO_KEYS',
+        responseTime: Date.now() - startTime,
+      };
+    }
+
+    try {
+      const axios = require('axios');
+      const response = await axios.post(
+        'https://line-chrome-gw.line-apps.com/api/talk/thrift/Talk/TalkService/getChats',
+        ['', 50, ''],
+        {
+          headers: {
+            'x-line-access': session.xLineAccess,
+            'x-hmac': session.xHmac,
+            'content-type': 'application/json',
+            'x-line-chrome-version': '3.4.0',
+          },
+          timeout: 15000,
+          validateStatus: (status: number) => status < 500,
+        },
+      );
+
+      const responseTime = Date.now() - startTime;
+      const errorCode = response.data?.code;
+
+      // Success - Keys are valid
+      if (response.status === 200 && errorCode === 0) {
+        // Update session status
+        await this.keyStorageService.updateSessionStatus(lineAccountId, 'active', 'valid', false);
+        return {
+          isValid: true,
+          validatedAt: new Date(),
+          httpStatus: response.status,
+          responseCode: errorCode,
+          reason: 'Keys ใช้งานได้ปกติ',
+          reasonCode: 'VALID',
+          responseTime,
+        };
+      }
+
+      // 401/403 - Expired or unauthorized
+      if (response.status === 401 || response.status === 403) {
+        await this.keyStorageService.markAsExpired(lineAccountId);
+        return {
+          isValid: false,
+          validatedAt: new Date(),
+          httpStatus: response.status,
+          responseCode: errorCode,
+          reason: 'Keys หมดอายุแล้ว (Unauthorized)',
+          reasonCode: 'EXPIRED',
+          responseTime,
+        };
+      }
+
+      // Handle specific error codes
+      if (response.status === 400) {
+        // 10005: Session expired
+        if (errorCode === 10005) {
+          await this.keyStorageService.markAsExpired(lineAccountId);
+          return {
+            isValid: false,
+            validatedAt: new Date(),
+            httpStatus: response.status,
+            responseCode: errorCode,
+            reason: 'Session หมดอายุ (Code: 10005)',
+            reasonCode: 'EXPIRED',
+            responseTime,
+          };
+        }
+        // 20: Invalid session
+        if (errorCode === 20) {
+          await this.keyStorageService.markAsExpired(lineAccountId);
+          return {
+            isValid: false,
+            validatedAt: new Date(),
+            httpStatus: response.status,
+            responseCode: errorCode,
+            reason: 'Session ไม่ถูกต้อง (Code: 20)',
+            reasonCode: 'INVALID_SESSION',
+            responseTime,
+          };
+        }
+        // 35: Auth required
+        if (errorCode === 35) {
+          await this.keyStorageService.markAsExpired(lineAccountId);
+          return {
+            isValid: false,
+            validatedAt: new Date(),
+            httpStatus: response.status,
+            responseCode: errorCode,
+            reason: 'ต้องล็อกอินใหม่ (Code: 35)',
+            reasonCode: 'AUTH_REQUIRED',
+            responseTime,
+          };
+        }
+        // 10008: Rate limited - keys might still be valid
+        if (errorCode === 10008) {
+          return {
+            isValid: true,
+            validatedAt: new Date(),
+            httpStatus: response.status,
+            responseCode: errorCode,
+            reason: 'ถูก rate limit แต่ keys น่าจะยังใช้ได้',
+            reasonCode: 'RATE_LIMITED',
+            responseTime,
+          };
+        }
+      }
+
+      // Status 200 with non-zero code - might still work
+      if (response.status === 200) {
+        await this.keyStorageService.updateSessionStatus(lineAccountId, 'active', 'valid', false);
+        return {
+          isValid: true,
+          validatedAt: new Date(),
+          httpStatus: response.status,
+          responseCode: errorCode,
+          reason: `Keys ใช้งานได้ (Code: ${errorCode || 'N/A'})`,
+          reasonCode: 'VALID',
+          responseTime,
+        };
+      }
+
+      // Unknown status
+      this.logger.warn(`Keys validation unclear for ${lineAccountId}: status=${response.status}, code=${errorCode}`);
+      return {
+        isValid: false,
+        validatedAt: new Date(),
+        httpStatus: response.status,
+        responseCode: errorCode,
+        reason: `ไม่สามารถระบุได้ (HTTP: ${response.status}, Code: ${errorCode})`,
+        reasonCode: 'UNKNOWN',
+        responseTime,
+      };
+    } catch (error: any) {
+      this.logger.error(`Error validating keys for ${lineAccountId}: ${error.message}`);
+      return {
+        isValid: false,
+        validatedAt: new Date(),
+        httpStatus: null,
+        responseCode: null,
+        reason: `Network error: ${error.message}`,
+        reasonCode: 'NETWORK_ERROR',
+        responseTime: Date.now() - startTime,
+      };
+    }
+  }
+
+  /**
+   * Validate keys โดยเรียก LINE API - Internal method
    */
   private async validateKeysWithApi(session: LineSessionDocument): Promise<boolean> {
     if (!session.xLineAccess || !session.xHmac) {
@@ -319,7 +632,7 @@ export class SessionHealthService {
     if (status === 'expired') return HealthStatus.EXPIRED;
     if (status === 'invalid') return HealthStatus.UNHEALTHY;
     if (status === 'pending_relogin') return HealthStatus.EXPIRED;
-    if (failures >= this.MAX_CONSECUTIVE_FAILURES) return HealthStatus.UNHEALTHY;
+    if (failures >= this.config.maxConsecutiveFailures) return HealthStatus.UNHEALTHY;
     if (status === 'active') return HealthStatus.HEALTHY;
     return HealthStatus.UNKNOWN;
   }

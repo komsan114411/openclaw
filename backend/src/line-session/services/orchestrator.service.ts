@@ -370,51 +370,80 @@ export class OrchestratorService implements OnModuleInit, OnModuleDestroy {
             this.logger.log(`[HealthCheck] Auto-fixed session ${sessionId}: name=${fixedName}`);
           }
 
-          // Check keys status
+          // Check keys status (time-based)
           const keysStatus = await this.enhancedAutomationService.getKeysStatus(sessionId);
 
-          // If session has keys, validate them with actual API call
-          let keysValid = keysStatus.isValid;
-          if (session.xLineAccess && session.xHmac && keysStatus.isValid) {
-            // Validate keys with LINE API
-            keysValid = await this.enhancedAutomationService.validateKeys(session.xLineAccess, session.xHmac);
-            if (!keysValid) {
-              this.logger.warn(`[HealthCheck] Session ${session.name}: keys failed API validation - marking as expired`);
-            }
-          }
-
-          // Update session with check result
-          try {
+          // If session has no keys at all
+          if (!session.xLineAccess || !session.xHmac) {
+            this.logger.warn(`[HealthCheck] Session ${session.name}: no keys found`);
             await this.lineSessionModel.updateOne(
               { _id: session._id },
               {
-                lastCheckedAt: new Date(),
-                lastCheckResult: keysValid ? 'valid' : 'expired',
-                status: keysValid ? 'active' : 'expired',
-              }
+                $set: {
+                  lastCheckedAt: new Date(),
+                  lastCheckResult: 'no_keys',
+                  status: 'expired',
+                  lastError: 'ไม่มี keys - ต้องเข้าสู่ระบบใหม่',
+                },
+              },
             );
+            continue;
+          }
+
+          // Validate keys with actual LINE API call
+          this.logger.log(`[HealthCheck] Validating keys for ${session.name}...`);
+          const keysValid = await this.enhancedAutomationService.validateKeys(session.xLineAccess, session.xHmac);
+
+          // Update session with check result
+          try {
+            if (keysValid) {
+              this.logger.log(`[HealthCheck] Session ${session.name}: keys VALID ✓`);
+              await this.lineSessionModel.updateOne(
+                { _id: session._id },
+                {
+                  $set: {
+                    lastCheckedAt: new Date(),
+                    lastCheckResult: 'valid',
+                    status: 'active',
+                    lastError: null,
+                    consecutiveFailures: 0,
+                  },
+                },
+              );
+            } else {
+              this.logger.warn(`[HealthCheck] Session ${session.name}: keys EXPIRED ✗`);
+              await this.lineSessionModel.updateOne(
+                { _id: session._id },
+                {
+                  $set: {
+                    lastCheckedAt: new Date(),
+                    lastCheckResult: 'expired',
+                    status: 'expired',
+                    lastError: 'Keys หมดอายุ - รอ auto-relogin',
+                  },
+                },
+              );
+
+              // Emit expired event for real-time notification
+              this.eventEmitter.emit('session.expired', {
+                lineAccountId: sessionId,
+                sessionId: session._id,
+                name: session.name,
+              });
+            }
           } catch (updateError: any) {
             this.logger.warn(`[HealthCheck] Failed to update session ${session.name}: ${updateError.message}`);
           }
 
-          // Check if needs warning
-          if (keysStatus.isExpiringSoon) {
-            this.logger.warn(`[HealthCheck] Session ${session.name} keys expiring soon (${keysStatus.expiresIn}s left)`);
+          // Check if needs warning (expiring soon based on time)
+          if (keysStatus.isExpiringSoon && keysValid) {
+            const minutesLeft = Math.floor(keysStatus.expiresIn / 60);
+            this.logger.warn(`[HealthCheck] Session ${session.name} keys expiring soon (${minutesLeft} min left)`);
             this.eventEmitter.emit('session.expiring_soon', {
               lineAccountId: sessionId,
               sessionId: session._id,
               name: session.name,
               expiresIn: keysStatus.expiresIn,
-            });
-          }
-
-          // Check if expired
-          if (keysStatus.keysStatus === KeysStatus.EXPIRED) {
-            this.logger.warn(`[HealthCheck] Session ${session.name} keys expired`);
-            this.eventEmitter.emit('session.expired', {
-              lineAccountId: sessionId,
-              sessionId: session._id,
-              name: session.name,
             });
           }
         } catch (error: any) {
@@ -507,18 +536,58 @@ export class OrchestratorService implements OnModuleInit, OnModuleDestroy {
           if (recovery && recovery.attempts >= 5) { // Increased from 3 to 5
             const cooldownMs = 10 * 60 * 1000; // 10 minutes (reduced from 30)
             if (Date.now() - recovery.lastAttempt.getTime() < cooldownMs) {
-              this.logger.log(`[ReloginCheck] Session ${session.name} in cooldown, skipping`);
+              const remainingMs = cooldownMs - (Date.now() - recovery.lastAttempt.getTime());
+              const remainingMin = Math.ceil(remainingMs / 60000);
+              this.logger.log(`[ReloginCheck] Session ${session.name} in cooldown (${remainingMin} min left), skipping`);
+
+              // Update session status to show cooldown
+              await this.lineSessionModel.updateOne(
+                { _id: session._id },
+                { $set: { status: 'cooldown', lastError: `ถูกระงับชั่วคราว เหลืออีก ${remainingMin} นาที` } },
+              );
               continue;
             }
             // Reset after cooldown
             this.recoveryAttempts.delete(sessionId);
+            this.logger.log(`[ReloginCheck] Cooldown expired for ${session.name}, resetting attempts`);
           }
 
           // Check if has credentials
           if (!session.lineEmail || !session.linePassword) {
             this.logger.warn(`[ReloginCheck] Session ${session.name} has no credentials, skipping`);
+            await this.lineSessionModel.updateOne(
+              { _id: session._id },
+              { $set: { status: 'no_credentials', lastError: 'ไม่มีข้อมูลเข้าสู่ระบบ (email/password)' } },
+            );
             continue;
           }
+
+          // Double-check: Validate keys with LINE API before triggering relogin
+          // This prevents unnecessary relogin attempts
+          if (session.xLineAccess && session.xHmac) {
+            this.logger.log(`[ReloginCheck] Validating keys for ${session.name} before relogin...`);
+            const keysValid = await this.enhancedAutomationService.validateKeys(
+              session.xLineAccess,
+              session.xHmac,
+            );
+
+            if (keysValid) {
+              this.logger.log(`[ReloginCheck] Keys are still valid for ${session.name}, skipping relogin`);
+              // Update status back to active
+              await this.lineSessionModel.updateOne(
+                { _id: session._id },
+                { $set: { status: 'active', lastCheckResult: 'valid', lastCheckedAt: new Date() } },
+              );
+              continue;
+            }
+            this.logger.log(`[ReloginCheck] Keys confirmed expired for ${session.name}, proceeding with relogin`);
+          }
+
+          // Update status to show relogin in progress
+          await this.lineSessionModel.updateOne(
+            { _id: session._id },
+            { $set: { status: 'logging_in', lastError: null } },
+          );
 
           this.logger.log(`[ReloginCheck] Auto-relogin for session ${session.name} (ID: ${sessionId})`);
           this.reloginAttempts++;
@@ -536,6 +605,12 @@ export class OrchestratorService implements OnModuleInit, OnModuleDestroy {
             this.recoveryAttempts.delete(sessionId);
             this.logger.log(`[ReloginCheck] Relogin initiated for ${session.name}, PIN: ${result.pinCode || 'N/A'}`);
 
+            // Update status with PIN
+            await this.lineSessionModel.updateOne(
+              { _id: session._id },
+              { $set: { status: 'waiting_pin', lastError: null } },
+            );
+
             // Emit event for real-time update
             this.eventEmitter.emit('session.relogin_started', {
               lineAccountId: sessionId,
@@ -549,11 +624,29 @@ export class OrchestratorService implements OnModuleInit, OnModuleDestroy {
             recoveryData.attempts++;
             recoveryData.lastAttempt = new Date();
             this.recoveryAttempts.set(sessionId, recoveryData);
-            this.logger.error(`[ReloginCheck] Relogin failed for ${session.name}: ${result.error}`);
+
+            // Update status with error
+            const errorMsg = result.error || 'เข้าสู่ระบบไม่สำเร็จ';
+            await this.lineSessionModel.updateOne(
+              { _id: session._id },
+              { $set: { status: 'failed', lastError: errorMsg } },
+            );
+
+            this.logger.error(`[ReloginCheck] Relogin failed for ${session.name}: ${errorMsg} (attempt ${recoveryData.attempts}/5)`);
           }
         } catch (error: any) {
           this.reloginFailures++;
           this.logger.error(`[ReloginCheck] Error relogging session ${session.name}: ${error.message}`);
+
+          // Update status with error
+          try {
+            await this.lineSessionModel.updateOne(
+              { _id: session._id },
+              { $set: { status: 'error', lastError: error.message } },
+            );
+          } catch (updateErr) {
+            // Ignore update errors
+          }
         }
       }
 
