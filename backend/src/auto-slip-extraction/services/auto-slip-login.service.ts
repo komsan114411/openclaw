@@ -66,13 +66,15 @@ export class AutoSlipLoginService {
 
   /**
    * Trigger login for a bank account
+   * [FIX] Check existing keys first - skip login if valid keys exist
    */
   async triggerLogin(
     bankAccountId: string,
     email?: string,
     password?: string,
+    forceNewLogin: boolean = false, // [NEW] Option to force new login even if keys exist
   ): Promise<LoginResult> {
-    this.logger.log(`[AutoSlipLogin] Starting login for bank account: ${bankAccountId}`);
+    this.logger.log(`[AutoSlipLogin] Starting login for bank account: ${bankAccountId}, forceNewLogin: ${forceNewLogin}`);
 
     try {
       // Get bank account
@@ -83,6 +85,39 @@ export class AutoSlipLoginService {
           status: 'error',
           error: 'Bank account not found',
         };
+      }
+
+      // [FIX] Step 1: Check if account already has valid keys (skip login if valid)
+      if (!forceNewLogin && account.xLineAccess && account.xHmac) {
+        this.logger.log(`[AutoSlipLogin] Account has existing keys, validating...`);
+        const isValid = await this.validateExistingKeys(account.xLineAccess, account.xHmac);
+
+        if (isValid) {
+          this.logger.log(`[AutoSlipLogin] ✅ Existing keys are VALID - skipping login (no PIN needed)`);
+
+          // Update status to KEYS_READY (skip login)
+          await this.stateMachineService.transition(
+            bankAccountId,
+            BankStatus.KEYS_READY,
+            { reason: 'Existing keys validated', triggeredBy: 'system' },
+          );
+
+          // Emit event for frontend
+          this.eventEmitter.emit('bank.keys_extracted', {
+            bankAccountId,
+            userId: account.userId.toString(),
+            extractedAt: new Date(),
+            source: 'existing_valid',
+          });
+
+          return {
+            success: true,
+            status: 'keys_valid',
+            message: 'Existing keys are valid - no login needed',
+          };
+        } else {
+          this.logger.log(`[AutoSlipLogin] ⚠️ Existing keys are EXPIRED - need to login`);
+        }
       }
 
       // Get credentials
@@ -135,12 +170,13 @@ export class AutoSlipLoginService {
 
       // Call EnhancedAutomationService with LINE session ID
       // This ensures events will be emitted with the correct ID that we can correlate back
+      // [FIX] Changed forceLogin to false - allows session reuse (no PIN if session valid)
       const result = await this.enhancedAutomationService.startLogin(
         lineSessionId,
         loginEmail,
         loginPassword,
         'manual',
-        true, // Force login (don't skip)
+        forceNewLogin, // [FIX] Use parameter instead of hardcoded true - enables session reuse
       );
 
       this.logger.log(`[AutoSlipLogin] Login result for ${bankAccountId}: ${JSON.stringify({
@@ -582,6 +618,56 @@ export class AutoSlipLoginService {
       [BankStatus.ERROR_FATAL]: 'เกิดข้อผิดพลาดร้ายแรง',
     };
     return messages[status] || status;
+  }
+
+  /**
+   * [NEW] Validate existing keys by calling LINE API
+   * Returns true if keys are still valid, false if expired
+   */
+  private async validateExistingKeys(xLineAccess: string, xHmac: string): Promise<boolean> {
+    try {
+      const axios = require('axios');
+      const response = await axios.post(
+        'https://line-chrome-gw.line-apps.com/api/talk/thrift/Talk/TalkService/getChats',
+        ['', 50, ''],
+        {
+          headers: {
+            'x-line-access': xLineAccess,
+            'x-hmac': xHmac,
+            'content-type': 'application/json',
+            'x-line-chrome-version': '3.4.0',
+          },
+          timeout: 10000,
+          validateStatus: (status: number) => status < 500,
+        },
+      );
+
+      // Check if response is successful
+      if (response.status === 200 && response.data?.code === 0) {
+        this.logger.log(`[ValidateKeys] ✅ Keys are VALID`);
+        return true;
+      }
+
+      // 401/403 means keys are expired
+      if (response.status === 401 || response.status === 403) {
+        this.logger.warn(`[ValidateKeys] ⚠️ Keys are EXPIRED (${response.status})`);
+        return false;
+      }
+
+      // Handle LINE API error codes
+      if (response.data?.code) {
+        this.logger.warn(`[ValidateKeys] ⚠️ LINE API error: ${response.data.code}`);
+        return false;
+      }
+
+      // Assume valid if no clear error
+      this.logger.log(`[ValidateKeys] Assuming valid (status: ${response.status})`);
+      return true;
+    } catch (error: any) {
+      this.logger.error(`[ValidateKeys] Error validating keys: ${error.message}`);
+      // On network error, assume keys might still be valid (don't force relogin)
+      return false;
+    }
   }
 
   /**
