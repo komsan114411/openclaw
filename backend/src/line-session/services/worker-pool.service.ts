@@ -609,13 +609,28 @@ export class WorkerPoolService implements OnModuleDestroy, OnModuleInit {
       const url = request.url;
       const baseHeaders = request.headers;
 
-      // Log all LINE API calls for debugging
+      // [FIX] Enhanced logging for ALL LINE API calls
       if (url.includes('line-chrome-gw.line-apps.com')) {
-        this.logger.debug(`[CDP] LINE API call detected: ${url.split('?')[0]}`);
+        const endpoint = url.split('/').pop()?.split('?')[0] || 'unknown';
+        this.logger.log(`[CDP] ⚡ LINE API Request: ${endpoint}`);
+        this.logger.log(`[CDP] Full URL: ${url}`);
+        this.logger.log(`[CDP] Headers count: ${Object.keys(baseHeaders).length}`);
+        this.logger.log(`[CDP] Has x-line-access: ${!!baseHeaders['x-line-access'] || !!baseHeaders['X-Line-Access']}`);
+        this.logger.log(`[CDP] Has x-hmac: ${!!baseHeaders['x-hmac'] || !!baseHeaders['X-Hmac']}`);
       }
 
-      // Phase 88: ONLY capture from getRecentMessagesV2 endpoint (like GSB)
-      if (url.includes('getRecentMessagesV2') && !worker.capturedKeys) {
+      // [FIX] Capture from ANY LINE API request that has valid keys (not just getRecentMessagesV2)
+      // Priority endpoints: getRecentMessagesV2, getChats, getRecentMessages, sendMessage
+      const isLineApiRequest = url.includes('line-chrome-gw.line-apps.com');
+      const isPriorityEndpoint = url.includes('getRecentMessagesV2') ||
+                                  url.includes('getChats') ||
+                                  url.includes('getRecentMessages') ||
+                                  url.includes('sendMessage') ||
+                                  url.includes('TalkService');
+
+      if (isLineApiRequest && isPriorityEndpoint && !worker.capturedKeys) {
+        this.logger.log(`[CDP KeyCapture] 🎯 Attempting capture from: ${url.split('/').pop()?.split('?')[0]}`);
+
         // Wait a bit for extra headers to arrive, then process
         setTimeout(() => {
           // Merge base headers with extra headers (extra headers have actual cookies)
@@ -629,11 +644,14 @@ export class WorkerPoolService implements OnModuleDestroy, OnModuleInit {
           const xLineAccess = headers['x-line-access'] || headers['X-Line-Access'];
           const xHmac = headers['x-hmac'] || headers['X-Hmac'];
 
-          this.logger.log(`[CDP KeyCapture] Request to getRecentMessagesV2`);
-          this.logger.log(`[CDP KeyCapture] Has x-line-access: ${!!xLineAccess}, length: ${xLineAccess?.length || 0}`);
-          this.logger.log(`[CDP KeyCapture] Has x-hmac: ${!!xHmac}, length: ${xHmac?.length || 0}`);
+          this.logger.log(`[CDP KeyCapture] 📋 Request details:`);
+          this.logger.log(`[CDP KeyCapture] - URL: ${url.split('/').pop()?.split('?')[0]}`);
+          this.logger.log(`[CDP KeyCapture] - x-line-access: ${xLineAccess ? `YES (${xLineAccess.length} chars)` : 'NO'}`);
+          this.logger.log(`[CDP KeyCapture] - x-hmac: ${xHmac ? `YES (${xHmac.length} chars)` : 'NO'}`);
+          this.logger.log(`[CDP KeyCapture] - Base headers: ${Object.keys(baseHeaders).join(', ')}`);
 
-          if (xLineAccess && xHmac && xLineAccess.length > 50 && xLineAccess.includes('.')) {
+          // [FIX] Relaxed validation - just check if keys exist and have reasonable length
+          if (xLineAccess && xHmac && xLineAccess.length > 20) {
             // Extract chatMid from POST data
             let chatMid: string | undefined;
             if (request.postData) {
@@ -767,22 +785,28 @@ export class WorkerPoolService implements OnModuleDestroy, OnModuleInit {
               this.logger.warn(`[CDP KeyCapture] Failed to generate cURL: ${curlError}`);
             }
 
-            this.logger.log(`[CDP KeyCapture SUCCESS] Keys captured for ${worker.lineAccountId}!`);
-            this.logger.log(`[CDP KeyCapture SUCCESS] x-line-access: ${xLineAccess.substring(0, 30)}...`);
-            this.logger.log(`[CDP KeyCapture SUCCESS] x-hmac: ${xHmac.substring(0, 30)}...`);
-            this.logger.log(`[CDP KeyCapture SUCCESS] chatMid: ${chatMid || 'N/A'}`);
+            this.logger.log(`[CDP KeyCapture] ✅ ==========================================`);
+            this.logger.log(`[CDP KeyCapture] ✅ KEYS CAPTURED SUCCESSFULLY!`);
+            this.logger.log(`[CDP KeyCapture] ✅ Account: ${worker.lineAccountId}`);
+            this.logger.log(`[CDP KeyCapture] ✅ x-line-access: ${xLineAccess.substring(0, 50)}...`);
+            this.logger.log(`[CDP KeyCapture] ✅ x-hmac: ${xHmac.substring(0, 30)}...`);
+            this.logger.log(`[CDP KeyCapture] ✅ chatMid: ${chatMid || 'N/A'}`);
+            this.logger.log(`[CDP KeyCapture] ✅ cURL length: ${worker.capturedCurl?.length || 0} chars`);
+            this.logger.log(`[CDP KeyCapture] ✅ ==========================================`);
             onKeyCaptured({ xLineAccess, xHmac }, chatMid);
           } else {
-            this.logger.warn(`[CDP KeyCapture] Invalid keys format - skipping capture`);
+            this.logger.warn(`[CDP KeyCapture] ⚠️ Keys found but invalid format:`);
+            this.logger.warn(`[CDP KeyCapture] ⚠️ x-line-access: ${xLineAccess ? `${xLineAccess.length} chars` : 'MISSING'}`);
+            this.logger.warn(`[CDP KeyCapture] ⚠️ x-hmac: ${xHmac ? `${xHmac.length} chars` : 'MISSING'}`);
           }
           
           // Cleanup
           extraHeadersMap.delete(requestId);
-        }, 50); // Small delay to allow extra info to arrive
+        }, 200); // [FIX] Increased delay from 50ms to 200ms for extra headers to arrive
       }
     });
 
-    this.logger.log(`CDP interception setup for ${worker.lineAccountId}`);
+    this.logger.log(`[CDP] ✅ CDP interception setup for ${worker.lineAccountId} (listening to ALL LINE API requests)`);
   }
 
   /**
@@ -802,12 +826,29 @@ export class WorkerPoolService implements OnModuleDestroy, OnModuleInit {
       const url = request.url();
       const headers = request.headers();
 
-      // Phase 88: ONLY capture from getRecentMessagesV2 endpoint (like GSB)
-      if (url.includes('getRecentMessagesV2') && !worker.capturedKeys) {
+      // [FIX] Enhanced logging for ALL LINE API calls (Puppeteer layer)
+      if (url.includes('line-chrome-gw.line-apps.com')) {
+        const endpoint = url.split('/').pop()?.split('?')[0] || 'unknown';
+        this.logger.log(`[Puppeteer] ⚡ LINE API Request: ${endpoint}`);
+        this.logger.log(`[Puppeteer] Has x-line-access: ${!!headers['x-line-access']}`);
+      }
+
+      // [FIX] Capture from ANY LINE API request that has valid keys
+      const isLineApiRequest = url.includes('line-chrome-gw.line-apps.com');
+      const isPriorityEndpoint = url.includes('getRecentMessagesV2') ||
+                                  url.includes('getChats') ||
+                                  url.includes('getRecentMessages') ||
+                                  url.includes('sendMessage') ||
+                                  url.includes('TalkService');
+
+      if (isLineApiRequest && isPriorityEndpoint && !worker.capturedKeys) {
+        this.logger.log(`[Puppeteer KeyCapture] 🎯 Attempting capture from: ${url.split('/').pop()?.split('?')[0]}`);
+
         const xLineAccess = headers['x-line-access'];
         const xHmac = headers['x-hmac'];
 
-        if (xLineAccess && xHmac && xLineAccess.length > 50 && xLineAccess.includes('.')) {
+        // [FIX] Relaxed validation - just check if keys exist and have reasonable length
+        if (xLineAccess && xHmac && xLineAccess.length > 20) {
           // Extract chatMid from POST data
           let chatMid: string | undefined;
           const postData = request.postData();
@@ -903,18 +944,28 @@ export class WorkerPoolService implements OnModuleDestroy, OnModuleInit {
             }
             
             worker.capturedCurl = curlCmd;
-            this.logger.log(`[Puppeteer KeyCapture] cURL command captured (${curlCmd.length} chars)`);
+            this.logger.log(`[Puppeteer KeyCapture] ✅ cURL command captured (${curlCmd.length} chars)`);
           } catch (curlError) {
             this.logger.warn(`[Puppeteer KeyCapture] Failed to generate cURL: ${curlError}`);
           }
 
-          this.logger.log(`Puppeteer: Keys captured for ${worker.lineAccountId}`);
+          this.logger.log(`[Puppeteer KeyCapture] ✅ ==========================================`);
+          this.logger.log(`[Puppeteer KeyCapture] ✅ KEYS CAPTURED SUCCESSFULLY!`);
+          this.logger.log(`[Puppeteer KeyCapture] ✅ Account: ${worker.lineAccountId}`);
+          this.logger.log(`[Puppeteer KeyCapture] ✅ x-line-access: ${xLineAccess.substring(0, 50)}...`);
+          this.logger.log(`[Puppeteer KeyCapture] ✅ x-hmac: ${xHmac.substring(0, 30)}...`);
+          this.logger.log(`[Puppeteer KeyCapture] ✅ chatMid: ${chatMid || 'N/A'}`);
+          this.logger.log(`[Puppeteer KeyCapture] ✅ ==========================================`);
           onKeyCaptured({ xLineAccess, xHmac }, chatMid);
+        } else {
+          this.logger.warn(`[Puppeteer KeyCapture] ⚠️ Keys validation failed`);
         }
       }
 
       request.continue();
     });
+
+    this.logger.log(`[Puppeteer] ✅ Request interception setup for ${worker.lineAccountId}`);
   }
 
   /**
