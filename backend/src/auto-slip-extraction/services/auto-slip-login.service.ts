@@ -126,10 +126,16 @@ export class AutoSlipLoginService {
           );
 
           // Clear expired keys from database
-          account.xLineAccess = undefined;
-          account.xHmac = undefined;
-          account.keysExtractedAt = undefined;
-          await account.save();
+          await this.bankAccountModel.updateOne(
+            { _id: bankAccountId },
+            {
+              $unset: {
+                xLineAccess: 1,
+                xHmac: 1,
+                keysExtractedAt: 1,
+              },
+            },
+          );
 
           // Emit status change event for frontend
           this.eventEmitter.emit('bank.status_changed', {
