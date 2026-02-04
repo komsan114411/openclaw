@@ -482,6 +482,10 @@ export class AutoSlipLoginService {
     pinRemainingSeconds?: number;
     hasKeys: boolean;
     hasCUrl: boolean;
+    cUrlBash?: string;
+    xLineAccess?: string;
+    xHmac?: string;
+    chatMid?: string;
     message: string;
     loginProgress: string;
     canTriggerLogin: boolean;
@@ -532,6 +536,10 @@ export class AutoSlipLoginService {
       pinRemainingSeconds,
       hasKeys: !!(account.xLineAccess && account.xHmac),
       hasCUrl: !!account.cUrlBash,
+      cUrlBash: account.cUrlBash || undefined,
+      xLineAccess: account.xLineAccess || undefined,
+      xHmac: account.xHmac || undefined,
+      chatMid: account.chatMid || undefined,
       message: this.getStatusMessage(account.status),
       loginProgress,
       canTriggerLogin,

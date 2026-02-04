@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import { autoSlipApi } from '@/lib/api';
 import toast from 'react-hot-toast';
@@ -11,6 +11,7 @@ import { Input, Select } from '@/components/ui/Input';
 import { Modal } from '@/components/ui/Modal';
 import { PageLoading } from '@/components/ui/Loading';
 import { cn } from '@/lib/utils';
+import { useAutoSlipSocket } from '@/hooks/useAutoSlipSocket';
 import {
   Key,
   LogIn,
@@ -34,6 +35,8 @@ import {
   Copy,
   Smartphone,
   Zap,
+  Terminal,
+  Check,
 } from 'lucide-react';
 
 interface BankAccount {
@@ -65,6 +68,22 @@ interface Transaction {
   createdAt: string;
 }
 
+interface LoginStatusData {
+  status: string;
+  pinCode?: string;
+  pinExpiresAt?: string;
+  pinRemainingSeconds?: number;
+  hasKeys: boolean;
+  hasCUrl: boolean;
+  cUrlBash?: string;
+  xLineAccess?: string;
+  xHmac?: string;
+  chatMid?: string;
+  message?: string;
+  loginProgress: string;
+  canTriggerLogin: boolean;
+}
+
 const BANK_OPTIONS = [
   { value: 'SCB', label: 'ธนาคารไทยพาณิชย์ (SCB)', code: '014', color: '#4E2A84' },
   { value: 'KBANK', label: 'ธนาคารกสิกรไทย (KBANK)', code: '004', color: '#138F2D' },
@@ -94,6 +113,19 @@ const BANK_COLORS: Record<string, string> = {
   KTB: '#00A9E0',
 };
 
+// Login progress steps for real-time display
+const LOGIN_STEPS = [
+  { key: 'initializing', label: 'กำลังเริ่มต้น...', icon: Settings },
+  { key: 'launching_browser', label: 'กำลังเปิดเบราว์เซอร์...', icon: Loader2 },
+  { key: 'loading_extension', label: 'กำลังโหลด LINE Extension...', icon: Loader2 },
+  { key: 'entering_credentials', label: 'กำลังกรอกข้อมูล...', icon: Mail },
+  { key: 'waiting_pin', label: 'รอรหัส PIN...', icon: Smartphone },
+  { key: 'pin_displayed', label: 'กรุณายืนยัน PIN บนมือถือ', icon: Smartphone },
+  { key: 'verifying', label: 'กำลังตรวจสอบ...', icon: Loader2 },
+  { key: 'extracting_keys', label: 'กำลังดึง Keys...', icon: Key },
+  { key: 'success', label: 'ล็อกอินสำเร็จ!', icon: CheckCircle },
+];
+
 export default function AutoSlipPage() {
   const [accounts, setAccounts] = useState<BankAccount[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -114,13 +146,11 @@ export default function AutoSlipPage() {
     linePassword: '',
   });
 
-  // Login status polling
-  const [loginStatus, setLoginStatus] = useState<{
-    status: string;
-    pinCode?: string;
-    message?: string;
-  } | null>(null);
+  // Login status - enhanced with real-time updates
+  const [loginStatus, setLoginStatus] = useState<LoginStatusData | null>(null);
   const [isPollingLogin, setIsPollingLogin] = useState(false);
+  const [pinCountdown, setPinCountdown] = useState(0);
+  const countdownRef = useRef<NodeJS.Timeout | null>(null);
 
   // Delete confirm
   const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -136,7 +166,95 @@ export default function AutoSlipPage() {
   const [keysForm, setKeysForm] = useState({ xLineAccess: '', xHmac: '', chatMid: '' });
   const [isSavingKeys, setIsSavingKeys] = useState(false);
 
+  // cURL modal
+  const [showCurlModal, setShowCurlModal] = useState(false);
+  const [curlData, setCurlData] = useState<{ cUrlBash?: string; xLineAccess?: string; xHmac?: string; chatMid?: string } | null>(null);
+  const [copiedField, setCopiedField] = useState<string | null>(null);
+
   const [showPassword, setShowPassword] = useState(false);
+
+  // Get current account ID for WebSocket
+  const currentAccountId = newAccountId || selectedAccount?._id;
+
+  // WebSocket hook for real-time updates
+  const {
+    isConnected: wsConnected,
+    pinCode: wsPinCode,
+    pinRemainingSeconds: wsPinRemaining,
+    loginStatus: wsLoginStatus,
+    hasKeys: wsHasKeys,
+  } = useAutoSlipSocket({
+    bankAccountId: currentAccountId,
+    showToasts: false, // We handle toasts ourselves
+    onPinRequired: (event) => {
+      console.log('[AutoSlip] PIN required via WebSocket:', event);
+      setLoginStatus(prev => ({
+        ...prev!,
+        status: 'AWAITING_PIN',
+        pinCode: event.pinCode,
+        pinRemainingSeconds: Math.floor((new Date(event.expiresAt).getTime() - Date.now()) / 1000),
+        loginProgress: 'waiting_for_pin',
+      }));
+      toast.success(`รหัส PIN: ${event.pinCode}`, { duration: 60000, icon: '🔑' });
+    },
+    onPinCleared: (event) => {
+      console.log('[AutoSlip] PIN cleared via WebSocket:', event);
+      if (event.reason === 'success') {
+        // Login success - close wizard
+        toast.success('ยืนยัน PIN สำเร็จ! กำลังดึง Keys...', { icon: '✅' });
+      }
+    },
+    onKeysExtracted: (event) => {
+      console.log('[AutoSlip] Keys extracted via WebSocket:', event);
+      toast.success('ดึง Keys สำเร็จ!', { icon: '🔑' });
+    },
+    onLoginComplete: async (event) => {
+      console.log('[AutoSlip] Login complete via WebSocket:', event);
+      toast.success('ล็อกอินสำเร็จ! Keys พร้อมใช้งาน', { icon: '✅', duration: 5000 });
+      setIsPollingLogin(false);
+      resetWizard();
+      await fetchAccounts();
+    },
+    onError: (event) => {
+      console.log('[AutoSlip] Error via WebSocket:', event);
+      toast.error(event.error || 'เกิดข้อผิดพลาด', { icon: '❌' });
+      setIsPollingLogin(false);
+    },
+  });
+
+  // Countdown timer for PIN
+  useEffect(() => {
+    if (loginStatus?.pinRemainingSeconds && loginStatus.pinRemainingSeconds > 0) {
+      setPinCountdown(loginStatus.pinRemainingSeconds);
+      
+      countdownRef.current = setInterval(() => {
+        setPinCountdown(prev => {
+          if (prev <= 1) {
+            if (countdownRef.current) {
+              clearInterval(countdownRef.current);
+              countdownRef.current = null;
+            }
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+
+      return () => {
+        if (countdownRef.current) {
+          clearInterval(countdownRef.current);
+          countdownRef.current = null;
+        }
+      };
+    }
+  }, [loginStatus?.pinRemainingSeconds]);
+
+  // Update countdown from WebSocket
+  useEffect(() => {
+    if (wsPinRemaining && wsPinRemaining > 0) {
+      setPinCountdown(wsPinRemaining);
+    }
+  }, [wsPinRemaining]);
 
   const fetchAccounts = useCallback(async () => {
     try {
@@ -172,6 +290,11 @@ export default function AutoSlipPage() {
     setNewAccountId(null);
     setLoginStatus(null);
     setIsPollingLogin(false);
+    setPinCountdown(0);
+    if (countdownRef.current) {
+      clearInterval(countdownRef.current);
+      countdownRef.current = null;
+    }
   };
 
   // Step 1: Select Bank
@@ -224,17 +347,31 @@ export default function AutoSlipPage() {
 
     setIsProcessing(true);
     setIsPollingLogin(true);
+    setLoginStatus({
+      status: 'LOGGING_IN',
+      hasKeys: false,
+      hasCUrl: false,
+      message: 'กำลังเริ่มล็อกอิน...',
+      loginProgress: 'logging_in',
+      canTriggerLogin: false,
+    });
+
     try {
       const res = await autoSlipApi.triggerLogin(accountId, wizardForm.lineEmail, wizardForm.linePassword);
       if (res.data.success) {
         setLoginStatus({
           status: res.data.status || 'LOGGING_IN',
           pinCode: res.data.pinCode,
+          pinRemainingSeconds: res.data.pinRemainingSeconds,
+          hasKeys: res.data.hasKeys || false,
+          hasCUrl: res.data.hasCUrl || false,
           message: res.data.message,
+          loginProgress: res.data.loginProgress || 'logging_in',
+          canTriggerLogin: false,
         });
 
         if (res.data.pinCode) {
-          toast.success('ได้รับ PIN แล้ว กรุณายืนยันบนมือถือ');
+          toast.success('ได้รับ PIN แล้ว กรุณายืนยันบนมือถือ', { icon: '🔑' });
         } else {
           toast.success('เริ่มล็อกอินแล้ว รอสักครู่...');
         }
@@ -245,12 +382,13 @@ export default function AutoSlipPage() {
     } catch (err: any) {
       toast.error(err.response?.data?.message || 'ไม่สามารถล็อกอินได้');
       setIsPollingLogin(false);
+      setLoginStatus(null);
     } finally {
       setIsProcessing(false);
     }
   };
 
-  // Poll login status
+  // Poll login status with enhanced data
   const pollLoginStatus = async (accountId: string) => {
     let attempts = 0;
     const maxAttempts = 60; // 5 minutes max
@@ -263,30 +401,38 @@ export default function AutoSlipPage() {
       }
 
       try {
-        // Use the login-status endpoint for more accurate status during login
         const res = await autoSlipApi.getLoginStatus(accountId);
         if (res.data) {
-          setLoginStatus({
-            status: res.data.status,
-            pinCode: res.data.pinCode,
-            message: res.data.message,
-          });
+          const data = res.data as LoginStatusData;
+          setLoginStatus(data);
 
           // Check for success conditions: has keys or status is active/ready
-          if (res.data.hasKeys || ['ACTIVE', 'KEYS_READY', 'LOGGED_IN'].includes(res.data.status)) {
+          if (data.hasKeys || ['ACTIVE', 'KEYS_READY', 'LOGGED_IN'].includes(data.status)) {
             setIsPollingLogin(false);
-            toast.success('ล็อกอินสำเร็จ! ดึง Keys เรียบร้อย');
+            toast.success('ล็อกอินสำเร็จ! ดึง Keys เรียบร้อย', { icon: '✅' });
+            
+            // Show cURL modal if available
+            if (data.hasCUrl && data.cUrlBash) {
+              setCurlData({
+                cUrlBash: data.cUrlBash,
+                xLineAccess: data.xLineAccess,
+                xHmac: data.xHmac,
+                chatMid: data.chatMid,
+              });
+              setShowCurlModal(true);
+            }
+            
             resetWizard();
             await fetchAccounts();
             return;
           }
 
           // Check for error conditions
-          if (['ERROR_SOFT', 'ERROR_FATAL', 'LOGIN_REQUIRED'].includes(res.data.status)) {
+          if (['ERROR_SOFT', 'ERROR_FATAL', 'LOGIN_REQUIRED'].includes(data.status)) {
             // Only stop if not waiting for PIN
-            if (!res.data.pinCode) {
+            if (!data.pinCode) {
               setIsPollingLogin(false);
-              toast.error('เกิดข้อผิดพลาด: ' + (res.data.message || 'กรุณาลองใหม่'));
+              toast.error('เกิดข้อผิดพลาด: ' + (data.message || 'กรุณาลองใหม่'));
               return;
             }
           }
@@ -296,7 +442,7 @@ export default function AutoSlipPage() {
       }
 
       attempts++;
-      setTimeout(poll, 5000);
+      setTimeout(poll, 3000); // Poll every 3 seconds for faster updates
     };
 
     poll();
@@ -372,16 +518,51 @@ export default function AutoSlipPage() {
     }
   };
 
-  const openAccountDetails = (account: BankAccount) => {
+  // Open account details and fetch cURL
+  const openAccountDetails = async (account: BankAccount) => {
     setSelectedAccount(account);
     setSettingsForm({ checkInterval: account.checkInterval / 60000 });
     fetchTransactions(account._id);
+    
+    // Fetch login status to get cURL
+    try {
+      const res = await autoSlipApi.getLoginStatus(account._id);
+      if (res.data && res.data.hasCUrl) {
+        setCurlData({
+          cUrlBash: res.data.cUrlBash,
+          xLineAccess: res.data.xLineAccess,
+          xHmac: res.data.xHmac,
+          chatMid: res.data.chatMid,
+        });
+      }
+    } catch (err) {
+      // Silent fail
+    }
+  };
+
+  // Copy to clipboard with feedback
+  const copyToClipboard = async (text: string, field: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopiedField(field);
+      toast.success(`คัดลอก ${field} แล้ว`);
+      setTimeout(() => setCopiedField(null), 2000);
+    } catch (err) {
+      toast.error('ไม่สามารถคัดลอกได้');
+    }
   };
 
   // Copy PIN to clipboard
   const copyPIN = (pin: string) => {
     navigator.clipboard.writeText(pin);
     toast.success('คัดลอก PIN แล้ว');
+  };
+
+  // Format countdown time
+  const formatCountdown = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
   if (isLoading) {
@@ -406,6 +587,7 @@ export default function AutoSlipPage() {
             </h1>
             <p className="text-slate-500 text-xs sm:text-sm">
               เชื่อมต่อบัญชีธนาคารเพื่อดึงรายการธุรกรรมอัตโนมัติ
+              {wsConnected && <span className="ml-2 text-emerald-400">● เชื่อมต่อแล้ว</span>}
             </p>
           </div>
           <div className="flex items-center gap-3 w-full md:w-auto mt-4 md:mt-0">
@@ -448,7 +630,7 @@ export default function AutoSlipPage() {
             </Button>
           </Card>
         ) : (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {accounts.map((account) => {
               const statusConfig = STATUS_CONFIG[account.status] || STATUS_CONFIG.INIT;
               const StatusIcon = statusConfig.icon;
@@ -457,48 +639,31 @@ export default function AutoSlipPage() {
               return (
                 <Card
                   key={account._id}
-                  className="group relative overflow-hidden transition-all duration-500 hover:shadow-[0_20px_40px_rgba(0,0,0,0.4)] border border-white/5 bg-white/[0.01] rounded-[2rem]"
-                  padding="none"
+                  className="p-6 border border-white/5 bg-black/40 backdrop-blur-3xl rounded-[2rem] hover:border-white/10 transition-all"
                 >
-                  {/* Bank Color Accent */}
-                  <div
-                    className="absolute top-0 left-0 w-2 h-full rounded-l-[2rem]"
-                    style={{ backgroundColor: BANK_COLORS[account.bankType] || '#666' }}
-                  />
-
-                  {/* Main Content */}
-                  <div className="p-6 pl-8">
+                  <div className="flex flex-col h-full">
                     {/* Header */}
                     <div className="flex items-start justify-between mb-4">
                       <div className="flex items-center gap-3">
                         <div
-                          className="w-12 h-12 rounded-2xl flex items-center justify-center text-white font-bold"
+                          className="w-12 h-12 rounded-2xl flex items-center justify-center text-white font-bold text-lg"
                           style={{ backgroundColor: BANK_COLORS[account.bankType] || '#666' }}
                         >
                           {account.bankType.slice(0, 2)}
                         </div>
                         <div>
-                          <h3 className="text-lg font-bold text-white">{account.bankType}</h3>
-                          <p className="text-xs text-slate-400 font-mono">{account.accountNumber}</p>
+                          <h3 className="font-bold text-white">{account.accountName}</h3>
+                          <p className="text-sm text-slate-400 font-mono">{account.accountNumber}</p>
                         </div>
-                      </div>
-                      <div className="text-right">
-                        {account.balance !== undefined && (
-                          <p className="text-xl font-bold text-emerald-400">
-                            ฿{account.balance.toLocaleString('th-TH', { minimumFractionDigits: 2 })}
-                          </p>
-                        )}
                       </div>
                     </div>
 
-                    <p className="text-sm text-slate-300 mb-4">{account.accountName}</p>
-
-                    {/* Status Badge */}
-                    <div className="flex items-center gap-2 mb-4">
-                      <div className={cn('flex items-center gap-2 px-3 py-1.5 rounded-full text-white text-xs font-semibold', statusConfig.color)}>
-                        <StatusIcon className={cn('w-4 h-4', account.status === 'LOGGING_IN' && 'animate-spin')} />
+                    {/* Status */}
+                    <div className="flex items-center gap-2 mb-3">
+                      <Badge className={cn('text-white text-xs', statusConfig.color)}>
+                        <StatusIcon className={cn('w-3 h-3 mr-1', account.status === 'LOGGING_IN' && 'animate-spin')} />
                         {statusConfig.label}
-                      </div>
+                      </Badge>
                       {account.hasKeys && (
                         <Badge variant="success" size="sm">
                           <Key className="w-3 h-3 mr-1" />
@@ -530,7 +695,7 @@ export default function AutoSlipPage() {
                     )}
 
                     {/* Actions */}
-                    <div className="flex flex-wrap gap-2">
+                    <div className="flex flex-wrap gap-2 mt-auto">
                       {needsLogin ? (
                         <Button
                           variant="primary"
@@ -597,9 +762,22 @@ export default function AutoSlipPage() {
                   <p className="text-sm text-slate-400 font-mono">{selectedAccount.accountNumber}</p>
                 </div>
               </div>
-              <Button variant="ghost" size="sm" onClick={() => setSelectedAccount(null)} className="text-slate-400 hover:text-white">
-                ปิด
-              </Button>
+              <div className="flex items-center gap-2">
+                {curlData?.cUrlBash && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setShowCurlModal(true)}
+                    className="text-cyan-400 hover:text-cyan-300 border border-cyan-500/20"
+                  >
+                    <Terminal className="w-4 h-4 mr-2" />
+                    cURL
+                  </Button>
+                )}
+                <Button variant="ghost" size="sm" onClick={() => setSelectedAccount(null)} className="text-slate-400 hover:text-white">
+                  ปิด
+                </Button>
+              </div>
             </div>
 
             {/* Info */}
@@ -701,16 +879,16 @@ export default function AutoSlipPage() {
                   <button
                     key={bank.value}
                     onClick={() => handleSelectBank(bank.value)}
-                    className="p-6 rounded-2xl border border-white/10 bg-white/[0.02] hover:bg-white/[0.05] hover:border-emerald-500/30 transition-all text-left group"
+                    className="p-6 rounded-2xl border border-white/10 hover:border-white/20 bg-white/[0.02] hover:bg-white/[0.05] transition-all text-left"
                   >
                     <div
-                      className="w-14 h-14 rounded-2xl flex items-center justify-center text-white font-bold text-lg mb-4"
+                      className="w-12 h-12 rounded-xl flex items-center justify-center text-white font-bold mb-3"
                       style={{ backgroundColor: bank.color }}
                     >
                       {bank.value.slice(0, 2)}
                     </div>
-                    <h3 className="text-white font-semibold group-hover:text-emerald-400 transition-colors">{bank.value}</h3>
-                    <p className="text-xs text-slate-500 mt-1">{bank.label.split('(')[0].trim()}</p>
+                    <p className="font-semibold text-white">{bank.value}</p>
+                    <p className="text-xs text-slate-400">{bank.label.split('(')[0].trim()}</p>
                   </button>
                 ))}
               </div>
@@ -722,13 +900,13 @@ export default function AutoSlipPage() {
             <div className="animate-fade">
               <div className="flex items-center justify-center gap-3 mb-6">
                 <div
-                  className="w-12 h-12 rounded-2xl flex items-center justify-center text-white font-bold"
+                  className="w-14 h-14 rounded-2xl flex items-center justify-center text-white font-bold text-xl"
                   style={{ backgroundColor: selectedBankOption?.color }}
                 >
                   {wizardForm.bankType.slice(0, 2)}
                 </div>
                 <div>
-                  <h2 className="text-xl font-bold text-white">{wizardForm.bankType}</h2>
+                  <h2 className="text-xl font-bold text-white">{selectedBankOption?.label.split('(')[0].trim()}</h2>
                   <p className="text-sm text-slate-400">กรอกข้อมูลบัญชี</p>
                 </div>
               </div>
@@ -740,14 +918,13 @@ export default function AutoSlipPage() {
                   onChange={(e) => setWizardForm({ ...wizardForm, accountNumber: e.target.value })}
                   placeholder="xxx-x-xxxxx-x"
                   className="h-14 rounded-2xl"
-                  leftIcon={<CreditCard className="w-5 h-5 text-slate-400" />}
                   required
                 />
                 <Input
                   label="ชื่อบัญชี"
                   value={wizardForm.accountName}
                   onChange={(e) => setWizardForm({ ...wizardForm, accountName: e.target.value })}
-                  placeholder="ชื่อ-นามสกุล ตามบัญชีธนาคาร"
+                  placeholder="ชื่อ-นามสกุล"
                   className="h-14 rounded-2xl"
                   required
                 />
@@ -796,7 +973,7 @@ export default function AutoSlipPage() {
             </div>
           )}
 
-          {/* Step 3: Login */}
+          {/* Step 3: Login with Real-time Status */}
           {wizardStep === 3 && (
             <div className="animate-fade">
               <div className="text-center mb-6">
@@ -807,7 +984,7 @@ export default function AutoSlipPage() {
                 <p className="text-slate-400">กรอกข้อมูล LINE เพื่อดึง Keys อัตโนมัติ</p>
               </div>
 
-              {/* Login Status */}
+              {/* Login Status with Real-time Updates */}
               {loginStatus && (
                 <div
                   className={cn(
@@ -821,7 +998,17 @@ export default function AutoSlipPage() {
                       : 'bg-orange-500/10 border-orange-500/20'
                   )}
                 >
-                  <p className="text-sm text-center mb-2">{STATUS_CONFIG[loginStatus.status]?.description || loginStatus.message}</p>
+                  {/* Status Message */}
+                  <div className="flex items-center justify-center gap-2 mb-3">
+                    {loginStatus.status === 'LOGGING_IN' && <Loader2 className="w-5 h-5 animate-spin text-blue-400" />}
+                    {loginStatus.status === 'AWAITING_PIN' && <Smartphone className="w-5 h-5 text-purple-400" />}
+                    {['ACTIVE', 'KEYS_READY', 'LOGGED_IN'].includes(loginStatus.status) && <CheckCircle className="w-5 h-5 text-emerald-400" />}
+                    <p className="text-sm font-medium">
+                      {STATUS_CONFIG[loginStatus.status]?.description || loginStatus.message}
+                    </p>
+                  </div>
+
+                  {/* PIN Display with Countdown */}
                   {loginStatus.pinCode && (
                     <div className="text-center">
                       <p className="text-xs text-purple-400 mb-2">รหัส PIN:</p>
@@ -832,11 +1019,35 @@ export default function AutoSlipPage() {
                         </Button>
                       </div>
                       <p className="text-xs text-slate-500 mt-2">เปิด LINE บนมือถือและยืนยัน PIN นี้</p>
+                      
+                      {/* Countdown Timer */}
+                      {pinCountdown > 0 && (
+                        <div className="mt-3 flex items-center justify-center gap-2">
+                          <Clock className="w-4 h-4 text-purple-400" />
+                          <span className={cn(
+                            'text-sm font-mono',
+                            pinCountdown < 60 ? 'text-rose-400' : 'text-purple-400'
+                          )}>
+                            หมดอายุใน {formatCountdown(pinCountdown)}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Progress Indicator */}
+                  {isPollingLogin && !loginStatus.pinCode && (
+                    <div className="mt-4">
+                      <div className="h-1 bg-slate-700 rounded-full overflow-hidden">
+                        <div className="h-full bg-blue-500 rounded-full animate-pulse" style={{ width: '60%' }} />
+                      </div>
+                      <p className="text-xs text-slate-500 text-center mt-2">กำลังดำเนินการ...</p>
                     </div>
                   )}
                 </div>
               )}
 
+              {/* Login Form */}
               {!loginStatus && (
                 <div className="space-y-4">
                   <Input
@@ -943,6 +1154,128 @@ export default function AutoSlipPage() {
             <Button className="flex-[2] h-12 rounded-2xl" onClick={handleSaveKeys} isLoading={isSavingKeys}>
               <Key className="w-4 h-4 mr-2" />
               บันทึก Keys
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* cURL Modal */}
+      <Modal isOpen={showCurlModal} onClose={() => setShowCurlModal(false)} title="คัดลอก cURL (Bash)" size="lg">
+        <div className="p-4 space-y-4">
+          <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-2xl p-4">
+            <p className="text-sm text-emerald-400 flex items-center gap-2">
+              <CheckCircle className="w-4 h-4" />
+              ดึง Keys สำเร็จ! คุณสามารถคัดลอก cURL command ด้านล่างได้
+            </p>
+          </div>
+
+          {/* cURL Command */}
+          {curlData?.cUrlBash && (
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <label className="text-sm font-medium text-slate-300">cURL (Bash)</label>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => copyToClipboard(curlData.cUrlBash!, 'cURL')}
+                  className={cn(
+                    'text-xs',
+                    copiedField === 'cURL' ? 'text-emerald-400' : 'text-cyan-400 hover:text-cyan-300'
+                  )}
+                >
+                  {copiedField === 'cURL' ? (
+                    <>
+                      <Check className="w-4 h-4 mr-1" />
+                      คัดลอกแล้ว
+                    </>
+                  ) : (
+                    <>
+                      <Copy className="w-4 h-4 mr-1" />
+                      คัดลอก
+                    </>
+                  )}
+                </Button>
+              </div>
+              <div className="bg-slate-900 border border-white/10 rounded-xl p-4 max-h-60 overflow-auto">
+                <pre className="text-xs text-slate-300 font-mono whitespace-pre-wrap break-all">
+                  {curlData.cUrlBash}
+                </pre>
+              </div>
+            </div>
+          )}
+
+          {/* Individual Keys */}
+          <div className="grid grid-cols-1 gap-4">
+            {curlData?.xLineAccess && (
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <label className="text-sm font-medium text-slate-300">X-Line-Access</label>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => copyToClipboard(curlData.xLineAccess!, 'X-Line-Access')}
+                    className={cn(
+                      'text-xs',
+                      copiedField === 'X-Line-Access' ? 'text-emerald-400' : 'text-slate-400 hover:text-white'
+                    )}
+                  >
+                    {copiedField === 'X-Line-Access' ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
+                  </Button>
+                </div>
+                <div className="bg-slate-900 border border-white/10 rounded-xl p-3">
+                  <p className="text-xs text-slate-400 font-mono truncate">{curlData.xLineAccess}</p>
+                </div>
+              </div>
+            )}
+
+            {curlData?.xHmac && (
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <label className="text-sm font-medium text-slate-300">X-Hmac</label>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => copyToClipboard(curlData.xHmac!, 'X-Hmac')}
+                    className={cn(
+                      'text-xs',
+                      copiedField === 'X-Hmac' ? 'text-emerald-400' : 'text-slate-400 hover:text-white'
+                    )}
+                  >
+                    {copiedField === 'X-Hmac' ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
+                  </Button>
+                </div>
+                <div className="bg-slate-900 border border-white/10 rounded-xl p-3">
+                  <p className="text-xs text-slate-400 font-mono truncate">{curlData.xHmac}</p>
+                </div>
+              </div>
+            )}
+
+            {curlData?.chatMid && (
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <label className="text-sm font-medium text-slate-300">Chat MID</label>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => copyToClipboard(curlData.chatMid!, 'Chat MID')}
+                    className={cn(
+                      'text-xs',
+                      copiedField === 'Chat MID' ? 'text-emerald-400' : 'text-slate-400 hover:text-white'
+                    )}
+                  >
+                    {copiedField === 'Chat MID' ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
+                  </Button>
+                </div>
+                <div className="bg-slate-900 border border-white/10 rounded-xl p-3">
+                  <p className="text-xs text-slate-400 font-mono">{curlData.chatMid}</p>
+                </div>
+              </div>
+            )}
+          </div>
+
+          <div className="flex justify-end pt-4">
+            <Button variant="ghost" className="h-12 px-6 rounded-2xl" onClick={() => setShowCurlModal(false)}>
+              ปิด
             </Button>
           </div>
         </div>
