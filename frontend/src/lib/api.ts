@@ -945,9 +945,9 @@ export const autoSlipApi = {
   getStatus: (id: string) => api.get(`/auto-slip/bank-accounts/${id}/status`),
   getLoginStatus: (id: string) => api.get(`/auto-slip/bank-accounts/${id}/login-status`),
 
-  // Transactions
+  // Transactions (messages)
   getTransactions: (id: string, params?: { limit?: number; offset?: number; type?: string }) =>
-    api.get(`/auto-slip/bank-accounts/${id}/transactions`, { params }),
+    api.get(`/auto-slip/bank-accounts/${id}/messages`, { params }),
 };
 
 // Auto-Slip Admin API

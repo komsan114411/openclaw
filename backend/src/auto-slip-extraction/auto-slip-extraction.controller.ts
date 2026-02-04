@@ -141,6 +141,7 @@ export class AutoSlipBankAccountController {
 
   /**
    * Get all bank accounts for current user
+   * Includes active PIN codes for real-time display
    */
   @Get()
   @ApiOperation({ summary: 'List my bank accounts' })
@@ -150,22 +151,48 @@ export class AutoSlipBankAccountController {
       isActive: true,
     }).sort({ createdAt: -1 });
 
+    // Fetch active PINs for all accounts in one query
+    const accountIds = accounts.map(acc => acc._id);
+    const activePins = await this.pinCodeModel.find({
+      bankAccountId: { $in: accountIds },
+      status: { $in: ['fresh', 'new'] },
+      expiresAt: { $gt: new Date() },
+    });
+
+    // Create a map of bankAccountId -> pinCode for quick lookup
+    const pinMap = new Map<string, { pinCode: string; expiresAt: Date }>();
+    for (const pin of activePins) {
+      pinMap.set(pin.bankAccountId.toString(), {
+        pinCode: pin.pinCode,
+        expiresAt: pin.expiresAt,
+      });
+    }
+
     return {
       success: true,
       total: accounts.length,
-      bankAccounts: accounts.map(acc => ({
-        id: acc._id,
-        bankType: acc.bankType,
-        bankCode: acc.bankCode,
-        accountNumber: acc.accountNumber,
-        accountName: acc.accountName,
-        status: acc.status,
-        statusLabel: STATUS_LABELS_TH[acc.status],
-        balance: acc.balance,
-        monitoringEnabled: acc.monitoringEnabled,
-        lastMessageFetch: acc.lastMessageFetch,
-        hasKeys: !!(acc.xLineAccess && acc.xHmac),
-      })),
+      accounts: accounts.map(acc => {
+        const activePIN = pinMap.get(acc._id.toString());
+        return {
+          _id: acc._id,
+          bankType: acc.bankType,
+          bankCode: acc.bankCode,
+          accountNumber: acc.accountNumber,
+          accountName: acc.accountName,
+          status: acc.status,
+          statusLabel: STATUS_LABELS_TH[acc.status],
+          balance: acc.balance,
+          monitoringEnabled: acc.monitoringEnabled,
+          checkInterval: acc.checkInterval,
+          lastMessageFetch: acc.lastMessageFetch,
+          hasKeys: !!(acc.xLineAccess && acc.xHmac),
+          errorCount: acc.errorCount,
+          createdAt: acc['createdAt'],
+          // Active PIN for real-time display
+          pinCode: activePIN?.pinCode,
+          pinExpiresAt: activePIN?.expiresAt,
+        };
+      }),
     };
   }
 

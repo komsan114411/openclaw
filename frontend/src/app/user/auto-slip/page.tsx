@@ -58,14 +58,14 @@ interface BankAccount {
 }
 
 interface Transaction {
-  _id: string;
+  id: string;
   type: 'deposit' | 'withdraw' | 'transfer';
   amount: number;
   balance?: number;
   counterparty?: string;
-  reference?: string;
+  rawMessage?: string;
   messageDate: string;
-  createdAt: string;
+  isProcessed?: boolean;
 }
 
 interface LoginStatusData {
@@ -196,6 +196,8 @@ export default function AutoSlipPage() {
         loginProgress: 'waiting_for_pin',
       }));
       toast.success(`รหัส PIN: ${event.pinCode}`, { duration: 60000, icon: '🔑' });
+      // Refresh accounts to show PIN on card
+      fetchAccounts();
     },
     onPinCleared: (event) => {
       console.log('[AutoSlip] PIN cleared via WebSocket:', event);
@@ -203,10 +205,14 @@ export default function AutoSlipPage() {
         // Login success - close wizard
         toast.success('ยืนยัน PIN สำเร็จ! กำลังดึง Keys...', { icon: '✅' });
       }
+      // Refresh accounts to clear PIN from card
+      fetchAccounts();
     },
     onKeysExtracted: (event) => {
       console.log('[AutoSlip] Keys extracted via WebSocket:', event);
       toast.success('ดึง Keys สำเร็จ!', { icon: '🔑' });
+      // Refresh accounts to show "มี Keys" badge
+      fetchAccounts();
     },
     onLoginComplete: async (event) => {
       console.log('[AutoSlip] Login complete via WebSocket:', event);
@@ -215,10 +221,24 @@ export default function AutoSlipPage() {
       resetWizard();
       await fetchAccounts();
     },
+    onStatusChanged: (event) => {
+      console.log('[AutoSlip] Status changed via WebSocket:', event);
+      // Update login status if currently in wizard
+      if (loginStatus) {
+        setLoginStatus(prev => ({
+          ...prev!,
+          status: event.newStatus,
+        }));
+      }
+      // Refresh accounts to show new status
+      fetchAccounts();
+    },
     onError: (event) => {
       console.log('[AutoSlip] Error via WebSocket:', event);
       toast.error(event.error || 'เกิดข้อผิดพลาด', { icon: '❌' });
       setIsPollingLogin(false);
+      // Refresh accounts to show error status
+      fetchAccounts();
     },
   });
 
@@ -503,13 +523,14 @@ export default function AutoSlipPage() {
     }
   };
 
-  // Fetch transactions
+  // Fetch transactions (messages from backend)
   const fetchTransactions = async (accountId: string) => {
     setLoadingTransactions(true);
     try {
       const res = await autoSlipApi.getTransactions(accountId, { limit: 50 });
       if (res.data.success) {
-        setTransactions(res.data.transactions || []);
+        // Backend returns 'messages' field
+        setTransactions(res.data.messages || []);
       }
     } catch (err: any) {
       // Silent fail
@@ -820,7 +841,7 @@ export default function AutoSlipPage() {
               ) : (
                 <div className="space-y-3 max-h-80 overflow-y-auto">
                   {transactions.map((tx) => (
-                    <div key={tx._id} className="flex items-center justify-between p-4 bg-white/[0.02] rounded-2xl border border-white/5">
+                    <div key={tx.id} className="flex items-center justify-between p-4 bg-white/[0.02] rounded-2xl border border-white/5">
                       <div className="flex items-center gap-3">
                         <div
                           className={cn(
