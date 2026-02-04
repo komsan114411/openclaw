@@ -186,7 +186,13 @@ export default function LineSessionPage() {
       setLoginStatus(mappedStatus);
 
       // If still in progress, continue polling
-      if (mappedStatus.status === 'waiting_for_pin' || mappedStatus.status === 'extracting_keys' || mappedStatus.status === 'starting') {
+      const inProgressStatuses = [
+        'waiting_for_pin', 'waiting_pin', 'pin_displayed',
+        'extracting_keys', 'triggering_messages', 'capturing_curl',
+        'starting', 'initializing', 'launching_browser',
+        'loading_extension', 'checking_session', 'entering_credentials', 'verifying'
+      ];
+      if (inProgressStatuses.includes(mappedStatus.status || '')) {
         return true; // Continue polling
       }
 
@@ -446,11 +452,26 @@ export default function LineSessionPage() {
   const getLoginStatusDisplay = (status?: string) => {
     switch (status) {
       case 'starting':
+      case 'initializing':
+      case 'launching_browser':
         return { text: 'กำลังเริ่ม...', color: 'text-blue-500' };
+      case 'loading_extension':
+      case 'checking_session':
+        return { text: 'กำลังโหลด LINE...', color: 'text-blue-500' };
+      case 'entering_credentials':
+        return { text: 'กำลังกรอกข้อมูล...', color: 'text-blue-500' };
       case 'waiting_for_pin':
+      case 'waiting_pin':
+      case 'pin_displayed':
         return { text: 'รอยืนยัน PIN', color: 'text-amber-500' };
+      case 'verifying':
+        return { text: 'กำลังตรวจสอบ...', color: 'text-blue-500' };
       case 'extracting_keys':
         return { text: 'กำลังดึง Keys...', color: 'text-emerald-500' };
+      case 'triggering_messages':
+        return { text: 'กำลังดึงข้อมูล Chat...', color: 'text-emerald-500' };
+      case 'capturing_curl':
+        return { text: 'กำลังบันทึก cURL...', color: 'text-emerald-500' };
       case 'completed':
       case 'success':
         return { text: 'สำเร็จ', color: 'text-emerald-500' };
@@ -625,7 +646,7 @@ export default function LineSessionPage() {
                   )}
 
                   {/* Login Status (when in progress) */}
-                  {loginStatus && (loginStatus.status === 'waiting_for_pin' || loginStatus.status === 'extracting_keys' || loginStatus.status === 'starting') && (
+                  {loginStatus && (['waiting_for_pin', 'waiting_pin', 'pin_displayed', 'extracting_keys', 'triggering_messages', 'capturing_curl', 'starting', 'initializing', 'launching_browser', 'loading_extension', 'checking_session', 'entering_credentials', 'verifying'].includes(loginStatus.status || '')) && (
                     <div className="p-4 bg-amber-50 dark:bg-amber-900/20 rounded-xl border border-amber-200 dark:border-amber-800">
                       <div className="flex items-center gap-3 mb-3">
                         <Loader2 className="w-5 h-5 text-amber-500 animate-spin" />

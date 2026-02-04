@@ -869,8 +869,23 @@ export class EnhancedAutomationService implements OnModuleDestroy {
       if (worker.capturedKeys) {
         this.logger.log(`Keys captured on attempt ${attempt}`);
 
-        // Wait a bit more for messages
-        await this.delay(5000);
+        // [NEW] Wait for getRecentMessagesV2 cURL to be captured (max 10 seconds)
+        this.logger.log(`[TriggerKeys] 🔍 Waiting for getRecentMessagesV2 cURL...`);
+        let waitCount = 0;
+        const maxWait = 20; // 20 * 500ms = 10 seconds
+        while (!worker.capturedCurlRecentMessages && waitCount < maxWait) {
+          await this.delay(500);
+          waitCount++;
+          if (waitCount % 4 === 0) {
+            this.logger.log(`[TriggerKeys] Still waiting for getRecentMessagesV2 cURL... (${waitCount * 500}ms)`);
+          }
+        }
+        
+        if (worker.capturedCurlRecentMessages) {
+          this.logger.log(`[TriggerKeys] ✅ getRecentMessagesV2 cURL captured after ${waitCount * 500}ms`);
+        } else {
+          this.logger.warn(`[TriggerKeys] ⚠️ getRecentMessagesV2 cURL not captured after ${maxWait * 500}ms, using general cURL`);
+        }
 
         // [NEW] Prefer getRecentMessagesV2 cURL if available, fallback to general cURL
         const preferredCurl = worker.capturedCurlRecentMessages || worker.capturedCurl;
@@ -900,6 +915,17 @@ export class EnhancedAutomationService implements OnModuleDestroy {
 
     // Final check
     if (worker.capturedKeys) {
+      // [NEW] Wait for getRecentMessagesV2 cURL if not already captured (max 5 seconds)
+      if (!worker.capturedCurlRecentMessages) {
+        this.logger.log(`[TriggerKeys] Final check - waiting for getRecentMessagesV2 cURL...`);
+        let waitCount = 0;
+        const maxWait = 10; // 10 * 500ms = 5 seconds
+        while (!worker.capturedCurlRecentMessages && waitCount < maxWait) {
+          await this.delay(500);
+          waitCount++;
+        }
+      }
+      
       // [NEW] Prefer getRecentMessagesV2 cURL if available, fallback to general cURL
       const preferredCurl = worker.capturedCurlRecentMessages || worker.capturedCurl;
       this.logger.log(`[TriggerKeys] Final check - Using cURL: ${worker.capturedCurlRecentMessages ? 'getRecentMessagesV2 (preferred)' : 'general'}`);

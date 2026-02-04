@@ -816,6 +816,82 @@ export class WorkerPoolService implements OnModuleDestroy, OnModuleInit {
           extraHeadersMap.delete(requestId);
         }, 200); // [FIX] Increased delay from 50ms to 200ms for extra headers to arrive
       }
+      
+      // [NEW] Separate capture for getRecentMessagesV2 cURL - runs even if keys already captured
+      // This ensures we always get the correct cURL for message fetching
+      if (isLineApiRequest && isGetRecentMessagesV2 && !worker.capturedCurlRecentMessages) {
+        this.logger.log(`[CDP] 🎯 Attempting to capture getRecentMessagesV2 cURL specifically...`);
+        
+        setTimeout(() => {
+          const extraHeaders = extraHeadersMap.get(requestId) || {};
+          const headers = { ...baseHeaders, ...extraHeaders };
+          
+          const xLineAccess = headers['x-line-access'] || headers['X-Line-Access'];
+          const xHmac = headers['x-hmac'] || headers['X-Hmac'];
+          
+          // Only capture if we have valid keys
+          if (xLineAccess && xHmac && xLineAccess.length > 20) {
+            try {
+              let curlCmd = `curl '${url}'`;
+              const cookieString = headers['cookie'] || headers['Cookie'] || '';
+              
+              const chromeHeaderOrder = [
+                'accept', 'accept-encoding', 'accept-language', 'content-type',
+                'origin', 'priority', 'referer', 'sec-ch-ua', 'sec-ch-ua-mobile',
+                'sec-ch-ua-platform', 'sec-fetch-dest', 'sec-fetch-mode', 'sec-fetch-site',
+                'sec-fetch-storage-access', 'user-agent', 'x-hmac', 'x-lal',
+                'x-line-access', 'x-line-chrome-version', 'x-lpqs',
+              ];
+              
+              const addedHeaders = new Set<string>();
+              
+              for (const headerName of chromeHeaderOrder) {
+                const headerKey = Object.keys(headers).find(
+                  k => k.toLowerCase() === headerName.toLowerCase()
+                );
+                if (headerKey && headers[headerKey]) {
+                  curlCmd += ` \\\n  -H '${headerName}: ${headers[headerKey]}'`;
+                  addedHeaders.add(headerKey.toLowerCase());
+                }
+              }
+              
+              if (cookieString) {
+                curlCmd += ` \\\n  -b '${cookieString}'`;
+                addedHeaders.add('cookie');
+              }
+              
+              for (const [key, value] of Object.entries(headers)) {
+                if (!addedHeaders.has(key.toLowerCase()) && value) {
+                  if (key.startsWith(':')) continue;
+                  if (key.toLowerCase() === 'cookie') continue;
+                  curlCmd += ` \\\n  -H '${key}: ${value}'`;
+                }
+              }
+              
+              if (request.postData) {
+                const isBinary = this.isBinaryData(request.postData);
+                if (isBinary) {
+                  const hexEscaped = this.convertToHexEscape(request.postData);
+                  curlCmd += ` \\\n  --data-binary $'${hexEscaped}'`;
+                } else {
+                  const escapedData = request.postData.replace(/'/g, "'\\''");
+                  curlCmd += ` \\\n  --data-raw '${escapedData}'`;
+                }
+              }
+              
+              worker.capturedCurlRecentMessages = curlCmd;
+              this.logger.log(`[CDP] ✅ getRecentMessagesV2 cURL captured! (${curlCmd.length} chars)`);
+              this.logger.log(`[CDP] ✅ This cURL will be used for message fetching loop`);
+            } catch (err) {
+              this.logger.warn(`[CDP] Failed to capture getRecentMessagesV2 cURL: ${err}`);
+            }
+          } else {
+            this.logger.warn(`[CDP] getRecentMessagesV2 request found but missing keys`);
+          }
+          
+          extraHeadersMap.delete(requestId);
+        }, 250);
+      }
     });
 
     this.logger.log(`[CDP] ✅ CDP interception setup for ${worker.lineAccountId} (listening to ALL LINE API requests)`);
@@ -982,6 +1058,61 @@ export class WorkerPoolService implements OnModuleDestroy, OnModuleInit {
           onKeyCaptured({ xLineAccess, xHmac }, chatMid);
         } else {
           this.logger.warn(`[Puppeteer KeyCapture] ⚠️ Keys validation failed`);
+        }
+      }
+      
+      // [NEW] Separate capture for getRecentMessagesV2 cURL - runs even if keys already captured
+      if (isLineApiRequest && isGetRecentMessagesV2 && !worker.capturedCurlRecentMessages) {
+        const xLineAccess = headers['x-line-access'];
+        const xHmac = headers['x-hmac'];
+        
+        if (xLineAccess && xHmac && xLineAccess.length > 20) {
+          this.logger.log(`[Puppeteer] 🎯 Capturing getRecentMessagesV2 cURL specifically...`);
+          
+          try {
+            const postData = request.postData();
+            let curlCmd = `curl '${url}'`;
+            
+            const chromeHeaderOrder = [
+              'accept', 'accept-language', 'content-type', 'origin', 'referer',
+              'sec-ch-ua', 'sec-ch-ua-mobile', 'sec-ch-ua-platform',
+              'sec-fetch-dest', 'sec-fetch-mode', 'sec-fetch-site',
+              'user-agent', 'x-line-access', 'x-hmac', 'x-lal',
+              'x-line-application', 'x-line-chrome-version', 'x-lpqs'
+            ];
+            
+            const addedHeaders = new Set<string>();
+            
+            for (const headerName of chromeHeaderOrder) {
+              const value = headers[headerName] || headers[headerName.toLowerCase()];
+              if (value) {
+                curlCmd += ` \\\n  -H '${headerName}: ${value}'`;
+                addedHeaders.add(headerName.toLowerCase());
+              }
+            }
+            
+            for (const [key, value] of Object.entries(headers)) {
+              const lowerKey = key.toLowerCase();
+              if (lowerKey.startsWith('x-') && !addedHeaders.has(lowerKey)) {
+                curlCmd += ` \\\n  -H '${key}: ${value}'`;
+              }
+            }
+            
+            if (postData) {
+              const isBinary = this.isBinaryData(postData);
+              if (isBinary) {
+                const hexEscaped = this.convertToHexEscape(postData);
+                curlCmd += ` \\\n  --data-binary $'${hexEscaped}'`;
+              } else {
+                curlCmd += ` \\\n  --data-raw '${postData.replace(/'/g, "'\\''")}'`;
+              }
+            }
+            
+            worker.capturedCurlRecentMessages = curlCmd;
+            this.logger.log(`[Puppeteer] ✅ getRecentMessagesV2 cURL captured! (${curlCmd.length} chars)`);
+          } catch (err) {
+            this.logger.warn(`[Puppeteer] Failed to capture getRecentMessagesV2 cURL: ${err}`);
+          }
         }
       }
 
