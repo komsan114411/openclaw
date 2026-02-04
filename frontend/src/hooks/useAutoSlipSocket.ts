@@ -154,7 +154,10 @@ export function useAutoSlipSocket(options: UseAutoSlipSocketOptions = {}) {
     }
   }, [state.pinExpiresAt]);
 
-  // Connect to WebSocket
+  // Track subscribed bank account
+  const subscribedAccountRef = useRef<string | null>(null);
+
+  // Connect to WebSocket (only once)
   useEffect(() => {
     if (!autoConnect) return;
 
@@ -177,10 +180,10 @@ export function useAutoSlipSocket(options: UseAutoSlipSocketOptions = {}) {
         socket.emit('join', { userId, role: 'user' });
       }
 
-      // Subscribe to bank account channel
-      if (bankAccountId) {
-        console.log('[AutoSlipSocket] Subscribing to bank account:', bankAccountId);
-        socket.emit('subscribe_bank_account', { bankAccountId });
+      // Re-subscribe if we had a previous subscription
+      if (subscribedAccountRef.current) {
+        console.log('[AutoSlipSocket] Re-subscribing to bank account:', subscribedAccountRef.current);
+        socket.emit('subscribe_bank_account', { bankAccountId: subscribedAccountRef.current });
       }
     });
 
@@ -191,8 +194,9 @@ export function useAutoSlipSocket(options: UseAutoSlipSocketOptions = {}) {
       if (userId) {
         socket.emit('join', { userId, role: 'user' });
       }
-      if (bankAccountId) {
-        socket.emit('subscribe_bank_account', { bankAccountId });
+      // Re-subscribe on reconnect
+      if (subscribedAccountRef.current) {
+        socket.emit('subscribe_bank_account', { bankAccountId: subscribedAccountRef.current });
       }
     });
 
@@ -381,7 +385,23 @@ export function useAutoSlipSocket(options: UseAutoSlipSocketOptions = {}) {
         clearInterval(countdownRef.current);
       }
     };
-  }, [autoConnect, bankAccountId, userId, showToasts]);
+  }, [autoConnect, userId, showToasts]); // Removed bankAccountId to prevent reconnection
+
+  // Subscribe to bank account when bankAccountId changes
+  useEffect(() => {
+    if (!bankAccountId || !socketRef.current?.connected) return;
+
+    // Unsubscribe from previous account if different
+    if (subscribedAccountRef.current && subscribedAccountRef.current !== bankAccountId) {
+      console.log('[AutoSlipSocket] Unsubscribing from previous account:', subscribedAccountRef.current);
+      socketRef.current.emit('unsubscribe_bank_account', { bankAccountId: subscribedAccountRef.current });
+    }
+
+    // Subscribe to new account
+    console.log('[AutoSlipSocket] Subscribing to bank account:', bankAccountId);
+    socketRef.current.emit('subscribe_bank_account', { bankAccountId });
+    subscribedAccountRef.current = bankAccountId;
+  }, [bankAccountId]);
 
   // Subscribe to bank account
   const subscribeToBankAccount = useCallback((accountId: string) => {

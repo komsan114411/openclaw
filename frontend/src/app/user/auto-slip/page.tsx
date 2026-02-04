@@ -84,12 +84,9 @@ interface LoginStatusData {
   canTriggerLogin: boolean;
 }
 
+// Only GSB (ออมสิน) is supported for auto-slip extraction
 const BANK_OPTIONS = [
-  { value: 'SCB', label: 'ธนาคารไทยพาณิชย์ (SCB)', code: '014', color: '#4E2A84' },
-  { value: 'KBANK', label: 'ธนาคารกสิกรไทย (KBANK)', code: '004', color: '#138F2D' },
   { value: 'GSB', label: 'ธนาคารออมสิน (GSB)', code: '030', color: '#E91E8C' },
-  { value: 'BBL', label: 'ธนาคารกรุงเทพ (BBL)', code: '002', color: '#1E3A8A' },
-  { value: 'KTB', label: 'ธนาคารกรุงไทย (KTB)', code: '006', color: '#00A9E0' },
 ];
 
 const STATUS_CONFIG: Record<string, { label: string; color: string; icon: any; description: string }> = {
@@ -188,28 +185,55 @@ export default function AutoSlipPage() {
     showToasts: false, // We handle toasts ourselves
     onPinRequired: (event) => {
       console.log('[AutoSlip] PIN required via WebSocket:', event);
+      const remainingSeconds = Math.floor((new Date(event.expiresAt).getTime() - Date.now()) / 1000);
       setLoginStatus(prev => ({
         ...prev!,
         status: 'AWAITING_PIN',
         pinCode: event.pinCode,
-        pinRemainingSeconds: Math.floor((new Date(event.expiresAt).getTime() - Date.now()) / 1000),
-        loginProgress: 'waiting_for_pin',
+        pinRemainingSeconds: remainingSeconds,
+        loginProgress: 'pin_displayed',
+        hasKeys: false,
+        canTriggerLogin: false,
       }));
+      setPinCountdown(remainingSeconds);
       toast.success(`รหัส PIN: ${event.pinCode}`, { duration: 60000, icon: '🔑' });
       // Refresh accounts to show PIN on card
       fetchAccounts();
     },
     onPinCleared: (event) => {
       console.log('[AutoSlip] PIN cleared via WebSocket:', event);
+      // Clear PIN from local state immediately
+      setLoginStatus(prev => prev ? ({
+        ...prev,
+        pinCode: undefined,
+        pinRemainingSeconds: 0,
+        loginProgress: event.reason === 'success' ? 'extracting_keys' : 'failed',
+      }) : null);
+      setPinCountdown(0);
+      if (countdownRef.current) {
+        clearInterval(countdownRef.current);
+        countdownRef.current = null;
+      }
       if (event.reason === 'success') {
-        // Login success - close wizard
         toast.success('ยืนยัน PIN สำเร็จ! กำลังดึง Keys...', { icon: '✅' });
+      } else if (event.reason === 'timeout') {
+        toast.error('PIN หมดอายุ กรุณาลองใหม่', { icon: '⏰' });
       }
       // Refresh accounts to clear PIN from card
       fetchAccounts();
     },
     onKeysExtracted: (event) => {
       console.log('[AutoSlip] Keys extracted via WebSocket:', event);
+      // Update status to show keys ready
+      setLoginStatus(prev => prev ? ({
+        ...prev,
+        status: 'KEYS_READY',
+        pinCode: undefined,
+        pinRemainingSeconds: 0,
+        hasKeys: true,
+        loginProgress: 'success',
+      }) : null);
+      setPinCountdown(0);
       toast.success('ดึง Keys สำเร็จ!', { icon: '🔑' });
       // Refresh accounts to show "มี Keys" badge
       fetchAccounts();
@@ -218,17 +242,60 @@ export default function AutoSlipPage() {
       console.log('[AutoSlip] Login complete via WebSocket:', event);
       toast.success('ล็อกอินสำเร็จ! Keys พร้อมใช้งาน', { icon: '✅', duration: 5000 });
       setIsPollingLogin(false);
-      resetWizard();
+      setPinCountdown(0);
+      if (countdownRef.current) {
+        clearInterval(countdownRef.current);
+        countdownRef.current = null;
+      }
+      // Don't reset wizard immediately - let user see the success state
+      setLoginStatus(prev => prev ? ({
+        ...prev,
+        status: 'KEYS_READY',
+        pinCode: undefined,
+        pinRemainingSeconds: 0,
+        hasKeys: true,
+        loginProgress: 'success',
+        canTriggerLogin: true,
+      }) : null);
       await fetchAccounts();
+      // Auto close wizard after 2 seconds
+      setTimeout(() => {
+        resetWizard();
+      }, 2000);
     },
     onStatusChanged: (event) => {
       console.log('[AutoSlip] Status changed via WebSocket:', event);
-      // Update login status if currently in wizard
-      if (loginStatus) {
-        setLoginStatus(prev => ({
-          ...prev!,
+      // Update login status
+      setLoginStatus(prev => {
+        if (!prev) return null;
+        const update: Partial<LoginStatusData> = {
           status: event.newStatus,
-        }));
+        };
+        // Clear PIN if status changed to non-PIN states
+        if (['KEYS_READY', 'ACTIVE', 'LOGGED_IN', 'ERROR_SOFT', 'ERROR_FATAL'].includes(event.newStatus)) {
+          update.pinCode = undefined;
+          update.pinRemainingSeconds = 0;
+        }
+        // Update login progress based on status
+        if (event.newStatus === 'LOGGING_IN') {
+          update.loginProgress = 'logging_in';
+        } else if (event.newStatus === 'AWAITING_PIN') {
+          update.loginProgress = 'waiting_pin';
+        } else if (event.newStatus === 'KEYS_READY' || event.newStatus === 'ACTIVE') {
+          update.loginProgress = 'success';
+          update.hasKeys = true;
+        } else if (event.newStatus === 'ERROR_SOFT' || event.newStatus === 'ERROR_FATAL') {
+          update.loginProgress = 'failed';
+        }
+        return { ...prev, ...update };
+      });
+      // Clear countdown if needed
+      if (['KEYS_READY', 'ACTIVE', 'LOGGED_IN', 'ERROR_SOFT', 'ERROR_FATAL'].includes(event.newStatus)) {
+        setPinCountdown(0);
+        if (countdownRef.current) {
+          clearInterval(countdownRef.current);
+          countdownRef.current = null;
+        }
       }
       // Refresh accounts to show new status
       fetchAccounts();
@@ -237,6 +304,20 @@ export default function AutoSlipPage() {
       console.log('[AutoSlip] Error via WebSocket:', event);
       toast.error(event.error || 'เกิดข้อผิดพลาด', { icon: '❌' });
       setIsPollingLogin(false);
+      // Clear PIN and update status
+      setLoginStatus(prev => prev ? ({
+        ...prev,
+        status: 'ERROR_SOFT',
+        pinCode: undefined,
+        pinRemainingSeconds: 0,
+        loginProgress: 'failed',
+        canTriggerLogin: true,
+      }) : null);
+      setPinCountdown(0);
+      if (countdownRef.current) {
+        clearInterval(countdownRef.current);
+        countdownRef.current = null;
+      }
       // Refresh accounts to show error status
       fetchAccounts();
     },
@@ -412,10 +493,18 @@ export default function AutoSlipPage() {
   const pollLoginStatus = async (accountId: string) => {
     let attempts = 0;
     const maxAttempts = 60; // 5 minutes max
+    let lastPinCode: string | undefined = undefined;
 
     const poll = async () => {
       if (attempts >= maxAttempts) {
         setIsPollingLogin(false);
+        setLoginStatus(prev => prev ? ({
+          ...prev,
+          pinCode: undefined,
+          pinRemainingSeconds: 0,
+          loginProgress: 'failed',
+        }) : null);
+        setPinCountdown(0);
         toast.error('หมดเวลารอ กรุณาลองใหม่');
         return;
       }
@@ -424,13 +513,38 @@ export default function AutoSlipPage() {
         const res = await autoSlipApi.getLoginStatus(accountId);
         if (res.data) {
           const data = res.data as LoginStatusData;
-          setLoginStatus(data);
+
+          // Update login status with enhanced progress tracking
+          setLoginStatus(prev => ({
+            ...data,
+            loginProgress: data.pinCode ? 'pin_displayed' :
+              data.hasKeys ? 'success' :
+              data.status === 'LOGGING_IN' ? 'logging_in' :
+              data.status === 'AWAITING_PIN' ? 'waiting_pin' :
+              prev?.loginProgress || 'logging_in',
+          }));
+
+          // Update countdown if PIN is present
+          if (data.pinRemainingSeconds && data.pinRemainingSeconds > 0) {
+            setPinCountdown(data.pinRemainingSeconds);
+          }
+
+          // Detect PIN change for notification
+          if (data.pinCode && data.pinCode !== lastPinCode) {
+            lastPinCode = data.pinCode;
+            toast.success(`รหัส PIN: ${data.pinCode}`, { duration: 60000, icon: '🔑' });
+          }
 
           // Check for success conditions: has keys or status is active/ready
           if (data.hasKeys || ['ACTIVE', 'KEYS_READY', 'LOGGED_IN'].includes(data.status)) {
             setIsPollingLogin(false);
+            setPinCountdown(0);
+            if (countdownRef.current) {
+              clearInterval(countdownRef.current);
+              countdownRef.current = null;
+            }
             toast.success('ล็อกอินสำเร็จ! ดึง Keys เรียบร้อย', { icon: '✅' });
-            
+
             // Show cURL modal if available
             if (data.hasCUrl && data.cUrlBash) {
               setCurlData({
@@ -441,9 +555,20 @@ export default function AutoSlipPage() {
               });
               setShowCurlModal(true);
             }
-            
-            resetWizard();
+
+            // Update status to show success before closing wizard
+            setLoginStatus(prev => ({
+              ...data,
+              pinCode: undefined,
+              pinRemainingSeconds: 0,
+              loginProgress: 'success',
+            }));
+
             await fetchAccounts();
+            // Auto close wizard after 2 seconds
+            setTimeout(() => {
+              resetWizard();
+            }, 2000);
             return;
           }
 
@@ -452,6 +577,13 @@ export default function AutoSlipPage() {
             // Only stop if not waiting for PIN
             if (!data.pinCode) {
               setIsPollingLogin(false);
+              setPinCountdown(0);
+              setLoginStatus(prev => ({
+                ...data,
+                pinCode: undefined,
+                pinRemainingSeconds: 0,
+                loginProgress: 'failed',
+              }));
               toast.error('เกิดข้อผิดพลาด: ' + (data.message || 'กรุณาลองใหม่'));
               return;
             }
@@ -462,7 +594,7 @@ export default function AutoSlipPage() {
       }
 
       attempts++;
-      setTimeout(poll, 3000); // Poll every 3 seconds for faster updates
+      setTimeout(poll, 2000); // Poll every 2 seconds for faster updates
     };
 
     poll();
@@ -890,26 +1022,30 @@ export default function AutoSlipPage() {
             ))}
           </div>
 
-          {/* Step 1: Select Bank */}
+          {/* Step 1: Select Bank (Auto-select GSB since only one option) */}
           {wizardStep === 1 && (
             <div className="animate-fade">
-              <h2 className="text-xl font-bold text-center text-white mb-2">เลือกธนาคาร</h2>
-              <p className="text-center text-slate-400 mb-8">เลือกธนาคารที่ต้องการเชื่อมต่อ</p>
-              <div className="grid grid-cols-2 gap-4">
+              <h2 className="text-xl font-bold text-center text-white mb-2">ธนาคารที่รองรับ</h2>
+              <p className="text-center text-slate-400 mb-8">ระบบ Auto-Slip รองรับเฉพาะธนาคารออมสิน (GSB)</p>
+              <div className="flex justify-center">
                 {BANK_OPTIONS.map((bank) => (
                   <button
                     key={bank.value}
                     onClick={() => handleSelectBank(bank.value)}
-                    className="p-6 rounded-2xl border border-white/10 hover:border-white/20 bg-white/[0.02] hover:bg-white/[0.05] transition-all text-left"
+                    className="p-8 rounded-2xl border-2 border-[#E91E8C]/50 hover:border-[#E91E8C] bg-[#E91E8C]/10 hover:bg-[#E91E8C]/20 transition-all text-center max-w-[280px]"
                   >
                     <div
-                      className="w-12 h-12 rounded-xl flex items-center justify-center text-white font-bold mb-3"
+                      className="w-16 h-16 rounded-2xl flex items-center justify-center text-white font-bold mx-auto mb-4"
                       style={{ backgroundColor: bank.color }}
                     >
-                      {bank.value.slice(0, 2)}
+                      <Building2 className="w-8 h-8" />
                     </div>
-                    <p className="font-semibold text-white">{bank.value}</p>
-                    <p className="text-xs text-slate-400">{bank.label.split('(')[0].trim()}</p>
+                    <p className="font-bold text-white text-lg">{bank.value}</p>
+                    <p className="text-sm text-slate-400 mt-1">{bank.label.split('(')[0].trim()}</p>
+                    <p className="text-xs text-emerald-400 mt-3 flex items-center justify-center gap-1">
+                      <CheckCircle className="w-4 h-4" />
+                      คลิกเพื่อเริ่มต้น
+                    </p>
                   </button>
                 ))}
               </div>
@@ -1237,14 +1373,14 @@ export default function AutoSlipPage() {
                     onClick={() => copyToClipboard(curlData.xLineAccess!, 'X-Line-Access')}
                     className={cn(
                       'text-xs',
-                      copiedField === 'X-Line-Access' ? 'text-emerald-400' : 'text-slate-400 hover:text-white'
+                      copiedField === 'X-Line-Access' ? 'text-emerald-400' : 'text-cyan-400 hover:text-cyan-300'
                     )}
                   >
                     {copiedField === 'X-Line-Access' ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
                   </Button>
                 </div>
-                <div className="bg-slate-900 border border-white/10 rounded-xl p-3">
-                  <p className="text-xs text-slate-400 font-mono truncate">{curlData.xLineAccess}</p>
+                <div className="bg-slate-800 border border-cyan-500/20 rounded-xl p-3 overflow-x-auto">
+                  <p className="text-sm text-cyan-300 font-mono break-all">{curlData.xLineAccess}</p>
                 </div>
               </div>
             )}
@@ -1259,14 +1395,14 @@ export default function AutoSlipPage() {
                     onClick={() => copyToClipboard(curlData.xHmac!, 'X-Hmac')}
                     className={cn(
                       'text-xs',
-                      copiedField === 'X-Hmac' ? 'text-emerald-400' : 'text-slate-400 hover:text-white'
+                      copiedField === 'X-Hmac' ? 'text-emerald-400' : 'text-cyan-400 hover:text-cyan-300'
                     )}
                   >
                     {copiedField === 'X-Hmac' ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
                   </Button>
                 </div>
-                <div className="bg-slate-900 border border-white/10 rounded-xl p-3">
-                  <p className="text-xs text-slate-400 font-mono truncate">{curlData.xHmac}</p>
+                <div className="bg-slate-800 border border-cyan-500/20 rounded-xl p-3 overflow-x-auto">
+                  <p className="text-sm text-cyan-300 font-mono break-all">{curlData.xHmac}</p>
                 </div>
               </div>
             )}
@@ -1281,14 +1417,14 @@ export default function AutoSlipPage() {
                     onClick={() => copyToClipboard(curlData.chatMid!, 'Chat MID')}
                     className={cn(
                       'text-xs',
-                      copiedField === 'Chat MID' ? 'text-emerald-400' : 'text-slate-400 hover:text-white'
+                      copiedField === 'Chat MID' ? 'text-emerald-400' : 'text-cyan-400 hover:text-cyan-300'
                     )}
                   >
                     {copiedField === 'Chat MID' ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
                   </Button>
                 </div>
-                <div className="bg-slate-900 border border-white/10 rounded-xl p-3">
-                  <p className="text-xs text-slate-400 font-mono">{curlData.chatMid}</p>
+                <div className="bg-slate-800 border border-cyan-500/20 rounded-xl p-3 overflow-x-auto">
+                  <p className="text-sm text-cyan-300 font-mono break-all">{curlData.chatMid}</p>
                 </div>
               </div>
             )}
