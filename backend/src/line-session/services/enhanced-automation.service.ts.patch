@@ -1,0 +1,16 @@
+# Patch file for enhanced-automation.service.ts
+# This describes the changes needed
+
+## Problem:
+Keys are captured from getLastOpRevision BEFORE clicking into a chat.
+The system returns immediately when keys are captured, without waiting for getRecentMessagesV2.
+
+## Solution:
+1. Don't return immediately when keys are captured
+2. Continue clicking into chat to trigger getRecentMessagesV2
+3. Only return after getRecentMessagesV2 cURL is captured (or timeout)
+
+## Key changes:
+1. Remove early return when keys are captured
+2. Continue attempts even after keys are captured (to get getRecentMessagesV2)
+3. Only return when BOTH keys AND getRecentMessagesV2 cURL are captured

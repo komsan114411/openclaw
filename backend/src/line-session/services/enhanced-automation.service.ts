@@ -792,143 +792,93 @@ export class EnhancedAutomationService implements OnModuleDestroy {
     this.logger.log(`[TriggerKeys] 🔄 Waiting for chat list to render...`);
     await this.waitForChatListToRender(worker.page);
 
-    for (let attempt = 1; attempt <= this.MESSAGE_TRIGGER_ATTEMPTS; attempt++) {
-      this.logger.log(`[TriggerKeys] 🎯 Attempt ${attempt}/${this.MESSAGE_TRIGGER_ATTEMPTS} for ${lineAccountId}`);
+    // [NEW] Step 1: Navigate to chats and find GSB now
+    this.logger.log(`[TriggerKeys] 📱 Step 1: Navigate to chats...`);
+    await this.navigateToChats(worker.page);
+    await this.delay(2000);
 
-      try {
-        switch (attempt) {
-          case 1:
-            // Attempt 1: Click chat button to navigate to chat list
-            this.logger.log(`[TriggerKeys] Attempt 1: Click chat button`);
-            await this.clickChatButton(worker.page, worker.cdpClient);
-            break;
+    // [NEW] Step 2: Search and click GSB now chat specifically
+    this.logger.log(`[TriggerKeys] 🔍 Step 2: Searching for GSB now chat...`);
+    const gsbClicked = await this.findAndClickGSBNowChat(worker.page, worker.cdpClient);
+    
+    if (gsbClicked) {
+      this.logger.log(`[TriggerKeys] ✅ GSB now chat clicked, waiting for getRecentMessagesV2...`);
+      await this.delay(3000); // Wait for messages to load
+    } else {
+      this.logger.warn(`[TriggerKeys] ⚠️ GSB now chat not found, trying first chat...`);
+      await this.clickFirstChatItem(worker.page, worker.cdpClient);
+      await this.delay(2000);
+    }
 
-          case 2:
-            // Attempt 2: Navigate to #/chats directly
-            this.logger.log(`[TriggerKeys] Attempt 2: Navigate to #/chats`);
-            await this.navigateToChats(worker.page);
-            break;
-
-          case 3:
-            // Attempt 3: Click first chat item
-            this.logger.log(`[TriggerKeys] Attempt 3: Click first chat item`);
-            await this.clickFirstChatItem(worker.page, worker.cdpClient);
-            break;
-
-          case 4:
-            // Attempt 4: Auto-detect and click bank notification chat
-            this.logger.log(`[TriggerKeys] Attempt 4: Click bank chat`);
-            await this.clickBankChat(worker.page, worker.cdpClient);
-            break;
-
-          case 5:
-            // [FIX] Attempt 5: Search for GSB NOW / bank chat by name
-            this.logger.log(`[TriggerKeys] Attempt 5: Search for bank chat by name`);
-            await this.searchBankChatByName(worker.page, worker.cdpClient);
-            break;
-
-          case 6:
-            // Attempt 6: Scroll chat list and click second item
-            this.logger.log(`[TriggerKeys] Attempt 6: Scroll and click chat`);
-            await this.scrollAndClickChat(worker.page, worker.cdpClient);
-            break;
-
-          case 7:
-            // [FIX] Attempt 7: Force refresh messages in current chat
-            this.logger.log(`[TriggerKeys] Attempt 7: Force refresh messages`);
-            await this.forceRefreshMessages(worker.page, worker.cdpClient);
-            break;
-
-          case 8:
-            // [FIX] Attempt 8: Scroll chat messages to trigger API call
-            this.logger.log(`[TriggerKeys] Attempt 8: Scroll to load messages`);
-            await this.scrollToLoadRecentMessages(worker.page);
-            break;
-
-          case 9:
-            // Attempt 9: Reload page and retry
-            this.logger.log(`[TriggerKeys] Attempt 9: Reload and retry`);
-            await worker.page.reload({ waitUntil: 'domcontentloaded' });
-            await this.delay(3000);
-            await this.clickFirstChatItem(worker.page, worker.cdpClient);
-            break;
-
-          case 10:
-            // [FIX] Attempt 10: Navigate to specific bank chat using keyboard
-            this.logger.log(`[TriggerKeys] Attempt 10: Keyboard navigation to bank chat`);
-            await this.keyboardNavigateToBankChat(worker.page, worker.cdpClient);
-            break;
-        }
-      } catch (error: any) {
-        this.logger.warn(`[TriggerKeys] ⚠️ Attempt ${attempt} failed: ${error.message}`);
-      }
-
-      await this.delay(this.ATTEMPT_DELAY);
-
-      // Check if keys were captured
-      if (worker.capturedKeys) {
-        this.logger.log(`Keys captured on attempt ${attempt}`);
-
-        // [NEW] Wait for getRecentMessagesV2 cURL to be captured (max 10 seconds)
-        this.logger.log(`[TriggerKeys] 🔍 Waiting for getRecentMessagesV2 cURL...`);
-        let waitCount = 0;
-        const maxWait = 20; // 20 * 500ms = 10 seconds
-        while (!worker.capturedCurlRecentMessages && waitCount < maxWait) {
-          await this.delay(500);
-          waitCount++;
-          if (waitCount % 4 === 0) {
-            this.logger.log(`[TriggerKeys] Still waiting for getRecentMessagesV2 cURL... (${waitCount * 500}ms)`);
-          }
-        }
-        
-        if (worker.capturedCurlRecentMessages) {
-          this.logger.log(`[TriggerKeys] ✅ getRecentMessagesV2 cURL captured after ${waitCount * 500}ms`);
-        } else {
-          this.logger.warn(`[TriggerKeys] ⚠️ getRecentMessagesV2 cURL not captured after ${maxWait * 500}ms, using general cURL`);
-        }
-
-        // [NEW] Prefer getRecentMessagesV2 cURL if available, fallback to general cURL
-        const preferredCurl = worker.capturedCurlRecentMessages || worker.capturedCurl;
-        this.logger.log(`[TriggerKeys] Using cURL: ${worker.capturedCurlRecentMessages ? 'getRecentMessagesV2 (preferred)' : 'general'}`);
-
-        return {
-          keys: worker.capturedKeys,
-          chatMid: worker.capturedChatMid,
-          cUrlBash: preferredCurl,
-        };
-      }
-
-      // Also check with timeout
-      try {
-        const result = await Promise.race([
-          keyCapturedPromise,
-          this.delay(2000).then(() => null),
-        ]);
-
-        if (result) {
-          return result;
-        }
-      } catch {
-        // Continue to next attempt
+    // [NEW] Step 3: Wait for getRecentMessagesV2 cURL (max 15 seconds)
+    this.logger.log(`[TriggerKeys] ⏳ Step 3: Waiting for getRecentMessagesV2 cURL...`);
+    let waitCount = 0;
+    const maxWait = 30; // 30 * 500ms = 15 seconds
+    while (!worker.capturedCurlRecentMessages && waitCount < maxWait) {
+      await this.delay(500);
+      waitCount++;
+      if (waitCount % 6 === 0) {
+        this.logger.log(`[TriggerKeys] Still waiting for getRecentMessagesV2 cURL... (${waitCount * 500}ms)`);
+        // Try scrolling to trigger more API calls
+        await this.scrollToLoadRecentMessages(worker.page);
       }
     }
 
-    // Final check
-    if (worker.capturedKeys) {
-      // [NEW] Wait for getRecentMessagesV2 cURL if not already captured (max 5 seconds)
-      if (!worker.capturedCurlRecentMessages) {
-        this.logger.log(`[TriggerKeys] Final check - waiting for getRecentMessagesV2 cURL...`);
-        let waitCount = 0;
-        const maxWait = 10; // 10 * 500ms = 5 seconds
-        while (!worker.capturedCurlRecentMessages && waitCount < maxWait) {
-          await this.delay(500);
-          waitCount++;
+    // Check if we got the cURL
+    if (worker.capturedCurlRecentMessages) {
+      this.logger.log(`[TriggerKeys] ✅ getRecentMessagesV2 cURL captured after ${waitCount * 500}ms`);
+    } else {
+      this.logger.warn(`[TriggerKeys] ⚠️ getRecentMessagesV2 cURL not captured, trying more attempts...`);
+    }
+
+    // [FALLBACK] If still no getRecentMessagesV2 cURL, try more aggressive methods
+    if (!worker.capturedCurlRecentMessages) {
+      for (let attempt = 1; attempt <= 5; attempt++) {
+        this.logger.log(`[TriggerKeys] 🎯 Fallback attempt ${attempt}/5`);
+
+        try {
+          switch (attempt) {
+            case 1:
+              // Try clicking bank chat by pattern
+              await this.clickBankChat(worker.page, worker.cdpClient);
+              break;
+            case 2:
+              // Try scrolling messages
+              await this.scrollToLoadRecentMessages(worker.page);
+              break;
+            case 3:
+              // Try force refresh
+              await this.forceRefreshMessages(worker.page, worker.cdpClient);
+              break;
+            case 4:
+              // Try clicking first chat again
+              await this.clickFirstChatItem(worker.page, worker.cdpClient);
+              break;
+            case 5:
+              // Reload and try GSB now again
+              await worker.page.reload({ waitUntil: 'domcontentloaded' });
+              await this.delay(3000);
+              await this.findAndClickGSBNowChat(worker.page, worker.cdpClient);
+              break;
+          }
+        } catch (error: any) {
+          this.logger.warn(`[TriggerKeys] ⚠️ Fallback attempt ${attempt} failed: ${error.message}`);
+        }
+
+        await this.delay(2000);
+
+        // Check if we got it now
+        if (worker.capturedCurlRecentMessages) {
+          this.logger.log(`[TriggerKeys] ✅ getRecentMessagesV2 cURL captured on fallback attempt ${attempt}`);
+          break;
         }
       }
-      
-      // [NEW] Prefer getRecentMessagesV2 cURL if available, fallback to general cURL
+    }
+
+    // Return results
+    if (worker.capturedKeys) {
       const preferredCurl = worker.capturedCurlRecentMessages || worker.capturedCurl;
-      this.logger.log(`[TriggerKeys] Final check - Using cURL: ${worker.capturedCurlRecentMessages ? 'getRecentMessagesV2 (preferred)' : 'general'}`);
+      this.logger.log(`[TriggerKeys] 📋 Final result - Using cURL: ${worker.capturedCurlRecentMessages ? 'getRecentMessagesV2 ✅' : 'general (fallback) ⚠️'}`);
 
       return {
         keys: worker.capturedKeys,
@@ -1149,6 +1099,134 @@ export class EnhancedAutomationService implements OnModuleDestroy {
       }
     } catch (error: any) {
       this.logger.warn(`clickBankChat failed: ${error.message}`);
+    }
+  }
+
+  /**
+   * [NEW] Find and click GSB now chat specifically
+   * Returns true if GSB now chat was found and clicked
+   */
+  private async findAndClickGSBNowChat(page: any, cdpClient?: any): Promise<boolean> {
+    this.logger.log(`[FindGSB] 🔍 Searching for GSB now chat...`);
+
+    try {
+      // GSB now specific patterns (prioritized)
+      const gsbPatterns = [
+        'GSB now',
+        'GSB NOW', 
+        'GSBnow',
+        'gsb now',
+        'ออมสิน',
+        'GSB',
+        'ธนาคารออมสิน',
+      ];
+
+      // Try to find GSB now in chat list
+      const elementInfo = await page.evaluate((patterns: string[]) => {
+        // Multiple selectors for chat items
+        const selectors = [
+          '[class*="chatItem"]',
+          '[class*="listItem"]',
+          '[class*="ChatListItem"]',
+          '[data-testid="chat-list-item"]',
+          'li[role="listitem"]',
+          '[class*="conversation"]',
+        ];
+
+        for (const selector of selectors) {
+          const chatItems = document.querySelectorAll(selector);
+          
+          for (const item of chatItems) {
+            const text = (item.textContent || '').toLowerCase();
+            
+            for (const pattern of patterns) {
+              if (text.includes(pattern.toLowerCase())) {
+                const rect = item.getBoundingClientRect();
+                // Make sure element is visible
+                if (rect.width > 0 && rect.height > 0) {
+                  return {
+                    found: true,
+                    x: rect.x + rect.width / 2,
+                    y: rect.y + rect.height / 2,
+                    text: (item.textContent || '').substring(0, 50),
+                    pattern: pattern
+                  };
+                }
+              }
+            }
+          }
+        }
+
+        return { found: false, x: 0, y: 0, text: '', pattern: '' };
+      }, gsbPatterns);
+
+      if (elementInfo.found) {
+        this.logger.log(`[FindGSB] ✅ Found GSB chat: "${elementInfo.text}..." (matched: ${elementInfo.pattern})`);
+
+        // Try CDP click first (more reliable)
+        if (cdpClient) {
+          try {
+            await cdpClient.send('Input.dispatchMouseEvent', {
+              type: 'mousePressed',
+              x: elementInfo.x,
+              y: elementInfo.y,
+              button: 'left',
+              clickCount: 1,
+            });
+            await cdpClient.send('Input.dispatchMouseEvent', {
+              type: 'mouseReleased',
+              x: elementInfo.x,
+              y: elementInfo.y,
+              button: 'left',
+              clickCount: 1,
+            });
+            this.logger.log(`[FindGSB] 👆 CDP clicked GSB chat at (${elementInfo.x}, ${elementInfo.y})`);
+            await this.delay(1500);
+            return true;
+          } catch (cdpError: any) {
+            this.logger.warn(`[FindGSB] CDP click failed: ${cdpError.message}, trying DOM click...`);
+          }
+        }
+
+        // Fallback: DOM click
+        const clicked = await page.evaluate((patterns: string[]) => {
+          const selectors = [
+            '[class*="chatItem"]',
+            '[class*="listItem"]',
+            '[class*="ChatListItem"]',
+            '[data-testid="chat-list-item"]',
+          ];
+
+          for (const selector of selectors) {
+            const chatItems = document.querySelectorAll(selector);
+            
+            for (const item of chatItems) {
+              const text = (item.textContent || '').toLowerCase();
+              
+              for (const pattern of patterns) {
+                if (text.includes(pattern.toLowerCase())) {
+                  (item as HTMLElement).click();
+                  return true;
+                }
+              }
+            }
+          }
+          return false;
+        }, gsbPatterns);
+
+        if (clicked) {
+          this.logger.log(`[FindGSB] 👆 DOM clicked GSB chat`);
+          await this.delay(1500);
+          return true;
+        }
+      }
+
+      this.logger.warn(`[FindGSB] ⚠️ GSB now chat not found in chat list`);
+      return false;
+
+    } catch (error: any) {
+      this.logger.warn(`[FindGSB] Error: ${error.message}`);
+      return false;
     }
   }
 
