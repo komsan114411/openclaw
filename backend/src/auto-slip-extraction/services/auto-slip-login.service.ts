@@ -344,29 +344,48 @@ export class AutoSlipLoginService {
     // Check if this lineAccountId corresponds to an Auto-Slip bank account
     // Try multiple lookup strategies:
     // 1. By _id (if bankAccountId was passed to startLogin)
-    // 2. By lineSessionId (if LINE session ID was linked to bank account)
+    // 2. By lineSessionId (if LINE session ID was linked to bank account) - [FIX] Use ObjectId
     // 3. By in-memory mapping (for current session)
+    this.logger.log(`[AutoSlipLogin] Looking up bank account for lineAccountId: ${lineAccountId}`);
+
     let bankAccount = await this.bankAccountModel.findById(lineAccountId);
+    if (bankAccount) {
+      this.logger.log(`[AutoSlipLogin] Found by _id: ${bankAccount._id}`);
+    }
 
     if (!bankAccount) {
-      // Try to find by lineSessionId field
-      bankAccount = await this.bankAccountModel.findOne({
-        lineSessionId: lineAccountId,
-        isActive: true,
-      });
+      // [FIX] Convert lineAccountId to ObjectId for proper comparison
+      // lineSessionId in schema is Types.ObjectId, not string
+      try {
+        const lineSessionObjectId = new Types.ObjectId(lineAccountId);
+        bankAccount = await this.bankAccountModel.findOne({
+          lineSessionId: lineSessionObjectId,
+          isActive: true,
+        });
+        if (bankAccount) {
+          this.logger.log(`[AutoSlipLogin] Found by lineSessionId (ObjectId): ${bankAccount._id}`);
+        }
+      } catch (e) {
+        this.logger.debug(`[AutoSlipLogin] Invalid ObjectId format: ${lineAccountId}`);
+      }
     }
 
     if (!bankAccount) {
       // Try in-memory mapping (for current session only)
       const mappedBankAccountId = this.findBankAccountIdByLineSession(lineAccountId);
+      this.logger.debug(`[AutoSlipLogin] In-memory mapping result: ${mappedBankAccountId || 'not found'}`);
       if (mappedBankAccountId) {
         bankAccount = await this.bankAccountModel.findById(mappedBankAccountId);
+        if (bankAccount) {
+          this.logger.log(`[AutoSlipLogin] Found by in-memory mapping: ${bankAccount._id}`);
+        }
       }
     }
 
     if (!bankAccount) {
       // Not an Auto-Slip bank account, might be a regular LINE session
-      this.logger.debug(`[AutoSlipLogin] Not a bank account, ignoring: ${lineAccountId}`);
+      this.logger.warn(`[AutoSlipLogin] ⚠️ Bank account NOT FOUND for lineAccountId: ${lineAccountId}`);
+      this.logger.warn(`[AutoSlipLogin] ⚠️ This means events won't reach frontend!`);
       return;
     }
 
