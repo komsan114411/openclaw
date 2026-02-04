@@ -106,8 +106,8 @@ export class EnhancedAutomationService implements OnModuleDestroy {
   private readonly LOGIN_TIMEOUT = 180000; // 3 minutes (GSB-style)
   private readonly PIN_TIMEOUT = 180000; // 3 minutes (GSB-style, was 90 seconds)
   private readonly DIALOG_TIMEOUT = 10000; // 10 seconds to wait for dialog after login
-  private readonly MESSAGE_TRIGGER_ATTEMPTS = 6;
-  private readonly ATTEMPT_DELAY = 4000; // 4 seconds between attempts
+  private readonly MESSAGE_TRIGGER_ATTEMPTS = 10; // [FIX] Increased from 6 to 10 attempts
+  private readonly ATTEMPT_DELAY = 3000; // 3 seconds between attempts (reduced from 4)
 
   // PIN Status Configuration (ported from GSB)
   private readonly PIN_EXPIRY_MINUTES = 5;      // PIN expires after 5 minutes
@@ -788,45 +788,79 @@ export class EnhancedAutomationService implements OnModuleDestroy {
   ): Promise<{ keys: { xLineAccess: string; xHmac: string }; chatMid?: string; cUrlBash?: string } | null> {
     this.emitStatus(lineAccountId, EnhancedLoginStatus.TRIGGERING_MESSAGES, { requestId });
 
+    // [FIX] First, wait for chat list to fully render
+    this.logger.log(`[TriggerKeys] 🔄 Waiting for chat list to render...`);
+    await this.waitForChatListToRender(worker.page);
+
     for (let attempt = 1; attempt <= this.MESSAGE_TRIGGER_ATTEMPTS; attempt++) {
-      this.logger.log(`Trigger attempt ${attempt}/${this.MESSAGE_TRIGGER_ATTEMPTS} for ${lineAccountId}`);
+      this.logger.log(`[TriggerKeys] 🎯 Attempt ${attempt}/${this.MESSAGE_TRIGGER_ATTEMPTS} for ${lineAccountId}`);
 
       try {
         switch (attempt) {
           case 1:
-            // Attempt 1: Click chat button (with CDP support)
+            // Attempt 1: Click chat button to navigate to chat list
+            this.logger.log(`[TriggerKeys] Attempt 1: Click chat button`);
             await this.clickChatButton(worker.page, worker.cdpClient);
             break;
 
           case 2:
             // Attempt 2: Navigate to #/chats directly
+            this.logger.log(`[TriggerKeys] Attempt 2: Navigate to #/chats`);
             await this.navigateToChats(worker.page);
             break;
 
           case 3:
             // Attempt 3: Click first chat item
+            this.logger.log(`[TriggerKeys] Attempt 3: Click first chat item`);
             await this.clickFirstChatItem(worker.page, worker.cdpClient);
             break;
 
           case 4:
             // Attempt 4: Auto-detect and click bank notification chat
+            this.logger.log(`[TriggerKeys] Attempt 4: Click bank chat`);
             await this.clickBankChat(worker.page, worker.cdpClient);
             break;
 
           case 5:
-            // Attempt 5: Scroll chat list and click second item
-            await this.scrollAndClickChat(worker.page, worker.cdpClient);
+            // [FIX] Attempt 5: Search for GSB NOW / bank chat by name
+            this.logger.log(`[TriggerKeys] Attempt 5: Search for bank chat by name`);
+            await this.searchBankChatByName(worker.page, worker.cdpClient);
             break;
 
           case 6:
-            // Attempt 6: Reload and retry
+            // Attempt 6: Scroll chat list and click second item
+            this.logger.log(`[TriggerKeys] Attempt 6: Scroll and click chat`);
+            await this.scrollAndClickChat(worker.page, worker.cdpClient);
+            break;
+
+          case 7:
+            // [FIX] Attempt 7: Force refresh messages in current chat
+            this.logger.log(`[TriggerKeys] Attempt 7: Force refresh messages`);
+            await this.forceRefreshMessages(worker.page, worker.cdpClient);
+            break;
+
+          case 8:
+            // [FIX] Attempt 8: Scroll chat messages to trigger API call
+            this.logger.log(`[TriggerKeys] Attempt 8: Scroll to load messages`);
+            await this.scrollToLoadRecentMessages(worker.page);
+            break;
+
+          case 9:
+            // Attempt 9: Reload page and retry
+            this.logger.log(`[TriggerKeys] Attempt 9: Reload and retry`);
             await worker.page.reload({ waitUntil: 'domcontentloaded' });
             await this.delay(3000);
             await this.clickFirstChatItem(worker.page, worker.cdpClient);
             break;
+
+          case 10:
+            // [FIX] Attempt 10: Navigate to specific bank chat using keyboard
+            this.logger.log(`[TriggerKeys] Attempt 10: Keyboard navigation to bank chat`);
+            await this.keyboardNavigateToBankChat(worker.page, worker.cdpClient);
+            break;
         }
       } catch (error: any) {
-        this.logger.warn(`Trigger attempt ${attempt} failed: ${error.message}`);
+        this.logger.warn(`[TriggerKeys] ⚠️ Attempt ${attempt} failed: ${error.message}`);
       }
 
       await this.delay(this.ATTEMPT_DELAY);
@@ -1135,6 +1169,331 @@ export class EnhancedAutomationService implements OnModuleDestroy {
       }
     } catch (error: any) {
       this.logger.warn(`scrollAndClickChat failed: ${error.message}`);
+    }
+  }
+
+  // ============================================
+  // [FIX] NEW METHODS FOR FIX_REPORT.md
+  // ============================================
+
+  /**
+   * [FIX] Wait for chat list to fully render
+   * Ensures DOM is ready before attempting to click
+   */
+  private async waitForChatListToRender(page: any): Promise<boolean> {
+    this.logger.log(`[WaitRender] ⏳ Waiting for chat list to render...`);
+
+    const maxWaitTime = 15000; // 15 seconds max
+    const startTime = Date.now();
+
+    while (Date.now() - startTime < maxWaitTime) {
+      try {
+        const hasContent = await page.evaluate(() => {
+          // Check for chat list container
+          const chatListSelectors = [
+            '[class*="chatList"]',
+            '[class*="ChatList"]',
+            '[class*="listContainer"]',
+            '[data-testid="chat-list"]',
+          ];
+
+          for (const selector of chatListSelectors) {
+            const el = document.querySelector(selector);
+            if (el && el.children.length > 0) {
+              return true;
+            }
+          }
+
+          // Check for chat items
+          const chatItems = document.querySelectorAll('[class*="chatItem"], [class*="listItem"]');
+          return chatItems.length > 0;
+        });
+
+        if (hasContent) {
+          this.logger.log(`[WaitRender] ✅ Chat list rendered (${Date.now() - startTime}ms)`);
+          await this.delay(500); // Extra wait for stability
+          return true;
+        }
+      } catch (e) {
+        // Continue waiting
+      }
+
+      await this.delay(500);
+    }
+
+    this.logger.warn(`[WaitRender] ⚠️ Chat list render timeout`);
+    return false;
+  }
+
+  /**
+   * [FIX] Search for bank chat by name using search box
+   * Implements: Search for 'GSB NOW' in contact search box using page.type()
+   */
+  private async searchBankChatByName(page: any, cdpClient?: any): Promise<void> {
+    const bankSearchTerms = ['GSB NOW', 'GSB', 'ออมสิน', 'SCB', 'KBANK', 'KBank', 'กสิกร'];
+
+    this.logger.log(`[SearchBank] 🔍 Searching for bank chat...`);
+
+    try {
+      // Look for search input
+      const searchSelectors = [
+        'input[placeholder*="search"]',
+        'input[placeholder*="Search"]',
+        'input[placeholder*="ค้นหา"]',
+        'input[type="search"]',
+        '[class*="searchInput"]',
+        '[class*="SearchInput"]',
+        '[data-testid="search-input"]',
+      ];
+
+      let searchFound = false;
+      for (const selector of searchSelectors) {
+        try {
+          const searchInput = await page.$(selector);
+          if (searchInput) {
+            this.logger.log(`[SearchBank] Found search input: ${selector}`);
+
+            // Click to focus
+            await searchInput.click();
+            await this.delay(300);
+
+            // Clear existing text
+            await page.keyboard.down('Control');
+            await page.keyboard.press('a');
+            await page.keyboard.up('Control');
+            await this.delay(100);
+
+            // Try each bank search term
+            for (const term of bankSearchTerms) {
+              this.logger.log(`[SearchBank] Typing: "${term}"`);
+              await searchInput.type(term, { delay: 50 });
+              await this.delay(1500); // Wait for search results
+
+              // Check if results appeared
+              const hasResults = await page.evaluate(() => {
+                const items = document.querySelectorAll('[class*="chatItem"], [class*="listItem"], [class*="searchResult"]');
+                return items.length > 0;
+              });
+
+              if (hasResults) {
+                this.logger.log(`[SearchBank] ✅ Found results for "${term}"`);
+                // Click first result
+                await this.clickFirstChatItem(page, cdpClient);
+                searchFound = true;
+                break;
+              }
+
+              // Clear for next term
+              await page.keyboard.down('Control');
+              await page.keyboard.press('a');
+              await page.keyboard.up('Control');
+              await page.keyboard.press('Backspace');
+              await this.delay(300);
+            }
+
+            if (searchFound) break;
+          }
+        } catch (e) {
+          // Try next selector
+        }
+      }
+
+      if (!searchFound) {
+        this.logger.warn(`[SearchBank] ⚠️ Search box not found or no results`);
+      }
+    } catch (error: any) {
+      this.logger.warn(`[SearchBank] Error: ${error.message}`);
+    }
+  }
+
+  /**
+   * [FIX] Force refresh messages to trigger getRecentMessagesV2 API call
+   */
+  private async forceRefreshMessages(page: any, cdpClient?: any): Promise<void> {
+    this.logger.log(`[ForceRefresh] 🔄 Forcing message refresh...`);
+
+    try {
+      // Method 1: Pull to refresh (scroll up quickly)
+      await page.evaluate(() => {
+        const messageContainer = document.querySelector('[class*="messageList"], [class*="MessageList"], [class*="chatContent"]');
+        if (messageContainer) {
+          messageContainer.scrollTop = 0;
+        }
+      });
+      await this.delay(500);
+
+      // Method 2: Click on chat header to refresh
+      const headerSelectors = [
+        '[class*="chatHeader"]',
+        '[class*="ChatHeader"]',
+        '[class*="conversationHeader"]',
+      ];
+
+      for (const selector of headerSelectors) {
+        try {
+          const header = await page.$(selector);
+          if (header) {
+            await header.click();
+            this.logger.log(`[ForceRefresh] Clicked header: ${selector}`);
+            await this.delay(1000);
+            break;
+          }
+        } catch (e) {
+          // Try next
+        }
+      }
+
+      // Method 3: Press F5 in message area (some apps refresh on this)
+      await page.keyboard.press('F5');
+      await this.delay(1000);
+
+      // Method 4: Use CDP to reload frame
+      if (cdpClient) {
+        try {
+          await cdpClient.send('Page.reload', { ignoreCache: false });
+          this.logger.log(`[ForceRefresh] CDP page reload sent`);
+          await this.delay(2000);
+        } catch (e) {
+          // Ignore
+        }
+      }
+    } catch (error: any) {
+      this.logger.warn(`[ForceRefresh] Error: ${error.message}`);
+    }
+  }
+
+  /**
+   * [FIX] Scroll chat to load recent messages
+   * This triggers the getRecentMessagesV2 API call
+   */
+  private async scrollToLoadRecentMessages(page: any): Promise<void> {
+    this.logger.log(`[ScrollMessages] 📜 Scrolling to load messages...`);
+
+    try {
+      // Find message container
+      const scrolled = await page.evaluate(() => {
+        const containerSelectors = [
+          '[class*="messageList"]',
+          '[class*="MessageList"]',
+          '[class*="chatContent"]',
+          '[class*="ChatContent"]',
+          '[class*="conversationContent"]',
+          '[data-testid="message-list"]',
+        ];
+
+        for (const selector of containerSelectors) {
+          const container = document.querySelector(selector);
+          if (container) {
+            // Scroll to top to trigger loading older messages
+            container.scrollTop = 0;
+
+            // Wait and scroll down
+            setTimeout(() => {
+              container.scrollTop = container.scrollHeight;
+            }, 500);
+
+            return true;
+          }
+        }
+        return false;
+      });
+
+      if (scrolled) {
+        this.logger.log(`[ScrollMessages] ✅ Scrolled message container`);
+        await this.delay(2000); // Wait for API call
+
+        // Scroll again to trigger more loads
+        await page.evaluate(() => {
+          const container = document.querySelector('[class*="messageList"], [class*="MessageList"], [class*="chatContent"]');
+          if (container) {
+            // Scroll up
+            container.scrollTop = 0;
+          }
+        });
+        await this.delay(1000);
+
+        // Scroll down
+        await page.evaluate(() => {
+          const container = document.querySelector('[class*="messageList"], [class*="MessageList"], [class*="chatContent"]');
+          if (container) {
+            container.scrollTop = container.scrollHeight;
+          }
+        });
+        await this.delay(1000);
+      } else {
+        this.logger.warn(`[ScrollMessages] ⚠️ Message container not found`);
+      }
+    } catch (error: any) {
+      this.logger.warn(`[ScrollMessages] Error: ${error.message}`);
+    }
+  }
+
+  /**
+   * [FIX] Keyboard navigation to find and click bank chat
+   * Uses arrow keys and enter to navigate chat list
+   */
+  private async keyboardNavigateToBankChat(page: any, cdpClient?: any): Promise<void> {
+    this.logger.log(`[KeyboardNav] ⌨️ Using keyboard to navigate...`);
+
+    try {
+      // First, make sure we're on chat list
+      await this.navigateToChats(page);
+      await this.delay(1000);
+
+      // Focus on chat list
+      await page.keyboard.press('Tab');
+      await this.delay(200);
+
+      // Navigate through items with arrow keys
+      const bankPatterns = ['GSB', 'SCB', 'KBANK', 'ออมสิน', 'กสิกร', 'ธนาคาร'];
+
+      for (let i = 0; i < 10; i++) {
+        // Press Down arrow
+        await page.keyboard.press('ArrowDown');
+        await this.delay(300);
+
+        // Check if current item is a bank chat
+        const isBank = await page.evaluate((patterns: string[]) => {
+          const focused = document.activeElement;
+          if (focused) {
+            const text = focused.textContent || '';
+            for (const pattern of patterns) {
+              if (text.includes(pattern)) {
+                return true;
+              }
+            }
+          }
+
+          // Also check highlighted/selected items
+          const selected = document.querySelector('[class*="selected"], [class*="active"], [class*="focused"]');
+          if (selected) {
+            const text = selected.textContent || '';
+            for (const pattern of patterns) {
+              if (text.includes(pattern)) {
+                return true;
+              }
+            }
+          }
+
+          return false;
+        }, bankPatterns);
+
+        if (isBank) {
+          this.logger.log(`[KeyboardNav] ✅ Found bank chat at position ${i + 1}`);
+          // Press Enter to open
+          await page.keyboard.press('Enter');
+          await this.delay(1000);
+          return;
+        }
+      }
+
+      // If no bank found, just press Enter on current item
+      this.logger.log(`[KeyboardNav] No bank found, selecting current item`);
+      await page.keyboard.press('Enter');
+      await this.delay(1000);
+
+    } catch (error: any) {
+      this.logger.warn(`[KeyboardNav] Error: ${error.message}`);
     }
   }
 
