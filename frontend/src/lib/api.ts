@@ -776,6 +776,32 @@ export const lineSessionApi = {
   // Check if needs relogin
   needsRelogin: (lineAccountId: string) =>
     api.get(`/admin/line-session/${lineAccountId}/needs-relogin`),
+
+  // === Auto-Fetch Settings ===
+
+  // Get auto-fetch settings
+  getAutoFetchSettings: () =>
+    api.get('/admin/line-session/settings/auto-fetch'),
+
+  // Update auto-fetch settings
+  updateAutoFetchSettings: (data: {
+    enabled?: boolean;
+    intervalSeconds?: number;
+    activeOnly?: boolean;
+    fetchLimit?: number;
+  }) => api.put('/admin/line-session/settings/auto-fetch', data),
+
+  // Control auto-fetch (start/stop/restart)
+  controlAutoFetch: (action: 'start' | 'stop' | 'restart') =>
+    api.post(`/admin/line-session/settings/auto-fetch/${action}`),
+
+  // Get auto-fetch status
+  getAutoFetchStatus: () =>
+    api.get('/admin/line-session/settings/auto-fetch/status'),
+
+  // Fetch all messages from all accounts (batch)
+  fetchAllMessages: () =>
+    api.post('/admin/line-session/batch/messages/fetch-all'),
 };
 
 // LINE Session User API (User-facing endpoints)

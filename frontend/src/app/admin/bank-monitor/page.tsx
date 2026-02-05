@@ -28,7 +28,10 @@ import {
   ChevronRight,
   Filter,
   User,
-  Users
+  Users,
+  MessageSquare,
+  Key,
+  Loader2
 } from 'lucide-react';
 
 interface BankSession {
@@ -49,6 +52,12 @@ interface BankSession {
   ownerName?: string;
   ownerEmail?: string;
   lineEmail?: string;
+  // Message stats
+  messageCount?: number;
+  newMessagesCount?: number;
+  lastMessageAt?: string;
+  // Keys status
+  hasKeys?: boolean;
 }
 
 interface OwnerInfo {
@@ -99,7 +108,12 @@ export default function AdminBankMonitorPage() {
     activeSessions: 0,
     totalDeposits: 0,
     totalWithdrawals: 0,
+    totalMessages: 0,
+    sessionsWithKeys: 0,
   });
+
+  // Batch fetch state
+  const [isBatchFetching, setIsBatchFetching] = useState(false);
 
   const fetchData = useCallback(async () => {
     try {
@@ -131,15 +145,18 @@ export default function AdminBankMonitorPage() {
 
       for (const account of accounts) {
         try {
-          const [sessionRes, bankRes] = await Promise.allSettled([
+          const [sessionRes, bankRes, messagesRes] = await Promise.allSettled([
             lineSessionApi.getSession(account._id),
             lineSessionApi.getBank(account._id),
+            lineSessionApi.getMessages(account._id, { limit: 1 }).catch(() => ({ data: null })),
           ]);
 
           const session = sessionRes.status === 'fulfilled' ? sessionRes.value.data : null;
           const bankConfig = bankRes.status === 'fulfilled' ? bankRes.value.data : null;
+          const messagesData = messagesRes.status === 'fulfilled' ? messagesRes.value.data : null;
 
-          if (session && bankConfig?.bankCode) {
+          // Show ALL sessions, not just those with bank config
+          if (session) {
             // Get transaction summary
             const summaryRes = await lineSessionApi.getTransactionSummary(account._id).catch(() => ({ data: null }));
             const accountSummary = summaryRes.data;
@@ -151,21 +168,24 @@ export default function AdminBankMonitorPage() {
             sessionsData.push({
               _id: session._id,
               lineAccountId: account._id,
-              accountName: account.accountName,
-              bankCode: bankConfig.bankCode,
-              bankName: bankConfig.bankName,
-              accountNumber: bankConfig.accountNumber,
-              chatMid: bankConfig.chatMid,
-              balance: session.balance || bankConfig.balance,
+              accountName: account.accountName || session.name || 'ไม่มีชื่อ',
+              bankCode: bankConfig?.bankCode,
+              bankName: bankConfig?.bankName,
+              accountNumber: bankConfig?.accountNumber,
+              chatMid: bankConfig?.chatMid || session.chatMid,
+              balance: session.balance || bankConfig?.balance,
               status: session.status,
               isActive: session.isActive,
               lastCheckedAt: session.lastCheckedAt,
               consecutiveFailures: session.consecutiveFailures,
               // Owner info
               ownerId: ownerId,
-              ownerName: owner?.name || owner?.username || 'ไม่ทราบ',
+              ownerName: owner?.name || owner?.username || 'ไม่ทราบเจ้าของ',
               ownerEmail: owner?.email,
               lineEmail: session.lineEmail || account.lineEmail,
+              // Message stats
+              messageCount: messagesData?.total || 0,
+              hasKeys: !!(session.xLineAccess && session.xHmac),
             });
 
             if (accountSummary) {
@@ -174,7 +194,8 @@ export default function AdminBankMonitorPage() {
             }
           }
         } catch (error) {
-          // Skip accounts without sessions
+          // Skip accounts with errors
+          console.error('Error fetching account:', account._id, error);
         }
       }
 
@@ -184,6 +205,8 @@ export default function AdminBankMonitorPage() {
         activeSessions: sessionsData.filter(s => s.status === 'active').length,
         totalDeposits,
         totalWithdrawals,
+        totalMessages: sessionsData.reduce((acc, s) => acc + (s.messageCount || 0), 0),
+        sessionsWithKeys: sessionsData.filter(s => s.hasKeys).length,
       });
     } catch (error) {
       toast.error('Failed to load bank sessions');
@@ -221,7 +244,7 @@ export default function AdminBankMonitorPage() {
     setIsFetching(true);
     try {
       const res = await lineSessionApi.fetchMessages(selectedSession.lineAccountId);
-      toast.success(`Fetched ${res.data.newMessages || 0} new messages`);
+      toast.success(`ดึงได้ ${res.data.newMessages || 0} ข้อความใหม่`);
 
       // Reload messages
       const [messagesRes, summaryRes] = await Promise.all([
@@ -231,9 +254,28 @@ export default function AdminBankMonitorPage() {
       setMessages(messagesRes.data?.messages || []);
       setSummary(summaryRes.data || null);
     } catch (error: any) {
-      toast.error(error.response?.data?.message || 'Failed to fetch messages');
+      toast.error(error.response?.data?.message || 'ไม่สามารถดึงข้อความได้');
     } finally {
       setIsFetching(false);
+    }
+  };
+
+  // Batch fetch all messages
+  const handleBatchFetchAll = async () => {
+    setIsBatchFetching(true);
+    try {
+      const res = await lineSessionApi.fetchAllMessages();
+      if (res.data.success) {
+        toast.success(res.data.message || `ดึงข้อความสำเร็จ ${res.data.totalNewMessages} ข้อความใหม่`);
+        // Refresh data
+        await fetchData();
+      } else {
+        toast.error('ไม่สามารถดึงข้อความได้');
+      }
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || 'เกิดข้อผิดพลาด');
+    } finally {
+      setIsBatchFetching(false);
     }
   };
 
@@ -281,16 +323,34 @@ export default function AdminBankMonitorPage() {
               Bank Monitor
             </h1>
             <p className="text-slate-400 text-sm mt-1">
-              Monitor bank transactions from LINE sessions
+              Monitor bank transactions from LINE sessions ({stats.sessionsWithKeys}/{stats.totalSessions} มี Keys)
             </p>
           </div>
-          <Button
-            variant="secondary"
-            onClick={fetchData}
-            className="h-12 rounded-xl font-bold"
-          >
-            <RefreshCw className="w-4 h-4 mr-2" /> Refresh
-          </Button>
+          <div className="flex items-center gap-3">
+            <Button
+              variant="primary"
+              onClick={handleBatchFetchAll}
+              disabled={isBatchFetching || stats.sessionsWithKeys === 0}
+              className="h-12 rounded-xl font-bold bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700"
+            >
+              {isBatchFetching ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" /> Fetching...
+                </>
+              ) : (
+                <>
+                  <Download className="w-4 h-4 mr-2" /> Fetch All ({stats.sessionsWithKeys})
+                </>
+              )}
+            </Button>
+            <Button
+              variant="secondary"
+              onClick={fetchData}
+              className="h-12 rounded-xl font-bold"
+            >
+              <RefreshCw className="w-4 h-4 mr-2" /> Refresh
+            </Button>
+          </div>
         </div>
 
         {/* Stats Cards */}
@@ -396,8 +456,13 @@ export default function AdminBankMonitorPage() {
               >
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-4">
-                    <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-emerald-500/20 to-teal-500/20 flex items-center justify-center border border-emerald-500/20">
-                      <Building2 className="w-7 h-7 text-emerald-400" />
+                    <div className={cn(
+                      "w-14 h-14 rounded-xl flex items-center justify-center border",
+                      session.hasKeys
+                        ? "bg-gradient-to-br from-emerald-500/20 to-teal-500/20 border-emerald-500/20"
+                        : "bg-gradient-to-br from-slate-500/20 to-slate-600/20 border-slate-500/20"
+                    )}>
+                      <Building2 className={cn("w-7 h-7", session.hasKeys ? "text-emerald-400" : "text-slate-500")} />
                     </div>
                     <div>
                       <div className="flex items-center gap-3 mb-1">
@@ -405,6 +470,18 @@ export default function AdminBankMonitorPage() {
                           {session.accountName}
                         </h3>
                         {getStatusBadge(session.status)}
+                        {/* Keys Status Badge */}
+                        {session.hasKeys ? (
+                          <span className="flex items-center gap-1 px-2 py-0.5 bg-emerald-500/10 text-emerald-400 rounded text-xs border border-emerald-500/20">
+                            <CheckCircle className="w-3 h-3" />
+                            มี Keys
+                          </span>
+                        ) : (
+                          <span className="flex items-center gap-1 px-2 py-0.5 bg-red-500/10 text-red-400 rounded text-xs border border-red-500/20">
+                            <XCircle className="w-3 h-3" />
+                            ไม่มี Keys
+                          </span>
+                        )}
                       </div>
                       <div className="flex flex-wrap items-center gap-3 text-sm text-slate-400">
                         {/* Owner Info - Highlighted */}
@@ -412,10 +489,17 @@ export default function AdminBankMonitorPage() {
                           <User className="w-3.5 h-3.5" />
                           <span className="font-medium">{session.ownerName || 'ไม่ทราบเจ้าของ'}</span>
                         </span>
-                        <span className="flex items-center gap-1">
-                          <Building2 className="w-4 h-4" />
-                          {session.bankName || session.bankCode || 'N/A'}
-                        </span>
+                        {session.bankName || session.bankCode ? (
+                          <span className="flex items-center gap-1">
+                            <Building2 className="w-4 h-4" />
+                            {session.bankName || session.bankCode}
+                          </span>
+                        ) : (
+                          <span className="flex items-center gap-1 text-slate-500">
+                            <Building2 className="w-4 h-4" />
+                            ยังไม่ตั้งค่าธนาคาร
+                          </span>
+                        )}
                         {session.accountNumber && (
                           <span className="flex items-center gap-1">
                             <Wallet className="w-4 h-4" />
@@ -423,11 +507,16 @@ export default function AdminBankMonitorPage() {
                           </span>
                         )}
                       </div>
-                      {/* LINE Email & Last Check */}
+                      {/* LINE Email & Stats */}
                       <div className="flex flex-wrap items-center gap-3 text-xs text-slate-500 mt-1">
                         {session.lineEmail && (
                           <span className="flex items-center gap-1">
                             LINE: {session.lineEmail}
+                          </span>
+                        )}
+                        {session.messageCount !== undefined && session.messageCount > 0 && (
+                          <span className="flex items-center gap-1 text-blue-400">
+                            📩 {session.messageCount} ข้อความ
                           </span>
                         )}
                         {session.lastCheckedAt && (
@@ -440,14 +529,23 @@ export default function AdminBankMonitorPage() {
                     </div>
                   </div>
                   <div className="flex items-center gap-4">
-                    {session.balance && (
-                      <div className="text-right">
-                        <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Balance</p>
-                        <p className="text-xl font-black text-emerald-400">
-                          {Number(session.balance).toLocaleString()} THB
-                        </p>
-                      </div>
-                    )}
+                    <div className="text-right">
+                      {session.balance ? (
+                        <>
+                          <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Balance</p>
+                          <p className="text-xl font-black text-emerald-400">
+                            {Number(session.balance).toLocaleString()} THB
+                          </p>
+                        </>
+                      ) : (
+                        <>
+                          <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">ข้อความ</p>
+                          <p className="text-xl font-black text-blue-400">
+                            {session.messageCount || 0}
+                          </p>
+                        </>
+                      )}
+                    </div>
                     <ChevronRight className="w-5 h-5 text-slate-500 group-hover:text-emerald-400 group-hover:translate-x-1 transition-all" />
                   </div>
                 </div>
