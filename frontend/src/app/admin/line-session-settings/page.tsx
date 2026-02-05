@@ -81,6 +81,7 @@ export default function LineSessionSettingsPage() {
   const [autoFetchStatus, setAutoFetchStatus] = useState<AutoFetchStatus | null>(null);
   const [isUpdatingAutoFetch, setIsUpdatingAutoFetch] = useState(false);
   const [autoFetchInterval, setAutoFetchInterval] = useState(60);
+  const [countdown, setCountdown] = useState<number>(0);
 
   const [settings, setSettings] = useState<LineSessionSettings>({
     lineSessionHealthCheckEnabled: true,
@@ -253,6 +254,28 @@ export default function LineSessionSettingsPage() {
     }, 30000);
     return () => clearInterval(interval);
   }, [fetchHealthStatuses, fetchAutoFetchStatus]);
+
+  // Countdown timer for next auto-fetch
+  useEffect(() => {
+    if (!autoFetchStatus?.isRunning || !autoFetchStatus?.lastFetchTime) {
+      setCountdown(0);
+      return;
+    }
+
+    const calculateCountdown = () => {
+      const lastFetch = new Date(autoFetchStatus.lastFetchTime!).getTime();
+      const interval = autoFetchStatus.config.intervalSeconds * 1000;
+      const nextFetch = lastFetch + interval;
+      const now = Date.now();
+      const remaining = Math.max(0, Math.ceil((nextFetch - now) / 1000));
+      setCountdown(remaining);
+    };
+
+    calculateCountdown();
+    const timer = setInterval(calculateCountdown, 1000);
+
+    return () => clearInterval(timer);
+  }, [autoFetchStatus?.isRunning, autoFetchStatus?.lastFetchTime, autoFetchStatus?.config.intervalSeconds]);
 
   const handleSave = async () => {
     setIsSaving(true);
@@ -680,8 +703,52 @@ export default function LineSessionSettingsPage() {
             </div>
           )}
 
-          {/* Last Fetch Time */}
-          {autoFetchStatus?.lastFetchTime && (
+          {/* Countdown Progress Bar */}
+          {autoFetchStatus?.isRunning && (
+            <div className="mb-6 p-4 bg-gradient-to-r from-violet-50 to-purple-50 dark:from-violet-900/20 dark:to-purple-900/20 rounded-xl border border-violet-200 dark:border-violet-800">
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-2">
+                  <div className="w-3 h-3 bg-violet-500 rounded-full animate-pulse" />
+                  <span className="text-sm font-medium text-violet-700 dark:text-violet-300">
+                    ดึงรายการถัดไปใน
+                  </span>
+                </div>
+                <span className="text-2xl font-bold text-violet-600 dark:text-violet-400 tabular-nums">
+                  {countdown > 0 ? (
+                    <>
+                      {Math.floor(countdown / 60) > 0 && (
+                        <span>{Math.floor(countdown / 60)} นาที </span>
+                      )}
+                      {countdown % 60} วินาที
+                    </>
+                  ) : (
+                    <span className="flex items-center gap-2">
+                      <Loader2 className="w-5 h-5 animate-spin" />
+                      กำลังดึง...
+                    </span>
+                  )}
+                </span>
+              </div>
+              {/* Progress bar */}
+              <div className="w-full h-3 bg-violet-200 dark:bg-violet-800 rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-gradient-to-r from-violet-500 to-purple-500 rounded-full transition-all duration-1000 ease-linear"
+                  style={{
+                    width: `${autoFetchStatus?.config.intervalSeconds > 0
+                      ? ((autoFetchStatus.config.intervalSeconds - countdown) / autoFetchStatus.config.intervalSeconds) * 100
+                      : 0}%`
+                  }}
+                />
+              </div>
+              <div className="flex justify-between mt-1 text-xs text-violet-500 dark:text-violet-400">
+                <span>ดึงล่าสุด: {autoFetchStatus?.lastFetchTime ? new Date(autoFetchStatus.lastFetchTime).toLocaleTimeString('th-TH') : '-'}</span>
+                <span>ทุก {autoFetchStatus?.config.intervalSeconds} วินาที</span>
+              </div>
+            </div>
+          )}
+
+          {/* Last Fetch Time (when stopped) */}
+          {!autoFetchStatus?.isRunning && autoFetchStatus?.lastFetchTime && (
             <div className="mb-6 p-3 bg-white dark:bg-slate-800 rounded-lg">
               <p className="text-xs text-slate-500 dark:text-slate-400">ดึงล่าสุดเมื่อ</p>
               <p className="text-sm font-medium text-slate-700 dark:text-slate-300">
