@@ -36,8 +36,10 @@ import { BatchOperationDto, BatchReloginDto, BatchOperationResponse, BatchOperat
 import { LoginLockService } from './services/login-lock.service';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
+import { ConfigService } from '@nestjs/config';
 import { BankList, BankListDocument, DEFAULT_BANKS } from './schemas/bank-list.schema';
 import { LineSession, LineSessionDocument } from './schemas/line-session.schema';
+import { decryptPassword } from './utils/credential.util';
 
 @ApiTags('LINE Session')
 @ApiBearerAuth()
@@ -46,6 +48,7 @@ import { LineSession, LineSessionDocument } from './schemas/line-session.schema'
 @Roles(UserRole.ADMIN)
 export class LineSessionController {
   private readonly logger = new Logger(LineSessionController.name);
+  private readonly ENCRYPTION_KEY: string;
 
   constructor(
     private keyStorageService: KeyStorageService,
@@ -59,6 +62,7 @@ export class LineSessionController {
     private loginCoordinatorService: LoginCoordinatorService,
     private orchestratorService: OrchestratorService,
     private loginLockService: LoginLockService,
+    private configService: ConfigService,
     @InjectModel(BankList.name)
     private bankListModel: Model<BankListDocument>,
     @InjectModel(LineSession.name)
@@ -66,6 +70,22 @@ export class LineSessionController {
   ) {
     // Initialize default banks on startup
     this.initializeDefaultBanks();
+    // Get encryption key
+    this.ENCRYPTION_KEY = this.configService.get('LINE_PASSWORD_ENCRYPTION_KEY') ||
+      'default-key-change-in-production-32';
+  }
+
+  /**
+   * Decrypt password safely
+   */
+  private decryptPasswordSafely(encryptedPassword: string | null | undefined): string | null {
+    if (!encryptedPassword) return null;
+    try {
+      return decryptPassword(encryptedPassword, this.ENCRYPTION_KEY);
+    } catch (error) {
+      this.logger.warn(`Failed to decrypt password: ${error.message}`);
+      return null;
+    }
   }
 
   /**
@@ -120,9 +140,9 @@ export class LineSessionController {
         balance: session.balance,
         // Status
         status: session.status,
-        // Credentials (admin can see password)
+        // Credentials (admin can see decrypted password)
         lineEmail: session.lineEmail || null,
-        linePassword: session.linePassword || null,
+        linePassword: this.decryptPasswordSafely(session.linePassword),
         hasCredentials: !!(session.lineEmail && session.linePassword),
         // Timestamps
         lastCheckedAt: session.lastCheckedAt,
