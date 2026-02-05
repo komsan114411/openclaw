@@ -896,6 +896,71 @@ export class LineSessionController {
     };
   }
 
+  // ================================
+  // Auto Message Fetch Settings
+  // ================================
+
+  /**
+   * Get auto-fetch settings and status
+   */
+  @Get('settings/auto-fetch')
+  @ApiOperation({ summary: 'Get auto-fetch settings and status' })
+  async getAutoFetchSettings() {
+    const status = this.messageFetchService.getAutoFetchStatus();
+    return {
+      success: true,
+      ...status,
+    };
+  }
+
+  /**
+   * Update auto-fetch settings
+   */
+  @Put('settings/auto-fetch')
+  @ApiOperation({ summary: 'Update auto-fetch settings' })
+  async updateAutoFetchSettings(
+    @Body() body: {
+      enabled?: boolean;
+      intervalSeconds?: number;
+      activeOnly?: boolean;
+      fetchLimit?: number;
+    },
+  ) {
+    // Validate interval (min 10 seconds, max 3600 seconds)
+    if (body.intervalSeconds !== undefined) {
+      body.intervalSeconds = Math.max(10, Math.min(3600, body.intervalSeconds));
+    }
+
+    await this.messageFetchService.updateSettings(body);
+    const status = this.messageFetchService.getAutoFetchStatus();
+
+    return {
+      success: true,
+      message: `อัปเดตการตั้งค่าสำเร็จ - ${status.config.enabled ? `เปิด (ทุก ${status.config.intervalSeconds} วินาที)` : 'ปิด'}`,
+      ...status,
+    };
+  }
+
+  /**
+   * Start/Stop auto-fetch
+   */
+  @Post('settings/auto-fetch/:action')
+  @ApiOperation({ summary: 'Start or stop auto-fetch' })
+  async controlAutoFetch(@Param('action') action: string) {
+    if (action === 'start') {
+      await this.messageFetchService.updateSettings({ enabled: true });
+      return { success: true, message: 'เริ่มดึงข้อความอัตโนมัติแล้ว' };
+    } else if (action === 'stop') {
+      await this.messageFetchService.updateSettings({ enabled: false });
+      return { success: true, message: 'หยุดดึงข้อความอัตโนมัติแล้ว' };
+    } else if (action === 'restart') {
+      await this.messageFetchService.restartAutoFetch();
+      return { success: true, message: 'รีสตาร์ทการดึงข้อความอัตโนมัติแล้ว' };
+    } else {
+      return { success: false, message: 'Invalid action. Use: start, stop, or restart' };
+    }
+  }
+
   /**
    * Get messages for a LINE Account
    */

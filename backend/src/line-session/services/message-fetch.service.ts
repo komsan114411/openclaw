@@ -1,12 +1,12 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, OnModuleInit, OnModuleDestroy } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
-import { Cron } from '@nestjs/schedule';
 import { ConfigService } from '@nestjs/config';
 import { OnEvent } from '@nestjs/event-emitter';
 import axios from 'axios';
 import { LineSession, LineSessionDocument } from '../schemas/line-session.schema';
 import { LineMessage, LineMessageDocument } from '../schemas/line-message.schema';
+import { SystemSettings, SystemSettingsDocument } from '../../database/schemas/system-settings.schema';
 import { KeyStorageService } from './key-storage.service';
 import { EventBusService } from '../../core/events';
 
@@ -37,34 +37,234 @@ export interface ParsedTransaction {
   description?: string;
 }
 
+export interface AutoFetchConfig {
+  enabled: boolean;
+  intervalSeconds: number;
+  activeOnly: boolean;
+  fetchLimit: number;
+}
+
 @Injectable()
-export class MessageFetchService {
+export class MessageFetchService implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(MessageFetchService.name);
   private readonly LINE_API = 'https://line-chrome-gw.line-apps.com';
+
+  // Dynamic interval timer
+  private fetchInterval: NodeJS.Timeout | null = null;
+  private isRunning = false;
+  private lastFetchTime: Date | null = null;
+  private fetchStats = {
+    totalFetches: 0,
+    successfulFetches: 0,
+    failedFetches: 0,
+    totalNewMessages: 0,
+  };
+
+  // Configuration from database
+  private config: AutoFetchConfig = {
+    enabled: false,
+    intervalSeconds: 60,
+    activeOnly: true,
+    fetchLimit: 50,
+  };
 
   constructor(
     @InjectModel(LineSession.name)
     private lineSessionModel: Model<LineSessionDocument>,
     @InjectModel(LineMessage.name)
     private lineMessageModel: Model<LineMessageDocument>,
+    @InjectModel(SystemSettings.name)
+    private systemSettingsModel: Model<SystemSettingsDocument>,
     private keyStorageService: KeyStorageService,
     private configService: ConfigService,
     private eventBusService: EventBusService,
   ) {}
 
-  // Flag to enable/disable automatic message fetch
-  private autoMessageFetchEnabled = false; // Disabled by default
+  async onModuleInit() {
+    this.logger.log('MessageFetchService initializing...');
+    await this.loadSettings();
+    await this.startAutoFetch();
+  }
+
+  onModuleDestroy() {
+    this.stopAutoFetch();
+  }
 
   /**
-   * Enable/Disable automatic message fetch
+   * Load settings from database
    */
+  async loadSettings(): Promise<void> {
+    try {
+      const settings = await this.systemSettingsModel.findOne({ settingsId: 'main' });
+      if (settings) {
+        this.config = {
+          enabled: settings.autoMessageFetchEnabled ?? false,
+          intervalSeconds: Math.max(10, Math.min(3600, settings.autoMessageFetchIntervalSeconds ?? 60)),
+          activeOnly: settings.autoMessageFetchActiveOnly ?? true,
+          fetchLimit: settings.autoMessageFetchLimit ?? 50,
+        };
+        this.logger.log(`[AutoFetch] Settings loaded: enabled=${this.config.enabled}, interval=${this.config.intervalSeconds}s`);
+      }
+    } catch (error: any) {
+      this.logger.error(`[AutoFetch] Failed to load settings: ${error.message}`);
+    }
+  }
+
+  /**
+   * Start auto-fetch loop with dynamic interval
+   */
+  async startAutoFetch(): Promise<void> {
+    if (this.fetchInterval) {
+      clearInterval(this.fetchInterval);
+      this.fetchInterval = null;
+    }
+
+    if (!this.config.enabled) {
+      this.logger.log('[AutoFetch] Disabled in settings');
+      this.isRunning = false;
+      return;
+    }
+
+    const intervalMs = this.config.intervalSeconds * 1000;
+    this.fetchInterval = setInterval(() => {
+      this.runAutoFetch();
+    }, intervalMs);
+
+    this.isRunning = true;
+    this.logger.log(`[AutoFetch] Started - fetching every ${this.config.intervalSeconds} seconds`);
+
+    // Run immediately on start
+    await this.runAutoFetch();
+  }
+
+  /**
+   * Stop auto-fetch loop
+   */
+  stopAutoFetch(): void {
+    if (this.fetchInterval) {
+      clearInterval(this.fetchInterval);
+      this.fetchInterval = null;
+    }
+    this.isRunning = false;
+    this.logger.log('[AutoFetch] Stopped');
+  }
+
+  /**
+   * Restart auto-fetch with new settings
+   */
+  async restartAutoFetch(): Promise<void> {
+    this.stopAutoFetch();
+    await this.loadSettings();
+    await this.startAutoFetch();
+  }
+
+  /**
+   * Run auto-fetch for all accounts
+   */
+  private async runAutoFetch(): Promise<void> {
+    this.logger.debug('[AutoFetch] Running scheduled fetch...');
+    this.lastFetchTime = new Date();
+    this.fetchStats.totalFetches++;
+
+    try {
+      const query: any = {
+        isActive: true,
+        xLineAccess: { $exists: true, $nin: [null, ''] },
+        chatMid: { $exists: true, $nin: [null, ''] },
+      };
+
+      if (this.config.activeOnly) {
+        query.status = 'active';
+      }
+
+      const sessions = await this.lineSessionModel.find(query);
+      this.logger.log(`[AutoFetch] Found ${sessions.length} sessions to fetch`);
+
+      let successCount = 0;
+      let newMessagesTotal = 0;
+
+      for (const session of sessions) {
+        try {
+          const result = await this.fetchMessages(session._id.toString());
+          if (result.success) {
+            successCount++;
+            newMessagesTotal += result.newMessages;
+          }
+        } catch (error: any) {
+          this.logger.error(`[AutoFetch] Error fetching ${session.name}: ${error.message}`);
+        }
+
+        // Rate limiting - wait 300ms between each fetch
+        await new Promise(resolve => setTimeout(resolve, 300));
+      }
+
+      this.fetchStats.successfulFetches += successCount;
+      this.fetchStats.totalNewMessages += newMessagesTotal;
+
+      if (newMessagesTotal > 0) {
+        this.logger.log(`[AutoFetch] Completed: ${successCount}/${sessions.length} success, ${newMessagesTotal} new messages`);
+
+        // Publish event for real-time notification
+        this.eventBusService.publish({
+          eventName: 'line-session.auto-fetch-batch-completed',
+          occurredAt: new Date(),
+          sessionsCount: sessions.length,
+          successCount,
+          newMessagesTotal,
+        });
+      }
+    } catch (error: any) {
+      this.fetchStats.failedFetches++;
+      this.logger.error(`[AutoFetch] Error: ${error.message}`);
+    }
+  }
+
+  /**
+   * Get current auto-fetch status
+   */
+  getAutoFetchStatus(): {
+    isRunning: boolean;
+    config: AutoFetchConfig;
+    lastFetchTime: Date | null;
+    stats: typeof this.fetchStats;
+  } {
+    return {
+      isRunning: this.isRunning,
+      config: this.config,
+      lastFetchTime: this.lastFetchTime,
+      stats: this.fetchStats,
+    };
+  }
+
+  /**
+   * Update settings and restart
+   */
+  async updateSettings(newSettings: Partial<AutoFetchConfig>): Promise<void> {
+    // Update in database
+    await this.systemSettingsModel.updateOne(
+      { settingsId: 'main' },
+      {
+        $set: {
+          autoMessageFetchEnabled: newSettings.enabled ?? this.config.enabled,
+          autoMessageFetchIntervalSeconds: newSettings.intervalSeconds ?? this.config.intervalSeconds,
+          autoMessageFetchActiveOnly: newSettings.activeOnly ?? this.config.activeOnly,
+          autoMessageFetchLimit: newSettings.fetchLimit ?? this.config.fetchLimit,
+        },
+      },
+      { upsert: true },
+    );
+
+    // Restart with new settings
+    await this.restartAutoFetch();
+  }
+
+  // Legacy methods for backwards compatibility
   setAutoMessageFetchEnabled(enabled: boolean): void {
-    this.autoMessageFetchEnabled = enabled;
-    this.logger.log(`Auto message fetch ${enabled ? 'enabled' : 'disabled'}`);
+    this.updateSettings({ enabled });
   }
 
   isAutoMessageFetchEnabled(): boolean {
-    return this.autoMessageFetchEnabled;
+    return this.config.enabled;
   }
 
   /**
@@ -126,39 +326,6 @@ export class MessageFetchService {
       }
     } catch (error: any) {
       this.logger.error(`[AutoFetch] Error in keys-captured fetch: ${error.message}`);
-    }
-  }
-
-  /**
-   * Cron Job: ดึงข้อความทุก 2 นาที
-   * ปิดโดย default - ต้องเปิดผ่าน API
-   */
-  @Cron('*/2 * * * *')
-  async scheduledMessageFetch(): Promise<void> {
-    // Skip if auto message fetch is disabled
-    if (!this.autoMessageFetchEnabled) {
-      return;
-    }
-
-    this.logger.debug('Running scheduled message fetch...');
-
-    const activeSessions = await this.lineSessionModel.find({
-      isActive: true,
-      status: 'active',
-      xLineAccess: { $exists: true, $ne: null },
-      chatMid: { $exists: true, $ne: null },
-    });
-
-    this.logger.log(`Fetching messages for ${activeSessions.length} active sessions`);
-
-    for (const session of activeSessions) {
-      try {
-        await this.fetchMessages(session.lineAccountId);
-      } catch (error: any) {
-        this.logger.error(
-          `Failed to fetch messages for ${session.lineAccountId}: ${error.message}`,
-        );
-      }
     }
   }
 

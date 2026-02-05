@@ -446,6 +446,35 @@ export class SystemSettings {
    */
   @Prop({ default: 5 })
   lineSessionExpiryWarningMinutes: number;
+
+  // ===============================
+  // Auto Message Fetch Settings
+  // ===============================
+
+  /**
+   * Enable automatic message fetching
+   */
+  @Prop({ default: false })
+  autoMessageFetchEnabled: boolean;
+
+  /**
+   * Message fetch interval in seconds (default: 60 seconds)
+   * Minimum: 10 seconds, Maximum: 3600 seconds (1 hour)
+   */
+  @Prop({ default: 60 })
+  autoMessageFetchIntervalSeconds: number;
+
+  /**
+   * Fetch messages for all accounts or only active ones
+   */
+  @Prop({ default: true })
+  autoMessageFetchActiveOnly: boolean;
+
+  /**
+   * Maximum messages to fetch per account per request
+   */
+  @Prop({ default: 50 })
+  autoMessageFetchLimit: number;
 }
 
 export const SystemSettingsSchema = SchemaFactory.createForClass(SystemSettings);
