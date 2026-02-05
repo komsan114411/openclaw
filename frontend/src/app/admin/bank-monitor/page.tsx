@@ -151,42 +151,45 @@ export default function AdminBankMonitorPage() {
             lineSessionApi.getMessages(account._id, { limit: 1 }).catch(() => ({ data: null })),
           ]);
 
-          const session = sessionRes.status === 'fulfilled' ? sessionRes.value.data : null;
+          // API returns { success, hasSession, session: {...} }
+          const sessionData = sessionRes.status === 'fulfilled' ? sessionRes.value.data : null;
+          const session = sessionData?.session; // Extract actual session object
+          const hasSession = sessionData?.hasSession;
           const bankConfig = bankRes.status === 'fulfilled' ? bankRes.value.data : null;
           const messagesData = messagesRes.status === 'fulfilled' ? messagesRes.value.data : null;
 
-          // Show ALL sessions, not just those with bank config
-          if (session) {
-            // Get transaction summary
-            const summaryRes = await lineSessionApi.getTransactionSummary(account._id).catch(() => ({ data: null }));
-            const accountSummary = summaryRes.data;
+          // Show ALL LINE accounts (even without session)
+          // Get transaction summary
+          const summaryRes = await lineSessionApi.getTransactionSummary(account._id).catch(() => ({ data: null }));
+          const accountSummary = summaryRes.data;
 
-            // Get owner info from lookup map
-            const ownerId = account.ownerId || session.ownerId;
-            const owner = ownerId ? usersMap.get(ownerId) : null;
+          // Get owner info from lookup map
+          const ownerId = account.ownerId || session?.lineAccountId;
+          const owner = ownerId ? usersMap.get(ownerId) : null;
 
-            sessionsData.push({
-              _id: session._id,
-              lineAccountId: account._id,
-              accountName: account.accountName || session.name || 'ไม่มีชื่อ',
-              bankCode: bankConfig?.bankCode,
-              bankName: bankConfig?.bankName,
-              accountNumber: bankConfig?.accountNumber,
-              chatMid: bankConfig?.chatMid || session.chatMid,
-              balance: session.balance || bankConfig?.balance,
-              status: session.status,
-              isActive: session.isActive,
-              lastCheckedAt: session.lastCheckedAt,
-              consecutiveFailures: session.consecutiveFailures,
-              // Owner info
-              ownerId: ownerId,
-              ownerName: owner?.name || owner?.username || 'ไม่ทราบเจ้าของ',
-              ownerEmail: owner?.email,
-              lineEmail: session.lineEmail || account.lineEmail,
-              // Message stats
-              messageCount: messagesData?.total || 0,
-              hasKeys: !!(session.xLineAccess && session.xHmac),
-            });
+          sessionsData.push({
+            _id: session?.id || account._id,
+            lineAccountId: account._id,
+            accountName: account.accountName || account.name || 'ไม่มีชื่อ',
+            bankCode: bankConfig?.bankCode,
+            bankName: bankConfig?.bankName,
+            accountNumber: bankConfig?.accountNumber,
+            chatMid: bankConfig?.chatMid || session?.chatMid,
+            balance: bankConfig?.balance,
+            status: session?.status || (hasSession ? 'unknown' : 'no_session'),
+            isActive: account.isActive,
+            lastCheckedAt: session?.lastCheckedAt,
+            consecutiveFailures: session?.consecutiveFailures,
+            // Owner info
+            ownerId: ownerId,
+            ownerName: owner?.name || owner?.username || 'ไม่ทราบเจ้าของ',
+            ownerEmail: owner?.email,
+            lineEmail: account.lineEmail,
+            // Message stats
+            messageCount: messagesData?.total || 0,
+            // hasKeys comes from session object directly
+            hasKeys: session?.hasKeys || false,
+          });
 
             if (accountSummary) {
               totalDeposits += accountSummary.deposits?.total || 0;
@@ -300,6 +303,10 @@ export default function AdminBankMonitorPage() {
         return <Badge className="bg-rose-100 text-rose-700 border-rose-200">Expired</Badge>;
       case 'error':
         return <Badge className="bg-amber-100 text-amber-700 border-amber-200">Error</Badge>;
+      case 'no_session':
+        return <Badge className="bg-slate-100 text-slate-500 border-slate-200">No Session</Badge>;
+      case 'pending':
+        return <Badge className="bg-blue-100 text-blue-700 border-blue-200">Pending</Badge>;
       default:
         return <Badge className="bg-slate-100 text-slate-600 border-slate-200">Unknown</Badge>;
     }
