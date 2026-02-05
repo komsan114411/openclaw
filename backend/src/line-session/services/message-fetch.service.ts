@@ -621,17 +621,37 @@ export class MessageFetchService implements OnModuleInit, OnModuleDestroy {
    */
   private extractChatMidFromCurl(curlCommand: string): string | undefined {
     try {
-      // Match --data-raw '["xxx",50]' or similar formats
-      const dataMatch = curlCommand.match(/(?:--data-raw|--data|-d)\s+['"]?\[['"]([^'"]+)['"],\s*\d+\]['"]?/);
+      this.logger.debug(`[ExtractChatMid] Parsing cURL (${curlCommand.length} chars)`);
 
-      if (dataMatch && dataMatch[1] && dataMatch[1].length > 10) {
-        this.logger.debug(`[ExtractChatMid] Found chatMid in cURL: ${dataMatch[1].substring(0, 20)}...`);
-        return dataMatch[1];
+      // Method 1: Match --data-raw '["xxx",50]' format
+      // The outer quotes are single, inner quotes are double: '["chatMid",50]'
+      let match = curlCommand.match(/--data(?:-raw)?\s+'?\["([^"]+)",\s*(\d+)\]'?/);
+
+      if (match && match[1] && match[1].length > 10) {
+        this.logger.log(`[ExtractChatMid] Found chatMid (method 1): ${match[1].substring(0, 30)}...`);
+        return match[1];
       }
 
+      // Method 2: Try with escaped quotes or different format
+      match = curlCommand.match(/\["([A-Za-z0-9_-]{20,})",\s*\d+\]/);
+
+      if (match && match[1]) {
+        this.logger.log(`[ExtractChatMid] Found chatMid (method 2): ${match[1].substring(0, 30)}...`);
+        return match[1];
+      }
+
+      // Method 3: Look for base64-like string that looks like chatMid
+      match = curlCommand.match(/\["([A-Za-z0-9+/=_-]{30,})",/);
+
+      if (match && match[1]) {
+        this.logger.log(`[ExtractChatMid] Found chatMid (method 3): ${match[1].substring(0, 30)}...`);
+        return match[1];
+      }
+
+      this.logger.warn(`[ExtractChatMid] Could not extract chatMid from cURL`);
       return undefined;
     } catch (error) {
-      this.logger.warn(`[ExtractChatMid] Error parsing cURL: ${error}`);
+      this.logger.error(`[ExtractChatMid] Error parsing cURL: ${error}`);
       return undefined;
     }
   }
@@ -724,9 +744,12 @@ export class MessageFetchService implements OnModuleInit, OnModuleDestroy {
     const parsed = this.parseTransaction(text, session.bankCode);
 
     // Create message
+    // [FIX] Use session._id as lineAccountId fallback if session.lineAccountId is undefined
+    const lineAccountId = session.lineAccountId || session._id.toString();
+
     await this.lineMessageModel.create({
       sessionId: session._id.toString(),
-      lineAccountId: session.lineAccountId,
+      lineAccountId: lineAccountId,
       messageId,
       from: msg.from,
       to: msg.to,
@@ -746,7 +769,7 @@ export class MessageFetchService implements OnModuleInit, OnModuleDestroy {
       this.eventBusService.publish({
         eventName: 'line-session.new-transaction' as any,
         occurredAt: new Date(),
-        lineAccountId: session.lineAccountId,
+        lineAccountId: lineAccountId,
         transactionType: parsed.transactionType,
         amount: parsed.amount,
         balance: parsed.balance,

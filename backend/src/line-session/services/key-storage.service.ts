@@ -443,32 +443,41 @@ export class KeyStorageService {
 
   /**
    * Extract chatMid from cURL command body
-   * Handles format: --data-raw '["chatMid",50]' or --data '["chatMid",50]'
+   * Handles format: --data-raw '["chatMid",50]'
    */
   private extractChatMidFromCurl(curlCommand: string): string | undefined {
     try {
-      // Match --data-raw '["xxx",50]' or --data '["xxx",50]' or -d '["xxx",50]'
-      const dataMatch = curlCommand.match(/(?:--data-raw|--data|-d)\s+['"]?\[['"]([^'"]+)['"],\s*\d+\]['"]?/);
+      this.logger.debug(`[ExtractChatMid] Parsing cURL (${curlCommand.length} chars)`);
 
-      if (dataMatch && dataMatch[1]) {
-        const chatMid = dataMatch[1];
-        // Validate it looks like a chatMid (usually starts with U and is base64-like)
-        if (chatMid.length > 10) {
-          this.logger.debug(`[ExtractChatMid] Found chatMid in cURL: ${chatMid.substring(0, 20)}...`);
-          return chatMid;
-        }
+      // Method 1: Match --data-raw '["xxx",50]' format
+      // The outer quotes are single, inner quotes are double: '["chatMid",50]'
+      let match = curlCommand.match(/--data(?:-raw)?\s+'?\["([^"]+)",\s*(\d+)\]'?/);
+
+      if (match && match[1] && match[1].length > 10) {
+        this.logger.log(`[ExtractChatMid] Found chatMid (method 1): ${match[1].substring(0, 30)}...`);
+        return match[1];
       }
 
-      // Try alternative format: --data-raw '["xxx", 50]' (with space)
-      const altMatch = curlCommand.match(/(?:--data-raw|--data|-d)\s+['"]?\[['"]([^'"]+)['"],\s*\d+\]['"]?/);
-      if (altMatch && altMatch[1] && altMatch[1].length > 10) {
-        return altMatch[1];
+      // Method 2: Try with escaped quotes or different format
+      match = curlCommand.match(/\["([A-Za-z0-9_-]{20,})",\s*\d+\]/);
+
+      if (match && match[1]) {
+        this.logger.log(`[ExtractChatMid] Found chatMid (method 2): ${match[1].substring(0, 30)}...`);
+        return match[1];
       }
 
-      this.logger.debug(`[ExtractChatMid] Could not extract chatMid from cURL`);
+      // Method 3: Look for base64-like string that looks like chatMid
+      match = curlCommand.match(/\["([A-Za-z0-9+/=_-]{30,})",/);
+
+      if (match && match[1]) {
+        this.logger.log(`[ExtractChatMid] Found chatMid (method 3): ${match[1].substring(0, 30)}...`);
+        return match[1];
+      }
+
+      this.logger.warn(`[ExtractChatMid] Could not extract chatMid from cURL`);
       return undefined;
     } catch (error) {
-      this.logger.warn(`[ExtractChatMid] Error parsing cURL: ${error}`);
+      this.logger.error(`[ExtractChatMid] Error parsing cURL: ${error}`);
       return undefined;
     }
   }
