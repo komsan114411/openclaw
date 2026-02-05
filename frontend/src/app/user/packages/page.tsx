@@ -8,7 +8,6 @@ import { useWalletStore } from '@/store/wallet';
 import { Package } from '@/types';
 import { Button } from '@/components/ui/Button';
 import { Modal } from '@/components/ui/Modal';
-import { Card } from '@/components/ui/Card';
 import { PageLoading } from '@/components/ui/Loading';
 import { cn } from '@/lib/utils';
 import {
@@ -22,6 +21,9 @@ import {
   X,
   ClipboardList,
   Loader2,
+  Sparkles,
+  Clock,
+  Zap,
 } from 'lucide-react';
 
 export default function UserPackagesPage() {
@@ -193,159 +195,203 @@ export default function UserPackagesPage() {
   // ===== MAIN =====
   return (
     <DashboardLayout>
-      <div className="p-3 sm:p-4 lg:p-6 max-w-6xl mx-auto">
-        {/* Header with Balance */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4">
-          <div>
-            <h1 className="text-xl sm:text-2xl font-black text-white mb-1">
-              เลือกแพ็กเกจ <span className="text-[#06C755]">(Select Package)</span>
-            </h1>
-            <p className="text-slate-400 text-xs sm:text-sm">ซื้อแพ็คเกจด้วยเครดิตของคุณ</p>
-          </div>
-
-          {/* Balance Display */}
-          <div className="flex items-center gap-3">
-            <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-xl px-4 py-2">
-              <p className="text-[10px] text-slate-400">เครดิตคงเหลือ</p>
-              <p className="text-lg font-black text-emerald-400">฿{balance.toLocaleString()}</p>
+      <div className="p-4 sm:p-6 lg:p-8 max-w-6xl mx-auto">
+        {/* Header Section */}
+        <div className="mb-8">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div>
+              <h1 className="text-2xl sm:text-3xl font-black text-white mb-2">
+                เลือกแพ็กเกจ
+              </h1>
+              <p className="text-slate-400 text-sm">เลือกแพ็คเกจที่เหมาะกับการใช้งานของคุณ</p>
             </div>
-            <Link href="/user/wallet">
-              <Button variant="primary" size="sm" className="bg-emerald-500 hover:bg-emerald-600 h-10 gap-2">
-                <Wallet className="w-4 h-4" /> เติมเครดิต
-              </Button>
-            </Link>
+
+            {/* Balance Card */}
+            <div className="flex items-center gap-3">
+              <div className="bg-gradient-to-r from-emerald-500/10 to-teal-500/10 border border-emerald-500/20 rounded-2xl px-5 py-3 backdrop-blur-sm">
+                <p className="text-[10px] text-slate-400 uppercase tracking-wider font-medium">เครดิตคงเหลือ</p>
+                <p className="text-2xl font-black text-emerald-400">฿{balance.toLocaleString()}</p>
+              </div>
+              <Link href="/user/wallet">
+                <Button variant="primary" size="sm" className="bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 h-12 px-5 rounded-xl gap-2 shadow-lg shadow-emerald-500/20">
+                  <Wallet className="w-4 h-4" /> เติมเครดิต
+                </Button>
+              </Link>
+            </div>
           </div>
         </div>
 
         {/* Packages Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 sm:gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 sm:gap-6">
           {packages.map((pkg) => {
             const canAfford = balance >= pkg.price;
             const isRecommended = pkg.isRecommended;
 
             return (
-              <Card
+              <div
                 key={pkg._id}
-                variant="glass"
                 className={cn(
-                  'relative p-3 sm:p-4 border rounded-xl transition-all duration-300 h-full flex flex-col',
-                  isRecommended ? 'ring-2 ring-[#06C755] border-[#06C755]/50' : 'border-white/10 hover:border-[#06C755]/50'
+                  'relative group rounded-2xl transition-all duration-500 hover:-translate-y-1',
+                  isRecommended && 'lg:scale-[1.02]'
                 )}
               >
-                {/* Best Value Badge */}
+                {/* Glow Effect for Recommended */}
                 {isRecommended && (
-                  <div className="absolute -top-2 left-1/2 -translate-x-1/2">
-                    <span className="px-3 py-0.5 bg-[#06C755] text-white text-[10px] font-bold rounded-full">
-                      แนะนำ
-                    </span>
-                  </div>
+                  <div className="absolute -inset-[2px] bg-gradient-to-r from-[#06C755] via-emerald-400 to-[#06C755] rounded-2xl opacity-75 blur-sm group-hover:opacity-100 transition-opacity" />
                 )}
 
-                {/* Purchase Limit Badge */}
-                {pkg.maxPurchasesPerUser && pkg.maxPurchasesPerUser > 0 && (
-                  <div className="absolute -top-2 right-2">
-                    <span className="px-2 py-0.5 bg-amber-500/20 text-amber-400 text-[9px] font-bold rounded-full border border-amber-500/30">
-                      จำกัด {pkg.maxPurchasesPerUser} ครั้ง
-                    </span>
-                  </div>
-                )}
-
-                {/* Package Name + Price */}
-                <div className="flex items-start justify-between gap-2 mb-2 mt-1">
-                  <h2 className="text-lg font-black text-white">{pkg.name}</h2>
-                  <div className="text-right flex-shrink-0">
-                    <p className="text-xl sm:text-2xl font-black text-[#06C755]">฿{pkg.price.toLocaleString()}</p>
-                    <p className="text-[10px] text-slate-500">/ {pkg.durationDays} วัน</p>
-                  </div>
-                </div>
-
-                {/* Quota */}
-                <div className="bg-white/5 rounded-lg p-3 mb-3">
-                  <div className="grid grid-cols-2 gap-3">
-                    {/* Slip Quota */}
-                    <div className="flex items-center gap-2">
-                      <div className="w-8 h-8 bg-amber-500/20 rounded-lg flex items-center justify-center flex-shrink-0">
-                        <FileText className="w-4 h-4 text-amber-400" />
-                      </div>
-                      <div>
-                        <p className="text-lg font-black text-white leading-none">{pkg.slipQuota.toLocaleString()}</p>
-                        <p className="text-[10px] text-slate-400">สลิป</p>
-                      </div>
-                    </div>
-                    {/* AI Quota */}
-                    <div className="flex items-center gap-2">
-                      <div className="w-8 h-8 bg-violet-500/20 rounded-lg flex items-center justify-center flex-shrink-0">
-                        <Bot className="w-4 h-4 text-violet-400" />
-                      </div>
-                      <div>
-                        <p className="text-lg font-black text-violet-300 leading-none">{(pkg.aiQuota || 0).toLocaleString()}</p>
-                        <p className="text-[10px] text-slate-400">AI ตอบกลับ</p>
-                      </div>
-                    </div>
-                  </div>
-                  {/* Price per Slip */}
-                  {pkg.slipQuota > 0 && (
-                    <div className="mt-3 pt-3 border-t border-white/10">
-                      <div className="flex items-center justify-center gap-2">
-                        <span className="text-[10px] text-slate-400">เฉลี่ย</span>
-                        <span className="text-sm font-bold text-[#06C755]">
-                          ฿{(pkg.price / pkg.slipQuota).toFixed(2)}
-                        </span>
-                        <span className="text-[10px] text-slate-400">/ สลิป</span>
-                      </div>
-                    </div>
-                  )}
-                </div>
-
-                {/* Features */}
-                <ul className="space-y-1 mb-3 flex-1">
-                  {/* Package Features from API */}
-                  {pkg.features && pkg.features.length > 0 ? (
-                    pkg.features.map((feature, i) => (
-                      <li key={i} className="flex items-center gap-1.5 text-xs text-slate-300">
-                        <span className="text-[#06C755] text-[10px]">✓</span> {feature}
-                      </li>
-                    ))
-                  ) : (
-                    <>
-                      <li className="flex items-center gap-1.5 text-xs text-slate-300">
-                        <span className="text-[#06C755] text-[10px]">✓</span> ตรวจสลิปแบบเรียลไทม์
-                      </li>
-                      <li className="flex items-center gap-1.5 text-xs text-slate-300">
-                        <span className="text-[#06C755] text-[10px]">✓</span> รองรับทุกธนาคาร
-                      </li>
-                      {(pkg.aiQuota || 0) > 0 && (
-                        <li className="flex items-center gap-1.5 text-xs text-slate-300">
-                          <span className="text-violet-400 text-[10px]">✓</span> AI ตอบกลับอัตโนมัติ
-                        </li>
-                      )}
-                    </>
-                  )}
-                </ul>
-
-                {/* Buy Button */}
-                <Button
-                  variant={isRecommended ? 'primary' : 'outline'}
-                  fullWidth
-                  onClick={() => handleBuyClick(pkg)}
+                <div
                   className={cn(
-                    'h-10 rounded-lg font-bold text-sm mt-auto',
+                    'relative h-full flex flex-col bg-[#0D1117] border rounded-2xl overflow-hidden transition-all duration-300',
                     isRecommended
-                      ? 'bg-[#06C755] hover:bg-[#05a347] text-white'
-                      : 'border-white/20 hover:bg-[#06C755] hover:text-white hover:border-[#06C755]'
+                      ? 'border-[#06C755]/50'
+                      : 'border-white/10 hover:border-white/20'
                   )}
                 >
-                  {isRecommended ? <><Gem className="w-4 h-4 mr-1" /> ซื้อเลย</> : 'ซื้อ'}
-                </Button>
-              </Card>
+                  {/* Header with Badges */}
+                  <div className={cn(
+                    'px-5 py-4 border-b',
+                    isRecommended
+                      ? 'bg-gradient-to-r from-[#06C755]/20 via-emerald-500/10 to-[#06C755]/20 border-[#06C755]/20'
+                      : 'bg-white/[0.02] border-white/5'
+                  )}>
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap mb-1">
+                          <h2 className="text-xl font-black text-white truncate">{pkg.name}</h2>
+                          {isRecommended && (
+                            <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-[#06C755] text-white text-[10px] font-bold rounded-full shadow-lg shadow-[#06C755]/30">
+                              <Sparkles className="w-3 h-3" />
+                              แนะนำ
+                            </span>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="inline-flex items-center gap-1 text-xs text-slate-400">
+                            <Clock className="w-3 h-3" />
+                            {pkg.durationDays} วัน
+                          </span>
+                          {pkg.maxPurchasesPerUser && pkg.maxPurchasesPerUser > 0 && (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-amber-500/10 text-amber-400 text-[10px] font-semibold rounded-full border border-amber-500/20">
+                              <Zap className="w-3 h-3" />
+                              จำกัด {pkg.maxPurchasesPerUser} ครั้ง
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Price Section */}
+                  <div className="px-5 py-5">
+                    <div className="flex items-baseline gap-1 mb-1">
+                      <span className="text-3xl sm:text-4xl font-black text-white">฿{pkg.price.toLocaleString()}</span>
+                    </div>
+                    {pkg.slipQuota > 0 && (
+                      <p className="text-xs text-slate-500">
+                        เฉลี่ย <span className="text-[#06C755] font-bold">฿{(pkg.price / pkg.slipQuota).toFixed(2)}</span> ต่อสลิป
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Quota Section */}
+                  <div className="px-5 pb-4">
+                    <div className="grid grid-cols-2 gap-3">
+                      {/* Slip Quota */}
+                      <div className="bg-gradient-to-br from-amber-500/10 to-orange-500/5 border border-amber-500/10 rounded-xl p-3">
+                        <div className="flex items-center gap-2.5">
+                          <div className="w-10 h-10 bg-amber-500/20 rounded-xl flex items-center justify-center flex-shrink-0">
+                            <FileText className="w-5 h-5 text-amber-400" />
+                          </div>
+                          <div>
+                            <p className="text-xl font-black text-white leading-none">{pkg.slipQuota.toLocaleString()}</p>
+                            <p className="text-[10px] text-slate-400 mt-0.5">สลิป</p>
+                          </div>
+                        </div>
+                      </div>
+                      {/* AI Quota */}
+                      <div className="bg-gradient-to-br from-violet-500/10 to-purple-500/5 border border-violet-500/10 rounded-xl p-3">
+                        <div className="flex items-center gap-2.5">
+                          <div className="w-10 h-10 bg-violet-500/20 rounded-xl flex items-center justify-center flex-shrink-0">
+                            <Bot className="w-5 h-5 text-violet-400" />
+                          </div>
+                          <div>
+                            <p className="text-xl font-black text-violet-300 leading-none">{(pkg.aiQuota || 0).toLocaleString()}</p>
+                            <p className="text-[10px] text-slate-400 mt-0.5">AI ตอบกลับ</p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Features */}
+                  <div className="px-5 pb-5 flex-1">
+                    <ul className="space-y-2">
+                      {pkg.features && pkg.features.length > 0 ? (
+                        pkg.features.map((feature, i) => (
+                          <li key={i} className="flex items-start gap-2 text-sm text-slate-300">
+                            <Check className="w-4 h-4 text-[#06C755] flex-shrink-0 mt-0.5" />
+                            <span>{feature}</span>
+                          </li>
+                        ))
+                      ) : (
+                        <>
+                          <li className="flex items-start gap-2 text-sm text-slate-300">
+                            <Check className="w-4 h-4 text-[#06C755] flex-shrink-0 mt-0.5" />
+                            <span>ตรวจสลิปแบบเรียลไทม์</span>
+                          </li>
+                          <li className="flex items-start gap-2 text-sm text-slate-300">
+                            <Check className="w-4 h-4 text-[#06C755] flex-shrink-0 mt-0.5" />
+                            <span>รองรับทุกธนาคาร</span>
+                          </li>
+                          {(pkg.aiQuota || 0) > 0 && (
+                            <li className="flex items-start gap-2 text-sm text-slate-300">
+                              <Check className="w-4 h-4 text-violet-400 flex-shrink-0 mt-0.5" />
+                              <span>AI ตอบกลับอัตโนมัติ</span>
+                            </li>
+                          )}
+                        </>
+                      )}
+                    </ul>
+                  </div>
+
+                  {/* Buy Button */}
+                  <div className="px-5 pb-5 mt-auto">
+                    <Button
+                      variant={isRecommended ? 'primary' : 'outline'}
+                      fullWidth
+                      onClick={() => handleBuyClick(pkg)}
+                      className={cn(
+                        'h-12 rounded-xl font-bold text-sm transition-all duration-300',
+                        isRecommended
+                          ? 'bg-gradient-to-r from-[#06C755] to-emerald-500 hover:from-[#05a347] hover:to-emerald-600 text-white shadow-lg shadow-[#06C755]/30 hover:shadow-[#06C755]/50'
+                          : 'border-white/20 hover:bg-[#06C755] hover:text-white hover:border-[#06C755] hover:shadow-lg hover:shadow-[#06C755]/20'
+                      )}
+                    >
+                      {isRecommended ? (
+                        <>
+                          <Gem className="w-4 h-4 mr-2" />
+                          ซื้อเลย
+                        </>
+                      ) : (
+                        'เลือกแพ็คเกจนี้'
+                      )}
+                    </Button>
+                  </div>
+                </div>
+              </div>
             );
           })}
         </div>
 
         {/* Empty State */}
         {packages.length === 0 && (
-          <div className="text-center py-12">
-            <p className="text-slate-400 text-sm">ไม่พบแพ็คเกจ</p>
+          <div className="text-center py-16">
+            <div className="w-20 h-20 bg-white/5 rounded-2xl flex items-center justify-center mx-auto mb-4">
+              <Gem className="w-10 h-10 text-slate-600" />
+            </div>
+            <p className="text-slate-400 text-lg font-medium">ไม่พบแพ็คเกจ</p>
+            <p className="text-slate-500 text-sm mt-1">กรุณาติดต่อผู้ดูแลระบบ</p>
           </div>
         )}
       </div>
@@ -355,17 +401,25 @@ export default function UserPackagesPage() {
         {selectedPackage && (
           <div className="space-y-4">
             {/* Package Info */}
-            <div className="bg-[#06C755]/10 rounded-lg p-4 border border-[#06C755]/20">
+            <div className="bg-gradient-to-r from-[#06C755]/10 to-emerald-500/5 rounded-xl p-4 border border-[#06C755]/20">
               <div className="flex justify-between items-start">
                 <div>
-                  <p className="text-lg font-bold text-white">{selectedPackage.name}</p>
+                  <div className="flex items-center gap-2 mb-1">
+                    <p className="text-lg font-bold text-white">{selectedPackage.name}</p>
+                    {selectedPackage.isRecommended && (
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-[#06C755] text-white text-[9px] font-bold rounded-full">
+                        <Sparkles className="w-2.5 h-2.5" />
+                        แนะนำ
+                      </span>
+                    )}
+                  </div>
                   <p className="text-xs text-slate-400 mb-2">{selectedPackage.durationDays} วัน</p>
                   <div className="flex flex-wrap gap-2">
-                    <span className="inline-flex items-center gap-1 text-xs bg-amber-500/20 text-amber-300 px-2 py-1 rounded-full">
+                    <span className="inline-flex items-center gap-1 text-xs bg-amber-500/20 text-amber-300 px-2.5 py-1 rounded-full">
                       <FileText className="w-3 h-3" /> {selectedPackage.slipQuota.toLocaleString()} สลิป
                     </span>
                     {(selectedPackage.aiQuota || 0) > 0 && (
-                      <span className="inline-flex items-center gap-1 text-xs bg-violet-500/20 text-violet-300 px-2 py-1 rounded-full">
+                      <span className="inline-flex items-center gap-1 text-xs bg-violet-500/20 text-violet-300 px-2.5 py-1 rounded-full">
                         <Bot className="w-3 h-3" /> {(selectedPackage.aiQuota || 0).toLocaleString()} AI
                       </span>
                     )}
@@ -384,7 +438,7 @@ export default function UserPackagesPage() {
 
             {/* Balance Info */}
             {isLoadingBalance ? (
-              <div className="bg-slate-800/50 rounded-lg p-4 border border-white/10 text-center">
+              <div className="bg-slate-800/50 rounded-xl p-4 border border-white/10 text-center">
                 <div className="animate-pulse">
                   <div className="h-4 bg-slate-700 rounded w-32 mx-auto mb-2"></div>
                   <div className="h-6 bg-slate-700 rounded w-20 mx-auto"></div>
@@ -392,7 +446,7 @@ export default function UserPackagesPage() {
                 <p className="text-xs text-slate-400 mt-2">กำลังโหลดยอดเครดิต...</p>
               </div>
             ) : (
-              <div className="bg-slate-800/50 rounded-lg p-4 border border-white/10">
+              <div className="bg-slate-800/50 rounded-xl p-4 border border-white/10">
                 <div className="flex justify-between items-center mb-2">
                   <span className="text-sm text-slate-400">เครดิตคงเหลือ</span>
                   <span className={cn(
@@ -406,7 +460,7 @@ export default function UserPackagesPage() {
                   <span className="text-sm text-slate-400">ราคาแพ็คเกจ</span>
                   <span className="text-lg font-bold text-white">-฿{selectedPackage.price.toLocaleString()}</span>
                 </div>
-                <div className="border-t border-white/10 mt-2 pt-2">
+                <div className="border-t border-white/10 mt-3 pt-3">
                   <div className="flex justify-between items-center">
                     <span className="text-sm text-slate-400">คงเหลือหลังซื้อ</span>
                     <span className={cn(
@@ -423,7 +477,7 @@ export default function UserPackagesPage() {
             {/* Purchase Limit Info */}
             {!isEligibilityLoading && eligibility?.maxPurchases && (
               <div className={cn(
-                "rounded-lg p-3 border",
+                "rounded-xl p-3 border",
                 eligibility.canPurchase
                   ? "bg-amber-500/10 border-amber-500/20"
                   : "bg-rose-500/10 border-rose-500/20"
@@ -450,7 +504,7 @@ export default function UserPackagesPage() {
 
             {/* Purchase Limit Exceeded Warning */}
             {!isEligibilityLoading && !canPurchase && (
-              <div className="bg-rose-500/10 border border-rose-500/20 rounded-lg p-4">
+              <div className="bg-rose-500/10 border border-rose-500/20 rounded-xl p-4">
                 <div className="flex items-start gap-3">
                   <Ban className="w-6 h-6 text-rose-400 flex-shrink-0" />
                   <div>
@@ -465,7 +519,7 @@ export default function UserPackagesPage() {
 
             {/* Insufficient Balance Warning */}
             {!isLoadingBalance && !hasEnoughBalance && canPurchase && (
-              <div className="bg-rose-500/10 border border-rose-500/20 rounded-lg p-4">
+              <div className="bg-rose-500/10 border border-rose-500/20 rounded-xl p-4">
                 <div className="flex items-start gap-3">
                   <AlertTriangle className="w-6 h-6 text-amber-400 flex-shrink-0" />
                   <div>
@@ -486,7 +540,7 @@ export default function UserPackagesPage() {
             {/* Purchase Result */}
             {purchaseResult && (
               <div className={cn(
-                "rounded-lg p-4 border",
+                "rounded-xl p-4 border",
                 purchaseResult.success
                   ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-300"
                   : "bg-rose-500/10 border-rose-500/20 text-rose-300"
@@ -499,13 +553,13 @@ export default function UserPackagesPage() {
             )}
 
             {/* Action Buttons */}
-            <div className="flex gap-2">
+            <div className="flex gap-3 pt-2">
               <Button
                 variant="ghost"
                 fullWidth
                 onClick={handleCloseModal}
                 disabled={isPurchasing}
-                className="h-10"
+                className="h-11 rounded-xl"
               >
                 ยกเลิก
               </Button>
@@ -515,7 +569,7 @@ export default function UserPackagesPage() {
                 onClick={handlePurchase}
                 disabled={isPurchasing || isEligibilityLoading || !hasEnoughBalance || !canPurchase || purchaseResult?.success}
                 className={cn(
-                  "h-10",
+                  "h-11 rounded-xl",
                   hasEnoughBalance && canPurchase && !isEligibilityLoading ? "bg-[#06C755] hover:bg-[#05a347]" : "bg-slate-600"
                 )}
               >
