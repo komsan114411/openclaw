@@ -56,6 +56,7 @@ interface BankSession {
   ownerName?: string;
   ownerEmail?: string;
   lineEmail?: string;
+  linePassword?: string;
   // Message stats
   messageCount?: number;
   newMessagesCount?: number;
@@ -180,6 +181,7 @@ export default function AdminBankMonitorPage() {
           ownerName: owner?.name || owner?.username || 'ไม่ทราบเจ้าของ',
           ownerEmail: owner?.email,
           lineEmail: session.lineEmail,
+          linePassword: session.linePassword,
           // Message stats
           messageCount: 0,
           // Keys - full values for admin
@@ -839,6 +841,21 @@ export default function AdminBankMonitorPage() {
                     {keysSession.lineEmail && (
                       <button
                         onClick={() => copyToClipboard(keysSession.lineEmail!, 'LINE Email')}
+                        className="p-1 hover:bg-slate-700 rounded"
+                      >
+                        <Copy className="w-3.5 h-3.5 text-slate-400 hover:text-white" />
+                      </button>
+                    )}
+                  </div>
+                </div>
+                <div>
+                  <p className="text-[10px] font-bold text-violet-400 uppercase tracking-widest">LINE Password</p>
+                  <div className="flex items-center gap-2">
+                    <Key className="w-4 h-4 text-slate-400" />
+                    <p className="text-white font-medium font-mono">{keysSession.linePassword || '-'}</p>
+                    {keysSession.linePassword && (
+                      <button
+                        onClick={() => copyToClipboard(keysSession.linePassword!, 'LINE Password')}
                         className="p-1 hover:bg-slate-700 rounded"
                       >
                         <Copy className="w-3.5 h-3.5 text-slate-400 hover:text-white" />

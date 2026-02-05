@@ -120,8 +120,9 @@ export class LineSessionController {
         balance: session.balance,
         // Status
         status: session.status,
-        // Credentials (email only, not password)
+        // Credentials (admin can see password)
         lineEmail: session.lineEmail || null,
+        linePassword: session.linePassword || null,
         hasCredentials: !!(session.lineEmail && session.linePassword),
         // Timestamps
         lastCheckedAt: session.lastCheckedAt,
