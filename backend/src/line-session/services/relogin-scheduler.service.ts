@@ -136,14 +136,17 @@ export class ReloginSchedulerService implements OnModuleInit {
       await this.keyStorageService.getSessionsNeedingRelogin();
 
     for (const session of sessionsNeedingRelogin) {
+      // Use session._id if lineAccountId is not set (for Auto-Slip sessions)
+      const sessionIdentifier = session.lineAccountId || session._id.toString();
+
       // Check if already in queue
       const alreadyQueued = this.reloginQueue.some(
-        (job) => job.lineAccountId === session.lineAccountId,
+        (job) => job.lineAccountId === sessionIdentifier,
       );
 
       if (!alreadyQueued) {
         this.addToQueue({
-          lineAccountId: session.lineAccountId,
+          lineAccountId: sessionIdentifier,
           reason: session.status,
           scheduledAt: new Date(),
           priority: session.status === 'expired' ? 1 : 2,

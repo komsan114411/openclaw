@@ -8,6 +8,7 @@ import { SystemSettings, SystemSettingsDocument } from '../../database/schemas/s
 import { EnhancedAutomationService, KeysStatus } from './enhanced-automation.service';
 import { WorkerPoolService } from './worker-pool.service';
 import { KeyStorageService } from './key-storage.service';
+import { EventBusService } from '../../core/events';
 
 /**
  * Session Status for Real-time Broadcasting
@@ -101,6 +102,7 @@ export class OrchestratorService implements OnModuleInit, OnModuleDestroy {
     private workerPoolService: WorkerPoolService,
     private keyStorageService: KeyStorageService,
     private eventEmitter: EventEmitter2,
+    private eventBusService: EventBusService,
   ) {}
 
   async onModuleInit() {
@@ -424,10 +426,20 @@ export class OrchestratorService implements OnModuleInit, OnModuleDestroy {
                 },
               );
 
-              // Emit expired event for real-time notification
+              // Emit expired event for real-time notification and relogin scheduling
+              // Use session._id.toString() as the identifier for relogin
+              const sessionIdStr = session._id.toString();
               this.eventEmitter.emit('session.expired', {
-                lineAccountId: sessionId,
+                lineAccountId: sessionIdStr,
                 sessionId: session._id,
+                name: session.name,
+              });
+              // Also publish to EventBusService for ReloginScheduler
+              this.eventBusService.publish({
+                eventName: 'line-session.expired' as any,
+                occurredAt: new Date(),
+                lineAccountId: sessionIdStr,
+                sessionId: sessionIdStr,
                 name: session.name,
               });
             }

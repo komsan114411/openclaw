@@ -241,18 +241,20 @@ export class SessionHealthService implements OnModuleInit, OnModuleDestroy {
         results.push(result);
 
         // Emit events based on status
+        // Use session._id if lineAccountId is not set (for Auto-Slip sessions)
+        const sessionIdentifier = session.lineAccountId || session._id.toString();
         if (result.status === HealthStatus.EXPIRED) {
           this.eventBusService.publish({
             eventName: 'line-session.expired' as any,
             occurredAt: new Date(),
-            lineAccountId: session.lineAccountId,
-            sessionId: session._id,
+            lineAccountId: sessionIdentifier,
+            sessionId: session._id.toString(),
           });
         } else if (result.status === HealthStatus.UNHEALTHY) {
           this.eventBusService.publish({
             eventName: 'line-session.unhealthy' as any,
             occurredAt: new Date(),
-            lineAccountId: session.lineAccountId,
+            lineAccountId: sessionIdentifier,
             consecutiveFailures: result.consecutiveFailures,
           });
         }
