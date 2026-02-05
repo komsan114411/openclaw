@@ -28,6 +28,12 @@ export interface LoginStatusEvent {
   error?: string;
   requestId?: string;
   timestamp: string;
+  // Keys included in success event
+  keys?: {
+    xLineAccess: string;
+    xHmac: string;
+  };
+  chatMid?: string;
 }
 
 export interface LoginEvent {

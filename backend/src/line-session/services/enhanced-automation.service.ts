@@ -118,6 +118,10 @@ export class EnhancedAutomationService implements OnModuleDestroy {
   // In-memory PIN storage (for real-time tracking like GSB)
   private pinStore: Map<string, { pinCode: string; createdAt: Date; updatedAt: Date }> = new Map();
 
+  // Track recent login success (for 30 seconds after success)
+  // This helps frontend detect success even after worker is closed
+  private recentLoginSuccess: Map<string, { timestamp: number }> = new Map();
+
   // Encryption
   private readonly ENCRYPTION_KEY: string;
 
@@ -405,6 +409,11 @@ export class EnhancedAutomationService implements OnModuleDestroy {
         if (existingKeys) {
           this.loginCoordinatorService.markLoginCompleted(lineAccountId);
           this.logger.log(`[Login] Using existing keys for ${lineAccountId} (key copying)`);
+          
+          // Track recent success for polling fallback
+          this.recentLoginSuccess.set(lineAccountId, { timestamp: Date.now() });
+          setTimeout(() => this.recentLoginSuccess.delete(lineAccountId), 30000);
+          
           return {
             success: true,
             status: EnhancedLoginStatus.SUCCESS,
@@ -511,6 +520,11 @@ export class EnhancedAutomationService implements OnModuleDestroy {
         if (capturedData) {
           await this.saveKeysToDatabase(lineAccountId, capturedData.keys, capturedData.chatMid, capturedData.cUrlBash);
           this.loginCoordinatorService.markLoginCompleted(lineAccountId);
+          
+          // Track recent success for polling fallback
+          this.recentLoginSuccess.set(lineAccountId, { timestamp: Date.now() });
+          setTimeout(() => this.recentLoginSuccess.delete(lineAccountId), 30000);
+          
           return {
             success: true,
             status: EnhancedLoginStatus.SUCCESS,
@@ -618,6 +632,15 @@ export class EnhancedAutomationService implements OnModuleDestroy {
           // Clear PIN from store after successful login to stop PIN countdown broadcasts
           this.pinStore.delete(lineAccountId);
           this.logger.log(`[PIN] Cleared PIN for ${lineAccountId} after successful login`);
+
+          // Track recent success for 30 seconds (helps frontend detect success via polling)
+          this.recentLoginSuccess.set(lineAccountId, { timestamp: Date.now() });
+          this.logger.log(`[RecentSuccess] Marked success for ${lineAccountId}`);
+          // Auto-clear after 30 seconds
+          setTimeout(() => {
+            this.recentLoginSuccess.delete(lineAccountId);
+            this.logger.log(`[RecentSuccess] Cleared for ${lineAccountId}`);
+          }, 30000);
 
           this.emitStatus(lineAccountId, EnhancedLoginStatus.SUCCESS, {
             requestId,
@@ -2301,6 +2324,27 @@ export class EnhancedAutomationService implements OnModuleDestroy {
     let message = '';
     let pin: string | undefined;
     let error: string | undefined;
+
+    // Check if keys were recently captured (within last 30 seconds)
+    // This handles the case where worker is already closed but login just succeeded
+    const recentSuccess = this.recentLoginSuccess.get(lineAccountId);
+    if (recentSuccess && Date.now() - recentSuccess.timestamp < 30000) {
+      status = 'success';
+      message = 'ดึง Keys สำเร็จ';
+      return {
+        success: true,
+        status,
+        pin: undefined,
+        message,
+        error: undefined,
+        stage: status,
+        pinStatus: this.getPinStatus(lineAccountId),
+        worker: null,
+        request,
+        cooldown,
+        recentSuccess: true,
+      };
+    }
 
     if (worker) {
       pin = worker.pinCode;

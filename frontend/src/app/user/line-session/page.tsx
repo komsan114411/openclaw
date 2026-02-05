@@ -113,6 +113,12 @@ export default function LineSessionPage() {
   const [loginStatus, setLoginStatus] = useState<LoginStatus | null>(null);
   const [credentialsStatus, setCredentialsStatus] = useState<CredentialsStatus | null>(null);
   const [isPolling, setIsPolling] = useState(false);
+  
+  // Login success state - แสดงข้อความสำเร็จและ Keys
+  const [loginSuccess, setLoginSuccess] = useState<{
+    show: boolean;
+    keys?: { xLineAccess?: string; xHmac?: string; chatMid?: string };
+  }>({ show: false });
 
   // WebSocket login notifications (real-time status + PIN clear)
   useLoginNotifications({
@@ -143,12 +149,27 @@ export default function LineSessionPage() {
       if (isCompleted) {
         setIsPolling(false);
         if (event.status === 'success') {
+          // Clear PIN and login status
+          setLoginStatus(null);
+          
+          // Show success state with keys from event
+          setLoginSuccess({
+            show: true,
+            keys: event.keys ? {
+              xLineAccess: event.keys.xLineAccess,
+              xHmac: event.keys.xHmac,
+              chatMid: event.chatMid,
+            } : undefined,
+          });
+          
+          // Fetch updated session status to get full keys
           fetchSessionStatus(selectedSession!._id);
           fetchData();
-          setLoginStatus(null);
-          toast.success('Login สำเร็จ! กำลังดึง Keys...', { icon: '✅' });
+          
+          toast.success('ล็อกอินสำเร็จ! ดึง Keys เรียบร้อยแล้ว', { icon: '✅', duration: 5000 });
         } else if (event.status === 'failed') {
           setLoginStatus(null);
+          setLoginSuccess({ show: false });
           toast.error(event.error || 'Login ล้มเหลว', { icon: '❌' });
         }
       } else if (isInProgress) {
@@ -205,6 +226,7 @@ export default function LineSessionPage() {
     if (selectedSession) {
       fetchSessionStatus(selectedSession._id);
       setLoginStatus(null);
+      setLoginSuccess({ show: false }); // Reset login success state
       setSetupForm({ email: '', password: '', bankCode: '' });
     }
   }, [selectedSession, fetchSessionStatus]);
@@ -242,14 +264,21 @@ export default function LineSessionPage() {
 
       // If completed, refresh session status and close PIN display
       if (mappedStatus.status === 'completed' || mappedStatus.status === 'success') {
+        // Clear PIN and login status
+        setLoginStatus(null);
+        
+        // Show success state
+        setLoginSuccess({ show: true });
+        
+        // Fetch updated session status to get keys
         await fetchSessionStatus(sessionId);
         await fetchData(); // Refresh list
-        // ปิด PIN display โดยการ clear loginStatus
-        setLoginStatus(null);
-        toast.success('ดึง Keys สำเร็จ');
+        
+        toast.success('ล็อกอินสำเร็จ! ดึง Keys เรียบร้อยแล้ว', { icon: '✅', duration: 5000 });
       } else if (mappedStatus.status === 'failed' || mappedStatus.status === 'error') {
         // ปิด PIN display เมื่อ error
         setLoginStatus(null);
+        setLoginSuccess({ show: false });
         toast.error(mappedStatus.error || mappedStatus.message || 'เกิดข้อผิดพลาด');
       }
 
@@ -694,6 +723,106 @@ export default function LineSessionPage() {
                           ดึงเมื่อ: {new Date(sessionStatus.extractedAt).toLocaleString('th-TH')}
                         </p>
                       )}
+                    </div>
+                  )}
+
+                  {/* Login Success - แสดงข้อความสำเร็จและ Keys */}
+                  {loginSuccess.show && (
+                    <div className="p-4 bg-emerald-50 dark:bg-emerald-900/20 rounded-xl border border-emerald-200 dark:border-emerald-800 animate-in fade-in duration-300">
+                      <div className="flex items-center gap-3 mb-4">
+                        <div className="p-2 bg-emerald-500 rounded-full">
+                          <CheckCircle2 className="w-5 h-5 text-white" />
+                        </div>
+                        <div>
+                          <p className="font-semibold text-emerald-800 dark:text-emerald-200 text-lg">
+                            ล็อกอินสำเร็จ!
+                          </p>
+                          <p className="text-sm text-emerald-600 dark:text-emerald-400">
+                            ดึง Keys เรียบร้อยแล้ว สามารถคัดลอกได้ด้านล่าง
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* Quick Keys Display - ใช้ keys จาก event หรือ sessionStatus */}
+                      <div className="space-y-3 mt-4">
+                        {/* xLineAccess */}
+                        <div className="p-3 bg-white dark:bg-slate-800 rounded-lg">
+                          <div className="flex items-center justify-between mb-1">
+                            <span className="text-xs font-medium text-slate-500 dark:text-slate-400">xLineAccess</span>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => {
+                                const key = loginSuccess.keys?.xLineAccess || sessionStatus?.xLineAccess;
+                                if (key) {
+                                  copyToClipboard(key, 'xLineAccess');
+                                } else {
+                                  handleViewKeys();
+                                }
+                              }}
+                              className="h-6 px-2 text-xs"
+                            >
+                              <Copy className="w-3 h-3 mr-1" />
+                              คัดลอก
+                            </Button>
+                          </div>
+                          <p className="font-mono text-xs text-slate-700 dark:text-slate-300 truncate">
+                            {(loginSuccess.keys?.xLineAccess || sessionStatus?.xLineAccess)
+                              ? `${(loginSuccess.keys?.xLineAccess || sessionStatus?.xLineAccess || '').substring(0, 50)}...`
+                              : 'กดดู Keys เพื่อดูข้อมูลเต็ม'}
+                          </p>
+                        </div>
+
+                        {/* xHmac */}
+                        <div className="p-3 bg-white dark:bg-slate-800 rounded-lg">
+                          <div className="flex items-center justify-between mb-1">
+                            <span className="text-xs font-medium text-slate-500 dark:text-slate-400">xHmac</span>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => {
+                                const key = loginSuccess.keys?.xHmac || sessionStatus?.xHmac;
+                                if (key) {
+                                  copyToClipboard(key, 'xHmac');
+                                } else {
+                                  handleViewKeys();
+                                }
+                              }}
+                              className="h-6 px-2 text-xs"
+                            >
+                              <Copy className="w-3 h-3 mr-1" />
+                              คัดลอก
+                            </Button>
+                          </div>
+                          <p className="font-mono text-xs text-slate-700 dark:text-slate-300 truncate">
+                            {(loginSuccess.keys?.xHmac || sessionStatus?.xHmac)
+                              ? `${(loginSuccess.keys?.xHmac || sessionStatus?.xHmac || '').substring(0, 50)}...`
+                              : 'กดดู Keys เพื่อดูข้อมูลเต็ม'}
+                          </p>
+                        </div>
+
+                        <div className="flex gap-2">
+                          <Button
+                            variant="primary"
+                            size="sm"
+                            onClick={handleViewKeys}
+                            disabled={isLoadingKeys}
+                            className="flex-1 gap-2"
+                          >
+                            {isLoadingKeys ? <Loader2 className="w-4 h-4 animate-spin" /> : <Eye className="w-4 h-4" />}
+                            ดู Keys ทั้งหมด
+                          </Button>
+                          <Button
+                            variant="secondary"
+                            size="sm"
+                            onClick={() => setLoginSuccess({ show: false })}
+                            className="gap-2"
+                          >
+                            <XCircle className="w-4 h-4" />
+                            ปิด
+                          </Button>
+                        </div>
+                      </div>
                     </div>
                   )}
 

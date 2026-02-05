@@ -40,13 +40,16 @@ export class LoginNotificationService {
     requestId?: string;
     pinCode?: string;
     error?: string;
+    keys?: { xLineAccess: string; xHmac: string };
+    chatMid?: string;
+    cUrlBash?: string;
   }) {
-    this.logger.log(`[LoginNotification] Received status: ${payload.status} for ${payload.lineAccountId}${payload.pinCode ? ` with PIN ${payload.pinCode}` : ''}`);
+    this.logger.log(`[LoginNotification] Received status: ${payload.status} for ${payload.lineAccountId}${payload.pinCode ? ` with PIN ${payload.pinCode}` : ''}${payload.keys ? ' with keys' : ''}`);
 
     // Build user-friendly message
     const message = this.getStatusMessage(payload.status, payload.pinCode, payload.error);
 
-    const eventData = {
+    const eventData: Record<string, any> = {
       type: 'login_status',
       lineAccountId: payload.lineAccountId,
       status: payload.status,
@@ -56,6 +59,13 @@ export class LoginNotificationService {
       requestId: payload.requestId,
       timestamp: payload.timestamp,
     };
+
+    // Include keys in success event so frontend can display them
+    if (payload.status === EnhancedLoginStatus.SUCCESS && payload.keys) {
+      eventData.keys = payload.keys;
+      eventData.chatMid = payload.chatMid;
+      this.logger.log(`[LoginNotification] Including keys in success event for ${payload.lineAccountId}`);
+    }
 
     // Log PIN specifically for debugging
     if (payload.pinCode) {
@@ -72,6 +82,14 @@ export class LoginNotificationService {
 
     // Also send to admins room (they should filter by lineAccountId on client)
     this.websocketGateway.broadcastToAdmins('line-session:login-status', eventData);
+
+    // FALLBACK: For critical events (success, pin_displayed), also broadcast to ALL clients
+    // This ensures the event is received even when room subscription fails
+    const criticalStatuses = [EnhancedLoginStatus.SUCCESS, EnhancedLoginStatus.PIN_DISPLAYED, EnhancedLoginStatus.FAILED];
+    if (criticalStatuses.includes(payload.status)) {
+      this.logger.log(`[LoginNotification] Broadcasting critical event to ALL clients: ${payload.status}`);
+      this.websocketGateway.broadcastToAll('line-session:login-status', eventData);
+    }
   }
 
   /**

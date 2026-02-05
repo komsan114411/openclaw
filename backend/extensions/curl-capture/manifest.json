@@ -1,0 +1,32 @@
+{
+  "manifest_version": 3,
+  "name": "cURL Capture for DevTools",
+  "version": "1.0.0",
+  "description": "Automatically capture cURL commands from Network requests",
+  "permissions": [
+    "webRequest",
+    "storage",
+    "activeTab",
+    "scripting"
+  ],
+  "host_permissions": [
+    "https://line-chrome-gw.line-apps.com/*",
+    "<all_urls>"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "devtools_page": "devtools.html",
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content.js"],
+      "run_at": "document_start"
+    }
+  ],
+  "icons": {
+    "16": "icon16.png",
+    "48": "icon48.png",
+    "128": "icon128.png"
+  }
+}
