@@ -103,6 +103,7 @@ export interface Package {
   isActive: boolean;
   sortOrder: number;
   maxPurchasesPerUser?: number | null; // จำนวนครั้งที่ซื้อได้ต่อผู้ใช้ (null/0 = ไม่จำกัด)
+  isRecommended?: boolean; // แพ็คเกจแนะนำ - แสดงเป็น highlight
 }
 
 export interface Subscription {

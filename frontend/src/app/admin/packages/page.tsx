@@ -38,6 +38,7 @@ export default function AdminPackagesPage() {
     features: '',
     sortOrder: 0,
     maxPurchasesPerUser: null as number | null, // null = ไม่จำกัด
+    isRecommended: false, // แพ็คเกจแนะนำ
   });
 
   useEffect(() => {
@@ -69,6 +70,7 @@ export default function AdminPackagesPage() {
       features: '',
       sortOrder: 0,
       maxPurchasesPerUser: null,
+      isRecommended: false,
     });
     setEditPackage(null);
     setFormErrors({});
@@ -134,6 +136,7 @@ export default function AdminPackagesPage() {
       features: pkg.features?.join('\n') || '',
       sortOrder: pkg.sortOrder || 0,
       maxPurchasesPerUser: pkg.maxPurchasesPerUser ?? null,
+      isRecommended: pkg.isRecommended || false,
     });
     setFormErrors({});
     setShowModal(true);
@@ -274,6 +277,11 @@ export default function AdminPackagesPage() {
                         )}>
                           {pkg.isActive ? 'ใช้งานอยู่' : 'ปิดใช้งาน'}
                         </div>
+                        {pkg.isRecommended && (
+                          <div className="px-3 py-1 rounded-full text-[8px] font-semibold bg-[#06C755]/20 text-[#06C755] border border-[#06C755]/30 shadow-lg shadow-[#06C755]/10">
+                            ⭐ แนะนำ
+                          </div>
+                        )}
                         {pkg.maxPurchasesPerUser && pkg.maxPurchasesPerUser > 0 && (
                           <div className="px-3 py-1 rounded-full text-[8px] font-semibold bg-amber-500/10 text-amber-400 border border-amber-500/20">
                             จำกัด {pkg.maxPurchasesPerUser} ครั้ง/ผู้ใช้
@@ -467,6 +475,29 @@ export default function AdminPackagesPage() {
                   hint="เว้นว่างหรือ 0 = ไม่จำกัด"
                   className="h-14 rounded-2xl bg-white/[0.03] border-white/10 text-white font-bold text-sm"
                 />
+              </div>
+
+              {/* Toggle แพ็คเกจแนะนำ */}
+              <div className="flex items-center justify-between p-4 rounded-2xl bg-white/[0.03] border border-white/10">
+                <div>
+                  <p className="text-sm font-bold text-white">แพ็คเกจแนะนำ</p>
+                  <p className="text-xs text-slate-500 mt-1">แสดง highlight ในหน้าเลือกแพ็คเกจ</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setFormData({ ...formData, isRecommended: !formData.isRecommended })}
+                  className={cn(
+                    "relative w-14 h-8 rounded-full transition-all duration-300",
+                    formData.isRecommended
+                      ? "bg-[#06C755] shadow-lg shadow-[#06C755]/30"
+                      : "bg-white/10"
+                  )}
+                >
+                  <div className={cn(
+                    "absolute top-1 w-6 h-6 rounded-full bg-white shadow-md transition-all duration-300",
+                    formData.isRecommended ? "left-7" : "left-1"
+                  )} />
+                </button>
               </div>
             </div>
 

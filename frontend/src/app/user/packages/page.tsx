@@ -219,8 +219,9 @@ export default function UserPackagesPage() {
 
         {/* Packages Grid */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3 sm:gap-4">
-          {packages.map((pkg, index) => {
+          {packages.map((pkg) => {
             const canAfford = balance >= pkg.price;
+            const isRecommended = pkg.isRecommended;
 
             return (
               <Card
@@ -228,11 +229,11 @@ export default function UserPackagesPage() {
                 variant="glass"
                 className={cn(
                   'relative p-3 sm:p-4 border rounded-xl transition-all duration-300 h-full flex flex-col',
-                  index === 1 ? 'ring-2 ring-[#06C755] border-[#06C755]/50' : 'border-white/10 hover:border-[#06C755]/50'
+                  isRecommended ? 'ring-2 ring-[#06C755] border-[#06C755]/50' : 'border-white/10 hover:border-[#06C755]/50'
                 )}
               >
                 {/* Best Value Badge */}
-                {index === 1 && (
+                {isRecommended && (
                   <div className="absolute -top-2 left-1/2 -translate-x-1/2">
                     <span className="px-3 py-0.5 bg-[#06C755] text-white text-[10px] font-bold rounded-full">
                       แนะนำ
@@ -324,17 +325,17 @@ export default function UserPackagesPage() {
 
                 {/* Buy Button */}
                 <Button
-                  variant={index === 1 ? 'primary' : 'outline'}
+                  variant={isRecommended ? 'primary' : 'outline'}
                   fullWidth
                   onClick={() => handleBuyClick(pkg)}
                   className={cn(
                     'h-10 rounded-lg font-bold text-sm mt-auto',
-                    index === 1
+                    isRecommended
                       ? 'bg-[#06C755] hover:bg-[#05a347] text-white'
                       : 'border-white/20 hover:bg-[#06C755] hover:text-white hover:border-[#06C755]'
                   )}
                 >
-  {index === 1 ? <><Gem className="w-4 h-4 mr-1" /> ซื้อเลย</> : 'ซื้อ'}
+                  {isRecommended ? <><Gem className="w-4 h-4 mr-1" /> ซื้อเลย</> : 'ซื้อ'}
                 </Button>
               </Card>
             );

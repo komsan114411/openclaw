@@ -175,12 +175,15 @@ interface CreatePackageData {
   price: number;
   priceUsdt?: number;
   slipQuota: number;
+  aiQuota?: number;
   durationDays: number;
   description?: string;
   features?: string[];
   isFreeStarter?: boolean;
   isActive?: boolean;
   sortOrder?: number;
+  maxPurchasesPerUser?: number | null;
+  isRecommended?: boolean;
 }
 
 interface UpdatePackageData {
@@ -188,12 +191,15 @@ interface UpdatePackageData {
   price?: number;
   priceUsdt?: number;
   slipQuota?: number;
+  aiQuota?: number;
   durationDays?: number;
   description?: string;
   features?: string[];
   isFreeStarter?: boolean;
   isActive?: boolean;
   sortOrder?: number;
+  maxPurchasesPerUser?: number | null;
+  isRecommended?: boolean;
 }
 
 // Packages API

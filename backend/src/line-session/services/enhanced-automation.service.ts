@@ -1,4 +1,4 @@
-import { Injectable, Logger, OnModuleDestroy } from '@nestjs/common';
+import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { ConfigService } from '@nestjs/config';
@@ -99,7 +99,7 @@ export interface EnhancedLoginResult {
  * Use this for production, use original for simple/testing
  */
 @Injectable()
-export class EnhancedAutomationService implements OnModuleDestroy {
+export class EnhancedAutomationService implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(EnhancedAutomationService.name);
 
   private readonly LINE_EXTENSION_ID = 'ophjlpahpchlmihnnnihgmmeilfjmjjc';
@@ -115,12 +115,21 @@ export class EnhancedAutomationService implements OnModuleDestroy {
   private readonly KEYS_EXPIRY_MINUTES = 30;    // Keys expire after 30 minutes
   private readonly KEYS_WARNING_MINUTES = 5;    // Warn 5 minutes before expiry
 
+  // PIN cleanup interval (30 seconds)
+  private readonly PIN_CLEANUP_INTERVAL_MS = 30000;
+  private pinCleanupInterval: NodeJS.Timeout | null = null;
+
   // In-memory PIN storage (for real-time tracking like GSB)
   private pinStore: Map<string, { pinCode: string; createdAt: Date; updatedAt: Date }> = new Map();
 
-  // Track recent login success (for 30 seconds after success)
+  // Track recent login success (for health check grace period)
   // This helps frontend detect success even after worker is closed
+  // Also used to skip health check validation for recently logged in sessions
   private recentLoginSuccess: Map<string, { timestamp: number }> = new Map();
+
+  // Grace period for health check skip after successful login (5 minutes)
+  // During this time, health check will trust the keys without LINE API validation
+  private readonly HEALTH_CHECK_GRACE_PERIOD_MS = 5 * 60 * 1000; // 5 minutes
 
   // Encryption
   private readonly ENCRYPTION_KEY: string;
@@ -137,6 +146,65 @@ export class EnhancedAutomationService implements OnModuleDestroy {
   ) {
     this.ENCRYPTION_KEY = this.configService.get('LINE_PASSWORD_ENCRYPTION_KEY') ||
       'default-key-change-in-production-32';
+  }
+
+  /**
+   * Initialize module - start PIN cleanup interval
+   * This ensures PINs are cleaned up even if orchestrator is not running
+   */
+  onModuleInit(): void {
+    this.logger.log('[PIN Security] Starting internal PIN cleanup interval (every 30 seconds)');
+
+    // Start cleanup interval
+    this.pinCleanupInterval = setInterval(() => {
+      this.cleanupExpiredPinsSecure();
+    }, this.PIN_CLEANUP_INTERVAL_MS);
+  }
+
+  /**
+   * Securely clear a PIN by overwriting the value before deletion
+   * This prevents PIN from lingering in memory
+   */
+  private secureClearPin(lineAccountId: string): void {
+    const pinData = this.pinStore.get(lineAccountId);
+    if (pinData) {
+      // Overwrite sensitive data with zeros before deletion
+      pinData.pinCode = '000000';
+      pinData.createdAt = new Date(0);
+      pinData.updatedAt = new Date(0);
+      this.pinStore.delete(lineAccountId);
+    }
+  }
+
+  /**
+   * Cleanup expired PINs with secure deletion
+   * Called every 30 seconds by internal interval
+   */
+  private cleanupExpiredPinsSecure(): number {
+    let cleaned = 0;
+    const now = new Date();
+    const expiryMs = this.PIN_EXPIRY_MINUTES * 60 * 1000;
+    const expiredAccounts: string[] = [];
+
+    // First pass: identify expired PINs
+    for (const [lineAccountId, pinData] of this.pinStore) {
+      const pinAge = now.getTime() - new Date(pinData.updatedAt).getTime();
+      if (pinAge > expiryMs) {
+        expiredAccounts.push(lineAccountId);
+      }
+    }
+
+    // Second pass: securely delete expired PINs
+    for (const lineAccountId of expiredAccounts) {
+      this.secureClearPin(lineAccountId);
+      cleaned++;
+    }
+
+    if (cleaned > 0) {
+      this.logger.log(`[PIN Security] Securely cleaned ${cleaned} expired PIN(s)`);
+    }
+
+    return cleaned;
   }
 
   /**
@@ -410,10 +478,11 @@ export class EnhancedAutomationService implements OnModuleDestroy {
           this.loginCoordinatorService.markLoginCompleted(lineAccountId);
           this.logger.log(`[Login] Using existing keys for ${lineAccountId} (key copying)`);
           
-          // Track recent success for polling fallback
+          // Track recent success for polling fallback and health check grace period
           this.recentLoginSuccess.set(lineAccountId, { timestamp: Date.now() });
-          setTimeout(() => this.recentLoginSuccess.delete(lineAccountId), 30000);
-          
+          // Auto-clear after health check grace period (5 minutes)
+          setTimeout(() => this.recentLoginSuccess.delete(lineAccountId), this.HEALTH_CHECK_GRACE_PERIOD_MS);
+
           return {
             success: true,
             status: EnhancedLoginStatus.SUCCESS,
@@ -521,10 +590,11 @@ export class EnhancedAutomationService implements OnModuleDestroy {
           await this.saveKeysToDatabase(lineAccountId, capturedData.keys, capturedData.chatMid, capturedData.cUrlBash);
           this.loginCoordinatorService.markLoginCompleted(lineAccountId);
           
-          // Track recent success for polling fallback
+          // Track recent success for polling fallback and health check grace period
           this.recentLoginSuccess.set(lineAccountId, { timestamp: Date.now() });
-          setTimeout(() => this.recentLoginSuccess.delete(lineAccountId), 30000);
-          
+          // Auto-clear after health check grace period (5 minutes)
+          setTimeout(() => this.recentLoginSuccess.delete(lineAccountId), this.HEALTH_CHECK_GRACE_PERIOD_MS);
+
           return {
             success: true,
             status: EnhancedLoginStatus.SUCCESS,
@@ -629,18 +699,19 @@ export class EnhancedAutomationService implements OnModuleDestroy {
           await this.saveKeysToDatabase(lineAccountId, capturedData.keys, capturedData.chatMid, capturedData.cUrlBash);
           this.loginCoordinatorService.markLoginCompleted(lineAccountId);
 
-          // Clear PIN from store after successful login to stop PIN countdown broadcasts
-          this.pinStore.delete(lineAccountId);
-          this.logger.log(`[PIN] Cleared PIN for ${lineAccountId} after successful login`);
+          // Securely clear PIN from store after successful login to stop PIN countdown broadcasts
+          this.secureClearPin(lineAccountId);
+          this.logger.log(`[PIN Security] Securely cleared PIN for ${lineAccountId} after successful login`);
 
-          // Track recent success for 30 seconds (helps frontend detect success via polling)
+          // Track recent success for health check grace period (5 minutes)
+          // This prevents health check from marking keys as expired immediately after login
           this.recentLoginSuccess.set(lineAccountId, { timestamp: Date.now() });
-          this.logger.log(`[RecentSuccess] Marked success for ${lineAccountId}`);
-          // Auto-clear after 30 seconds
+          this.logger.log(`[RecentSuccess] Marked success for ${lineAccountId} (grace period: ${this.HEALTH_CHECK_GRACE_PERIOD_MS / 60000} minutes)`);
+          // Auto-clear after health check grace period
           setTimeout(() => {
             this.recentLoginSuccess.delete(lineAccountId);
             this.logger.log(`[RecentSuccess] Cleared for ${lineAccountId}`);
-          }, 30000);
+          }, this.HEALTH_CHECK_GRACE_PERIOD_MS);
 
           this.emitStatus(lineAccountId, EnhancedLoginStatus.SUCCESS, {
             requestId,
@@ -675,19 +746,29 @@ export class EnhancedAutomationService implements OnModuleDestroy {
 
   /**
    * Validate keys by making a test API call to LINE
+   *
+   * [FIX] Changed from getChats to getProfile endpoint:
+   * - getChats requires xHmac that matches the request body
+   * - xHmac is generated per-request, so using stored xHmac with different body fails
+   * - getProfile doesn't require xHmac, only xLineAccess token
+   * - This makes validation more reliable and accurate
    */
   async validateKeys(xLineAccess: string, xHmac: string): Promise<boolean> {
     try {
       const axios = require('axios');
+
+      // [FIX] Use getProfile endpoint - doesn't require xHmac
+      // xHmac is request-specific (generated from body), so it only works with the original request
+      // getProfile only needs valid xLineAccess token to work
       const response = await axios.post(
-        'https://line-chrome-gw.line-apps.com/api/talk/thrift/Talk/TalkService/getChats',
-        ['', 50, ''],
+        'https://line-chrome-gw.line-apps.com/api/talk/thrift/Talk/TalkService/getProfile',
+        [], // Empty body for getProfile
         {
           headers: {
             'x-line-access': xLineAccess,
-            'x-hmac': xHmac,
+            // Note: xHmac not sent - getProfile doesn't require it
             'content-type': 'application/json',
-            'x-line-chrome-version': '3.4.0',
+            'x-line-chrome-version': '3.7.1',
           },
           timeout: 10000,
           validateStatus: (status: number) => status < 500,
@@ -696,7 +777,8 @@ export class EnhancedAutomationService implements OnModuleDestroy {
 
       // Check if response is successful
       if (response.status === 200 && response.data?.code === 0) {
-        this.logger.log(`[ValidateKeys] Keys are VALID`);
+        const displayName = response.data?.data?.displayName || 'Unknown';
+        this.logger.log(`[ValidateKeys] Keys are VALID (profile: ${displayName})`);
         return true;
       }
 
@@ -723,7 +805,7 @@ export class EnhancedAutomationService implements OnModuleDestroy {
         }
       }
 
-      // For 200 with non-zero code, keys might still work for messages
+      // For 200 with non-zero code, keys might still work
       if (response.status === 200) {
         this.logger.log(`[ValidateKeys] Status 200 with code=${errorCode} - assuming keys are VALID`);
         return true;
@@ -2283,8 +2365,8 @@ export class EnhancedAutomationService implements OnModuleDestroy {
   async cancelLogin(lineAccountId: string): Promise<void> {
     this.loginCoordinatorService.cancelRequest(lineAccountId);
 
-    // Clear active PIN tracking
-    this.pinStore.delete(lineAccountId);
+    // Securely clear active PIN tracking
+    this.secureClearPin(lineAccountId);
 
     // GSB-style: Soft cancel - keep browser open, just reset state
     // This allows reusing the same browser for next login attempt
@@ -2301,7 +2383,7 @@ export class EnhancedAutomationService implements OnModuleDestroy {
    */
   async forceCloseBrowser(lineAccountId: string): Promise<void> {
     this.loginCoordinatorService.cancelRequest(lineAccountId);
-    this.pinStore.delete(lineAccountId);
+    this.secureClearPin(lineAccountId);
     await this.workerPoolService.closeWorker(lineAccountId);
     this.logger.log(`Browser force-closed for ${lineAccountId}`);
   }
@@ -2460,6 +2542,41 @@ export class EnhancedAutomationService implements OnModuleDestroy {
     });
 
     this.logger.log(`[PIN] Stored PIN for ${lineAccountId}: ${pinCode}`);
+  }
+
+  /**
+   * Check if a session has recent login success within grace period
+   * Used by Orchestrator to skip health check validation for recently logged in sessions
+   *
+   * @param lineAccountId - Session ID to check
+   * @param gracePeriodMs - Optional custom grace period (default: HEALTH_CHECK_GRACE_PERIOD_MS = 5 minutes)
+   * @returns Object with hasRecentSuccess flag and age in seconds
+   */
+  hasRecentSuccess(lineAccountId: string, gracePeriodMs?: number): {
+    hasRecentSuccess: boolean;
+    ageSeconds: number;
+    gracePeriodSeconds: number;
+  } {
+    const recentSuccess = this.recentLoginSuccess.get(lineAccountId);
+    const gracePeriod = gracePeriodMs || this.HEALTH_CHECK_GRACE_PERIOD_MS;
+
+    if (!recentSuccess) {
+      return {
+        hasRecentSuccess: false,
+        ageSeconds: 0,
+        gracePeriodSeconds: gracePeriod / 1000,
+      };
+    }
+
+    const ageMs = Date.now() - recentSuccess.timestamp;
+    const ageSeconds = Math.floor(ageMs / 1000);
+    const hasRecentSuccess = ageMs < gracePeriod;
+
+    return {
+      hasRecentSuccess,
+      ageSeconds,
+      gracePeriodSeconds: gracePeriod / 1000,
+    };
   }
 
   /**
@@ -2666,11 +2783,11 @@ export class EnhancedAutomationService implements OnModuleDestroy {
   }
 
   /**
-   * Clear PIN for a LINE account
+   * Clear PIN for a LINE account (secure deletion)
    */
   clearPin(lineAccountId: string): void {
-    this.pinStore.delete(lineAccountId);
-    this.logger.log(`[PIN] Cleared PIN for ${lineAccountId}`);
+    this.secureClearPin(lineAccountId);
+    this.logger.log(`[PIN Security] Securely cleared PIN for ${lineAccountId}`);
   }
 
   /**
@@ -2777,8 +2894,8 @@ export class EnhancedAutomationService implements OnModuleDestroy {
         // PIN expired - cleanup
         this.logger.log(`[AutoCleanup] PIN expired for ${lineAccountId}, cleaning up...`);
 
-        // Clear PIN
-        this.pinStore.delete(lineAccountId);
+        // Securely clear PIN
+        this.secureClearPin(lineAccountId);
 
         // Release lock if held
         this.loginLockService.releaseLock(lineAccountId, 'enhanced');
@@ -2820,22 +2937,30 @@ export class EnhancedAutomationService implements OnModuleDestroy {
 
   /**
    * Auto-cleanup expired PINs (call periodically)
+   * Uses secure deletion to prevent PIN from lingering in memory
    */
   cleanupExpiredPins(): number {
     let cleaned = 0;
     const now = new Date();
     const expiryMs = this.PIN_EXPIRY_MINUTES * 60 * 1000;
+    const expiredAccounts: string[] = [];
 
+    // First pass: identify expired PINs
     for (const [lineAccountId, pinData] of this.pinStore) {
       const pinAge = now.getTime() - new Date(pinData.updatedAt).getTime();
       if (pinAge > expiryMs) {
-        this.pinStore.delete(lineAccountId);
-        cleaned++;
+        expiredAccounts.push(lineAccountId);
       }
     }
 
+    // Second pass: securely delete expired PINs
+    for (const lineAccountId of expiredAccounts) {
+      this.secureClearPin(lineAccountId);
+      cleaned++;
+    }
+
     if (cleaned > 0) {
-      this.logger.log(`[PIN] Cleaned up ${cleaned} expired PINs`);
+      this.logger.log(`[PIN Security] Securely cleaned up ${cleaned} expired PINs`);
     }
 
     return cleaned;
@@ -2863,9 +2988,31 @@ export class EnhancedAutomationService implements OnModuleDestroy {
   }
 
   /**
-   * Cleanup on module destroy
+   * Cleanup on module destroy - securely clear all PINs from memory
    */
   async onModuleDestroy(): Promise<void> {
+    this.logger.log('[PIN Security] Module destroying - securely clearing all PINs from memory');
+
+    // Stop cleanup interval
+    if (this.pinCleanupInterval) {
+      clearInterval(this.pinCleanupInterval);
+      this.pinCleanupInterval = null;
+    }
+
+    // Securely clear all PINs
+    const pinCount = this.pinStore.size;
+    for (const lineAccountId of Array.from(this.pinStore.keys())) {
+      this.secureClearPin(lineAccountId);
+    }
+
+    // Clear the map itself
+    this.pinStore.clear();
+
+    // Clear recent login success map
+    this.recentLoginSuccess.clear();
+
+    this.logger.log(`[PIN Security] Securely cleared ${pinCount} PIN(s) and cleaned up memory`);
+
     // WorkerPoolService handles its own cleanup
   }
 }

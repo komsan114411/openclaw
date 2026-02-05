@@ -69,4 +69,11 @@ export class UpdatePackageDto {
   @IsNumber()
   @Min(0)
   maxPurchasesPerUser?: number;
+
+  @ApiPropertyOptional({
+    description: 'แพ็คเกจแนะนำ - แสดงเป็น highlight ในหน้าเลือกแพ็คเกจ'
+  })
+  @IsOptional()
+  @IsBoolean()
+  isRecommended?: boolean;
 }

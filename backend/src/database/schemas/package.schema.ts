@@ -42,6 +42,10 @@ export class Package {
 
   @Prop({ default: 0, index: true })
   sortOrder: number;
+
+  // แพ็คเกจแนะนำ - แสดงเป็น highlight ในหน้า user/packages
+  @Prop({ default: false })
+  isRecommended: boolean;
 }
 
 export const PackageSchema = SchemaFactory.createForClass(Package);
