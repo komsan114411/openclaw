@@ -986,13 +986,14 @@ export default function LineSessionPage() {
                   <textarea
                     value={String(fullKeys.cUrlBash) || ''}
                     readOnly
-                    className="flex-1 p-2 font-mono text-xs bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg resize-none"
+                    className="flex-1 p-3 font-mono text-xs bg-slate-900 text-slate-200 border border-slate-700 rounded-lg resize-none focus:outline-none focus:ring-0"
                     rows={4}
                   />
                   <Button
                     variant="secondary"
                     size="sm"
                     onClick={() => copyToClipboard(String(fullKeys.cUrlBash), 'cURL Bash')}
+                    className="shrink-0"
                   >
                     <Copy className="w-4 h-4" />
                   </Button>
