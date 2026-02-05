@@ -662,9 +662,11 @@ export class WebsocketGateway implements OnGatewayConnection, OnGatewayDisconnec
     newMessages: number;
     occurredAt?: Date;
   }) {
-    if (payload.newMessages > 0) {
-      this.logger.log(`[LineSession] Messages fetched: ${payload.newMessages} new for ${payload.lineAccountId}`);
+    // Always log for debugging
+    this.logger.log(`[LineSession] Messages fetched: ${payload.newMessages} new, ${payload.messageCount} total for ${payload.lineAccountId}`);
 
+    // Only broadcast if there are new messages
+    if (payload.newMessages > 0) {
       const eventData = {
         type: 'new_transaction',
         lineSessionId: payload.lineAccountId,
@@ -675,8 +677,11 @@ export class WebsocketGateway implements OnGatewayConnection, OnGatewayDisconnec
 
       // Broadcast to the specific LINE account room
       this.broadcastToRoom(`line-account:${payload.lineAccountId}`, 'line-session:new-transaction', eventData);
-      // Also broadcast to admins
-      this.broadcastToAdmins('line-session:new-transaction', eventData);
+
+      // Also broadcast to user room (fallback)
+      this.broadcastToAll('line-session:new-transaction', eventData);
+
+      this.logger.log(`[LineSession] Broadcasted new-transaction event to line-account:${payload.lineAccountId}`);
     }
   }
 

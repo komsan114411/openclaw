@@ -328,6 +328,11 @@ export default function LineSessionPage() {
   const [isFetchingTransactions, setIsFetchingTransactions] = useState(false);
   const [showTransactions, setShowTransactions] = useState(false);
 
+  // Auto-refresh state
+  const [lastRefreshTime, setLastRefreshTime] = useState<Date | null>(null);
+  const [countdown, setCountdown] = useState(0);
+  const AUTO_REFRESH_INTERVAL = 30; // seconds
+
   // Fetch LINE sessions and banks
   const fetchData = useCallback(async () => {
     setIsLoading(true);
@@ -367,8 +372,8 @@ export default function LineSessionPage() {
   }, []);
 
   // Fetch transactions for selected session
-  const fetchTransactions = useCallback(async (sessionId: string) => {
-    setIsLoadingTransactions(true);
+  const fetchTransactions = useCallback(async (sessionId: string, silent = false) => {
+    if (!silent) setIsLoadingTransactions(true);
     try {
       const [txRes, summaryRes] = await Promise.all([
         lineSessionUserApi.getTransactions(sessionId, { limit: 20 }),
@@ -377,14 +382,39 @@ export default function LineSessionPage() {
 
       setTransactions(txRes.data.transactions || []);
       setTransactionSummary(summaryRes.data.summary || null);
+      setLastRefreshTime(new Date());
     } catch {
       // Silently fail - transactions are optional
       setTransactions([]);
       setTransactionSummary(null);
     } finally {
-      setIsLoadingTransactions(false);
+      if (!silent) setIsLoadingTransactions(false);
     }
   }, []);
+
+  // Auto-refresh transactions every 30 seconds when viewing
+  useEffect(() => {
+    if (!selectedSession?.hasKeys || !showTransactions) {
+      setCountdown(0);
+      return;
+    }
+
+    // Start countdown
+    setCountdown(AUTO_REFRESH_INTERVAL);
+
+    const countdownInterval = setInterval(() => {
+      setCountdown(prev => {
+        if (prev <= 1) {
+          // Time to refresh
+          fetchTransactions(selectedSession._id, true);
+          return AUTO_REFRESH_INTERVAL;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => clearInterval(countdownInterval);
+  }, [selectedSession?._id, selectedSession?.hasKeys, showTransactions, fetchTransactions]);
 
   // Trigger fetch from LINE API
   const handleFetchTransactions = async () => {
@@ -1183,10 +1213,22 @@ export default function LineSessionPage() {
                   {sessionStatus?.hasKeys && (
                     <div className="border-t pt-6 mt-6">
                       <div className="flex items-center justify-between mb-4">
-                        <h4 className="font-medium text-slate-900 dark:text-white flex items-center gap-2">
-                          <History className="w-5 h-5 text-emerald-500" />
-                          รายการธุรกรรม
-                        </h4>
+                        <div>
+                          <h4 className="font-medium text-slate-900 dark:text-white flex items-center gap-2">
+                            <History className="w-5 h-5 text-emerald-500" />
+                            รายการธุรกรรม
+                            {showTransactions && countdown > 0 && (
+                              <span className="text-xs font-normal text-slate-500 ml-2">
+                                (รีเฟรชใน {countdown} วินาที)
+                              </span>
+                            )}
+                          </h4>
+                          {lastRefreshTime && (
+                            <p className="text-xs text-slate-400 mt-1">
+                              อัพเดทล่าสุด: {lastRefreshTime.toLocaleTimeString('th-TH')}
+                            </p>
+                          )}
+                        </div>
                         <div className="flex gap-2">
                           <Button
                             variant="secondary"
