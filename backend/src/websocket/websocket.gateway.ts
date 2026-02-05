@@ -647,6 +647,93 @@ export class WebsocketGateway implements OnGatewayConnection, OnGatewayDisconnec
     this.broadcastToUser(payload.userId, 'auto-slip:balance_updated', payload);
   }
 
+  // ============================================
+  // LINE Session Message Fetch Events
+  // ============================================
+
+  /**
+   * Broadcast when messages are fetched from LINE API
+   * This is emitted by MessageFetchService after fetching messages
+   */
+  @OnEvent('line-session.messages-fetched')
+  handleLineSessionMessagesFetched(payload: {
+    lineAccountId: string;
+    messageCount: number;
+    newMessages: number;
+    occurredAt?: Date;
+  }) {
+    if (payload.newMessages > 0) {
+      this.logger.log(`[LineSession] Messages fetched: ${payload.newMessages} new for ${payload.lineAccountId}`);
+
+      const eventData = {
+        type: 'new_transaction',
+        lineSessionId: payload.lineAccountId,
+        newCount: payload.newMessages,
+        total: payload.messageCount,
+        timestamp: payload.occurredAt || new Date(),
+      };
+
+      // Broadcast to the specific LINE account room
+      this.broadcastToRoom(`line-account:${payload.lineAccountId}`, 'line-session:new-transaction', eventData);
+      // Also broadcast to admins
+      this.broadcastToAdmins('line-session:new-transaction', eventData);
+    }
+  }
+
+  /**
+   * Broadcast when auto-fetch batch completes
+   * This is emitted by MessageFetchService after fetching all accounts
+   */
+  @OnEvent('line-session.auto-fetch-batch-completed')
+  handleAutoFetchBatchCompleted(payload: {
+    sessionsCount: number;
+    successCount: number;
+    newMessagesTotal: number;
+    occurredAt?: Date;
+  }) {
+    if (payload.newMessagesTotal > 0) {
+      this.logger.log(`[LineSession] Auto-fetch batch: ${payload.successCount}/${payload.sessionsCount} success, ${payload.newMessagesTotal} new messages`);
+
+      const eventData = {
+        type: 'batch_completed',
+        sessionsCount: payload.sessionsCount,
+        successCount: payload.successCount,
+        newMessagesTotal: payload.newMessagesTotal,
+        timestamp: payload.occurredAt || new Date(),
+      };
+
+      // Broadcast to admins
+      this.broadcastToAdmins('line-session:auto-fetch-completed', eventData);
+    }
+  }
+
+  /**
+   * Broadcast when a single transaction is detected
+   * This is emitted by MessageFetchService when processing a new transaction
+   */
+  @OnEvent('line-session.new-transaction')
+  handleLineSessionNewTransaction(payload: {
+    lineAccountId: string;
+    transactionType: string;
+    amount?: number;
+    balance?: number;
+    occurredAt?: Date;
+  }) {
+    this.logger.log(`[LineSession] New transaction: ${payload.transactionType} ${payload.amount || ''} for ${payload.lineAccountId}`);
+
+    const eventData = {
+      type: 'transaction',
+      lineSessionId: payload.lineAccountId,
+      transactionType: payload.transactionType,
+      amount: payload.amount,
+      balance: payload.balance,
+      timestamp: payload.occurredAt || new Date(),
+    };
+
+    // Broadcast to the specific LINE account room
+    this.broadcastToRoom(`line-account:${payload.lineAccountId}`, 'line-session:new-transaction', eventData);
+  }
+
   /**
    * Broadcast when error occurs on bank account
    * CRITICAL EVENT - tells frontend login failed

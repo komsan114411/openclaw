@@ -94,12 +94,75 @@ interface Transaction {
   _id: string;
   messageId: string;
   text?: string;
+  originalMsg?: string;
   transactionType: string;
   amount?: string;
   balance?: string;
   messageDate?: string;
   bankCode?: string;
   createdAt?: string;
+  from?: string;
+  to?: string;
+}
+
+// Parse bank message to extract details
+function parseBankMessage(text: string): {
+  type: string;
+  amount: string;
+  fromAccount?: string;
+  toAccount?: string;
+  balance?: string;
+  description?: string;
+} {
+  const result: ReturnType<typeof parseBankMessage> = {
+    type: 'unknown',
+    amount: '',
+  };
+
+  if (!text) return result;
+
+  // GSB format: "มีการฝาก/โอนเงิน 40.00 บาท จากบัญชี KKBA 0020XXXX2"
+  // SCB format: "เงินเข้า +1,000.00 บาท จาก xxx เข้าบัญชี xxx"
+  // KBANK format: "รับโอนเงิน 500.00 บาท จาก K PLUS xxx"
+
+  // Extract amount
+  const amountMatch = text.match(/([+-]?[\d,]+\.?\d*)\s*บาท/);
+  if (amountMatch) {
+    result.amount = amountMatch[1].replace(/,/g, '');
+  }
+
+  // Extract from account
+  const fromMatch = text.match(/จากบัญชี\s*([^\s]+(?:\s+\d+[X\d]+)?)/i) ||
+                    text.match(/จาก\s+([A-Z\s]+\d+[X\d]*)/i) ||
+                    text.match(/จาก\s+(.+?)(?:\s+เข้า|$)/i);
+  if (fromMatch) {
+    result.fromAccount = fromMatch[1].trim();
+  }
+
+  // Extract to account
+  const toMatch = text.match(/เข้าบัญชี\s*([^\s]+(?:\s+\d+[X\d]+)?)/i) ||
+                  text.match(/ไปยังบัญชี\s*([^\s]+)/i);
+  if (toMatch) {
+    result.toAccount = toMatch[1].trim();
+  }
+
+  // Extract balance
+  const balanceMatch = text.match(/คงเหลือ\s*([+-]?[\d,]+\.?\d*)\s*บาท/i) ||
+                       text.match(/ยอดคงเหลือ\s*([+-]?[\d,]+\.?\d*)/i);
+  if (balanceMatch) {
+    result.balance = balanceMatch[1].replace(/,/g, '');
+  }
+
+  // Determine type
+  if (text.includes('ฝาก') || text.includes('เงินเข้า') || text.includes('รับโอน') || text.includes('โอนเงิน')) {
+    result.type = 'deposit';
+  } else if (text.includes('ถอน') || text.includes('เงินออก') || text.includes('โอนออก') || text.includes('ชำระ')) {
+    result.type = 'withdraw';
+  }
+
+  result.description = text;
+
+  return result;
 }
 
 interface TransactionSummary {
@@ -182,7 +245,7 @@ export default function LineSessionPage() {
     onStatusChange: (event) => {
       const accountId = event.lineAccountId;
       if (!accountId) return;
-      
+
       const inProgressStatuses = [
         'requesting', 'initializing', 'launching_browser', 'loading_extension',
         'checking_session', 'entering_credentials', 'waiting_pin', 'pin_displayed',
@@ -214,7 +277,7 @@ export default function LineSessionPage() {
         if (event.status === 'success') {
           // Clear PIN and login status for this account
           setLoginStatusForAccount(accountId, null);
-          
+
           // Show success state with keys from event for this account
           setLoginSuccessForAccount(accountId, {
             show: true,
@@ -224,7 +287,7 @@ export default function LineSessionPage() {
               chatMid: event.chatMid,
             } : undefined,
           });
-          
+
           // Fetch updated session status to get full keys
           if (accountId === selectedSession?._id) {
             fetchSessionStatus(accountId);
@@ -240,6 +303,15 @@ export default function LineSessionPage() {
         }
       } else if (isInProgress) {
         setIsPolling(true);
+      }
+    },
+    // [NEW] Listen for new transactions - auto-refresh when backend fetches new messages
+    onNewTransaction: (event) => {
+      // event: { lineSessionId, newCount, total }
+      if (event.lineSessionId === selectedSession?._id) {
+        toast.success(`ดึงรายการใหม่ ${event.newCount} รายการ`, { icon: '📥' });
+        // Refresh transactions list
+        fetchTransactions(selectedSession._id);
       }
     },
   });
@@ -1206,65 +1278,115 @@ export default function LineSessionPage() {
                               <p className="text-xs mt-1">กดปุ่ม "ดึงรายการใหม่" เพื่อดึงข้อมูลจาก LINE</p>
                             </div>
                           ) : (
-                            <div className="max-h-96 overflow-y-auto space-y-2">
-                              {transactions.map((tx) => (
-                                <div
-                                  key={tx._id}
-                                  className={`p-3 rounded-lg border ${
-                                    tx.transactionType === 'deposit'
-                                      ? 'bg-emerald-50 dark:bg-emerald-900/10 border-emerald-200 dark:border-emerald-800'
-                                      : tx.transactionType === 'withdraw'
-                                      ? 'bg-red-50 dark:bg-red-900/10 border-red-200 dark:border-red-800'
-                                      : 'bg-slate-50 dark:bg-slate-800/50 border-slate-200 dark:border-slate-700'
-                                  }`}
-                                >
-                                  <div className="flex items-center justify-between">
-                                    <div className="flex items-center gap-2">
-                                      {tx.transactionType === 'deposit' ? (
-                                        <ArrowDownCircle className="w-5 h-5 text-emerald-500" />
-                                      ) : tx.transactionType === 'withdraw' ? (
-                                        <ArrowUpCircle className="w-5 h-5 text-red-500" />
-                                      ) : (
-                                        <History className="w-5 h-5 text-slate-500" />
-                                      )}
-                                      <div>
-                                        <p className="font-medium text-sm text-slate-900 dark:text-white">
-                                          {tx.transactionType === 'deposit' ? 'เงินเข้า' :
-                                           tx.transactionType === 'withdraw' ? 'เงินออก' : 'รายการ'}
-                                        </p>
-                                        {tx.messageDate && (
+                            <div className="max-h-[500px] overflow-y-auto space-y-3">
+                              {transactions.map((tx) => {
+                                // Parse bank message to extract full details
+                                const parsed = parseBankMessage(tx.text || tx.originalMsg || '');
+                                const displayAmount = tx.amount || parsed.amount;
+                                const displayBalance = tx.balance || parsed.balance;
+                                const fromAccount = tx.from || parsed.fromAccount;
+                                const toAccount = tx.to || parsed.toAccount;
+                                const txType = tx.transactionType || parsed.type;
+
+                                return (
+                                  <div
+                                    key={tx._id}
+                                    className={`p-4 rounded-xl border ${
+                                      txType === 'deposit'
+                                        ? 'bg-emerald-50 dark:bg-emerald-900/10 border-emerald-200 dark:border-emerald-800'
+                                        : txType === 'withdraw'
+                                        ? 'bg-red-50 dark:bg-red-900/10 border-red-200 dark:border-red-800'
+                                        : 'bg-slate-50 dark:bg-slate-800/50 border-slate-200 dark:border-slate-700'
+                                    }`}
+                                  >
+                                    {/* Header: Type + Amount */}
+                                    <div className="flex items-center justify-between mb-3">
+                                      <div className="flex items-center gap-3">
+                                        <div className={`p-2 rounded-full ${
+                                          txType === 'deposit'
+                                            ? 'bg-emerald-100 dark:bg-emerald-900/30'
+                                            : txType === 'withdraw'
+                                            ? 'bg-red-100 dark:bg-red-900/30'
+                                            : 'bg-slate-100 dark:bg-slate-800'
+                                        }`}>
+                                          {txType === 'deposit' ? (
+                                            <ArrowDownCircle className="w-5 h-5 text-emerald-500" />
+                                          ) : txType === 'withdraw' ? (
+                                            <ArrowUpCircle className="w-5 h-5 text-red-500" />
+                                          ) : (
+                                            <History className="w-5 h-5 text-slate-500" />
+                                          )}
+                                        </div>
+                                        <div>
+                                          <p className="font-semibold text-slate-900 dark:text-white">
+                                            {txType === 'deposit' ? 'เงินเข้า' :
+                                             txType === 'withdraw' ? 'เงินออก' : 'รายการ'}
+                                          </p>
+                                          {tx.messageDate && (
+                                            <p className="text-xs text-slate-500">
+                                              {new Date(tx.messageDate).toLocaleString('th-TH')}
+                                            </p>
+                                          )}
+                                        </div>
+                                      </div>
+                                      <div className="text-right">
+                                        {displayAmount && (
+                                          <p className={`text-xl font-bold ${
+                                            txType === 'deposit'
+                                              ? 'text-emerald-600 dark:text-emerald-400'
+                                              : txType === 'withdraw'
+                                              ? 'text-red-600 dark:text-red-400'
+                                              : 'text-slate-600 dark:text-slate-400'
+                                          }`}>
+                                            {txType === 'deposit' ? '+' : txType === 'withdraw' ? '-' : ''}฿{parseFloat(displayAmount).toLocaleString()}
+                                          </p>
+                                        )}
+                                        {displayBalance && (
                                           <p className="text-xs text-slate-500">
-                                            {new Date(tx.messageDate).toLocaleString('th-TH')}
+                                            คงเหลือ: ฿{parseFloat(displayBalance).toLocaleString()}
                                           </p>
                                         )}
                                       </div>
                                     </div>
-                                    <div className="text-right">
-                                      {tx.amount && (
-                                        <p className={`font-semibold ${
-                                          tx.transactionType === 'deposit'
-                                            ? 'text-emerald-600 dark:text-emerald-400'
-                                            : tx.transactionType === 'withdraw'
-                                            ? 'text-red-600 dark:text-red-400'
-                                            : 'text-slate-600 dark:text-slate-400'
-                                        }`}>
-                                          {tx.transactionType === 'deposit' ? '+' : '-'}฿{parseFloat(tx.amount).toLocaleString()}
+
+                                    {/* Account Details: From → To */}
+                                    {(fromAccount || toAccount) && (
+                                      <div className="flex items-center gap-2 p-3 bg-white/50 dark:bg-slate-800/50 rounded-lg mb-3">
+                                        {fromAccount && (
+                                          <div className="flex-1">
+                                            <p className="text-xs text-slate-500 mb-0.5">จากบัญชี</p>
+                                            <p className="font-medium text-sm text-slate-800 dark:text-slate-200">
+                                              {fromAccount}
+                                            </p>
+                                          </div>
+                                        )}
+                                        {fromAccount && toAccount && (
+                                          <div className="text-slate-400">
+                                            →
+                                          </div>
+                                        )}
+                                        {toAccount && (
+                                          <div className="flex-1 text-right">
+                                            <p className="text-xs text-slate-500 mb-0.5">เข้าบัญชี</p>
+                                            <p className="font-medium text-sm text-slate-800 dark:text-slate-200">
+                                              {toAccount}
+                                            </p>
+                                          </div>
+                                        )}
+                                      </div>
+                                    )}
+
+                                    {/* Full Message */}
+                                    {(tx.text || tx.originalMsg) && (
+                                      <div className="p-2 bg-white/30 dark:bg-slate-900/30 rounded-lg">
+                                        <p className="text-xs text-slate-600 dark:text-slate-400 whitespace-pre-wrap break-words">
+                                          {tx.text || tx.originalMsg}
                                         </p>
-                                      )}
-                                      {tx.balance && (
-                                        <p className="text-xs text-slate-500">
-                                          คงเหลือ: ฿{parseFloat(tx.balance).toLocaleString()}
-                                        </p>
-                                      )}
-                                    </div>
+                                      </div>
+                                    )}
                                   </div>
-                                  {tx.text && (
-                                    <p className="text-xs text-slate-500 mt-2 truncate" title={tx.text}>
-                                      {tx.text.substring(0, 100)}{tx.text.length > 100 ? '...' : ''}
-                                    </p>
-                                  )}
-                                </div>
-                              ))}
+                                );
+                              })}
                             </div>
                           )}
                         </div>

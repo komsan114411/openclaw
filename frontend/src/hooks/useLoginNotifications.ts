@@ -80,12 +80,21 @@ export interface WorkerStateEvent {
   timestamp: string;
 }
 
+export interface NewTransactionEvent {
+  type: 'new_transaction';
+  lineSessionId: string;
+  newCount: number;
+  total: number;
+  timestamp: string;
+}
+
 interface UseLoginNotificationsOptions {
   lineAccountId?: string;
   onStatusChange?: (event: LoginStatusEvent) => void;
   onLoginEvent?: (event: LoginEvent) => void;
   onWorkerState?: (event: WorkerStateEvent) => void;
   onKeysCaptured?: (event: KeysCapturedEvent) => void;
+  onNewTransaction?: (event: NewTransactionEvent) => void;
   showToasts?: boolean;
   autoConnect?: boolean;
 }
@@ -111,6 +120,7 @@ export function useLoginNotifications(options: UseLoginNotificationsOptions = {}
     onLoginEvent,
     onWorkerState,
     onKeysCaptured,
+    onNewTransaction,
     showToasts = true,
     autoConnect = true,
   } = options;
@@ -133,6 +143,7 @@ export function useLoginNotifications(options: UseLoginNotificationsOptions = {}
   const onLoginEventRef = useRef(onLoginEvent);
   const onWorkerStateRef = useRef(onWorkerState);
   const onKeysCapturedRef = useRef(onKeysCaptured);
+  const onNewTransactionRef = useRef(onNewTransaction);
   const lineAccountIdRef = useRef(lineAccountId);
 
   // Keep refs updated
@@ -151,6 +162,10 @@ export function useLoginNotifications(options: UseLoginNotificationsOptions = {}
   useEffect(() => {
     onKeysCapturedRef.current = onKeysCaptured;
   }, [onKeysCaptured]);
+
+  useEffect(() => {
+    onNewTransactionRef.current = onNewTransaction;
+  }, [onNewTransaction]);
 
   useEffect(() => {
     const prevAccountId = lineAccountIdRef.current;
@@ -512,6 +527,20 @@ export function useLoginNotifications(options: UseLoginNotificationsOptions = {}
       }
     });
 
+    // Handle new transaction event (auto-fetch completed)
+    socket.on('line-session:new-transaction', (data: NewTransactionEvent) => {
+      console.log('[LoginNotifications] New transaction:', data);
+
+      // Filter by lineAccountId if specified
+      const currentAccountId = lineAccountIdRef.current;
+      if (currentAccountId && data.lineSessionId !== currentAccountId) {
+        return;
+      }
+
+      // Call callback via ref (stable reference)
+      onNewTransactionRef.current?.(data);
+    });
+
     return () => {
       socket.off('line-session:login-status');
       socket.off('line-session:login-event');
@@ -519,6 +548,7 @@ export function useLoginNotifications(options: UseLoginNotificationsOptions = {}
       socket.off('line-session:keys-captured');
       socket.off('line-session:pin-countdown');
       socket.off('line-session:pin-expired');
+      socket.off('line-session:new-transaction');
       socket.off('connect');
       socket.off('disconnect');
       socket.off('reconnect');
