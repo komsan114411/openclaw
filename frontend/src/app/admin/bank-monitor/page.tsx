@@ -134,15 +134,19 @@ export default function AdminBankMonitorPage() {
   const fetchData = useCallback(async () => {
     try {
       // Fetch LINE sessions directly (includes sessions from user/line-session without lineAccountId)
+      console.log('[BankMonitor] Fetching sessions...');
       const [sessionsRes, banksRes, usersRes] = await Promise.all([
         lineSessionApi.getAll(),
         lineSessionApi.getBanks(),
         usersApi.getAll().catch(() => ({ data: [] })),
       ]);
 
+      console.log('[BankMonitor] Sessions response:', sessionsRes.data);
+      console.log('[BankMonitor] Users response:', usersRes.data);
       const allSessions = sessionsRes.data?.sessions || [];
       const banksList = banksRes.data?.banks || [];
-      const usersList: OwnerInfo[] = usersRes.data || [];
+      // Users API returns { success: true, users: [...] }
+      const usersList: OwnerInfo[] = usersRes.data?.users || usersRes.data || [];
 
       // Create user lookup map
       const usersMap = new Map<string, OwnerInfo>();
@@ -287,6 +291,9 @@ export default function AdminBankMonitorPage() {
     switch (status) {
       case 'active':
         return <Badge className="bg-emerald-100 text-emerald-700 border-emerald-200">Active</Badge>;
+      case 'valid_grace_period':
+        // [FIX] Keys ใช้งานได้ (เพิ่งล็อกอินสำเร็จ อยู่ใน grace period)
+        return <Badge className="bg-emerald-100 text-emerald-700 border-emerald-200">Active</Badge>;
       case 'expired':
         return <Badge className="bg-rose-100 text-rose-700 border-rose-200">Expired</Badge>;
       case 'error':
@@ -295,6 +302,9 @@ export default function AdminBankMonitorPage() {
         return <Badge className="bg-slate-100 text-slate-500 border-slate-200">No Session</Badge>;
       case 'pending':
         return <Badge className="bg-blue-100 text-blue-700 border-blue-200">Pending</Badge>;
+      case 'validating':
+        // [FIX] กำลังตรวจสอบ Keys
+        return <Badge className="bg-blue-100 text-blue-700 border-blue-200">Validating</Badge>;
       default:
         return <Badge className="bg-slate-100 text-slate-600 border-slate-200">Unknown</Badge>;
     }

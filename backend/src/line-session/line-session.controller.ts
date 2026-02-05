@@ -91,10 +91,12 @@ export class LineSessionController {
   @Get('all')
   @ApiOperation({ summary: 'Get all LINE sessions for bank monitoring (admin only - full keys)' })
   async getAllSessions() {
+    this.logger.log('[getAllSessions] Fetching all LINE sessions...');
     const sessions = await this.lineSessionModel
       .find({ isActive: true })
       .sort({ createdAt: -1 })
       .lean();
+    this.logger.log(`[getAllSessions] Found ${sessions.length} sessions`);
 
     return {
       success: true,
