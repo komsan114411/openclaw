@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import DashboardLayout from '@/components/layout/DashboardLayout';
-import { lineSessionApi, lineAccountsApi } from '@/lib/api';
+import { lineSessionApi, lineAccountsApi, usersApi } from '@/lib/api';
 import toast from 'react-hot-toast';
 import { Card, StatCard } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
@@ -26,7 +26,9 @@ import {
   XCircle,
   AlertCircle,
   ChevronRight,
-  Filter
+  Filter,
+  User,
+  Users
 } from 'lucide-react';
 
 interface BankSession {
@@ -42,6 +44,18 @@ interface BankSession {
   isActive?: boolean;
   lastCheckedAt?: string;
   consecutiveFailures?: number;
+  // Owner info
+  ownerId?: string;
+  ownerName?: string;
+  ownerEmail?: string;
+  lineEmail?: string;
+}
+
+interface OwnerInfo {
+  _id: string;
+  username: string;
+  email: string;
+  name?: string;
 }
 
 interface TransactionMessage {
@@ -67,7 +81,9 @@ export default function AdminBankMonitorPage() {
   const [lineAccounts, setLineAccounts] = useState<any[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterBank, setFilterBank] = useState('');
+  const [filterOwner, setFilterOwner] = useState('');
   const [banks, setBanks] = useState<any[]>([]);
+  const [owners, setOwners] = useState<OwnerInfo[]>([]);
 
   // Detail modal
   const [showDetailModal, setShowDetailModal] = useState(false);
@@ -87,17 +103,26 @@ export default function AdminBankMonitorPage() {
 
   const fetchData = useCallback(async () => {
     try {
-      // Fetch LINE accounts and banks
-      const [accountsRes, banksRes] = await Promise.all([
+      // Fetch LINE accounts, banks, and users
+      const [accountsRes, banksRes, usersRes] = await Promise.all([
         lineAccountsApi.getAll(),
         lineSessionApi.getBanks(),
+        usersApi.getAll().catch(() => ({ data: [] })),
       ]);
 
       const accounts = accountsRes.data || [];
       const banksList = banksRes.data?.banks || [];
+      const usersList: OwnerInfo[] = usersRes.data || [];
+
+      // Create user lookup map
+      const usersMap = new Map<string, OwnerInfo>();
+      usersList.forEach((user: OwnerInfo) => {
+        usersMap.set(user._id, user);
+      });
 
       setLineAccounts(accounts);
       setBanks(banksList);
+      setOwners(usersList);
 
       // Fetch sessions for each account
       const sessionsData: BankSession[] = [];
@@ -119,6 +144,10 @@ export default function AdminBankMonitorPage() {
             const summaryRes = await lineSessionApi.getTransactionSummary(account._id).catch(() => ({ data: null }));
             const accountSummary = summaryRes.data;
 
+            // Get owner info from lookup map
+            const ownerId = account.ownerId || session.ownerId;
+            const owner = ownerId ? usersMap.get(ownerId) : null;
+
             sessionsData.push({
               _id: session._id,
               lineAccountId: account._id,
@@ -132,6 +161,11 @@ export default function AdminBankMonitorPage() {
               isActive: session.isActive,
               lastCheckedAt: session.lastCheckedAt,
               consecutiveFailures: session.consecutiveFailures,
+              // Owner info
+              ownerId: ownerId,
+              ownerName: owner?.name || owner?.username || 'ไม่ทราบ',
+              ownerEmail: owner?.email,
+              lineEmail: session.lineEmail || account.lineEmail,
             });
 
             if (accountSummary) {
@@ -204,12 +238,16 @@ export default function AdminBankMonitorPage() {
   };
 
   const filteredSessions = sessions.filter(session => {
+    const searchLower = searchTerm.toLowerCase();
     const matchesSearch =
-      session.accountName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      session.bankName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      session.accountNumber?.includes(searchTerm);
+      session.accountName?.toLowerCase().includes(searchLower) ||
+      session.bankName?.toLowerCase().includes(searchLower) ||
+      session.accountNumber?.includes(searchTerm) ||
+      session.ownerName?.toLowerCase().includes(searchLower) ||
+      session.lineEmail?.toLowerCase().includes(searchLower);
     const matchesBank = !filterBank || session.bankCode === filterBank;
-    return matchesSearch && matchesBank;
+    const matchesOwner = !filterOwner || session.ownerId === filterOwner;
+    return matchesSearch && matchesBank && matchesOwner;
   });
 
   const getStatusBadge = (status?: string) => {
@@ -305,18 +343,32 @@ export default function AdminBankMonitorPage() {
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
             <input
               type="text"
-              placeholder="Search by account name, bank, or account number..."
+              placeholder="ค้นหาชื่อบัญชี, ธนาคาร, เจ้าของ, LINE email..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="w-full pl-12 pr-4 py-3 bg-slate-800/50 border border-slate-700/50 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500/50"
             />
           </div>
+          {/* Owner Filter */}
+          <select
+            value={filterOwner}
+            onChange={(e) => setFilterOwner(e.target.value)}
+            className="px-4 py-3 bg-slate-800/50 border border-slate-700/50 rounded-xl text-white focus:outline-none focus:border-violet-500/50 min-w-[180px]"
+          >
+            <option value="">เจ้าของทั้งหมด</option>
+            {owners.map((owner) => (
+              <option key={owner._id} value={owner._id}>
+                {owner.name || owner.username || owner.email}
+              </option>
+            ))}
+          </select>
+          {/* Bank Filter */}
           <select
             value={filterBank}
             onChange={(e) => setFilterBank(e.target.value)}
             className="px-4 py-3 bg-slate-800/50 border border-slate-700/50 rounded-xl text-white focus:outline-none focus:border-emerald-500/50"
           >
-            <option value="">All Banks</option>
+            <option value="">ธนาคารทั้งหมด</option>
             {banks.map((bank: any) => (
               <option key={bank.bankCode} value={bank.bankCode}>
                 {bank.bankNameTh || bank.bankNameEn}
@@ -354,7 +406,12 @@ export default function AdminBankMonitorPage() {
                         </h3>
                         {getStatusBadge(session.status)}
                       </div>
-                      <div className="flex items-center gap-4 text-sm text-slate-400">
+                      <div className="flex flex-wrap items-center gap-3 text-sm text-slate-400">
+                        {/* Owner Info - Highlighted */}
+                        <span className="flex items-center gap-1 px-2 py-0.5 bg-violet-500/10 text-violet-400 rounded-lg border border-violet-500/20">
+                          <User className="w-3.5 h-3.5" />
+                          <span className="font-medium">{session.ownerName || 'ไม่ทราบเจ้าของ'}</span>
+                        </span>
                         <span className="flex items-center gap-1">
                           <Building2 className="w-4 h-4" />
                           {session.bankName || session.bankCode || 'N/A'}
@@ -365,9 +422,17 @@ export default function AdminBankMonitorPage() {
                             {session.accountNumber}
                           </span>
                         )}
+                      </div>
+                      {/* LINE Email & Last Check */}
+                      <div className="flex flex-wrap items-center gap-3 text-xs text-slate-500 mt-1">
+                        {session.lineEmail && (
+                          <span className="flex items-center gap-1">
+                            LINE: {session.lineEmail}
+                          </span>
+                        )}
                         {session.lastCheckedAt && (
                           <span className="flex items-center gap-1">
-                            <Clock className="w-4 h-4" />
+                            <Clock className="w-3 h-3" />
                             {new Date(session.lastCheckedAt).toLocaleString('th-TH')}
                           </span>
                         )}
@@ -401,6 +466,27 @@ export default function AdminBankMonitorPage() {
       >
         {selectedSession && (
           <div className="space-y-6 pt-4 max-h-[75vh] overflow-y-auto px-2 custom-scrollbar pb-6">
+            {/* Owner Info Card */}
+            <div className="p-4 bg-gradient-to-r from-violet-500/10 to-purple-500/10 rounded-2xl border border-violet-500/20">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-violet-500/20 flex items-center justify-center">
+                    <User className="w-5 h-5 text-violet-400" />
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-bold text-violet-400 uppercase tracking-widest">เจ้าของบัญชี</p>
+                    <p className="text-white font-bold">{selectedSession.ownerName || 'ไม่ทราบ'}</p>
+                  </div>
+                </div>
+                {selectedSession.lineEmail && (
+                  <div className="text-right">
+                    <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">LINE Email</p>
+                    <p className="text-sm text-slate-300">{selectedSession.lineEmail}</p>
+                  </div>
+                )}
+              </div>
+            </div>
+
             {/* Account Info */}
             <div className="p-6 bg-gradient-to-br from-emerald-500 to-teal-600 text-white rounded-[2rem] relative overflow-hidden">
               <div className="absolute top-0 right-0 w-48 h-48 bg-white/10 rounded-full blur-[60px] -mr-24 -mt-24 pointer-events-none" />

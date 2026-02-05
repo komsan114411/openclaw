@@ -295,17 +295,28 @@ export class KeyStorageService {
   }
 
   /**
-   * Mark session as expired
+   * Mark session as expired and clear keys
    */
   async markAsExpired(lineAccountId: string): Promise<void> {
+    // Use both $set and $unset to properly mark expired and clear keys
     await this.lineSessionModel.updateOne(
-      { lineAccountId, isActive: true },
+      { $or: [{ lineAccountId, isActive: true }, { _id: lineAccountId }] },
       {
-        status: 'expired',
-        lastCheckedAt: new Date(),
-        lastCheckResult: 'expired',
+        $set: {
+          status: 'expired',
+          lastCheckedAt: new Date(),
+          lastCheckResult: 'expired',
+          lastError: 'Keys หมดอายุ - ต้องเข้าสู่ระบบใหม่',
+        },
+        $unset: {
+          xLineAccess: 1,
+          xHmac: 1,
+          keysExtractedAt: 1,
+          expiresAt: 1,
+        },
       },
     );
+    this.logger.log(`[KeyStorage] Session ${lineAccountId} marked as expired, keys cleared`);
   }
 
   /**
