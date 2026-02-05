@@ -3,6 +3,7 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { Cron } from '@nestjs/schedule';
 import { ConfigService } from '@nestjs/config';
+import { OnEvent } from '@nestjs/event-emitter';
 import axios from 'axios';
 import { LineSession, LineSessionDocument } from '../schemas/line-session.schema';
 import { LineMessage, LineMessageDocument } from '../schemas/line-message.schema';
@@ -67,6 +68,68 @@ export class MessageFetchService {
   }
 
   /**
+   * Event Listener: ดึงข้อความอัตโนมัติเมื่อ login สำเร็จ
+   * จะทำงานทุกครั้งที่มีการ login สำเร็จและได้ keys ใหม่
+   */
+  @OnEvent('login.completed')
+  async handleLoginCompleted(payload: {
+    requestId: string;
+    lineAccountId: string;
+    keys?: any;
+    chatMid?: string;
+  }): Promise<void> {
+    const { lineAccountId, chatMid } = payload;
+    this.logger.log(`[AutoFetch] Login completed for ${lineAccountId}, triggering message fetch...`);
+
+    // รอ 3 วินาทีเพื่อให้ keys บันทึกลง database เรียบร้อย
+    await new Promise(resolve => setTimeout(resolve, 3000));
+
+    try {
+      const result = await this.fetchMessages(lineAccountId);
+      if (result.success) {
+        this.logger.log(`[AutoFetch] ดึงข้อความสำเร็จ: ${result.newMessages} ข้อความใหม่จากทั้งหมด ${result.messageCount}`);
+
+        // Publish event for frontend notification
+        this.eventBusService.publish({
+          eventName: 'line-session.auto-fetch-completed',
+          occurredAt: new Date(),
+          lineAccountId,
+          newMessages: result.newMessages,
+          totalMessages: result.messageCount,
+        });
+      } else {
+        this.logger.warn(`[AutoFetch] ดึงข้อความไม่สำเร็จ: ${result.error}`);
+      }
+    } catch (error: any) {
+      this.logger.error(`[AutoFetch] Error fetching messages after login: ${error.message}`);
+    }
+  }
+
+  /**
+   * Event Listener: ดึงข้อความเมื่อมีการ capture keys สำเร็จ
+   */
+  @OnEvent('line-session.keys-captured')
+  async handleKeysCaptured(payload: {
+    lineAccountId: string;
+    chatMid?: string;
+  }): Promise<void> {
+    const { lineAccountId } = payload;
+    this.logger.log(`[AutoFetch] Keys captured for ${lineAccountId}, scheduling message fetch...`);
+
+    // รอ 2 วินาทีเพื่อให้ระบบเสถียร
+    await new Promise(resolve => setTimeout(resolve, 2000));
+
+    try {
+      const result = await this.fetchMessages(lineAccountId);
+      if (result.success) {
+        this.logger.log(`[AutoFetch] Keys captured fetch: ${result.newMessages} new messages`);
+      }
+    } catch (error: any) {
+      this.logger.error(`[AutoFetch] Error in keys-captured fetch: ${error.message}`);
+    }
+  }
+
+  /**
    * Cron Job: ดึงข้อความทุก 2 นาที
    * ปิดโดย default - ต้องเปิดผ่าน API
    */
@@ -97,6 +160,76 @@ export class MessageFetchService {
         );
       }
     }
+  }
+
+  /**
+   * ดึงข้อความสำหรับทุกบัญชีที่ active (Manual trigger)
+   */
+  async fetchAllMessages(): Promise<{
+    success: boolean;
+    totalSessions: number;
+    successCount: number;
+    failedCount: number;
+    totalNewMessages: number;
+    results: Array<{ lineAccountId: string; name?: string; result: FetchResult }>;
+  }> {
+    this.logger.log('[FetchAll] Starting fetch for all active sessions...');
+
+    const activeSessions = await this.lineSessionModel.find({
+      isActive: true,
+      xLineAccess: { $exists: true, $nin: [null, ''] },
+      chatMid: { $exists: true, $nin: [null, ''] },
+    });
+
+    this.logger.log(`[FetchAll] Found ${activeSessions.length} sessions with keys`);
+
+    const results: Array<{ lineAccountId: string; name?: string; result: FetchResult }> = [];
+    let successCount = 0;
+    let failedCount = 0;
+    let totalNewMessages = 0;
+
+    for (const session of activeSessions) {
+      try {
+        const sessionId = session._id.toString();
+        const result = await this.fetchMessages(sessionId);
+        results.push({
+          lineAccountId: sessionId,
+          name: session.name,
+          result,
+        });
+
+        if (result.success) {
+          successCount++;
+          totalNewMessages += result.newMessages;
+          this.logger.log(`[FetchAll] ${session.name}: ${result.newMessages} new messages`);
+        } else {
+          failedCount++;
+          this.logger.warn(`[FetchAll] ${session.name}: failed - ${result.error}`);
+        }
+      } catch (error: any) {
+        failedCount++;
+        results.push({
+          lineAccountId: session._id.toString(),
+          name: session.name,
+          result: { success: false, messageCount: 0, newMessages: 0, error: error.message },
+        });
+        this.logger.error(`[FetchAll] ${session.name}: error - ${error.message}`);
+      }
+
+      // หน่วงเวลา 500ms ระหว่างแต่ละ session เพื่อไม่ให้ถูก rate limit
+      await new Promise(resolve => setTimeout(resolve, 500));
+    }
+
+    this.logger.log(`[FetchAll] Completed: ${successCount}/${activeSessions.length} success, ${totalNewMessages} new messages`);
+
+    return {
+      success: successCount > 0,
+      totalSessions: activeSessions.length,
+      successCount,
+      failedCount,
+      totalNewMessages,
+      results,
+    };
   }
 
   /**

@@ -871,7 +871,7 @@ export class LineSessionController {
   // ================================
 
   /**
-   * Fetch messages manually
+   * Fetch messages manually for single account
    */
   @Post(':lineAccountId/messages/fetch')
   @ApiOperation({ summary: 'Fetch messages from LINE' })
@@ -879,6 +879,21 @@ export class LineSessionController {
     const result = await this.messageFetchService.fetchMessages(lineAccountId);
 
     return result;
+  }
+
+  /**
+   * ดึงข้อความสำหรับทุกบัญชีพร้อมกัน (Admin only)
+   */
+  @Post('batch/messages/fetch-all')
+  @ApiOperation({ summary: 'Fetch messages for all active accounts' })
+  async fetchAllMessages() {
+    this.logger.log('[Controller] Triggering fetch all messages...');
+    const result = await this.messageFetchService.fetchAllMessages();
+
+    return {
+      ...result,
+      message: `ดึงข้อความสำเร็จ ${result.successCount}/${result.totalSessions} บัญชี, ${result.totalNewMessages} ข้อความใหม่`,
+    };
   }
 
   /**
