@@ -197,12 +197,11 @@ export class KeyStorageService {
 
   /**
    * ดึง active session ของ LINE Account
+   * [FIX] ค้นหาทั้ง _id และ lineAccountId field
    */
-  async getActiveSession(lineAccountId: string): Promise<LineSessionDocument | null> {
-    return this.lineSessionModel.findOne({
-      lineAccountId,
-      isActive: true,
-    });
+  async getActiveSession(identifier: string): Promise<LineSessionDocument | null> {
+    const lookupResult = await this.findSessionByIdOrLineAccountId(identifier, true);
+    return lookupResult.session;
   }
 
   /**
@@ -269,9 +268,10 @@ export class KeyStorageService {
 
   /**
    * อัพเดทสถานะ session หลังตรวจสอบ
+   * [FIX] ค้นหาทั้ง _id และ lineAccountId field
    */
   async updateSessionStatus(
-    lineAccountId: string,
+    identifier: string,
     status: string,
     checkResult: string,
     incrementFailure = false,
@@ -288,19 +288,34 @@ export class KeyStorageService {
       update.consecutiveFailures = 0;
     }
 
-    await this.lineSessionModel.updateOne(
-      { lineAccountId, isActive: true },
-      update,
-    );
+    // [FIX] ค้นหาทั้ง _id และ lineAccountId field
+    const lookupResult = await this.findSessionByIdOrLineAccountId(identifier, true);
+    if (lookupResult.session) {
+      await this.lineSessionModel.updateOne(
+        { _id: lookupResult.session._id },
+        update,
+      );
+      this.logger.debug(`[UpdateStatus] Updated session ${lookupResult.session._id} (found by ${lookupResult.foundBy}) to status: ${status}`);
+    } else {
+      this.logger.warn(`[UpdateStatus] Session not found for identifier: ${identifier}`);
+    }
   }
 
   /**
    * Mark session as expired and clear keys
+   * [FIX] ใช้ unified lookup เพื่อหา session ที่ถูกต้อง
    */
-  async markAsExpired(lineAccountId: string): Promise<void> {
-    // Use both $set and $unset to properly mark expired and clear keys
+  async markAsExpired(identifier: string): Promise<void> {
+    // [FIX] ใช้ unified lookup แทน $or ที่อาจไม่ทำงานถูกต้อง
+    const lookupResult = await this.findSessionByIdOrLineAccountId(identifier, false);
+
+    if (!lookupResult.session) {
+      this.logger.warn(`[KeyStorage] markAsExpired: Session not found for ${identifier}`);
+      return;
+    }
+
     await this.lineSessionModel.updateOne(
-      { $or: [{ lineAccountId, isActive: true }, { _id: lineAccountId }] },
+      { _id: lookupResult.session._id },
       {
         $set: {
           status: 'expired',
@@ -316,7 +331,7 @@ export class KeyStorageService {
         },
       },
     );
-    this.logger.log(`[KeyStorage] Session ${lineAccountId} marked as expired, keys cleared`);
+    this.logger.log(`[KeyStorage] Session ${lookupResult.session._id} (found by ${lookupResult.foundBy}) marked as expired, keys cleared`);
   }
 
   /**

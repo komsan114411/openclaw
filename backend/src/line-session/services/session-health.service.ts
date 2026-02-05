@@ -272,19 +272,20 @@ export class SessionHealthService implements OnModuleInit, OnModuleDestroy {
    * ตรวจสอบ health ของ session เดียว
    */
   async checkSessionHealth(session: LineSessionDocument): Promise<HealthCheckResult> {
-    const lineAccountId = session.lineAccountId;
+    // [FIX] ใช้ _id เป็น fallback เมื่อไม่มี lineAccountId (สำหรับ user sessions)
+    const sessionIdentifier = session.lineAccountId || session._id.toString();
 
     // 1. Check if keys exist
     if (!session.xLineAccess || !session.xHmac) {
       await this.keyStorageService.updateSessionStatus(
-        lineAccountId,
+        sessionIdentifier,
         'invalid',
         'no_keys',
         true,
       );
 
       return {
-        lineAccountId,
+        lineAccountId: sessionIdentifier,
         status: HealthStatus.UNHEALTHY,
         message: 'No keys found',
         checkedAt: new Date(),
@@ -294,10 +295,10 @@ export class SessionHealthService implements OnModuleInit, OnModuleDestroy {
 
     // 2. Check expiry (if expiresAt is set)
     if (session.expiresAt && new Date() > session.expiresAt) {
-      await this.keyStorageService.markAsExpired(lineAccountId);
+      await this.keyStorageService.markAsExpired(sessionIdentifier);
 
       return {
-        lineAccountId,
+        lineAccountId: sessionIdentifier,
         status: HealthStatus.EXPIRED,
         message: 'Session expired',
         checkedAt: new Date(),
@@ -314,7 +315,7 @@ export class SessionHealthService implements OnModuleInit, OnModuleDestroy {
         this.eventBusService.publish({
           eventName: 'line-session.expiring-soon' as any,
           occurredAt: new Date(),
-          lineAccountId,
+          lineAccountId: sessionIdentifier,
           minutesRemaining: Math.floor(minutesUntilExpiry),
         });
       }
@@ -325,7 +326,7 @@ export class SessionHealthService implements OnModuleInit, OnModuleDestroy {
 
     if (isValid) {
       await this.keyStorageService.updateSessionStatus(
-        lineAccountId,
+        sessionIdentifier,
         'active',
         'valid',
         false,
@@ -333,7 +334,7 @@ export class SessionHealthService implements OnModuleInit, OnModuleDestroy {
 
       this.lastHealthCheckTime = new Date();
       return {
-        lineAccountId,
+        lineAccountId: sessionIdentifier,
         status: HealthStatus.HEALTHY,
         message: 'Session is healthy',
         checkedAt: new Date(),
@@ -345,14 +346,14 @@ export class SessionHealthService implements OnModuleInit, OnModuleDestroy {
       // Use config from settings
       if (newFailureCount >= this.config.maxConsecutiveFailures) {
         await this.keyStorageService.updateSessionStatus(
-          lineAccountId,
+          sessionIdentifier,
           'pending_relogin',
           'validation_failed',
           true,
         );
 
         return {
-          lineAccountId,
+          lineAccountId: sessionIdentifier,
           status: HealthStatus.EXPIRED,
           message: `Validation failed ${newFailureCount} times, needs relogin`,
           checkedAt: new Date(),
@@ -361,14 +362,14 @@ export class SessionHealthService implements OnModuleInit, OnModuleDestroy {
       }
 
       await this.keyStorageService.updateSessionStatus(
-        lineAccountId,
+        sessionIdentifier,
         'active',
         'validation_failed',
         true,
       );
 
       return {
-        lineAccountId,
+        lineAccountId: sessionIdentifier,
         status: HealthStatus.UNHEALTHY,
         message: `Validation failed (${newFailureCount}/${this.config.maxConsecutiveFailures})`,
         checkedAt: new Date(),

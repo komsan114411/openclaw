@@ -487,8 +487,16 @@ export default function LineSessionPage() {
         return { color: 'error' as const, text: 'หมดอายุ', icon: XCircle };
       case 'pending':
         return { color: 'warning' as const, text: 'รอดึง Keys', icon: Clock };
+      case 'pending_relogin':
+        return { color: 'error' as const, text: 'ต้อง Login ใหม่', icon: XCircle };
+      case 'invalid':
+        return { color: 'error' as const, text: 'Keys ไม่ถูกต้อง', icon: XCircle };
+      case 'relogin_in_progress':
+        return { color: 'warning' as const, text: 'กำลัง Re-login', icon: Loader2 };
+      case 'waiting_pin':
+        return { color: 'warning' as const, text: 'รอยืนยัน PIN', icon: Smartphone };
       default:
-        return { color: 'default' as const, text: 'ไม่ทราบ', icon: AlertTriangle };
+        return { color: 'default' as const, text: status || 'ไม่ทราบ', icon: AlertTriangle };
     }
   };
 
