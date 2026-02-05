@@ -880,6 +880,18 @@ export const lineSessionUserApi = {
   // Validate keys by calling LINE API
   validateKeys: (sessionId: string) =>
     api.post(`/user/line-session/${sessionId}/validate-keys`),
+
+  // Get transactions for session
+  getTransactions: (sessionId: string, params?: { limit?: number; offset?: number; type?: string }) =>
+    api.get(`/user/line-session/${sessionId}/transactions`, { params }),
+
+  // Fetch new transactions from LINE API
+  fetchTransactions: (sessionId: string) =>
+    api.post(`/user/line-session/${sessionId}/fetch-transactions`),
+
+  // Get transaction summary
+  getTransactionSummary: (sessionId: string) =>
+    api.get(`/user/line-session/${sessionId}/transactions/summary`),
 };
 
 // Rate Limit API (Admin Only)

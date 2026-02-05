@@ -50,8 +50,10 @@ export class TransactionFetcherService implements OnModuleInit, OnModuleDestroy 
   private readonly MAX_CONSECUTIVE_ERRORS = 5; // Increased tolerance
   private readonly ERROR_PAUSE_MS = 60000; // 1 minute pause (reduced from 5)
 
-  // LINE API endpoint
-  private readonly LINE_API_URL = 'https://gd2.line.naver.jp/enc';
+  // LINE API endpoint - [FIX] Changed to JSON endpoint (same as Chrome Extension)
+  // Old: 'https://gd2.line.naver.jp/enc' (Thrift binary - xHmac incompatible)
+  // New: 'line-chrome-gw.line-apps.com' (JSON - xHmac compatible)
+  private readonly LINE_API_URL = 'https://line-chrome-gw.line-apps.com/api/talk/thrift/Talk/TalkService/getRecentMessagesV2';
 
   constructor(
     @InjectModel(AutoSlipBankAccount.name)
@@ -283,6 +285,7 @@ export class TransactionFetcherService implements OnModuleInit, OnModuleDestroy 
 
   /**
    * Call LINE API to get messages
+   * [FIX] Changed from Thrift binary to JSON format (compatible with captured xHmac)
    */
   private async callLineApi(
     account: AutoSlipBankAccountDocument,
@@ -291,30 +294,38 @@ export class TransactionFetcherService implements OnModuleInit, OnModuleDestroy 
       throw new Error('Chat MID not configured');
     }
 
-    // Build request body for getRecentMessagesV2
-    const requestBody = this.buildThriftRequest(account.chatMid);
+    // [FIX] Use JSON format like Chrome Extension (same as message-fetch.service.ts)
+    // This ensures xHmac compatibility since keys are captured from JSON requests
+    const requestBody = [account.chatMid, 50]; // [chatMid, limit]
 
     const response = await axios.post(this.LINE_API_URL, requestBody, {
       headers: {
-        'X-Line-Access': account.xLineAccess,
-        'X-Hmac': account.xHmac,
-        'User-Agent': account.userAgent || 'Mozilla/5.0',
-        'Content-Type': 'application/x-thrift',
-        'x-line-application': `CHROMEOS\t${account.lineVersion || '3.4.0'}\tChrome OS\t1`,
+        'x-line-access': account.xLineAccess,
+        'x-hmac': account.xHmac,
+        'user-agent': account.userAgent || 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+        'content-type': 'application/json',
+        'x-line-chrome-version': account.lineVersion || '3.7.1',
+        'accept': 'application/json, text/plain, */*',
       },
       timeout: 30000,
-      responseType: 'arraybuffer',
+      validateStatus: (status) => status < 500,
     });
 
-    // Parse response (simplified - actual parsing would be more complex)
-    // For now, return empty array if we can't parse
-    try {
-      const data = this.parseThriftResponse(response.data);
-      return data.messages || [];
-    } catch {
-      this.logger.warn('Failed to parse LINE API response');
+    // [FIX] Parse JSON response (not Thrift binary anymore)
+    if (response.data?.code !== 0) {
+      // API error
+      this.logger.warn(`LINE API error code: ${response.data?.code}`);
+      if (response.data?.code === 10005) {
+        throw new Error('INVALID_HMAC - Keys may be expired');
+      }
       return [];
     }
+
+    // Extract messages from JSON response
+    // [FIX] LINE API returns messages in response.data.data array, not response.data.result.messages
+    const messages = response.data?.data || [];
+    this.logger.debug(`[TransactionFetcher] Fetched ${messages.length} messages from LINE API`);
+    return messages;
   }
 
   /**

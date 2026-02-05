@@ -590,6 +590,7 @@ export class WebsocketGateway implements OnGatewayConnection, OnGatewayDisconnec
 
   /**
    * Broadcast when new transaction message is received
+   * [FIX] Also forward to line-session:new-transaction for multi-account support
    */
   @OnEvent('bank.message_received')
   handleBankMessageReceived(payload: {
@@ -600,12 +601,34 @@ export class WebsocketGateway implements OnGatewayConnection, OnGatewayDisconnec
     balance?: number;
     messageId: string;
     transactionDate: Date;
+    sessionId?: string;
+    lineAccountId?: string;
   }) {
     this.logger.log(`[AutoSlip] Transaction ${payload.type}: ${payload.amount} for bank ${payload.bankAccountId}`);
     // Broadcast to the specific user
     this.broadcastToUser(payload.userId, 'auto-slip:message_received', payload);
     // Broadcast to admins
     this.broadcastToAdmins('auto-slip:message_received', payload);
+    // Broadcast to bank account room
+    this.broadcastToRoom(`bank-account:${payload.bankAccountId}`, 'auto-slip:message_received', payload);
+
+    // [NEW] Forward to line-session:new-transaction for LINE Session page
+    // This allows the frontend to receive real-time transaction updates per account
+    const lineSessionPayload = {
+      ...payload,
+      event: 'new-transaction',
+      timestamp: new Date(),
+    };
+    this.broadcastToUser(payload.userId, 'line-session:new-transaction', lineSessionPayload);
+    this.broadcastToRoom(`bank-account:${payload.bankAccountId}`, 'line-session:new-transaction', lineSessionPayload);
+
+    // If sessionId or lineAccountId is provided, also broadcast to those rooms
+    if (payload.sessionId) {
+      this.broadcastToRoom(`line-account:${payload.sessionId}`, 'line-session:new-transaction', lineSessionPayload);
+    }
+    if (payload.lineAccountId) {
+      this.broadcastToRoom(`line-account:${payload.lineAccountId}`, 'line-session:new-transaction', lineSessionPayload);
+    }
   }
 
   /**

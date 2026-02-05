@@ -28,6 +28,12 @@ import {
   Smartphone,
   Plus,
   Trash2,
+  ArrowDownCircle,
+  ArrowUpCircle,
+  History,
+  TrendingUp,
+  TrendingDown,
+  Download,
 } from 'lucide-react';
 import { useLoginNotifications } from '@/hooks';
 
@@ -81,6 +87,26 @@ interface CredentialsStatus {
   email?: string;
   bankCode?: string;
   bankName?: string;
+}
+
+// Transaction interface for display
+interface Transaction {
+  _id: string;
+  messageId: string;
+  text?: string;
+  transactionType: string;
+  amount?: string;
+  balance?: string;
+  messageDate?: string;
+  bankCode?: string;
+  createdAt?: string;
+}
+
+interface TransactionSummary {
+  deposits: { total: number; count: number };
+  withdrawals: { total: number; count: number };
+  totalTransactions: number;
+  balance?: string;
 }
 
 export default function LineSessionPage() {
@@ -223,6 +249,13 @@ export default function LineSessionPage() {
   const [fullKeys, setFullKeys] = useState<Record<string, unknown> | null>(null);
   const [isLoadingKeys, setIsLoadingKeys] = useState(false);
 
+  // Transactions state
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [transactionSummary, setTransactionSummary] = useState<TransactionSummary | null>(null);
+  const [isLoadingTransactions, setIsLoadingTransactions] = useState(false);
+  const [isFetchingTransactions, setIsFetchingTransactions] = useState(false);
+  const [showTransactions, setShowTransactions] = useState(false);
+
   // Fetch LINE sessions and banks
   const fetchData = useCallback(async () => {
     setIsLoading(true);
@@ -261,15 +294,64 @@ export default function LineSessionPage() {
     }
   }, []);
 
+  // Fetch transactions for selected session
+  const fetchTransactions = useCallback(async (sessionId: string) => {
+    setIsLoadingTransactions(true);
+    try {
+      const [txRes, summaryRes] = await Promise.all([
+        lineSessionUserApi.getTransactions(sessionId, { limit: 20 }),
+        lineSessionUserApi.getTransactionSummary(sessionId),
+      ]);
+
+      setTransactions(txRes.data.transactions || []);
+      setTransactionSummary(summaryRes.data.summary || null);
+    } catch {
+      // Silently fail - transactions are optional
+      setTransactions([]);
+      setTransactionSummary(null);
+    } finally {
+      setIsLoadingTransactions(false);
+    }
+  }, []);
+
+  // Trigger fetch from LINE API
+  const handleFetchTransactions = async () => {
+    if (!selectedSession) return;
+
+    setIsFetchingTransactions(true);
+    try {
+      const res = await lineSessionUserApi.fetchTransactions(selectedSession._id);
+      if (res.data.success) {
+        toast.success(res.data.message || 'ดึงรายการสำเร็จ');
+        // Refresh transactions list
+        await fetchTransactions(selectedSession._id);
+      } else {
+        toast.error(res.data.message || 'ไม่สามารถดึงรายการได้');
+      }
+    } catch (err: unknown) {
+      const error = err as { response?: { data?: { message?: string } } };
+      toast.error(error.response?.data?.message || 'เกิดข้อผิดพลาด');
+    } finally {
+      setIsFetchingTransactions(false);
+    }
+  };
+
   // When session is selected
   // [FIX] ไม่ต้อง clear status เมื่อเปลี่ยนบัญชี - เพราะ track แยกตามบัญชีแล้ว
   useEffect(() => {
     if (selectedSession) {
       fetchSessionStatus(selectedSession._id);
+      // Fetch transactions if session has keys
+      if (selectedSession.hasKeys) {
+        fetchTransactions(selectedSession._id);
+      } else {
+        setTransactions([]);
+        setTransactionSummary(null);
+      }
       // ไม่ต้อง clear loginStatus และ loginSuccess เพราะ track แยกตามบัญชีแล้ว
       setSetupForm({ email: '', password: '', bankCode: '' });
     }
-  }, [selectedSession, fetchSessionStatus]);
+  }, [selectedSession, fetchSessionStatus, fetchTransactions]);
 
   // Poll login status
   // [FIX] ใช้ setLoginStatusForAccount แทน setLoginStatus
@@ -555,6 +637,9 @@ export default function LineSessionPage() {
     switch (status) {
       case 'active':
         return { color: 'success' as const, text: 'ใช้งานได้', icon: CheckCircle2 };
+      case 'valid_grace_period':
+        // [FIX] Keys ใช้งานได้ (เพิ่งล็อกอินสำเร็จ อยู่ใน grace period)
+        return { color: 'success' as const, text: 'ใช้งานได้', icon: CheckCircle2 };
       case 'expired':
         return { color: 'error' as const, text: 'หมดอายุ', icon: XCircle };
       case 'pending':
@@ -567,6 +652,9 @@ export default function LineSessionPage() {
         return { color: 'warning' as const, text: 'กำลัง Re-login', icon: Loader2 };
       case 'waiting_pin':
         return { color: 'warning' as const, text: 'รอยืนยัน PIN', icon: Smartphone };
+      case 'validating':
+        // [FIX] กำลังตรวจสอบ Keys
+        return { color: 'warning' as const, text: 'กำลังตรวจสอบ', icon: Loader2 };
       default:
         return { color: 'default' as const, text: status || 'ไม่ทราบ', icon: AlertTriangle };
     }
@@ -1018,6 +1106,171 @@ export default function LineSessionPage() {
                       <li>ระบบจะดึง Keys อัตโนมัติเมื่อยืนยันสำเร็จ</li>
                     </ol>
                   </div>
+
+                  {/* Transactions Section - Only show if session has keys */}
+                  {sessionStatus?.hasKeys && (
+                    <div className="border-t pt-6 mt-6">
+                      <div className="flex items-center justify-between mb-4">
+                        <h4 className="font-medium text-slate-900 dark:text-white flex items-center gap-2">
+                          <History className="w-5 h-5 text-emerald-500" />
+                          รายการธุรกรรม
+                        </h4>
+                        <div className="flex gap-2">
+                          <Button
+                            variant="secondary"
+                            size="sm"
+                            onClick={() => setShowTransactions(!showTransactions)}
+                            className="gap-2"
+                          >
+                            {showTransactions ? <XCircle className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                            {showTransactions ? 'ซ่อน' : 'ดูรายการ'}
+                          </Button>
+                          <Button
+                            variant="primary"
+                            size="sm"
+                            onClick={handleFetchTransactions}
+                            disabled={isFetchingTransactions}
+                            className="gap-2"
+                          >
+                            {isFetchingTransactions ? (
+                              <Loader2 className="w-4 h-4 animate-spin" />
+                            ) : (
+                              <Download className="w-4 h-4" />
+                            )}
+                            ดึงรายการใหม่
+                          </Button>
+                        </div>
+                      </div>
+
+                      {/* Transaction Summary */}
+                      {transactionSummary && (
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+                          <div className="p-3 bg-emerald-50 dark:bg-emerald-900/20 rounded-lg">
+                            <div className="flex items-center gap-2 mb-1">
+                              <ArrowDownCircle className="w-4 h-4 text-emerald-500" />
+                              <span className="text-xs text-emerald-600 dark:text-emerald-400">เงินเข้า</span>
+                            </div>
+                            <p className="font-semibold text-emerald-700 dark:text-emerald-300">
+                              {transactionSummary.deposits.count} รายการ
+                            </p>
+                            <p className="text-xs text-emerald-600 dark:text-emerald-400">
+                              ฿{transactionSummary.deposits.total?.toLocaleString() || 0}
+                            </p>
+                          </div>
+                          <div className="p-3 bg-red-50 dark:bg-red-900/20 rounded-lg">
+                            <div className="flex items-center gap-2 mb-1">
+                              <ArrowUpCircle className="w-4 h-4 text-red-500" />
+                              <span className="text-xs text-red-600 dark:text-red-400">เงินออก</span>
+                            </div>
+                            <p className="font-semibold text-red-700 dark:text-red-300">
+                              {transactionSummary.withdrawals.count} รายการ
+                            </p>
+                            <p className="text-xs text-red-600 dark:text-red-400">
+                              ฿{transactionSummary.withdrawals.total?.toLocaleString() || 0}
+                            </p>
+                          </div>
+                          <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+                            <div className="flex items-center gap-2 mb-1">
+                              <History className="w-4 h-4 text-blue-500" />
+                              <span className="text-xs text-blue-600 dark:text-blue-400">ทั้งหมด</span>
+                            </div>
+                            <p className="font-semibold text-blue-700 dark:text-blue-300">
+                              {transactionSummary.totalTransactions} รายการ
+                            </p>
+                          </div>
+                          {transactionSummary.balance && (
+                            <div className="p-3 bg-purple-50 dark:bg-purple-900/20 rounded-lg">
+                              <div className="flex items-center gap-2 mb-1">
+                                <TrendingUp className="w-4 h-4 text-purple-500" />
+                                <span className="text-xs text-purple-600 dark:text-purple-400">ยอดคงเหลือ</span>
+                              </div>
+                              <p className="font-semibold text-purple-700 dark:text-purple-300">
+                                ฿{parseFloat(transactionSummary.balance).toLocaleString()}
+                              </p>
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Transaction List */}
+                      {showTransactions && (
+                        <div className="space-y-2">
+                          {isLoadingTransactions ? (
+                            <div className="flex items-center justify-center py-8">
+                              <Loader2 className="w-6 h-6 animate-spin text-emerald-500" />
+                            </div>
+                          ) : transactions.length === 0 ? (
+                            <div className="text-center py-8 text-slate-500">
+                              <History className="w-12 h-12 mx-auto mb-2 opacity-30" />
+                              <p>ยังไม่มีรายการธุรกรรม</p>
+                              <p className="text-xs mt-1">กดปุ่ม "ดึงรายการใหม่" เพื่อดึงข้อมูลจาก LINE</p>
+                            </div>
+                          ) : (
+                            <div className="max-h-96 overflow-y-auto space-y-2">
+                              {transactions.map((tx) => (
+                                <div
+                                  key={tx._id}
+                                  className={`p-3 rounded-lg border ${
+                                    tx.transactionType === 'deposit'
+                                      ? 'bg-emerald-50 dark:bg-emerald-900/10 border-emerald-200 dark:border-emerald-800'
+                                      : tx.transactionType === 'withdraw'
+                                      ? 'bg-red-50 dark:bg-red-900/10 border-red-200 dark:border-red-800'
+                                      : 'bg-slate-50 dark:bg-slate-800/50 border-slate-200 dark:border-slate-700'
+                                  }`}
+                                >
+                                  <div className="flex items-center justify-between">
+                                    <div className="flex items-center gap-2">
+                                      {tx.transactionType === 'deposit' ? (
+                                        <ArrowDownCircle className="w-5 h-5 text-emerald-500" />
+                                      ) : tx.transactionType === 'withdraw' ? (
+                                        <ArrowUpCircle className="w-5 h-5 text-red-500" />
+                                      ) : (
+                                        <History className="w-5 h-5 text-slate-500" />
+                                      )}
+                                      <div>
+                                        <p className="font-medium text-sm text-slate-900 dark:text-white">
+                                          {tx.transactionType === 'deposit' ? 'เงินเข้า' :
+                                           tx.transactionType === 'withdraw' ? 'เงินออก' : 'รายการ'}
+                                        </p>
+                                        {tx.messageDate && (
+                                          <p className="text-xs text-slate-500">
+                                            {new Date(tx.messageDate).toLocaleString('th-TH')}
+                                          </p>
+                                        )}
+                                      </div>
+                                    </div>
+                                    <div className="text-right">
+                                      {tx.amount && (
+                                        <p className={`font-semibold ${
+                                          tx.transactionType === 'deposit'
+                                            ? 'text-emerald-600 dark:text-emerald-400'
+                                            : tx.transactionType === 'withdraw'
+                                            ? 'text-red-600 dark:text-red-400'
+                                            : 'text-slate-600 dark:text-slate-400'
+                                        }`}>
+                                          {tx.transactionType === 'deposit' ? '+' : '-'}฿{parseFloat(tx.amount).toLocaleString()}
+                                        </p>
+                                      )}
+                                      {tx.balance && (
+                                        <p className="text-xs text-slate-500">
+                                          คงเหลือ: ฿{parseFloat(tx.balance).toLocaleString()}
+                                        </p>
+                                      )}
+                                    </div>
+                                  </div>
+                                  {tx.text && (
+                                    <p className="text-xs text-slate-500 mt-2 truncate" title={tx.text}>
+                                      {tx.text.substring(0, 100)}{tx.text.length > 100 ? '...' : ''}
+                                    </p>
+                                  )}
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               )}
             </Card>

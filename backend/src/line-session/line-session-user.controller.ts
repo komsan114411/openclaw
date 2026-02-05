@@ -5,12 +5,13 @@ import {
   Delete,
   Body,
   Param,
+  Query,
   UseGuards,
   Logger,
   ForbiddenException,
   NotFoundException,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { SessionAuthGuard } from '../auth/guards/session-auth.guard';
@@ -22,7 +23,9 @@ import { EnhancedAutomationService, EnhancedLoginStatus } from './services/enhan
 import { WorkerPoolService } from './services/worker-pool.service';
 import { LoginCoordinatorService } from './services/login-coordinator.service';
 import { SessionHealthService } from './services/session-health.service';
+import { MessageFetchService } from './services/message-fetch.service';
 import { LineSession, LineSessionDocument } from './schemas/line-session.schema';
+import { LineMessage, LineMessageDocument } from './schemas/line-message.schema';
 import { LineAccount, LineAccountDocument } from '../database/schemas/line-account.schema';
 import { BankList, BankListDocument } from './schemas/bank-list.schema';
 import { LineAutomationService } from './services/line-automation.service';
@@ -47,12 +50,15 @@ export class LineSessionUserController {
     private loginCoordinatorService: LoginCoordinatorService,
     private lineAutomationService: LineAutomationService,
     private sessionHealthService: SessionHealthService,
+    private messageFetchService: MessageFetchService,
     @InjectModel(LineSession.name)
     private lineSessionModel: Model<LineSessionDocument>,
     @InjectModel(LineAccount.name)
     private lineAccountModel: Model<LineAccountDocument>,
     @InjectModel(BankList.name)
     private bankListModel: Model<BankListDocument>,
+    @InjectModel(LineMessage.name)
+    private lineMessageModel: Model<LineMessageDocument>,
   ) {}
 
   /**
@@ -464,6 +470,171 @@ export class LineSessionUserController {
 
     const history = await this.keyStorageService.getKeyHistory(sessionId, 10);
     return { success: true, history };
+  }
+
+  // ============================================
+  // Transactions Endpoints - For multi-account transaction viewing
+  // ============================================
+
+  /**
+   * Get transactions for a specific LINE session
+   * Returns transactions from LineMessage collection
+   */
+  @Get(':sessionId/transactions')
+  @ApiOperation({ summary: 'Get transactions for LINE session' })
+  @ApiQuery({ name: 'limit', required: false, type: Number })
+  @ApiQuery({ name: 'offset', required: false, type: Number })
+  @ApiQuery({ name: 'type', required: false, type: String, description: 'deposit, withdraw, transfer' })
+  async getTransactionsById(
+    @Param('sessionId', ParseObjectIdPipe) sessionId: string,
+    @CurrentUser() user: AuthUser,
+    @Query('limit') limit?: number,
+    @Query('offset') offset?: number,
+    @Query('type') type?: string,
+  ) {
+    // Validate ownership
+    const session = await this.validateSessionOwnership(sessionId, user.userId);
+
+    // Build query - use sessionId to get transactions for this specific session
+    const query: Record<string, unknown> = { sessionId };
+    if (type) {
+      query.transactionType = type;
+    }
+
+    // Fetch transactions
+    const transactions = await this.lineMessageModel
+      .find(query)
+      .sort({ messageDate: -1 })
+      .skip(offset || 0)
+      .limit(limit || 50);
+
+    const total = await this.lineMessageModel.countDocuments(query);
+
+    return {
+      success: true,
+      transactions: transactions.map((t) => ({
+        _id: t._id,
+        messageId: t.messageId,
+        text: t.text,
+        transactionType: t.transactionType,
+        amount: t.amount,
+        balance: t.balance,
+        messageDate: t.messageDate,
+        bankCode: t.bankCode,
+        createdAt: (t as any).createdAt,
+      })),
+      total,
+      limit: limit || 50,
+      offset: offset || 0,
+      sessionId,
+      sessionName: session.name,
+      bankName: session.bankName,
+    };
+  }
+
+  /**
+   * Fetch new transactions from LINE API
+   * This triggers a manual fetch and returns the results
+   */
+  @Post(':sessionId/fetch-transactions')
+  @ApiOperation({ summary: 'Fetch new transactions from LINE API' })
+  async fetchTransactionsById(
+    @Param('sessionId', ParseObjectIdPipe) sessionId: string,
+    @CurrentUser() user: AuthUser,
+  ) {
+    // Validate ownership
+    const session = await this.validateSessionOwnership(sessionId, user.userId);
+
+    // Check if session has keys
+    if (!session.xLineAccess || !session.xHmac) {
+      return {
+        success: false,
+        message: 'ไม่พบ Keys - กรุณาเข้าสู่ระบบ LINE ก่อน',
+      };
+    }
+
+    if (!session.chatMid) {
+      return {
+        success: false,
+        message: 'ไม่พบ Chat MID - กรุณาตั้งค่าธนาคารก่อน',
+      };
+    }
+
+    this.logger.log(`[FetchTransactions] Starting fetch for session ${sessionId}`);
+
+    try {
+      // Use MessageFetchService to fetch messages
+      const result = await this.messageFetchService.fetchMessages(sessionId);
+
+      if (result.success) {
+        this.logger.log(`[FetchTransactions] Fetched ${result.newMessages} new messages for session ${sessionId}`);
+
+        return {
+          success: true,
+          message: `ดึงรายการสำเร็จ: ${result.newMessages} รายการใหม่จากทั้งหมด ${result.messageCount} รายการ`,
+          newMessages: result.newMessages,
+          totalMessages: result.messageCount,
+          sessionId,
+          sessionName: session.name,
+        };
+      } else {
+        this.logger.warn(`[FetchTransactions] Fetch failed for session ${sessionId}: ${result.error}`);
+
+        return {
+          success: false,
+          message: result.error || 'ไม่สามารถดึงรายการได้',
+          error: result.error,
+        };
+      }
+    } catch (error: any) {
+      this.logger.error(`[FetchTransactions] Error fetching for session ${sessionId}: ${error.message}`);
+
+      return {
+        success: false,
+        message: 'เกิดข้อผิดพลาดในการดึงรายการ',
+        error: error.message,
+      };
+    }
+  }
+
+  /**
+   * Get transaction summary for a session
+   * Returns deposit/withdrawal totals
+   */
+  @Get(':sessionId/transactions/summary')
+  @ApiOperation({ summary: 'Get transaction summary for LINE session' })
+  async getTransactionSummaryById(
+    @Param('sessionId', ParseObjectIdPipe) sessionId: string,
+    @CurrentUser() user: AuthUser,
+  ) {
+    // Validate ownership
+    const session = await this.validateSessionOwnership(sessionId, user.userId);
+
+    // Get summary using aggregation
+    const deposits = await this.lineMessageModel.aggregate([
+      { $match: { sessionId, transactionType: 'deposit' } },
+      { $group: { _id: null, total: { $sum: { $toDouble: '$amount' } }, count: { $sum: 1 } } },
+    ]);
+
+    const withdrawals = await this.lineMessageModel.aggregate([
+      { $match: { sessionId, transactionType: 'withdraw' } },
+      { $group: { _id: null, total: { $sum: { $toDouble: '$amount' } }, count: { $sum: 1 } } },
+    ]);
+
+    const totalTransactions = await this.lineMessageModel.countDocuments({ sessionId });
+
+    return {
+      success: true,
+      summary: {
+        deposits: deposits[0] || { total: 0, count: 0 },
+        withdrawals: withdrawals[0] || { total: 0, count: 0 },
+        totalTransactions,
+        sessionId,
+        sessionName: session.name,
+        bankName: session.bankName,
+        balance: session.balance,
+      },
+    };
   }
 
   // ============================================

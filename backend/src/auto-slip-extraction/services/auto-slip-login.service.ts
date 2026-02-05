@@ -557,6 +557,71 @@ export class AutoSlipLoginService {
   }
 
   /**
+   * Listen for LINE Session keys captured events
+   * This syncs keys from LineSession to linked AutoSlipBankAccount
+   * [NEW] Added for multi-account support - sync keys automatically
+   */
+  @OnEvent('line-session.keys-captured')
+  async handleKeysCaptured(payload: {
+    sessionId: string;
+    lineAccountId?: string;
+    xLineAccess: string;
+    xHmac: string;
+    chatMid?: string;
+    cUrlBash?: string;
+    source?: string;
+  }): Promise<void> {
+    const { sessionId, lineAccountId, xLineAccess, xHmac, chatMid, cUrlBash, source } = payload;
+
+    this.logger.log(`[AutoSlipLogin] Received line-session.keys-captured event for session: ${sessionId}`);
+
+    // Find bank account linked to this LINE session
+    let bankAccount: AutoSlipBankAccountDocument | null = null;
+
+    // Try by lineSessionId first
+    try {
+      const sessionObjectId = new Types.ObjectId(sessionId);
+      bankAccount = await this.bankAccountModel.findOne({
+        lineSessionId: sessionObjectId,
+        isActive: true,
+      });
+      if (bankAccount) {
+        this.logger.log(`[AutoSlipLogin] Found bank account by lineSessionId: ${bankAccount._id}`);
+      }
+    } catch (e) {
+      // Invalid ObjectId format
+    }
+
+    // If not found, try by lineAccountId
+    if (!bankAccount && lineAccountId) {
+      try {
+        bankAccount = await this.bankAccountModel.findById(lineAccountId);
+        if (bankAccount) {
+          this.logger.log(`[AutoSlipLogin] Found bank account by lineAccountId: ${bankAccount._id}`);
+        }
+      } catch (e) {
+        // Invalid ObjectId format
+      }
+    }
+
+    if (!bankAccount) {
+      this.logger.warn(`[AutoSlipLogin] No bank account found for session ${sessionId}, skipping key sync`);
+      return;
+    }
+
+    const bankAccountId = bankAccount._id.toString();
+
+    // Sync keys to bank account
+    await this.handleKeysCapture(
+      bankAccountId,
+      { xLineAccess, xHmac, chatMid },
+      cUrlBash,
+    );
+
+    this.logger.log(`[AutoSlipLogin] Synced keys from LINE session to bank account ${bankAccountId}`);
+  }
+
+  /**
    * Get current login status for a bank account (comprehensive)
    */
   async getLoginStatus(bankAccountId: string): Promise<{
