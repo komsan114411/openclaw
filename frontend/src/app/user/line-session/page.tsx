@@ -29,6 +29,7 @@ import {
   Plus,
   Trash2,
 } from 'lucide-react';
+import { useLoginNotifications } from '@/hooks';
 
 // Interface for LINE Login (not LINE OA)
 interface LineLogin {
@@ -112,6 +113,49 @@ export default function LineSessionPage() {
   const [loginStatus, setLoginStatus] = useState<LoginStatus | null>(null);
   const [credentialsStatus, setCredentialsStatus] = useState<CredentialsStatus | null>(null);
   const [isPolling, setIsPolling] = useState(false);
+
+  // WebSocket login notifications (real-time status + PIN clear)
+  useLoginNotifications({
+    lineAccountId: selectedSession?._id,
+    showToasts: false,
+    onStatusChange: (event) => {
+      const inProgressStatuses = [
+        'requesting', 'initializing', 'launching_browser', 'loading_extension',
+        'checking_session', 'entering_credentials', 'waiting_pin', 'pin_displayed',
+        'verifying', 'extracting_keys', 'triggering_messages',
+      ];
+      const isInProgress = inProgressStatuses.includes(event.status);
+      const isCompleted = ['success', 'failed', 'idle'].includes(event.status);
+
+      setLoginStatus((prev: LoginStatus | null): LoginStatus => ({
+        success: event.status !== 'failed',
+        status: event.status,
+        pin: event.pinCode || prev?.pin || undefined,
+        message: event.message,
+        stage: event.status,
+        error: event.error,
+      }));
+
+      if (event.pinCode) {
+        toast.success(`PIN: ${event.pinCode}`, { duration: 60000, icon: '🔑' });
+      }
+
+      if (isCompleted) {
+        setIsPolling(false);
+        if (event.status === 'success') {
+          fetchSessionStatus(selectedSession!._id);
+          fetchData();
+          setLoginStatus(null);
+          toast.success('Login สำเร็จ! กำลังดึง Keys...', { icon: '✅' });
+        } else if (event.status === 'failed') {
+          setLoginStatus(null);
+          toast.error(event.error || 'Login ล้มเหลว', { icon: '❌' });
+        }
+      } else if (isInProgress) {
+        setIsPolling(true);
+      }
+    },
+  });
 
   // Keys modal
   const [showKeysModal, setShowKeysModal] = useState(false);
