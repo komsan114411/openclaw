@@ -22,6 +22,9 @@ import {
   Play,
   Loader2,
   Shield,
+  MessageSquare,
+  Pause,
+  RotateCcw,
 } from 'lucide-react';
 
 interface LineSessionSettings {
@@ -50,12 +53,35 @@ interface HealthStatus {
   consecutiveFailures: number;
 }
 
+interface AutoFetchStatus {
+  isRunning: boolean;
+  config: {
+    enabled: boolean;
+    intervalSeconds: number;
+    activeOnly: boolean;
+    fetchLimit: number;
+  };
+  lastFetchTime: string | null;
+  stats: {
+    totalFetches: number;
+    successfulFetches: number;
+    failedFetches: number;
+    totalNewMessages: number;
+  };
+}
+
 export default function LineSessionSettingsPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [isCheckingHealth, setIsCheckingHealth] = useState(false);
   const [healthStatuses, setHealthStatuses] = useState<HealthStatus[]>([]);
   const [runtimeConfig, setRuntimeConfig] = useState<HealthCheckConfig | null>(null);
+
+  // Auto-fetch states
+  const [autoFetchStatus, setAutoFetchStatus] = useState<AutoFetchStatus | null>(null);
+  const [isUpdatingAutoFetch, setIsUpdatingAutoFetch] = useState(false);
+  const [autoFetchInterval, setAutoFetchInterval] = useState(60);
+
   const [settings, setSettings] = useState<LineSessionSettings>({
     lineSessionHealthCheckEnabled: true,
     lineSessionHealthCheckIntervalMinutes: 5,
@@ -149,19 +175,84 @@ export default function LineSessionSettingsPage() {
     }
   };
 
+  // Fetch auto-fetch status
+  const fetchAutoFetchStatus = useCallback(async () => {
+    try {
+      const res = await api.get('/admin/line-session/settings/auto-fetch');
+      if (res.data.success !== false) {
+        setAutoFetchStatus(res.data);
+        setAutoFetchInterval(res.data.config?.intervalSeconds || 60);
+      }
+    } catch {
+      console.error('Failed to fetch auto-fetch status');
+    }
+  }, []);
+
+  // Update auto-fetch settings
+  const updateAutoFetch = async (newSettings: Partial<AutoFetchStatus['config']>) => {
+    setIsUpdatingAutoFetch(true);
+    try {
+      const res = await api.put('/admin/line-session/settings/auto-fetch', newSettings);
+      if (res.data.success) {
+        setAutoFetchStatus(res.data);
+        toast.success(res.data.message || 'อัปเดตการตั้งค่าสำเร็จ');
+      }
+    } catch {
+      toast.error('ไม่สามารถอัปเดตการตั้งค่าได้');
+    } finally {
+      setIsUpdatingAutoFetch(false);
+    }
+  };
+
+  // Control auto-fetch (start/stop/restart)
+  const controlAutoFetch = async (action: 'start' | 'stop' | 'restart') => {
+    setIsUpdatingAutoFetch(true);
+    try {
+      const res = await api.post(`/admin/line-session/settings/auto-fetch/${action}`);
+      if (res.data.success) {
+        toast.success(res.data.message);
+        await fetchAutoFetchStatus();
+      }
+    } catch {
+      toast.error('ไม่สามารถดำเนินการได้');
+    } finally {
+      setIsUpdatingAutoFetch(false);
+    }
+  };
+
+  // Fetch all messages manually
+  const fetchAllMessagesNow = async () => {
+    setIsUpdatingAutoFetch(true);
+    try {
+      const res = await api.post('/admin/line-session/batch/messages/fetch-all');
+      if (res.data.success) {
+        toast.success(res.data.message);
+        await fetchAutoFetchStatus();
+      } else {
+        toast.error('ไม่สามารถดึงข้อความได้');
+      }
+    } catch {
+      toast.error('เกิดข้อผิดพลาดในการดึงข้อความ');
+    } finally {
+      setIsUpdatingAutoFetch(false);
+    }
+  };
+
   useEffect(() => {
     fetchSettings();
     fetchRuntimeConfig();
     fetchHealthStatuses();
-  }, [fetchRuntimeConfig, fetchHealthStatuses]);
+    fetchAutoFetchStatus();
+  }, [fetchRuntimeConfig, fetchHealthStatuses, fetchAutoFetchStatus]);
 
   // Auto refresh health statuses every 30 seconds
   useEffect(() => {
     const interval = setInterval(() => {
       fetchHealthStatuses();
+      fetchAutoFetchStatus();
     }, 30000);
     return () => clearInterval(interval);
-  }, [fetchHealthStatuses]);
+  }, [fetchHealthStatuses, fetchAutoFetchStatus]);
 
   const handleSave = async () => {
     setIsSaving(true);
@@ -528,6 +619,189 @@ export default function LineSessionSettingsPage() {
             </div>
           </Card>
         </div>
+
+        {/* Auto Message Fetch Settings */}
+        <Card className="p-6 bg-gradient-to-br from-violet-50 to-purple-50 dark:from-violet-900/20 dark:to-purple-900/20 border-violet-200 dark:border-violet-800">
+          <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-violet-100 dark:bg-violet-900/50 rounded-lg">
+                <MessageSquare className="w-5 h-5 text-violet-600 dark:text-violet-400" />
+              </div>
+              <div>
+                <h2 className="text-lg font-semibold text-slate-900 dark:text-white">
+                  ดึงข้อความอัตโนมัติ
+                </h2>
+                <p className="text-sm text-slate-500 dark:text-slate-400">
+                  ดึงข้อความจาก LINE ทุกบัญชีตามช่วงเวลาที่กำหนด
+                </p>
+              </div>
+            </div>
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={fetchAllMessagesNow}
+                disabled={isUpdatingAutoFetch}
+                className="gap-2"
+              >
+                {isUpdatingAutoFetch ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <RefreshCw className="w-4 h-4" />
+                )}
+                ดึงข้อความทันที
+              </Button>
+            </div>
+          </div>
+
+          {/* Auto-fetch Status */}
+          {autoFetchStatus && (
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+              <div className="p-3 bg-white dark:bg-slate-800 rounded-lg">
+                <p className="text-xs text-slate-500 dark:text-slate-400">สถานะ</p>
+                <p className={`text-lg font-bold ${autoFetchStatus.isRunning ? 'text-emerald-600' : 'text-slate-400'}`}>
+                  {autoFetchStatus.isRunning ? 'กำลังทำงาน' : 'หยุดอยู่'}
+                </p>
+              </div>
+              <div className="p-3 bg-white dark:bg-slate-800 rounded-lg">
+                <p className="text-xs text-slate-500 dark:text-slate-400">ดึงทุก</p>
+                <p className="text-lg font-bold text-violet-600">{autoFetchStatus.config.intervalSeconds} วินาที</p>
+              </div>
+              <div className="p-3 bg-white dark:bg-slate-800 rounded-lg">
+                <p className="text-xs text-slate-500 dark:text-slate-400">ข้อความใหม่ทั้งหมด</p>
+                <p className="text-lg font-bold text-blue-600">{autoFetchStatus.stats.totalNewMessages.toLocaleString()}</p>
+              </div>
+              <div className="p-3 bg-white dark:bg-slate-800 rounded-lg">
+                <p className="text-xs text-slate-500 dark:text-slate-400">ดึงสำเร็จ/ทั้งหมด</p>
+                <p className="text-lg font-bold text-emerald-600">
+                  {autoFetchStatus.stats.successfulFetches}/{autoFetchStatus.stats.totalFetches}
+                </p>
+              </div>
+            </div>
+          )}
+
+          {/* Last Fetch Time */}
+          {autoFetchStatus?.lastFetchTime && (
+            <div className="mb-6 p-3 bg-white dark:bg-slate-800 rounded-lg">
+              <p className="text-xs text-slate-500 dark:text-slate-400">ดึงล่าสุดเมื่อ</p>
+              <p className="text-sm font-medium text-slate-700 dark:text-slate-300">
+                {new Date(autoFetchStatus.lastFetchTime).toLocaleString('th-TH')}
+              </p>
+            </div>
+          )}
+
+          {/* Settings Controls */}
+          <div className="space-y-4">
+            {/* Enable/Disable Toggle */}
+            <div className="flex items-center justify-between p-4 bg-white dark:bg-slate-800 rounded-xl">
+              <div>
+                <p className="font-medium text-slate-900 dark:text-white">
+                  เปิดใช้งานการดึงอัตโนมัติ
+                </p>
+                <p className="text-sm text-slate-500 dark:text-slate-400">
+                  ระบบจะดึงข้อความจากทุกบัญชีตามช่วงเวลาที่ตั้งค่า
+                </p>
+              </div>
+              <div className="flex gap-2">
+                {autoFetchStatus?.isRunning ? (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => controlAutoFetch('stop')}
+                    disabled={isUpdatingAutoFetch}
+                    className="gap-2 border-red-200 text-red-600 hover:bg-red-50"
+                  >
+                    <Pause className="w-4 h-4" />
+                    หยุด
+                  </Button>
+                ) : (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => controlAutoFetch('start')}
+                    disabled={isUpdatingAutoFetch}
+                    className="gap-2 border-emerald-200 text-emerald-600 hover:bg-emerald-50"
+                  >
+                    <Play className="w-4 h-4" />
+                    เริ่ม
+                  </Button>
+                )}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => controlAutoFetch('restart')}
+                  disabled={isUpdatingAutoFetch}
+                  className="gap-2"
+                >
+                  <RotateCcw className="w-4 h-4" />
+                  รีสตาร์ท
+                </Button>
+              </div>
+            </div>
+
+            {/* Interval Setting */}
+            <div className="p-4 bg-white dark:bg-slate-800 rounded-xl">
+              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+                <Clock className="w-4 h-4 inline mr-2" />
+                ดึงข้อความทุก (วินาที)
+              </label>
+              <div className="flex gap-2">
+                <Input
+                  type="number"
+                  min={10}
+                  max={3600}
+                  value={autoFetchInterval}
+                  onChange={(e) => setAutoFetchInterval(parseInt(e.target.value) || 60)}
+                  className="flex-1"
+                />
+                <Button
+                  variant="primary"
+                  onClick={() => updateAutoFetch({ intervalSeconds: autoFetchInterval })}
+                  disabled={isUpdatingAutoFetch}
+                >
+                  {isUpdatingAutoFetch ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    'อัปเดต'
+                  )}
+                </Button>
+              </div>
+              <p className="text-xs text-slate-500 mt-2">
+                ค่าต่ำสุด: 10 วินาที, ค่าสูงสุด: 3600 วินาที (1 ชั่วโมง)
+              </p>
+            </div>
+
+            {/* Quick Interval Buttons */}
+            <div className="p-4 bg-white dark:bg-slate-800 rounded-xl">
+              <p className="text-sm font-medium text-slate-700 dark:text-slate-300 mb-3">
+                ตั้งค่าด่วน
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {[
+                  { label: '10 วินาที', value: 10 },
+                  { label: '30 วินาที', value: 30 },
+                  { label: '1 นาที', value: 60 },
+                  { label: '2 นาที', value: 120 },
+                  { label: '5 นาที', value: 300 },
+                  { label: '10 นาที', value: 600 },
+                ].map((preset) => (
+                  <Button
+                    key={preset.value}
+                    variant={autoFetchStatus?.config.intervalSeconds === preset.value ? 'primary' : 'outline'}
+                    size="sm"
+                    onClick={() => {
+                      setAutoFetchInterval(preset.value);
+                      updateAutoFetch({ intervalSeconds: preset.value });
+                    }}
+                    disabled={isUpdatingAutoFetch}
+                  >
+                    {preset.label}
+                  </Button>
+                ))}
+              </div>
+            </div>
+          </div>
+        </Card>
 
         {/* Info Card */}
         <Card className="p-6 bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-800/50 dark:to-slate-900/50">
