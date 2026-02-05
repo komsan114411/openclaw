@@ -331,19 +331,35 @@ export default function LineSessionPage() {
   // Auto-refresh state
   const [lastRefreshTime, setLastRefreshTime] = useState<Date | null>(null);
   const [countdown, setCountdown] = useState(0);
-  const AUTO_REFRESH_INTERVAL = 30; // seconds
+  const [autoFetchConfig, setAutoFetchConfig] = useState<{
+    enabled: boolean;
+    intervalSeconds: number;
+    isRunning: boolean;
+    lastFetchTime: string | null;
+  } | null>(null);
 
   // Fetch LINE sessions and banks
   const fetchData = useCallback(async () => {
     setIsLoading(true);
     try {
-      const [sessionsRes, banksRes] = await Promise.all([
+      const [sessionsRes, banksRes, autoFetchRes] = await Promise.all([
         lineSessionUserApi.getMySessions(),
         lineSessionUserApi.getBanks(),
+        lineSessionUserApi.getAutoFetchStatus().catch(() => null),
       ]);
 
       setLineSessions(sessionsRes.data.sessions || []);
       setBanks(banksRes.data.banks || []);
+
+      // Set auto-fetch config from backend
+      if (autoFetchRes?.data) {
+        setAutoFetchConfig({
+          enabled: autoFetchRes.data.config?.enabled || false,
+          intervalSeconds: autoFetchRes.data.config?.intervalSeconds || 60,
+          isRunning: autoFetchRes.data.isRunning || false,
+          lastFetchTime: autoFetchRes.data.lastFetchTime || null,
+        });
+      }
     } catch {
       toast.error('ไม่สามารถโหลดข้อมูลได้');
     } finally {
@@ -392,29 +408,32 @@ export default function LineSessionPage() {
     }
   }, []);
 
-  // Auto-refresh transactions every 30 seconds when viewing
+  // Auto-refresh transactions based on backend config
   useEffect(() => {
-    if (!selectedSession?.hasKeys || !showTransactions) {
+    // Only run if auto-fetch is enabled and we're viewing transactions
+    if (!selectedSession?.hasKeys || !showTransactions || !autoFetchConfig?.enabled) {
       setCountdown(0);
       return;
     }
 
+    const intervalSeconds = autoFetchConfig.intervalSeconds || 60;
+
     // Start countdown
-    setCountdown(AUTO_REFRESH_INTERVAL);
+    setCountdown(intervalSeconds);
 
     const countdownInterval = setInterval(() => {
       setCountdown(prev => {
         if (prev <= 1) {
-          // Time to refresh
+          // Time to refresh - fetch from database (backend auto-fetches from LINE)
           fetchTransactions(selectedSession._id, true);
-          return AUTO_REFRESH_INTERVAL;
+          return intervalSeconds;
         }
         return prev - 1;
       });
     }, 1000);
 
     return () => clearInterval(countdownInterval);
-  }, [selectedSession?._id, selectedSession?.hasKeys, showTransactions, fetchTransactions]);
+  }, [selectedSession?._id, selectedSession?.hasKeys, showTransactions, autoFetchConfig?.enabled, autoFetchConfig?.intervalSeconds, fetchTransactions]);
 
   // Trigger fetch from LINE API
   const handleFetchTransactions = async () => {
@@ -1212,12 +1231,43 @@ export default function LineSessionPage() {
                   {/* Transactions Section - Only show if session has keys */}
                   {sessionStatus?.hasKeys && (
                     <div className="border-t pt-6 mt-6">
+                      {/* Auto-fetch status banner */}
+                      {autoFetchConfig && (
+                        <div className={`mb-4 p-3 rounded-lg text-sm flex items-center justify-between ${
+                          autoFetchConfig.enabled && autoFetchConfig.isRunning
+                            ? 'bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800'
+                            : 'bg-slate-100 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700'
+                        }`}>
+                          <div className="flex items-center gap-2">
+                            <RefreshCw className={`w-4 h-4 ${
+                              autoFetchConfig.enabled && autoFetchConfig.isRunning
+                                ? 'text-emerald-500 animate-spin'
+                                : 'text-slate-400'
+                            }`} style={{ animationDuration: '3s' }} />
+                            <span className={
+                              autoFetchConfig.enabled && autoFetchConfig.isRunning
+                                ? 'text-emerald-700 dark:text-emerald-300'
+                                : 'text-slate-600 dark:text-slate-400'
+                            }>
+                              {autoFetchConfig.enabled && autoFetchConfig.isRunning
+                                ? `ดึงรายการอัตโนมัติทุก ${autoFetchConfig.intervalSeconds} วินาที`
+                                : 'การดึงรายการอัตโนมัติปิดอยู่'}
+                            </span>
+                          </div>
+                          {autoFetchConfig.lastFetchTime && (
+                            <span className="text-xs text-slate-500">
+                              ดึงล่าสุด: {new Date(autoFetchConfig.lastFetchTime).toLocaleTimeString('th-TH')}
+                            </span>
+                          )}
+                        </div>
+                      )}
+
                       <div className="flex items-center justify-between mb-4">
                         <div>
                           <h4 className="font-medium text-slate-900 dark:text-white flex items-center gap-2">
                             <History className="w-5 h-5 text-emerald-500" />
                             รายการธุรกรรม
-                            {showTransactions && countdown > 0 && (
+                            {showTransactions && countdown > 0 && autoFetchConfig?.enabled && (
                               <span className="text-xs font-normal text-slate-500 ml-2">
                                 (รีเฟรชใน {countdown} วินาที)
                               </span>

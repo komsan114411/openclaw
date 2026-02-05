@@ -949,4 +949,32 @@ export class LineSessionUserController {
     const history = await this.keyStorageService.getKeyHistory(lineAccountId, 10);
     return { success: true, history };
   }
+
+  // ============================================
+  // Auto-Fetch Status (Read-only for users)
+  // ============================================
+
+  /**
+   * Get auto-fetch status for users
+   * Shows current auto-fetch settings and countdown info
+   */
+  @Get('settings/auto-fetch-status')
+  @ApiOperation({ summary: 'Get auto-fetch status (read-only)' })
+  async getAutoFetchStatusForUser() {
+    const status = this.messageFetchService.getAutoFetchStatus();
+
+    return {
+      success: true,
+      isRunning: status.isRunning,
+      config: {
+        enabled: status.config.enabled,
+        intervalSeconds: status.config.intervalSeconds,
+      },
+      lastFetchTime: status.lastFetchTime,
+      stats: {
+        totalFetches: status.stats.totalFetches,
+        totalNewMessages: status.stats.totalNewMessages,
+      },
+    };
+  }
 }

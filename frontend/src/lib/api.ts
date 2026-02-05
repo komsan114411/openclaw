@@ -892,6 +892,10 @@ export const lineSessionUserApi = {
   // Get transaction summary
   getTransactionSummary: (sessionId: string) =>
     api.get(`/user/line-session/${sessionId}/transactions/summary`),
+
+  // Get auto-fetch status (read-only)
+  getAutoFetchStatus: () =>
+    api.get('/user/line-session/settings/auto-fetch-status'),
 };
 
 // Rate Limit API (Admin Only)
