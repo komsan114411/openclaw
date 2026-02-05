@@ -872,6 +872,10 @@ export const lineSessionUserApi = {
   // Get key history
   getHistory: (sessionId: string) =>
     api.get(`/user/line-session/${sessionId}/history`),
+
+  // Validate keys by calling LINE API
+  validateKeys: (sessionId: string) =>
+    api.post(`/user/line-session/${sessionId}/validate-keys`),
 };
 
 // Rate Limit API (Admin Only)

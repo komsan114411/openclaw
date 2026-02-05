@@ -21,6 +21,7 @@ import { KeyStorageService } from './services/key-storage.service';
 import { EnhancedAutomationService, EnhancedLoginStatus } from './services/enhanced-automation.service';
 import { WorkerPoolService } from './services/worker-pool.service';
 import { LoginCoordinatorService } from './services/login-coordinator.service';
+import { SessionHealthService } from './services/session-health.service';
 import { LineSession, LineSessionDocument } from './schemas/line-session.schema';
 import { LineAccount, LineAccountDocument } from '../database/schemas/line-account.schema';
 import { BankList, BankListDocument } from './schemas/bank-list.schema';
@@ -45,6 +46,7 @@ export class LineSessionUserController {
     private workerPoolService: WorkerPoolService,
     private loginCoordinatorService: LoginCoordinatorService,
     private lineAutomationService: LineAutomationService,
+    private sessionHealthService: SessionHealthService,
     @InjectModel(LineSession.name)
     private lineSessionModel: Model<LineSessionDocument>,
     @InjectModel(LineAccount.name)
@@ -130,7 +132,7 @@ export class LineSessionUserController {
         status: s.status,
         bankCode: s.bankCode,
         bankName: s.bankName,
-        hasKeys: !!s.xLineAccess,
+        hasKeys: !!(s.xLineAccess && s.xHmac),
         hasCredentials: !!(s.lineEmail && s.linePassword),
         lastCheckedAt: s.lastCheckedAt,
         lastCheckResult: s.lastCheckResult,
@@ -208,7 +210,7 @@ export class LineSessionUserController {
         name: session.name,
         ownerId: session.ownerId,
         lineAccountId: session.lineAccountId,
-        hasKeys: !!session.xLineAccess,
+        hasKeys: !!(session.xLineAccess && session.xHmac),
         xLineAccess: session.xLineAccess ? `${session.xLineAccess.substring(0, 30)}...` : null,
         xHmac: session.xHmac ? `${session.xHmac.substring(0, 20)}...` : null,
         chatMid: session.chatMid,
@@ -567,7 +569,7 @@ export class LineSessionUserController {
       success: true,
       session: session ? {
         lineAccountId: session.lineAccountId,
-        hasKeys: !!session.xLineAccess,
+        hasKeys: !!(session.xLineAccess && session.xHmac),
         xLineAccess: session.xLineAccess ? `${session.xLineAccess.substring(0, 30)}...` : null,
         xHmac: session.xHmac ? `${session.xHmac.substring(0, 20)}...` : null,
         chatMid: session.chatMid,
@@ -738,6 +740,27 @@ export class LineSessionUserController {
     });
 
     return { success: true, message: 'บันทึก Keys สำเร็จ' };
+  }
+
+  /**
+   * Validate keys for user's LINE Account
+   * Check if existing keys are still valid by calling LINE API
+   */
+  @Post(':lineAccountId/validate-keys')
+  @ApiOperation({ summary: 'Validate keys by calling LINE API' })
+  async validateKeysForUser(
+    @Param('lineAccountId', ParseObjectIdPipe) lineAccountId: string,
+    @CurrentUser() user: AuthUser,
+  ) {
+    // Validate ownership
+    await this.validateLineAccountOwnership(lineAccountId, user.userId);
+
+    const result = await this.sessionHealthService.validateKeysDirectly(lineAccountId);
+
+    return {
+      success: true,
+      validation: result,
+    };
   }
 
   /**
