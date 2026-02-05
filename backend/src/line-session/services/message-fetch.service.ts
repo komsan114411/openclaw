@@ -4,11 +4,15 @@ import { Model } from 'mongoose';
 import { ConfigService } from '@nestjs/config';
 import { OnEvent } from '@nestjs/event-emitter';
 import axios from 'axios';
+import { exec } from 'child_process';
+import { promisify } from 'util';
 import { LineSession, LineSessionDocument } from '../schemas/line-session.schema';
 import { LineMessage, LineMessageDocument } from '../schemas/line-message.schema';
 import { SystemSettings, SystemSettingsDocument } from '../../database/schemas/system-settings.schema';
 import { KeyStorageService } from './key-storage.service';
 import { EventBusService } from '../../core/events';
+
+const execAsync = promisify(exec);
 
 // Bank code constants
 export const BankCodes = {
@@ -401,40 +405,51 @@ export class MessageFetchService implements OnModuleInit, OnModuleDestroy {
 
   /**
    * Fetch messages for a specific LINE Account
+   * [FIX] x-hmac is computed per-request, so we must use the captured cURL command
    */
   async fetchMessages(lineAccountId: string): Promise<FetchResult> {
     const session = await this.keyStorageService.getActiveSession(lineAccountId);
 
     if (!session) {
+      this.logger.warn(`[FetchMessages] No active session found for ${lineAccountId}`);
       return { success: false, messageCount: 0, newMessages: 0, error: 'No active session' };
     }
+
+    // Debug logging
+    this.logger.log(`[FetchMessages] Session found: id=${session._id}, name=${session.name}`);
+    this.logger.log(`[FetchMessages] Keys: hasAccess=${!!session.xLineAccess}, hasHmac=${!!session.xHmac}, chatMid=${session.chatMid || 'MISSING'}`);
+    this.logger.log(`[FetchMessages] Has cURL: ${!!session.cUrlBash}`);
 
     if (!session.xLineAccess || !session.xHmac) {
       return { success: false, messageCount: 0, newMessages: 0, error: 'No keys found' };
     }
 
-    if (!session.chatMid) {
-      return { success: false, messageCount: 0, newMessages: 0, error: 'No chatMid configured' };
-    }
-
     try {
-      const headers = this.buildHeaders(session);
+      let messages: any[] = [];
+      let responseData: any = null;
 
-      // Fetch messages from LINE API
-      const response = await axios.post(
-        `${this.LINE_API}/api/talk/thrift/Talk/TalkService/getRecentMessagesV2`,
-        [session.chatMid, 50], // chatMid, limit
-        {
-          headers,
-          timeout: 30000,
-        },
-      );
+      // [FIX] Prefer using captured cURL command since x-hmac is request-specific
+      if (session.cUrlBash && session.cUrlBash.includes('getRecentMessagesV2')) {
+        this.logger.log(`[FetchMessages] Using captured cURL command for ${lineAccountId}`);
+        const curlResult = await this.executeCurlCommand(session.cUrlBash);
 
-      if (response.data?.code !== 0) {
-        throw new Error(`API error: ${response.data?.code}`);
+        if (curlResult.success) {
+          responseData = curlResult.data;
+          messages = responseData?.data || [];
+          this.logger.log(`[FetchMessages] cURL execution successful: ${messages.length} messages`);
+        } else {
+          this.logger.warn(`[FetchMessages] cURL execution failed: ${curlResult.error}`);
+          // Fall back to manual request (will likely fail due to x-hmac)
+          return this.fetchMessagesManual(session, lineAccountId);
+        }
+      } else if (!session.chatMid) {
+        return { success: false, messageCount: 0, newMessages: 0, error: 'No chatMid configured and no cURL available' };
+      } else {
+        // Fall back to manual request (may fail due to x-hmac mismatch)
+        this.logger.warn(`[FetchMessages] No cURL available, trying manual request (may fail)`);
+        return this.fetchMessagesManual(session, lineAccountId);
       }
 
-      const messages = response.data?.data || [];
       this.logger.log(`Fetched ${messages.length} messages for ${lineAccountId}`);
 
       // Process and save messages
@@ -461,22 +476,110 @@ export class MessageFetchService implements OnModuleInit, OnModuleDestroy {
       return { success: true, messageCount: messages.length, newMessages };
 
     } catch (error: any) {
-      this.logger.error(`Error fetching messages: ${error.message}`);
+      // Enhanced error logging
+      this.logger.error(`[FetchMessages] Error: ${error.message}`);
+      return { success: false, messageCount: 0, newMessages: 0, error: error.message };
+    }
+  }
 
-      // Check if keys are expired
+  /**
+   * Execute captured cURL command to fetch messages
+   * [FIX] This preserves the original x-hmac which is request-specific
+   */
+  private async executeCurlCommand(curlCommand: string): Promise<{ success: boolean; data?: any; error?: string }> {
+    try {
+      this.logger.debug(`[ExecuteCurl] Executing cURL command (${curlCommand.length} chars)`);
+
+      // Execute the cURL command directly
+      const { stdout, stderr } = await execAsync(curlCommand, {
+        timeout: 30000,
+        maxBuffer: 10 * 1024 * 1024, // 10MB buffer for large responses
+      });
+
+      if (stderr && !stdout) {
+        this.logger.error(`[ExecuteCurl] cURL stderr: ${stderr}`);
+        return { success: false, error: stderr };
+      }
+
+      // Parse the JSON response
+      const data = JSON.parse(stdout);
+
+      if (data?.code !== 0) {
+        this.logger.warn(`[ExecuteCurl] API returned error code: ${data?.code}`);
+        return { success: false, error: `API error code: ${data?.code}` };
+      }
+
+      return { success: true, data };
+    } catch (error: any) {
+      this.logger.error(`[ExecuteCurl] Error: ${error.message}`);
+      return { success: false, error: error.message };
+    }
+  }
+
+  /**
+   * Fallback: Manual fetch using axios (may fail due to x-hmac mismatch)
+   */
+  private async fetchMessagesManual(session: LineSessionDocument, lineAccountId: string): Promise<FetchResult> {
+    if (!session.chatMid) {
+      return { success: false, messageCount: 0, newMessages: 0, error: 'No chatMid configured' };
+    }
+
+    try {
+      const headers = this.buildHeaders(session);
+
+      this.logger.debug(`[FetchMessagesManual] Request URL: ${this.LINE_API}/api/talk/thrift/Talk/TalkService/getRecentMessagesV2`);
+      this.logger.debug(`[FetchMessagesManual] Request body: ["${session.chatMid}", 50]`);
+
+      const response = await axios.post(
+        `${this.LINE_API}/api/talk/thrift/Talk/TalkService/getRecentMessagesV2`,
+        [session.chatMid, 50],
+        {
+          headers,
+          timeout: 30000,
+        },
+      );
+
+      this.logger.debug(`[FetchMessagesManual] Response status: ${response.status}`);
+
+      if (response.data?.code !== 0) {
+        throw new Error(`API error: ${response.data?.code}`);
+      }
+
+      const messages = response.data?.data || [];
+      this.logger.log(`[FetchMessagesManual] Fetched ${messages.length} messages`);
+
+      // Process and save messages
+      let newMessages = 0;
+      for (const msg of messages) {
+        const saved = await this.processMessage(session, msg);
+        if (saved) newMessages++;
+      }
+
+      if (newMessages > 0) {
+        await this.updateSessionBalance(lineAccountId);
+      }
+
+      this.eventBusService.publish({
+        eventName: 'line-session.messages-fetched' as any,
+        occurredAt: new Date(),
+        lineAccountId,
+        messageCount: messages.length,
+        newMessages,
+      });
+
+      return { success: true, messageCount: messages.length, newMessages };
+    } catch (error: any) {
+      this.logger.error(`[FetchMessagesManual] Error: ${error.message}`);
+      this.logger.error(`[FetchMessagesManual] Status: ${error.response?.status}`);
+      this.logger.error(`[FetchMessagesManual] Response: ${JSON.stringify(error.response?.data || {})}`);
+
       if (error.response?.status === 401 || error.response?.status === 403) {
-        await this.keyStorageService.updateSessionStatus(
-          lineAccountId,
-          'expired',
-          'keys_expired',
-          true,
-        );
+        await this.keyStorageService.updateSessionStatus(lineAccountId, 'expired', 'keys_expired', true);
+        return { success: false, messageCount: 0, newMessages: 0, error: 'Keys expired - please re-login' };
+      }
 
-        this.eventBusService.publish({
-          eventName: 'line-session.expired' as any,
-          occurredAt: new Date(),
-          lineAccountId,
-        });
+      if (error.response?.status === 400) {
+        return { success: false, messageCount: 0, newMessages: 0, error: `Bad request (x-hmac mismatch) - need fresh cURL from login` };
       }
 
       return { success: false, messageCount: 0, newMessages: 0, error: error.message };
