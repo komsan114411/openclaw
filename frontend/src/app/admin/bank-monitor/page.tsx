@@ -191,10 +191,9 @@ export default function AdminBankMonitorPage() {
             hasKeys: session?.hasKeys || false,
           });
 
-            if (accountSummary) {
-              totalDeposits += accountSummary.deposits?.total || 0;
-              totalWithdrawals += accountSummary.withdrawals?.total || 0;
-            }
+          if (accountSummary) {
+            totalDeposits += accountSummary.deposits?.total || 0;
+            totalWithdrawals += accountSummary.withdrawals?.total || 0;
           }
         } catch (error) {
           // Skip accounts with errors
