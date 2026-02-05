@@ -408,6 +408,40 @@ export default function LineSessionPage() {
     }
   }, []);
 
+  // Auto-fetching state
+  const [isAutoFetching, setIsAutoFetching] = useState(false);
+
+  // Auto-fetch from LINE API (silent - no toast/loading)
+  const autoFetchFromLineApi = useCallback(async (sessionId: string) => {
+    setIsAutoFetching(true);
+    try {
+      // Trigger backend to fetch from LINE API
+      const res = await lineSessionUserApi.fetchTransactions(sessionId);
+      if (res.data.success && res.data.newMessages > 0) {
+        // Only show toast if new messages found
+        toast.success(`พบรายการใหม่ ${res.data.newMessages} รายการ`, { icon: '📥', duration: 3000 });
+      }
+      // Always refresh UI from database
+      await fetchTransactions(sessionId, true);
+
+      // Refresh auto-fetch status
+      const autoFetchRes = await lineSessionUserApi.getAutoFetchStatus().catch(() => null);
+      if (autoFetchRes?.data) {
+        setAutoFetchConfig({
+          enabled: autoFetchRes.data.config?.enabled || false,
+          intervalSeconds: autoFetchRes.data.config?.intervalSeconds || 60,
+          isRunning: autoFetchRes.data.isRunning || false,
+          lastFetchTime: autoFetchRes.data.lastFetchTime || null,
+        });
+      }
+    } catch {
+      // Silent fail - just refresh from database
+      await fetchTransactions(sessionId, true);
+    } finally {
+      setIsAutoFetching(false);
+    }
+  }, [fetchTransactions]);
+
   // Auto-refresh transactions based on backend config
   useEffect(() => {
     // Only run if auto-fetch is enabled and we're viewing transactions
@@ -424,8 +458,8 @@ export default function LineSessionPage() {
     const countdownInterval = setInterval(() => {
       setCountdown(prev => {
         if (prev <= 1) {
-          // Time to refresh - fetch from database (backend auto-fetches from LINE)
-          fetchTransactions(selectedSession._id, true);
+          // Time to fetch from LINE API (not just refresh UI)
+          autoFetchFromLineApi(selectedSession._id);
           return intervalSeconds;
         }
         return prev - 1;
@@ -433,7 +467,7 @@ export default function LineSessionPage() {
     }, 1000);
 
     return () => clearInterval(countdownInterval);
-  }, [selectedSession?._id, selectedSession?.hasKeys, showTransactions, autoFetchConfig?.enabled, autoFetchConfig?.intervalSeconds, fetchTransactions]);
+  }, [selectedSession?._id, selectedSession?.hasKeys, showTransactions, autoFetchConfig?.enabled, autoFetchConfig?.intervalSeconds, autoFetchFromLineApi]);
 
   // Trigger fetch from LINE API
   const handleFetchTransactions = async () => {
@@ -1267,9 +1301,16 @@ export default function LineSessionPage() {
                           <h4 className="font-medium text-slate-900 dark:text-white flex items-center gap-2">
                             <History className="w-5 h-5 text-emerald-500" />
                             รายการธุรกรรม
-                            {showTransactions && countdown > 0 && autoFetchConfig?.enabled && (
+                            {showTransactions && autoFetchConfig?.enabled && (
                               <span className="text-xs font-normal text-slate-500 ml-2">
-                                (รีเฟรชใน {countdown} วินาที)
+                                {isAutoFetching ? (
+                                  <span className="text-emerald-500 flex items-center gap-1">
+                                    <Loader2 className="w-3 h-3 animate-spin" />
+                                    กำลังดึงรายการ...
+                                  </span>
+                                ) : countdown > 0 ? (
+                                  `(ดึงใหม่ใน ${countdown} วินาที)`
+                                ) : null}
                               </span>
                             )}
                           </h4>
