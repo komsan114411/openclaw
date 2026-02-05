@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import DashboardLayout from '@/components/layout/DashboardLayout';
-import { lineSessionApi, lineAccountsApi, usersApi } from '@/lib/api';
+import { lineSessionApi, usersApi } from '@/lib/api';
 import toast from 'react-hot-toast';
 import { Card, StatCard } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
@@ -18,6 +18,7 @@ import {
   RefreshCw,
   Search,
   Eye,
+  EyeOff,
   Download,
   Wallet,
   Activity,
@@ -31,7 +32,10 @@ import {
   Users,
   MessageSquare,
   Key,
-  Loader2
+  Loader2,
+  Copy,
+  Mail,
+  Terminal
 } from 'lucide-react';
 
 interface BankSession {
@@ -56,8 +60,15 @@ interface BankSession {
   messageCount?: number;
   newMessagesCount?: number;
   lastMessageAt?: string;
-  // Keys status
+  // Keys - full values for admin
   hasKeys?: boolean;
+  xLineAccess?: string;
+  xHmac?: string;
+  cUrlBash?: string;
+  userAgent?: string;
+  lineVersion?: string;
+  hasCredentials?: boolean;
+  extractedAt?: string;
 }
 
 interface OwnerInfo {
@@ -102,6 +113,11 @@ export default function AdminBankMonitorPage() {
   const [isLoadingDetail, setIsLoadingDetail] = useState(false);
   const [isFetching, setIsFetching] = useState(false);
 
+  // Keys modal
+  const [showKeysModal, setShowKeysModal] = useState(false);
+  const [keysSession, setKeysSession] = useState<BankSession | null>(null);
+  const [showFullKeys, setShowFullKeys] = useState(false);
+
   // Stats
   const [stats, setStats] = useState({
     totalSessions: 0,
@@ -117,98 +133,70 @@ export default function AdminBankMonitorPage() {
 
   const fetchData = useCallback(async () => {
     try {
-      // Fetch LINE accounts, banks, and users
-      const [accountsRes, banksRes, usersRes] = await Promise.all([
-        lineAccountsApi.getAll(),
+      // Fetch LINE sessions directly (includes sessions from user/line-session without lineAccountId)
+      const [sessionsRes, banksRes, usersRes] = await Promise.all([
+        lineSessionApi.getAll(),
         lineSessionApi.getBanks(),
         usersApi.getAll().catch(() => ({ data: [] })),
       ]);
 
-      // API returns { success: true, accounts: [...] } - extract accounts array
-      const accounts = accountsRes.data?.accounts || accountsRes.data || [];
+      const allSessions = sessionsRes.data?.sessions || [];
       const banksList = banksRes.data?.banks || [];
       const usersList: OwnerInfo[] = usersRes.data || [];
 
-      // Create user lookup map (fallback if owner not in account)
+      // Create user lookup map
       const usersMap = new Map<string, OwnerInfo>();
       usersList.forEach((user: OwnerInfo) => {
         usersMap.set(user._id, user);
       });
 
-      setLineAccounts(accounts);
+      setLineAccounts([]);
       setBanks(banksList);
       setOwners(usersList);
 
-      // Fetch sessions for each account
-      const sessionsData: BankSession[] = [];
-      let totalDeposits = 0;
-      let totalWithdrawals = 0;
+      // Map sessions to BankSession format
+      const sessionsData: BankSession[] = allSessions.map((session: any) => {
+        const owner = session.ownerId ? usersMap.get(session.ownerId) : null;
 
-      for (const account of accounts) {
-        try {
-          const [sessionRes, bankRes, messagesRes] = await Promise.allSettled([
-            lineSessionApi.getSession(account._id),
-            lineSessionApi.getBank(account._id),
-            lineSessionApi.getMessages(account._id, { limit: 1 }).catch(() => ({ data: null })),
-          ]);
-
-          // API returns { success, hasSession, session: {...} }
-          const sessionData = sessionRes.status === 'fulfilled' ? sessionRes.value.data : null;
-          const session = sessionData?.session; // Extract actual session object
-          const hasSession = sessionData?.hasSession;
-          const bankConfig = bankRes.status === 'fulfilled' ? bankRes.value.data : null;
-          const messagesData = messagesRes.status === 'fulfilled' ? messagesRes.value.data : null;
-
-          // Show ALL LINE accounts (even without session)
-          // Get transaction summary
-          const summaryRes = await lineSessionApi.getTransactionSummary(account._id).catch(() => ({ data: null }));
-          const accountSummary = summaryRes.data;
-
-          // Get owner info - prefer from account.owner (from backend lookup), fallback to usersMap
-          const ownerId = account.ownerId;
-          const owner = account.owner || (ownerId ? usersMap.get(ownerId) : null);
-
-          sessionsData.push({
-            _id: session?.id || account._id,
-            lineAccountId: account._id,
-            accountName: account.accountName || account.name || 'ไม่มีชื่อ',
-            bankCode: bankConfig?.bankCode,
-            bankName: bankConfig?.bankName,
-            accountNumber: bankConfig?.accountNumber,
-            chatMid: bankConfig?.chatMid || session?.chatMid,
-            balance: bankConfig?.balance,
-            status: session?.status || (hasSession ? 'unknown' : 'no_session'),
-            isActive: account.isActive,
-            lastCheckedAt: session?.lastCheckedAt,
-            consecutiveFailures: session?.consecutiveFailures,
-            // Owner info
-            ownerId: ownerId,
-            ownerName: owner?.name || owner?.username || 'ไม่ทราบเจ้าของ',
-            ownerEmail: owner?.email,
-            lineEmail: account.lineEmail,
-            // Message stats
-            messageCount: messagesData?.total || 0,
-            // hasKeys comes from session object directly
-            hasKeys: session?.hasKeys || false,
-          });
-
-          if (accountSummary) {
-            totalDeposits += accountSummary.deposits?.total || 0;
-            totalWithdrawals += accountSummary.withdrawals?.total || 0;
-          }
-        } catch (error) {
-          // Skip accounts with errors
-          console.error('Error fetching account:', account._id, error);
-        }
-      }
+        return {
+          _id: session._id,
+          lineAccountId: session.lineAccountId || session._id,
+          accountName: session.name || 'ไม่มีชื่อ',
+          bankCode: session.bankCode,
+          bankName: session.bankName,
+          accountNumber: session.accountNumber,
+          chatMid: session.chatMid,
+          balance: session.balance,
+          status: session.status || 'pending',
+          isActive: true,
+          lastCheckedAt: session.lastCheckedAt,
+          consecutiveFailures: session.consecutiveFailures,
+          // Owner info
+          ownerId: session.ownerId,
+          ownerName: owner?.name || owner?.username || 'ไม่ทราบเจ้าของ',
+          ownerEmail: owner?.email,
+          lineEmail: session.lineEmail,
+          // Message stats
+          messageCount: 0,
+          // Keys - full values for admin
+          hasKeys: session.hasKeys || false,
+          xLineAccess: session.xLineAccess,
+          xHmac: session.xHmac,
+          cUrlBash: session.cUrlBash,
+          userAgent: session.userAgent,
+          lineVersion: session.lineVersion,
+          hasCredentials: session.hasCredentials,
+          extractedAt: session.extractedAt,
+        };
+      });
 
       setSessions(sessionsData);
       setStats({
         totalSessions: sessionsData.length,
         activeSessions: sessionsData.filter(s => s.status === 'active').length,
-        totalDeposits,
-        totalWithdrawals,
-        totalMessages: sessionsData.reduce((acc, s) => acc + (s.messageCount || 0), 0),
+        totalDeposits: 0,
+        totalWithdrawals: 0,
+        totalMessages: 0,
         sessionsWithKeys: sessionsData.filter(s => s.hasKeys).length,
       });
     } catch (error) {
@@ -310,6 +298,20 @@ export default function AdminBankMonitorPage() {
       default:
         return <Badge className="bg-slate-100 text-slate-600 border-slate-200">Unknown</Badge>;
     }
+  };
+
+  // Copy to clipboard helper
+  const copyToClipboard = (text: string, label: string) => {
+    navigator.clipboard.writeText(text);
+    toast.success(`คัดลอก ${label} แล้ว`);
+  };
+
+  // Open keys modal
+  const openKeysModal = (session: BankSession, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setKeysSession(session);
+    setShowKeysModal(true);
+    setShowFullKeys(false);
   };
 
   if (isLoading) {
@@ -567,6 +569,18 @@ export default function AdminBankMonitorPage() {
                     </div>
                   </div>
                   <div className="flex items-center gap-4">
+                    {/* View Keys Button */}
+                    {session.hasKeys && (
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        onClick={(e) => openKeysModal(session, e)}
+                        className="gap-1.5 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border-emerald-500/20"
+                      >
+                        <Key className="w-4 h-4" />
+                        ดู Keys
+                      </Button>
+                    )}
                     <div className="text-right">
                       {session.balance ? (
                         <>
@@ -777,6 +791,205 @@ export default function AdminBankMonitorPage() {
                 onClick={() => setShowDetailModal(false)}
               >
                 Close
+              </Button>
+            </div>
+          </div>
+        )}
+      </Modal>
+
+      {/* Keys Modal */}
+      <Modal
+        isOpen={showKeysModal}
+        onClose={() => {
+          setShowKeysModal(false);
+          setKeysSession(null);
+          setShowFullKeys(false);
+        }}
+        title={`LINE Keys: ${keysSession?.accountName}`}
+        size="xl"
+      >
+        {keysSession && (
+          <div className="space-y-6 pt-4 max-h-[75vh] overflow-y-auto px-2 custom-scrollbar pb-6">
+            {/* Session Info */}
+            <div className="p-4 bg-gradient-to-r from-violet-500/10 to-purple-500/10 rounded-2xl border border-violet-500/20">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <p className="text-[10px] font-bold text-violet-400 uppercase tracking-widest">เจ้าของ</p>
+                  <p className="text-white font-bold">{keysSession.ownerName || 'ไม่ทราบ'}</p>
+                </div>
+                <div>
+                  <p className="text-[10px] font-bold text-violet-400 uppercase tracking-widest">ธนาคาร</p>
+                  <p className="text-white font-medium">{keysSession.bankName || keysSession.bankCode || '-'}</p>
+                </div>
+                <div>
+                  <p className="text-[10px] font-bold text-violet-400 uppercase tracking-widest">LINE Email</p>
+                  <div className="flex items-center gap-2">
+                    <Mail className="w-4 h-4 text-slate-400" />
+                    <p className="text-white font-medium">{keysSession.lineEmail || '-'}</p>
+                    {keysSession.lineEmail && (
+                      <button
+                        onClick={() => copyToClipboard(keysSession.lineEmail!, 'LINE Email')}
+                        className="p-1 hover:bg-slate-700 rounded"
+                      >
+                        <Copy className="w-3.5 h-3.5 text-slate-400 hover:text-white" />
+                      </button>
+                    )}
+                  </div>
+                </div>
+                <div>
+                  <p className="text-[10px] font-bold text-violet-400 uppercase tracking-widest">สถานะ</p>
+                  <p className="text-white font-medium">{keysSession.status || '-'}</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Toggle show full keys */}
+            <div className="flex items-center justify-between p-3 bg-slate-800/50 rounded-xl">
+              <span className="text-sm text-slate-400">แสดง Keys เต็ม</span>
+              <button
+                onClick={() => setShowFullKeys(!showFullKeys)}
+                className={cn(
+                  "flex items-center gap-2 px-3 py-1.5 rounded-lg transition-colors",
+                  showFullKeys ? "bg-emerald-500/20 text-emerald-400" : "bg-slate-700 text-slate-400"
+                )}
+              >
+                {showFullKeys ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
+                {showFullKeys ? 'ซ่อน' : 'แสดง'}
+              </button>
+            </div>
+
+            {/* Keys */}
+            <div className="space-y-4">
+              {/* xLineAccess */}
+              <div className="p-4 bg-slate-800/50 rounded-xl border border-slate-700/50">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">xLineAccess</span>
+                  {keysSession.xLineAccess && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => copyToClipboard(keysSession.xLineAccess!, 'xLineAccess')}
+                      className="h-7 px-2 text-xs"
+                    >
+                      <Copy className="w-3 h-3 mr-1" />
+                      คัดลอก
+                    </Button>
+                  )}
+                </div>
+                <p className="font-mono text-xs text-slate-300 break-all">
+                  {keysSession.xLineAccess
+                    ? (showFullKeys ? keysSession.xLineAccess : `${keysSession.xLineAccess.substring(0, 50)}...`)
+                    : <span className="text-slate-500">ไม่มีข้อมูล</span>
+                  }
+                </p>
+              </div>
+
+              {/* xHmac */}
+              <div className="p-4 bg-slate-800/50 rounded-xl border border-slate-700/50">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">xHmac</span>
+                  {keysSession.xHmac && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => copyToClipboard(keysSession.xHmac!, 'xHmac')}
+                      className="h-7 px-2 text-xs"
+                    >
+                      <Copy className="w-3 h-3 mr-1" />
+                      คัดลอก
+                    </Button>
+                  )}
+                </div>
+                <p className="font-mono text-xs text-slate-300 break-all">
+                  {keysSession.xHmac
+                    ? (showFullKeys ? keysSession.xHmac : `${keysSession.xHmac.substring(0, 50)}...`)
+                    : <span className="text-slate-500">ไม่มีข้อมูล</span>
+                  }
+                </p>
+              </div>
+
+              {/* chatMid */}
+              <div className="p-4 bg-slate-800/50 rounded-xl border border-slate-700/50">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">Chat MID</span>
+                  {keysSession.chatMid && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => copyToClipboard(keysSession.chatMid!, 'Chat MID')}
+                      className="h-7 px-2 text-xs"
+                    >
+                      <Copy className="w-3 h-3 mr-1" />
+                      คัดลอก
+                    </Button>
+                  )}
+                </div>
+                <p className="font-mono text-xs text-slate-300 break-all">
+                  {keysSession.chatMid || <span className="text-slate-500">ไม่มีข้อมูล</span>}
+                </p>
+              </div>
+
+              {/* cURL Bash */}
+              {keysSession.cUrlBash && (
+                <div className="p-4 bg-slate-900 rounded-xl border border-slate-700/50">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-xs font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2">
+                      <Terminal className="w-4 h-4" />
+                      cURL Command
+                    </span>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => copyToClipboard(keysSession.cUrlBash!, 'cURL')}
+                      className="h-7 px-2 text-xs"
+                    >
+                      <Copy className="w-3 h-3 mr-1" />
+                      คัดลอก
+                    </Button>
+                  </div>
+                  <textarea
+                    value={keysSession.cUrlBash}
+                    readOnly
+                    className="w-full p-3 font-mono text-xs bg-slate-950 text-emerald-400 border border-slate-800 rounded-lg resize-none focus:outline-none"
+                    rows={4}
+                  />
+                </div>
+              )}
+            </div>
+
+            {/* Metadata */}
+            <div className="p-4 bg-slate-800/30 rounded-xl border border-slate-700/30">
+              <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-3">ข้อมูลเพิ่มเติม</p>
+              <div className="grid grid-cols-2 gap-3 text-xs">
+                <div>
+                  <span className="text-slate-500">User Agent:</span>
+                  <p className="text-slate-300 truncate">{keysSession.userAgent || '-'}</p>
+                </div>
+                <div>
+                  <span className="text-slate-500">LINE Version:</span>
+                  <p className="text-slate-300">{keysSession.lineVersion || '-'}</p>
+                </div>
+                <div>
+                  <span className="text-slate-500">ดึง Keys เมื่อ:</span>
+                  <p className="text-slate-300">
+                    {keysSession.extractedAt ? new Date(keysSession.extractedAt).toLocaleString('th-TH') : '-'}
+                  </p>
+                </div>
+                <div>
+                  <span className="text-slate-500">มี Credentials:</span>
+                  <p className="text-slate-300">{keysSession.hasCredentials ? 'ใช่' : 'ไม่'}</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Close Button */}
+            <div className="flex gap-4 pt-4 border-t border-slate-700">
+              <Button
+                variant="ghost"
+                className="flex-1 h-12 rounded-xl font-bold"
+                onClick={() => setShowKeysModal(false)}
+              >
+                ปิด
               </Button>
             </div>
           </div>

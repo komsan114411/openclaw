@@ -84,6 +84,54 @@ export class LineSessionController {
   // ================================
 
   /**
+   * ดึง LINE Sessions ทั้งหมด (สำหรับ Bank Monitor)
+   * รวมทั้ง sessions ที่สร้างจาก user/line-session (ไม่มี lineAccountId)
+   * Admin เท่านั้น - แสดง keys เต็มๆ
+   */
+  @Get('all')
+  @ApiOperation({ summary: 'Get all LINE sessions for bank monitoring (admin only - full keys)' })
+  async getAllSessions() {
+    const sessions = await this.lineSessionModel
+      .find({ isActive: true })
+      .sort({ createdAt: -1 })
+      .lean();
+
+    return {
+      success: true,
+      sessions: sessions.map((session) => ({
+        _id: session._id,
+        name: session.name,
+        ownerId: session.ownerId,
+        lineAccountId: session.lineAccountId,
+        // Keys - full values for admin
+        hasKeys: !!(session.xLineAccess && session.xHmac),
+        xLineAccess: session.xLineAccess || null,
+        xHmac: session.xHmac || null,
+        chatMid: session.chatMid || null,
+        cUrlBash: session.cUrlBash || null,
+        userAgent: session.userAgent || null,
+        lineVersion: session.lineVersion || null,
+        // Bank info
+        bankCode: session.bankCode,
+        bankName: session.bankName,
+        accountNumber: session.accountNumber,
+        balance: session.balance,
+        // Status
+        status: session.status,
+        // Credentials (email only, not password)
+        lineEmail: session.lineEmail || null,
+        hasCredentials: !!(session.lineEmail && session.linePassword),
+        // Timestamps
+        lastCheckedAt: session.lastCheckedAt,
+        lastCheckResult: session.lastCheckResult,
+        extractedAt: session.extractedAt,
+        consecutiveFailures: session.consecutiveFailures,
+        createdAt: (session as any).createdAt,
+      })),
+    };
+  }
+
+  /**
    * ดึง active session ของ LINE Account
    */
   @Get(':lineAccountId')

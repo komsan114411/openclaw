@@ -609,6 +609,10 @@ export const walletApi = {
 
 // LINE Session API (Admin Only)
 export const lineSessionApi = {
+  // Get all LINE sessions (for bank monitor - includes sessions without lineAccountId)
+  getAll: () =>
+    api.get('/admin/line-session/all'),
+
   // Get active session for a LINE account
   getSession: (lineAccountId: string) =>
     api.get(`/admin/line-session/${lineAccountId}`),
