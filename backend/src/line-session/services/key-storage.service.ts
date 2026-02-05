@@ -120,6 +120,12 @@ export class KeyStorageService {
       const session = lookupResult.session;
       this.logger.log(`[SaveKeys] Found session (by ${lookupResult.foundBy}): _id=${session._id}, lineAccountId=${session.lineAccountId || 'N/A'}`);
 
+      // [FIX] Auto-fill lineAccountId if it was looked up by ObjectId but lineAccountId field is empty
+      // This ensures lineAccountId field is always populated for future lookups
+      if (lookupResult.foundBy === 'objectId' && !session.lineAccountId) {
+        session.lineAccountId = session._id.toString();
+        this.logger.log(`[SaveKeys] Auto-filled lineAccountId with ObjectId: ${session.lineAccountId}`);
+      }
 
       // 2. Update existing session with new keys
       session.xLineAccess = input.xLineAccess;
@@ -141,6 +147,16 @@ export class KeyStorageService {
       // Update chatMid if provided from capture
       if (input.chatMid) {
         session.chatMid = input.chatMid;
+        this.logger.log(`[SaveKeys] Using provided chatMid: ${input.chatMid}`);
+      }
+
+      // [FIX] If chatMid is not provided but cUrlBash is, try to extract from cURL body
+      if (!session.chatMid && input.cUrlBash) {
+        const extractedChatMid = this.extractChatMidFromCurl(input.cUrlBash);
+        if (extractedChatMid) {
+          session.chatMid = extractedChatMid;
+          this.logger.log(`[SaveKeys] Extracted chatMid from cURL: ${extractedChatMid}`);
+        }
       }
 
       // Use captured cURL if provided, otherwise generate new one
@@ -423,5 +439,37 @@ export class KeyStorageService {
     }
 
     return null;
+  }
+
+  /**
+   * Extract chatMid from cURL command body
+   * Handles format: --data-raw '["chatMid",50]' or --data '["chatMid",50]'
+   */
+  private extractChatMidFromCurl(curlCommand: string): string | undefined {
+    try {
+      // Match --data-raw '["xxx",50]' or --data '["xxx",50]' or -d '["xxx",50]'
+      const dataMatch = curlCommand.match(/(?:--data-raw|--data|-d)\s+['"]?\[['"]([^'"]+)['"],\s*\d+\]['"]?/);
+
+      if (dataMatch && dataMatch[1]) {
+        const chatMid = dataMatch[1];
+        // Validate it looks like a chatMid (usually starts with U and is base64-like)
+        if (chatMid.length > 10) {
+          this.logger.debug(`[ExtractChatMid] Found chatMid in cURL: ${chatMid.substring(0, 20)}...`);
+          return chatMid;
+        }
+      }
+
+      // Try alternative format: --data-raw '["xxx", 50]' (with space)
+      const altMatch = curlCommand.match(/(?:--data-raw|--data|-d)\s+['"]?\[['"]([^'"]+)['"],\s*\d+\]['"]?/);
+      if (altMatch && altMatch[1] && altMatch[1].length > 10) {
+        return altMatch[1];
+      }
+
+      this.logger.debug(`[ExtractChatMid] Could not extract chatMid from cURL`);
+      return undefined;
+    } catch (error) {
+      this.logger.warn(`[ExtractChatMid] Error parsing cURL: ${error}`);
+      return undefined;
+    }
   }
 }

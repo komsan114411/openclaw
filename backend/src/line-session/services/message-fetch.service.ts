@@ -420,6 +420,17 @@ export class MessageFetchService implements OnModuleInit, OnModuleDestroy {
       return { success: false, messageCount: 0, newMessages: 0, error: 'No keys found' };
     }
 
+    // [FIX] If chatMid is missing but cUrlBash exists, try to extract from cURL
+    if (!session.chatMid && session.cUrlBash) {
+      const extractedChatMid = this.extractChatMidFromCurl(session.cUrlBash);
+      if (extractedChatMid) {
+        this.logger.log(`[FetchMessages] Extracted chatMid from cURL: ${extractedChatMid}`);
+        // Update session with extracted chatMid
+        session.chatMid = extractedChatMid;
+        await (session as any).save();
+      }
+    }
+
     try {
       let messages: any[] = [];
       let responseData: any = null;
@@ -602,6 +613,27 @@ export class MessageFetchService implements OnModuleInit, OnModuleDestroy {
     }
 
     return result;
+  }
+
+  /**
+   * Extract chatMid from cURL command body
+   * Handles format: --data-raw '["chatMid",50]'
+   */
+  private extractChatMidFromCurl(curlCommand: string): string | undefined {
+    try {
+      // Match --data-raw '["xxx",50]' or similar formats
+      const dataMatch = curlCommand.match(/(?:--data-raw|--data|-d)\s+['"]?\[['"]([^'"]+)['"],\s*\d+\]['"]?/);
+
+      if (dataMatch && dataMatch[1] && dataMatch[1].length > 10) {
+        this.logger.debug(`[ExtractChatMid] Found chatMid in cURL: ${dataMatch[1].substring(0, 20)}...`);
+        return dataMatch[1];
+      }
+
+      return undefined;
+    } catch (error) {
+      this.logger.warn(`[ExtractChatMid] Error parsing cURL: ${error}`);
+      return undefined;
+    }
   }
 
   /**
