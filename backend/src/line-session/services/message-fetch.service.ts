@@ -4,15 +4,11 @@ import { Model } from 'mongoose';
 import { ConfigService } from '@nestjs/config';
 import { OnEvent } from '@nestjs/event-emitter';
 import axios from 'axios';
-import { exec } from 'child_process';
-import { promisify } from 'util';
 import { LineSession, LineSessionDocument } from '../schemas/line-session.schema';
 import { LineMessage, LineMessageDocument } from '../schemas/line-message.schema';
 import { SystemSettings, SystemSettingsDocument } from '../../database/schemas/system-settings.schema';
 import { KeyStorageService } from './key-storage.service';
 import { EventBusService } from '../../core/events';
-
-const execAsync = promisify(exec);
 
 // Bank code constants
 export const BankCodes = {
@@ -483,26 +479,35 @@ export class MessageFetchService implements OnModuleInit, OnModuleDestroy {
   }
 
   /**
-   * Execute captured cURL command to fetch messages
-   * [FIX] This preserves the original x-hmac which is request-specific
+   * Execute captured cURL command by converting it to axios request
+   * [FIX] cURL bash commands don't work on Windows cmd.exe
+   * This parses the cURL and converts it to a cross-platform axios request
    */
   private async executeCurlCommand(curlCommand: string): Promise<{ success: boolean; data?: any; error?: string }> {
     try {
-      this.logger.debug(`[ExecuteCurl] Executing cURL command (${curlCommand.length} chars)`);
+      this.logger.debug(`[ExecuteCurl] Parsing cURL command (${curlCommand.length} chars)`);
 
-      // Execute the cURL command directly
-      const { stdout, stderr } = await execAsync(curlCommand, {
-        timeout: 30000,
-        maxBuffer: 10 * 1024 * 1024, // 10MB buffer for large responses
-      });
+      // Parse cURL command to extract URL, headers, and data
+      const parsed = this.parseCurlCommand(curlCommand);
 
-      if (stderr && !stdout) {
-        this.logger.error(`[ExecuteCurl] cURL stderr: ${stderr}`);
-        return { success: false, error: stderr };
+      if (!parsed.url) {
+        return { success: false, error: 'Failed to parse URL from cURL command' };
       }
 
-      // Parse the JSON response
-      const data = JSON.parse(stdout);
+      this.logger.log(`[ExecuteCurl] Executing as axios request to: ${parsed.url.substring(0, 60)}...`);
+      this.logger.debug(`[ExecuteCurl] Headers: ${Object.keys(parsed.headers).join(', ')}`);
+      this.logger.debug(`[ExecuteCurl] Has data: ${!!parsed.data}`);
+
+      // Execute as axios request
+      const response = await axios({
+        method: parsed.method || 'POST',
+        url: parsed.url,
+        headers: parsed.headers,
+        data: parsed.data,
+        timeout: 30000,
+      });
+
+      const data = response.data;
 
       if (data?.code !== 0) {
         this.logger.warn(`[ExecuteCurl] API returned error code: ${data?.code}`);
@@ -512,8 +517,91 @@ export class MessageFetchService implements OnModuleInit, OnModuleDestroy {
       return { success: true, data };
     } catch (error: any) {
       this.logger.error(`[ExecuteCurl] Error: ${error.message}`);
+      if (error.response) {
+        this.logger.error(`[ExecuteCurl] Response status: ${error.response.status}`);
+        this.logger.error(`[ExecuteCurl] Response data: ${JSON.stringify(error.response.data || {}).substring(0, 200)}`);
+      }
       return { success: false, error: error.message };
     }
+  }
+
+  /**
+   * Parse cURL command to extract URL, headers, and body
+   * Handles bash-style cURL commands
+   */
+  private parseCurlCommand(curlCommand: string): {
+    url?: string;
+    method?: string;
+    headers: Record<string, string>;
+    data?: any;
+  } {
+    const result: {
+      url?: string;
+      method?: string;
+      headers: Record<string, string>;
+      data?: any;
+    } = { headers: {} };
+
+    try {
+      // Remove newlines and backslash continuations
+      const normalized = curlCommand
+        .replace(/\\\n/g, ' ')
+        .replace(/\\\r\n/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+
+      // Extract URL (first quoted string after 'curl')
+      const urlMatch = normalized.match(/curl\s+['"]([^'"]+)['"]/i) ||
+                       normalized.match(/curl\s+(\S+)/i);
+      if (urlMatch) {
+        result.url = urlMatch[1];
+      }
+
+      // Extract headers (-H 'Header: Value' or -H "Header: Value")
+      const headerRegex = /-H\s+['"]([^'"]+)['"]/gi;
+      let headerMatch;
+      while ((headerMatch = headerRegex.exec(normalized)) !== null) {
+        const headerLine = headerMatch[1];
+        const colonIndex = headerLine.indexOf(':');
+        if (colonIndex > 0) {
+          const key = headerLine.substring(0, colonIndex).trim().toLowerCase();
+          const value = headerLine.substring(colonIndex + 1).trim();
+          result.headers[key] = value;
+        }
+      }
+
+      // Extract data (--data-raw 'data' or --data 'data' or -d 'data')
+      const dataMatch = normalized.match(/(?:--data-raw|--data|-d)\s+['"](.+?)['"]\s*(?:-|$)/i) ||
+                        normalized.match(/(?:--data-raw|--data|-d)\s+['"](.+)['"]/i);
+      if (dataMatch) {
+        let dataStr = dataMatch[1];
+        // Unescape escaped quotes
+        dataStr = dataStr.replace(/\\'/g, "'").replace(/\\"/g, '"');
+        try {
+          result.data = JSON.parse(dataStr);
+        } catch {
+          // If not valid JSON, use as-is
+          result.data = dataStr;
+        }
+      }
+
+      // Extract method (-X POST, -X GET, etc.)
+      const methodMatch = normalized.match(/-X\s+['"]?(\w+)['"]?/i);
+      if (methodMatch) {
+        result.method = methodMatch[1].toUpperCase();
+      } else if (result.data) {
+        result.method = 'POST';
+      } else {
+        result.method = 'GET';
+      }
+
+      this.logger.debug(`[ParseCurl] Parsed: url=${result.url?.substring(0, 50)}..., method=${result.method}, headers=${Object.keys(result.headers).length}, hasData=${!!result.data}`);
+
+    } catch (error: any) {
+      this.logger.error(`[ParseCurl] Error parsing cURL: ${error.message}`);
+    }
+
+    return result;
   }
 
   /**
