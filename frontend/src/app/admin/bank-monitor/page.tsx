@@ -124,11 +124,12 @@ export default function AdminBankMonitorPage() {
         usersApi.getAll().catch(() => ({ data: [] })),
       ]);
 
-      const accounts = accountsRes.data || [];
+      // API returns { success: true, accounts: [...] } - extract accounts array
+      const accounts = accountsRes.data?.accounts || accountsRes.data || [];
       const banksList = banksRes.data?.banks || [];
       const usersList: OwnerInfo[] = usersRes.data || [];
 
-      // Create user lookup map
+      // Create user lookup map (fallback if owner not in account)
       const usersMap = new Map<string, OwnerInfo>();
       usersList.forEach((user: OwnerInfo) => {
         usersMap.set(user._id, user);
@@ -163,9 +164,9 @@ export default function AdminBankMonitorPage() {
           const summaryRes = await lineSessionApi.getTransactionSummary(account._id).catch(() => ({ data: null }));
           const accountSummary = summaryRes.data;
 
-          // Get owner info from lookup map
-          const ownerId = account.ownerId || session?.lineAccountId;
-          const owner = ownerId ? usersMap.get(ownerId) : null;
+          // Get owner info - prefer from account.owner (from backend lookup), fallback to usersMap
+          const ownerId = account.ownerId;
+          const owner = account.owner || (ownerId ? usersMap.get(ownerId) : null);
 
           sessionsData.push({
             _id: session?.id || account._id,
@@ -443,7 +444,7 @@ export default function AdminBankMonitorPage() {
           </select>
         </div>
 
-        {/* Sessions List */}
+        {/* Sessions List - Grouped by Owner */}
         {filteredSessions.length === 0 ? (
           <div className="p-12 bg-slate-800/30 rounded-2xl border border-slate-700/30 text-center">
             <Building2 className="w-16 h-16 text-slate-600 mx-auto mb-4" />
@@ -453,8 +454,39 @@ export default function AdminBankMonitorPage() {
             </p>
           </div>
         ) : (
-          <div className="space-y-4">
-            {filteredSessions.map((session) => (
+          <div className="space-y-6">
+            {/* Group sessions by owner */}
+            {Object.entries(
+              filteredSessions.reduce((groups, session) => {
+                const ownerKey = session.ownerId || 'unknown';
+                const ownerName = session.ownerName || 'ไม่ทราบเจ้าของ';
+                if (!groups[ownerKey]) {
+                  groups[ownerKey] = { ownerName, ownerEmail: session.ownerEmail, sessions: [] };
+                }
+                groups[ownerKey].sessions.push(session);
+                return groups;
+              }, {} as Record<string, { ownerName: string; ownerEmail?: string; sessions: BankSession[] }>)
+            ).map(([ownerId, group]) => (
+              <div key={ownerId} className="space-y-3">
+                {/* Owner Header */}
+                <div className="flex items-center gap-3 px-4 py-2 bg-violet-500/10 rounded-xl border border-violet-500/20">
+                  <div className="w-8 h-8 rounded-lg bg-violet-500/20 flex items-center justify-center">
+                    <User className="w-4 h-4 text-violet-400" />
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-violet-300">{group.ownerName}</h3>
+                    {group.ownerEmail && (
+                      <p className="text-xs text-violet-400/70">{group.ownerEmail}</p>
+                    )}
+                  </div>
+                  <Badge className="ml-auto bg-violet-500/20 text-violet-300 border-violet-500/30">
+                    {group.sessions.length} บัญชี
+                  </Badge>
+                </div>
+                
+                {/* Sessions for this owner */}
+                <div className="space-y-3 pl-4 border-l-2 border-violet-500/20">
+                  {group.sessions.map((session) => (
               <div
                 key={session._id}
                 className="p-6 bg-slate-800/50 rounded-2xl border border-slate-700/50 hover:border-emerald-500/30 transition-all cursor-pointer group"
@@ -554,6 +586,9 @@ export default function AdminBankMonitorPage() {
                     </div>
                     <ChevronRight className="w-5 h-5 text-slate-500 group-hover:text-emerald-400 group-hover:translate-x-1 transition-all" />
                   </div>
+                </div>
+              </div>
+                  ))}
                 </div>
               </div>
             ))}

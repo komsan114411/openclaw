@@ -108,23 +108,55 @@ export default function LineSessionPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [isSettingUp, setIsSettingUp] = useState(false);
 
-  // Session/Login status
+  // Session/Login status - Track แยกตามบัญชี
   const [sessionStatus, setSessionStatus] = useState<SessionStatus | null>(null);
-  const [loginStatus, setLoginStatus] = useState<LoginStatus | null>(null);
   const [credentialsStatus, setCredentialsStatus] = useState<CredentialsStatus | null>(null);
   const [isPolling, setIsPolling] = useState(false);
   
-  // Login success state - แสดงข้อความสำเร็จและ Keys
-  const [loginSuccess, setLoginSuccess] = useState<{
+  // [FIX] Track login status แยกตามบัญชี - ป้องกันปัญหาหลายบัญชีปนกัน
+  const [loginStatusMap, setLoginStatusMap] = useState<Map<string, LoginStatus>>(new Map());
+  const [loginSuccessMap, setLoginSuccessMap] = useState<Map<string, {
     show: boolean;
     keys?: { xLineAccess?: string; xHmac?: string; chatMid?: string };
-  }>({ show: false });
+  }>>(new Map());
+  
+  // Helper functions สำหรับ track status แยกตามบัญชี
+  const getLoginStatus = useCallback((accountId: string) => loginStatusMap.get(accountId) || null, [loginStatusMap]);
+  const getLoginSuccess = useCallback((accountId: string) => loginSuccessMap.get(accountId) || { show: false }, [loginSuccessMap]);
+  
+  const setLoginStatusForAccount = useCallback((accountId: string, status: LoginStatus | null) => {
+    setLoginStatusMap(prev => {
+      const newMap = new Map(prev);
+      if (status) {
+        newMap.set(accountId, status);
+      } else {
+        newMap.delete(accountId);
+      }
+      return newMap;
+    });
+  }, []);
+  
+  const setLoginSuccessForAccount = useCallback((accountId: string, success: { show: boolean; keys?: { xLineAccess?: string; xHmac?: string; chatMid?: string } }) => {
+    setLoginSuccessMap(prev => {
+      const newMap = new Map(prev);
+      newMap.set(accountId, success);
+      return newMap;
+    });
+  }, []);
+  
+  // Current account status (for backward compatibility)
+  const loginStatus = selectedSession ? getLoginStatus(selectedSession._id) : null;
+  const loginSuccess = selectedSession ? getLoginSuccess(selectedSession._id) : { show: false };
 
   // WebSocket login notifications (real-time status + PIN clear)
+  // [FIX] ใช้ event.lineAccountId เพื่อ track status แยกตามบัญชี
   useLoginNotifications({
     lineAccountId: selectedSession?._id,
     showToasts: false,
     onStatusChange: (event) => {
+      const accountId = event.lineAccountId;
+      if (!accountId) return;
+      
       const inProgressStatuses = [
         'requesting', 'initializing', 'launching_browser', 'loading_extension',
         'checking_session', 'entering_credentials', 'waiting_pin', 'pin_displayed',
@@ -133,27 +165,32 @@ export default function LineSessionPage() {
       const isInProgress = inProgressStatuses.includes(event.status);
       const isCompleted = ['success', 'failed', 'idle'].includes(event.status);
 
-      setLoginStatus((prev: LoginStatus | null): LoginStatus => ({
+      // [FIX] อัพเดท status สำหรับบัญชีที่ event มาจาก (ไม่ใช่บัญชีที่เลือก)
+      const prevStatus = getLoginStatus(accountId);
+      setLoginStatusForAccount(accountId, {
         success: event.status !== 'failed',
         status: event.status,
-        pin: event.pinCode || prev?.pin || undefined,
+        pin: event.pinCode || prevStatus?.pin || undefined,
         message: event.message,
         stage: event.status,
         error: event.error,
-      }));
+      });
 
-      if (event.pinCode) {
-        toast.success(`PIN: ${event.pinCode}`, { duration: 60000, icon: '🔑' });
+      // แสดง toast เฉพาะบัญชีที่เลือก
+      if (accountId === selectedSession?._id) {
+        if (event.pinCode) {
+          toast.success(`PIN: ${event.pinCode}`, { duration: 60000, icon: '🔑' });
+        }
       }
 
       if (isCompleted) {
         setIsPolling(false);
         if (event.status === 'success') {
-          // Clear PIN and login status
-          setLoginStatus(null);
+          // Clear PIN and login status for this account
+          setLoginStatusForAccount(accountId, null);
           
-          // Show success state with keys from event
-          setLoginSuccess({
+          // Show success state with keys from event for this account
+          setLoginSuccessForAccount(accountId, {
             show: true,
             keys: event.keys ? {
               xLineAccess: event.keys.xLineAccess,
@@ -163,14 +200,17 @@ export default function LineSessionPage() {
           });
           
           // Fetch updated session status to get full keys
-          fetchSessionStatus(selectedSession!._id);
-          fetchData();
-          
-          toast.success('ล็อกอินสำเร็จ! ดึง Keys เรียบร้อยแล้ว', { icon: '✅', duration: 5000 });
+          if (accountId === selectedSession?._id) {
+            fetchSessionStatus(accountId);
+            fetchData();
+            toast.success('ล็อกอินสำเร็จ! ดึง Keys เรียบร้อยแล้ว', { icon: '✅', duration: 5000 });
+          }
         } else if (event.status === 'failed') {
-          setLoginStatus(null);
-          setLoginSuccess({ show: false });
-          toast.error(event.error || 'Login ล้มเหลว', { icon: '❌' });
+          setLoginStatusForAccount(accountId, null);
+          setLoginSuccessForAccount(accountId, { show: false });
+          if (accountId === selectedSession?._id) {
+            toast.error(event.error || 'Login ล้มเหลว', { icon: '❌' });
+          }
         }
       } else if (isInProgress) {
         setIsPolling(true);
@@ -222,16 +262,17 @@ export default function LineSessionPage() {
   }, []);
 
   // When session is selected
+  // [FIX] ไม่ต้อง clear status เมื่อเปลี่ยนบัญชี - เพราะ track แยกตามบัญชีแล้ว
   useEffect(() => {
     if (selectedSession) {
       fetchSessionStatus(selectedSession._id);
-      setLoginStatus(null);
-      setLoginSuccess({ show: false }); // Reset login success state
+      // ไม่ต้อง clear loginStatus และ loginSuccess เพราะ track แยกตามบัญชีแล้ว
       setSetupForm({ email: '', password: '', bankCode: '' });
     }
   }, [selectedSession, fetchSessionStatus]);
 
   // Poll login status
+  // [FIX] ใช้ setLoginStatusForAccount แทน setLoginStatus
   const pollLoginStatus = useCallback(async (sessionId: string) => {
     try {
       const res = await lineSessionUserApi.getEnhancedLoginStatus(sessionId);
@@ -249,7 +290,7 @@ export default function LineSessionPage() {
         error: rawStatus.error,
       };
       
-      setLoginStatus(mappedStatus);
+      setLoginStatusForAccount(sessionId, mappedStatus);
 
       // If still in progress, continue polling
       const inProgressStatuses = [
@@ -264,11 +305,11 @@ export default function LineSessionPage() {
 
       // If completed, refresh session status and close PIN display
       if (mappedStatus.status === 'completed' || mappedStatus.status === 'success') {
-        // Clear PIN and login status
-        setLoginStatus(null);
+        // Clear PIN and login status for this account
+        setLoginStatusForAccount(sessionId, null);
         
-        // Show success state
-        setLoginSuccess({ show: true });
+        // Show success state for this account
+        setLoginSuccessForAccount(sessionId, { show: true });
         
         // Fetch updated session status to get keys
         await fetchSessionStatus(sessionId);
@@ -276,9 +317,9 @@ export default function LineSessionPage() {
         
         toast.success('ล็อกอินสำเร็จ! ดึง Keys เรียบร้อยแล้ว', { icon: '✅', duration: 5000 });
       } else if (mappedStatus.status === 'failed' || mappedStatus.status === 'error') {
-        // ปิด PIN display เมื่อ error
-        setLoginStatus(null);
-        setLoginSuccess({ show: false });
+        // ปิด PIN display เมื่อ error for this account
+        setLoginStatusForAccount(sessionId, null);
+        setLoginSuccessForAccount(sessionId, { show: false });
         toast.error(mappedStatus.error || mappedStatus.message || 'เกิดข้อผิดพลาด');
       }
 
@@ -286,7 +327,7 @@ export default function LineSessionPage() {
     } catch {
       return false;
     }
-  }, [fetchSessionStatus, fetchData]);
+  }, [fetchSessionStatus, fetchData, setLoginStatusForAccount, setLoginSuccessForAccount]);
 
   // Start polling effect
   useEffect(() => {
@@ -379,12 +420,13 @@ export default function LineSessionPage() {
       return;
     }
 
+    const accountId = selectedSession._id;
     setIsSettingUp(true);
     // Set initial status to show loading state immediately
-    setLoginStatus({ success: true, status: 'starting', message: 'กำลังเริ่มต้น...' });
+    setLoginStatusForAccount(accountId, { success: true, status: 'starting', message: 'กำลังเริ่มต้น...' });
     
     try {
-      const res = await lineSessionUserApi.setupSession(selectedSession._id, {
+      const res = await lineSessionUserApi.setupSession(accountId, {
         email: setupForm.email,
         password: setupForm.password,
         bankCode: setupForm.bankCode,
@@ -393,7 +435,7 @@ export default function LineSessionPage() {
       // Check for PIN in response (from API directly, not WebSocket)
       if (res.data.pinCode) {
         // PIN received directly from API response!
-        setLoginStatus({
+        setLoginStatusForAccount(accountId, {
           success: true,
           status: 'waiting_for_pin',
           pin: res.data.pinCode,
@@ -403,17 +445,17 @@ export default function LineSessionPage() {
         setIsPolling(true);
       } else if (res.data.success !== false) {
         // No PIN yet, start polling
-        setLoginStatus(res.data);
+        setLoginStatusForAccount(accountId, res.data);
         setIsPolling(true);
         toast.success('เริ่มกระบวนการ Login แล้ว');
       } else {
         // Error from API
-        setLoginStatus(null);
+        setLoginStatusForAccount(accountId, null);
         toast.error(res.data.message || 'เกิดข้อผิดพลาด');
       }
     } catch (err: unknown) {
       const error = err as { response?: { data?: { message?: string } } };
-      setLoginStatus(null);
+      setLoginStatusForAccount(accountId, null);
       toast.error(error.response?.data?.message || 'เกิดข้อผิดพลาด');
     } finally {
       setIsSettingUp(false);
@@ -426,7 +468,7 @@ export default function LineSessionPage() {
 
     try {
       await lineSessionUserApi.cancelEnhancedLogin(selectedSession._id);
-      setLoginStatus(null);
+      setLoginStatusForAccount(selectedSession._id, null);
       setIsPolling(false);
       toast.success('ยกเลิกแล้ว');
     } catch {
@@ -444,17 +486,18 @@ export default function LineSessionPage() {
       return;
     }
 
+    const accountId = selectedSession._id;
     setIsSettingUp(true);
     // Set initial status to show loading state immediately
-    setLoginStatus({ success: true, status: 'starting', message: 'กำลังเริ่มต้น...' });
+    setLoginStatusForAccount(accountId, { success: true, status: 'starting', message: 'กำลังเริ่มต้น...' });
     
     try {
-      const res = await lineSessionUserApi.startEnhancedLogin(selectedSession._id, undefined, undefined, 'relogin');
+      const res = await lineSessionUserApi.startEnhancedLogin(accountId, undefined, undefined, 'relogin');
 
       // Check for PIN in response (from API directly, not WebSocket)
       if (res.data.pinCode) {
         // PIN received directly from API response!
-        setLoginStatus({
+        setLoginStatusForAccount(accountId, {
           success: true,
           status: 'waiting_for_pin',
           pin: res.data.pinCode,
@@ -464,17 +507,17 @@ export default function LineSessionPage() {
         setIsPolling(true);
       } else if (res.data.success !== false) {
         // No PIN yet, start polling
-        setLoginStatus(res.data);
+        setLoginStatusForAccount(accountId, res.data);
         setIsPolling(true);
         toast.success('เริ่มกระบวนการ Re-login แล้ว');
       } else {
         // Error from API
-        setLoginStatus(null);
+        setLoginStatusForAccount(accountId, null);
         toast.error(res.data.message || 'เกิดข้อผิดพลาด');
       }
     } catch (err: unknown) {
       const error = err as { response?: { data?: { message?: string } } };
-      setLoginStatus(null);
+      setLoginStatusForAccount(accountId, null);
       toast.error(error.response?.data?.message || 'เกิดข้อผิดพลาด');
     } finally {
       setIsSettingUp(false);
@@ -815,7 +858,7 @@ export default function LineSessionPage() {
                           <Button
                             variant="secondary"
                             size="sm"
-                            onClick={() => setLoginSuccess({ show: false })}
+                            onClick={() => selectedSession && setLoginSuccessForAccount(selectedSession._id, { show: false })}
                             className="gap-2"
                           >
                             <XCircle className="w-4 h-4" />

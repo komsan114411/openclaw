@@ -83,12 +83,36 @@ export class LoginNotificationService {
     // Also send to admins room (they should filter by lineAccountId on client)
     this.websocketGateway.broadcastToAdmins('line-session:login-status', eventData);
 
-    // FALLBACK: For critical events (success, pin_displayed), also broadcast to ALL clients
-    // This ensures the event is received even when room subscription fails
+    // [FIX] For critical events, also broadcast to user's personal room
+    // This ensures the event is received even when account room subscription fails
+    // But NOT to ALL clients - that causes PIN mixing between accounts
     const criticalStatuses = [EnhancedLoginStatus.SUCCESS, EnhancedLoginStatus.PIN_DISPLAYED, EnhancedLoginStatus.FAILED];
     if (criticalStatuses.includes(payload.status)) {
-      this.logger.log(`[LoginNotification] Broadcasting critical event to ALL clients: ${payload.status}`);
-      this.websocketGateway.broadcastToAll('line-session:login-status', eventData);
+      // Get owner ID from session and broadcast to their personal room
+      this.getSessionOwner(payload.lineAccountId).then(ownerId => {
+        if (ownerId) {
+          this.logger.log(`[LoginNotification] Broadcasting critical event to user room: user:${ownerId}`);
+          this.websocketGateway.broadcastToRoom(
+            `user:${ownerId}`,
+            'line-session:login-status',
+            eventData,
+          );
+        }
+      }).catch(err => {
+        this.logger.warn(`[LoginNotification] Failed to get session owner: ${err.message}`);
+      });
+    }
+  }
+
+  /**
+   * Get session owner ID
+   */
+  private async getSessionOwner(lineAccountId: string): Promise<string | null> {
+    try {
+      const session = await this.lineSessionModel.findOne({ lineAccountId }).select('owner').lean();
+      return session?.owner?.toString() || null;
+    } catch {
+      return null;
     }
   }
 
