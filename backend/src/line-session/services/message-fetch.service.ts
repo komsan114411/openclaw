@@ -167,10 +167,16 @@ export class MessageFetchService implements OnModuleInit, OnModuleDestroy {
     this.fetchStats.totalFetches++;
 
     try {
+      // [FIX] Query sessions that have either:
+      // 1. chatMid (direct chatMid stored)
+      // 2. OR cUrlBash containing getRecentMessagesV2 (chatMid can be extracted)
       const query: any = {
         isActive: true,
         xLineAccess: { $exists: true, $nin: [null, ''] },
-        chatMid: { $exists: true, $nin: [null, ''] },
+        $or: [
+          { chatMid: { $exists: true, $nin: [null, ''] } },
+          { cUrlBash: { $regex: 'getRecentMessagesV2', $options: 'i' } },
+        ],
       };
 
       if (this.config.activeOnly) {
