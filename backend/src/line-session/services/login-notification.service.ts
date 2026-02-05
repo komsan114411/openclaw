@@ -109,8 +109,8 @@ export class LoginNotificationService {
    */
   private async getSessionOwner(lineAccountId: string): Promise<string | null> {
     try {
-      const session = await this.lineSessionModel.findOne({ lineAccountId }).select('owner').lean();
-      return session?.owner?.toString() || null;
+      const session = await this.lineSessionModel.findOne({ lineAccountId }).select('ownerId').lean();
+      return session?.ownerId?.toString() || null;
     } catch {
       return null;
     }
