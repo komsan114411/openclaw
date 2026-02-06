@@ -547,7 +547,7 @@ export default function LineSessionPage() {
 
       // If still in progress, continue polling
       const inProgressStatuses = [
-        'waiting_for_pin', 'waiting_pin', 'pin_displayed',
+        'requesting', 'waiting_for_pin', 'waiting_pin', 'pin_displayed',
         'extracting_keys', 'triggering_messages', 'capturing_curl',
         'starting', 'initializing', 'launching_browser',
         'loading_extension', 'checking_session', 'entering_credentials', 'verifying'
@@ -743,7 +743,9 @@ export default function LineSessionPage() {
         status: 'requesting',
         message: 'กำลังขอ PIN ใหม่...',
       });
-      addPolling(accountId);
+      // NOTE: Don't addPolling here! The API call takes ~13s (browser restart + login).
+      // If polling starts now, first poll sees 'idle' and stops polling before PIN arrives.
+      // Start polling AFTER the API response.
 
       const res = await lineSessionUserApi.retryWrongPin(accountId);
 
@@ -755,18 +757,18 @@ export default function LineSessionPage() {
           message: 'รอยืนยัน PIN บนมือถือ',
         });
         toast.success(`PIN ใหม่: ${res.data.pinCode}`, { duration: 60000, icon: '🔑' });
+        addPolling(accountId);
       } else if (res.data.success !== false) {
         setLoginStatusForAccount(accountId, res.data);
         toast.success('กำลังขอ PIN ใหม่...');
+        addPolling(accountId);
       } else {
         setLoginStatusForAccount(accountId, null);
-        removePolling(accountId);
         toast.error(res.data.message || res.data.error || 'เกิดข้อผิดพลาด');
       }
     } catch (err: unknown) {
       const error = err as { response?: { data?: { message?: string } } };
       setLoginStatusForAccount(accountId, null);
-      removePolling(accountId);
       toast.error(error.response?.data?.message || 'ไม่สามารถขอ PIN ใหม่ได้');
     }
   };
