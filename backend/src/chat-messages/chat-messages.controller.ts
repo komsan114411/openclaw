@@ -14,6 +14,7 @@ import { SessionAuthGuard } from '../auth/guards/session-auth.guard';
 import { ChatMessagesService } from './chat-messages.service';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { AuthUser } from '../auth/auth.service';
+import { ParseObjectIdPipe } from '../common/pipes/parse-object-id.pipe';
 
 @Controller('chat-messages')
 @UseGuards(SessionAuthGuard)
@@ -24,7 +25,7 @@ export class ChatMessagesController {
    * Get list of users who have chatted with a LINE account
    */
   @Get(':accountId/users')
-  async getChatUsers(@Param('accountId') accountId: string, @CurrentUser() user: AuthUser) {
+  async getChatUsers(@Param('accountId', ParseObjectIdPipe) accountId: string, @CurrentUser() user: AuthUser) {
     await this.chatMessagesService.ensureAccountAccess(accountId, user);
     const users = await this.chatMessagesService.getChatUsers(accountId);
     return { success: true, users };
@@ -35,7 +36,7 @@ export class ChatMessagesController {
    */
   @Get(':accountId/:userId')
   async getChatHistory(
-    @Param('accountId') accountId: string,
+    @Param('accountId', ParseObjectIdPipe) accountId: string,
     @Param('userId') userId: string,
     @CurrentUser() user: AuthUser,
     @Query('limit') limit?: string,
@@ -60,7 +61,7 @@ export class ChatMessagesController {
    */
   @Post(':accountId/:userId/send')
   async sendMessage(
-    @Param('accountId') accountId: string,
+    @Param('accountId', ParseObjectIdPipe) accountId: string,
     @Param('userId') userId: string,
     @Body() body: { message: string },
     @CurrentUser() user: AuthUser,
@@ -86,7 +87,7 @@ export class ChatMessagesController {
    */
   @Post(':accountId/broadcast')
   async sendBroadcast(
-    @Param('accountId') accountId: string,
+    @Param('accountId', ParseObjectIdPipe) accountId: string,
     @Body() body: { userIds?: string[]; message: string; sendToAll?: boolean },
     @CurrentUser() user: AuthUser,
   ) {
@@ -128,7 +129,7 @@ export class ChatMessagesController {
    */
   @Post(':accountId/send')
   async sendToMultiple(
-    @Param('accountId') accountId: string,
+    @Param('accountId', ParseObjectIdPipe) accountId: string,
     @Body() body: { userIds: string[]; message: string },
     @CurrentUser() user: AuthUser,
   ) {
@@ -155,7 +156,7 @@ export class ChatMessagesController {
    */
   @Post(':accountId/:userId/read')
   async markAsRead(
-    @Param('accountId') accountId: string,
+    @Param('accountId', ParseObjectIdPipe) accountId: string,
     @Param('userId') userId: string,
     @CurrentUser() user: AuthUser,
   ) {
@@ -168,7 +169,7 @@ export class ChatMessagesController {
    * Get unread message count
    */
   @Get(':accountId/unread-count')
-  async getUnreadCount(@Param('accountId') accountId: string, @CurrentUser() user: AuthUser) {
+  async getUnreadCount(@Param('accountId', ParseObjectIdPipe) accountId: string, @CurrentUser() user: AuthUser) {
     await this.chatMessagesService.ensureAccountAccess(accountId, user);
     const count = await this.chatMessagesService.getUnreadCount(accountId);
     return { success: true, count };
@@ -179,7 +180,7 @@ export class ChatMessagesController {
    */
   @Delete(':accountId/:userId')
   async deleteChatHistory(
-    @Param('accountId') accountId: string,
+    @Param('accountId', ParseObjectIdPipe) accountId: string,
     @Param('userId') userId: string,
     @CurrentUser() user: AuthUser,
   ) {
@@ -193,7 +194,7 @@ export class ChatMessagesController {
    */
   @Get(':accountId/image/:messageId')
   async getLineImage(
-    @Param('accountId') accountId: string,
+    @Param('accountId', ParseObjectIdPipe) accountId: string,
     @Param('messageId') messageId: string,
     @Res() res: Response,
     @CurrentUser() user: AuthUser,
@@ -216,7 +217,7 @@ export class ChatMessagesController {
    */
   @Get(':accountId/profile/:userId')
   async getLineUserProfile(
-    @Param('accountId') accountId: string,
+    @Param('accountId', ParseObjectIdPipe) accountId: string,
     @Param('userId') userId: string,
     @CurrentUser() user: AuthUser,
   ) {

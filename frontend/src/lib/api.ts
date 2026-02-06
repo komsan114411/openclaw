@@ -19,10 +19,45 @@ const apiLongRunning = axios.create({
   },
 });
 
+// Helper to read a cookie value by name
+function getCookie(name: string): string | null {
+  if (typeof document === 'undefined') return null;
+  const match = document.cookie.match(new RegExp('(?:^|; )' + name.replace(/([.$?*|{}()[\]\\/+^])/g, '\\$1') + '=([^;]*)'));
+  return match ? decodeURIComponent(match[1]) : null;
+}
+
+// CSRF token interceptor - reads csrf-token cookie and sends as X-CSRF-Token header
+function addCsrfToken(config: import('axios').InternalAxiosRequestConfig) {
+  const safeMethods = ['get', 'head', 'options'];
+  if (!safeMethods.includes((config.method || '').toLowerCase())) {
+    const csrfToken = getCookie('csrf-token');
+    if (csrfToken) {
+      config.headers['X-CSRF-Token'] = csrfToken;
+    }
+  }
+  return config;
+}
+
 // Request interceptor
 api.interceptors.request.use(
   (config) => {
+    // Add CSRF token for state-changing requests
+    addCsrfToken(config);
     // Remove Content-Type for FormData to let browser set it with boundary
+    if (config.data instanceof FormData) {
+      delete config.headers['Content-Type'];
+    }
+    return config;
+  },
+  (error) => {
+    return Promise.reject(error);
+  }
+);
+
+// Apply CSRF interceptor to long-running API client too
+apiLongRunning.interceptors.request.use(
+  (config) => {
+    addCsrfToken(config);
     if (config.data instanceof FormData) {
       delete config.headers['Content-Type'];
     }

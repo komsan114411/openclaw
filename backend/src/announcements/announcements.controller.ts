@@ -6,6 +6,7 @@ import { SessionAuthGuard } from '../auth/guards/session-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { UserRole } from '../database/schemas/user.schema';
+import { ParseObjectIdPipe } from '../common/pipes/parse-object-id.pipe';
 
 @ApiTags('Announcements')
 @Controller('announcements')
@@ -42,7 +43,7 @@ export class AnnouncementsController {
   // Public endpoint - track view
   @Post(':id/view')
   @ApiOperation({ summary: 'Track announcement view' })
-  async trackView(@Param('id') id: string) {
+  async trackView(@Param('id', ParseObjectIdPipe) id: string) {
     await this.announcementsService.incrementViewCount(id);
     return { success: true };
   }
@@ -50,7 +51,7 @@ export class AnnouncementsController {
   // Public endpoint - track dismiss
   @Post(':id/dismiss')
   @ApiOperation({ summary: 'Track announcement dismiss' })
-  async trackDismiss(@Param('id') id: string) {
+  async trackDismiss(@Param('id', ParseObjectIdPipe) id: string) {
     await this.announcementsService.incrementDismissCount(id);
     return { success: true };
   }
@@ -74,7 +75,7 @@ export class AnnouncementsController {
   @Roles(UserRole.ADMIN)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Get announcement by ID (Admin)' })
-  async getById(@Param('id') id: string) {
+  async getById(@Param('id', ParseObjectIdPipe) id: string) {
     const announcement = await this.announcementsService.findById(id);
     return {
       success: true,
@@ -100,7 +101,7 @@ export class AnnouncementsController {
   @Roles(UserRole.ADMIN)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Update announcement (Admin)' })
-  async update(@Param('id') id: string, @Body() dto: UpdateAnnouncementDto) {
+  async update(@Param('id', ParseObjectIdPipe) id: string, @Body() dto: UpdateAnnouncementDto) {
     const announcement = await this.announcementsService.update(id, dto);
     return {
       success: true,
@@ -113,7 +114,7 @@ export class AnnouncementsController {
   @Roles(UserRole.ADMIN)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Toggle announcement active status (Admin)' })
-  async toggleActive(@Param('id') id: string) {
+  async toggleActive(@Param('id', ParseObjectIdPipe) id: string) {
     const announcement = await this.announcementsService.toggleActive(id);
     return {
       success: true,
@@ -126,7 +127,7 @@ export class AnnouncementsController {
   @Roles(UserRole.ADMIN)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Delete announcement (Admin)' })
-  async delete(@Param('id') id: string) {
+  async delete(@Param('id', ParseObjectIdPipe) id: string) {
     await this.announcementsService.delete(id);
     return {
       success: true,

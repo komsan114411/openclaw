@@ -3,6 +3,7 @@ import { ValidationPipe, Logger } from '@nestjs/common';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { AppModule } from './app.module';
 import { GlobalExceptionFilter } from './common/filters/global-exception.filter';
+import { CsrfMiddleware } from './common/middleware/csrf.middleware';
 import * as cookieParser from 'cookie-parser';
 import * as bodyParser from 'body-parser';
 import * as crypto from 'crypto';
@@ -74,6 +75,10 @@ async function bootstrap() {
 
     // Cookie parser
     app.use(cookieParser());
+
+    // CSRF protection (Double Submit Cookie pattern)
+    const csrf = new CsrfMiddleware();
+    app.use(csrf.use.bind(csrf));
 
     // Global exception filter for structured error handling
     app.useGlobalFilters(new GlobalExceptionFilter());

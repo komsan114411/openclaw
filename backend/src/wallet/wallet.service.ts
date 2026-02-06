@@ -1045,7 +1045,7 @@ export class WalletService {
 
     /**
      * Admin: Add bonus credits to user
-     * CRITICAL FIX: Now uses MongoDB transaction for atomicity
+     * CRITICAL FIX: Uses MongoDB transaction + distributed lock + idempotency check
      */
     async addBonus(
         userId: string,
@@ -1053,6 +1053,16 @@ export class WalletService {
         description: string,
         adminId: string,
     ): Promise<{ success: boolean; balance: number }> {
+        // Idempotency check - prevent duplicate bonus operations
+        const idempotencyKey = this.generateIdempotencyKey(
+            WalletOperationType.BONUS, userId, `bonus-${adminId}-${amount}-${description}`,
+        );
+        const existingOp = await this.checkIdempotency(idempotencyKey);
+        if (existingOp) {
+            this.logger.warn(`[IDEMPOTENT] Bonus already processed: ${idempotencyKey}`);
+            return { success: true, balance: existingOp.balanceBefore + existingOp.amount };
+        }
+
         // Use lock for safety
         const lockKey = `wallet:admin:${userId}`;
         const lockToken = await this.redisService.acquireLock(lockKey, 30);
@@ -1105,6 +1115,16 @@ export class WalletService {
                 );
             });
 
+            // Log idempotency record (outside transaction — audit only)
+            await this.logOperationStart(
+                idempotencyKey, userId, new Types.ObjectId(userId),
+                WalletOperationType.BONUS, amount, newBalance - amount,
+                description, { adminId },
+            ).then(log => this.operationLogModel.findByIdAndUpdate(log._id, {
+                status: WalletOperationStatus.COMMITTED,
+                completedAt: new Date(),
+            }));
+
             this.logger.log(`[ATOMIC] Admin ${adminId} added ฿${amount} bonus to user ${userId}`);
 
             return { success: true, balance: newBalance };
@@ -1120,7 +1140,7 @@ export class WalletService {
 
     /**
      * Admin: Deduct credits from user (with balance check)
-     * CRITICAL FIX: Now uses MongoDB transaction for atomicity
+     * CRITICAL FIX: Uses MongoDB transaction + distributed lock + idempotency check
      */
     async deductCredits(
         userId: string,
@@ -1128,6 +1148,16 @@ export class WalletService {
         description: string,
         adminId: string,
     ): Promise<{ success: boolean; message: string; balance?: number }> {
+        // Idempotency check - prevent duplicate deduction operations
+        const idempotencyKey = this.generateIdempotencyKey(
+            WalletOperationType.DEDUCTION, userId, `deduct-${adminId}-${amount}-${description}`,
+        );
+        const existingOp = await this.checkIdempotency(idempotencyKey);
+        if (existingOp) {
+            this.logger.warn(`[IDEMPOTENT] Deduction already processed: ${idempotencyKey}`);
+            return { success: true, message: `หักเครดิต ฿${amount} สำเร็จ (already processed)`, balance: existingOp.balanceBefore - Math.abs(existingOp.amount) };
+        }
+
         // Use lock for safety
         const lockKey = `wallet:admin:${userId}`;
         const lockToken = await this.redisService.acquireLock(lockKey, 30);
@@ -1181,6 +1211,16 @@ export class WalletService {
                     { session }
                 );
             });
+
+            // Log idempotency record (outside transaction — audit only)
+            await this.logOperationStart(
+                idempotencyKey, userId, new Types.ObjectId(userId),
+                WalletOperationType.DEDUCTION, -amount, newBalance + amount,
+                description, { adminId },
+            ).then(log => this.operationLogModel.findByIdAndUpdate(log._id, {
+                status: WalletOperationStatus.COMMITTED,
+                completedAt: new Date(),
+            }));
 
             this.logger.log(`[ATOMIC] Admin ${adminId} deducted ฿${amount} from user ${userId}`);
 
@@ -1316,53 +1356,138 @@ export class WalletService {
 
     /**
      * Admin: Approve pending transaction
+     * SECURITY FIX: Uses MongoDB transaction + distributed lock + idempotency check
      */
     async approveTransaction(
         transactionId: string,
         adminUserId: string,
         notes?: string,
     ): Promise<{ success: boolean; message: string; transaction?: any }> {
-        const transaction = await this.transactionModel.findById(transactionId);
-        if (!transaction) {
+        // Pre-check before acquiring lock
+        const txCheck = await this.transactionModel.findById(transactionId);
+        if (!txCheck) {
             return { success: false, message: 'ไม่พบรายการธุรกรรม' };
         }
-
-        if (transaction.status !== TransactionStatus.PENDING) {
+        if (txCheck.status !== TransactionStatus.PENDING) {
             return { success: false, message: 'รายการนี้ไม่อยู่ในสถานะรอดำเนินการ' };
         }
 
-        // Get the amount to credit (from metadata for USDT, or from transaction amount)
-        const creditAmount = transaction.metadata?.thbCredits || transaction.amount;
-        if (!creditAmount || creditAmount <= 0) {
-            return { success: false, message: 'จำนวนเครดิตไม่ถูกต้อง' };
+        const userId = txCheck.userId.toString();
+
+        // Idempotency check
+        const idempotencyKey = this.generateIdempotencyKey(
+            WalletOperationType.DEPOSIT,
+            userId,
+            `approve-${transactionId}`,
+        );
+        const existingOp = await this.checkIdempotency(idempotencyKey);
+        if (existingOp) {
+            this.logger.warn(`[IDEMPOTENT] Approve already processed: ${idempotencyKey}`);
+            return { success: true, message: 'รายการนี้ถูกอนุมัติไปแล้ว', transaction: txCheck.toObject() };
         }
 
-        // Update wallet balance
-        const wallet = await this.getOrCreateWallet(transaction.userId.toString());
-        const balanceBefore = wallet.balance;
-        wallet.balance += creditAmount;
-        wallet.totalDeposited += creditAmount;
-        await wallet.save();
-
-        // Update transaction status
-        transaction.status = TransactionStatus.COMPLETED;
-        transaction.processedBy = new Types.ObjectId(adminUserId);
-        transaction.completedAt = new Date();
-        transaction.balanceBefore = balanceBefore;
-        transaction.balanceAfter = wallet.balance;
-        transaction.amount = creditAmount; // Ensure amount reflects credited amount
-        if (notes) {
-            transaction.adminNotes = notes;
+        // Distributed lock per user to prevent concurrent approvals
+        const lockKey = `wallet:approve:${userId}`;
+        const lockToken = await this.redisService.acquireLock(lockKey, 30);
+        if (!lockToken) {
+            return { success: false, message: 'กำลังดำเนินการอยู่ กรุณารอสักครู่' };
         }
-        await transaction.save();
 
-        this.logger.log(`Transaction approved: id=${transactionId}, userId=${transaction.userId}, amount=${creditAmount}, by=${adminUserId}`);
+        const session = await this.connection.startSession();
 
-        return {
-            success: true,
-            message: `อนุมัติรายการสำเร็จ เติมเครดิต ${creditAmount.toLocaleString()} บาท`,
-            transaction: transaction.toObject(),
-        };
+        try {
+            let finalTransaction: any = null;
+
+            await session.withTransaction(async () => {
+                // Re-read transaction inside transaction for consistency
+                const transaction = await this.transactionModel.findById(transactionId).session(session);
+                if (!transaction || transaction.status !== TransactionStatus.PENDING) {
+                    throw new BadRequestException('รายการนี้ไม่อยู่ในสถานะรอดำเนินการ');
+                }
+
+                const creditAmount = transaction.metadata?.thbCredits || transaction.amount;
+                if (!creditAmount || creditAmount <= 0) {
+                    throw new BadRequestException('จำนวนเครดิตไม่ถูกต้อง');
+                }
+
+                // Max amount check
+                if (creditAmount > 1000000) {
+                    throw new BadRequestException('จำนวนเครดิตต้องไม่เกิน 1,000,000 บาท');
+                }
+
+                // Get wallet inside transaction
+                const wallet = await this.walletModel
+                    .findOne({ userId: new Types.ObjectId(userId) })
+                    .session(session);
+
+                if (!wallet) {
+                    throw new BadRequestException('ไม่พบกระเป๋าเงินของผู้ใช้');
+                }
+
+                const balanceBefore = wallet.balance;
+                const newBalance = wallet.balance + creditAmount;
+
+                // Atomic wallet update
+                await this.walletModel.findByIdAndUpdate(
+                    wallet._id,
+                    { $inc: { balance: creditAmount, totalDeposited: creditAmount } },
+                    { session },
+                );
+
+                // Atomic transaction status update
+                await this.transactionModel.findByIdAndUpdate(
+                    transactionId,
+                    {
+                        status: TransactionStatus.COMPLETED,
+                        processedBy: new Types.ObjectId(adminUserId),
+                        completedAt: new Date(),
+                        balanceBefore,
+                        balanceAfter: newBalance,
+                        amount: creditAmount,
+                        ...(notes && { adminNotes: notes }),
+                    },
+                    { session, new: true },
+                );
+
+                finalTransaction = {
+                    _id: transactionId,
+                    userId,
+                    amount: creditAmount,
+                    balanceBefore,
+                    balanceAfter: newBalance,
+                    status: TransactionStatus.COMPLETED,
+                };
+            });
+
+            // Log idempotency record (outside transaction — audit only)
+            await this.logOperationStart(
+                idempotencyKey, userId, new Types.ObjectId(userId),
+                WalletOperationType.DEPOSIT, finalTransaction?.amount || 0,
+                finalTransaction?.balanceBefore || 0,
+                `Admin approve: ${transactionId}`, { transactionId, adminUserId },
+            ).then(async (log) => {
+                if (log) await this.logOperationCommit(log._id, finalTransaction?.balanceAfter || 0);
+            }).catch(() => { /* audit log failure is non-critical */ });
+
+            this.logger.log(`[ATOMIC] Transaction approved: id=${transactionId}, userId=${userId}, amount=${finalTransaction?.amount}, by=${adminUserId}`);
+
+            return {
+                success: true,
+                message: `อนุมัติรายการสำเร็จ เติมเครดิต ${(finalTransaction?.amount || 0).toLocaleString()} บาท`,
+                transaction: finalTransaction,
+            };
+        } catch (error: unknown) {
+            const errorMsg = error instanceof Error ? error.message : 'Unknown error';
+            this.logger.error(`[ATOMIC ROLLBACK] Approve transaction failed: ${errorMsg}`);
+
+            if (errorMsg.includes('ไม่อยู่ในสถานะ') || errorMsg.includes('ไม่ถูกต้อง') || errorMsg.includes('ไม่เกิน')) {
+                return { success: false, message: errorMsg };
+            }
+            return { success: false, message: 'เกิดข้อผิดพลาดในการอนุมัติ กรุณาลองใหม่' };
+        } finally {
+            await session.endSession();
+            await this.redisService.releaseLock(lockKey, lockToken);
+        }
     }
 
     /**

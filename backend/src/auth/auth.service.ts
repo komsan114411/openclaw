@@ -43,7 +43,7 @@ export class AuthService {
     try {
       const adminExists = await this.userModel.findOne({ username: 'admin' });
       if (!adminExists) {
-        // Use environment variable for initial password, or default to 'admin123'
+        // Use environment variable for initial password, or generate a random one
         const initialPassword = process.env.ADMIN_INITIAL_PASSWORD;
         let password: string;
 
@@ -51,9 +51,14 @@ export class AuthService {
           password = initialPassword;
           this.logger.log('Using ADMIN_INITIAL_PASSWORD from environment variable');
         } else {
-          // Default password if env var not set
-          password = 'admin123';
-          this.logger.log('Using default admin password (please change after first login)');
+          // Generate a secure random password if env var not set
+          password = crypto.randomBytes(16).toString('hex');
+          this.logger.warn('='.repeat(60));
+          this.logger.warn('ADMIN_INITIAL_PASSWORD not set! Generated random password:');
+          this.logger.warn(`  Username: admin`);
+          this.logger.warn(`  Password: ${password}`);
+          this.logger.warn('Please set ADMIN_INITIAL_PASSWORD env var in production!');
+          this.logger.warn('='.repeat(60));
         }
 
         const hashedPassword = await bcrypt.hash(password, 12);
