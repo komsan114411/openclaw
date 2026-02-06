@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import DashboardLayout from '@/components/layout/DashboardLayout';
-import { packagesApi, walletApi, paymentsApi } from '@/lib/api';
+import api, { packagesApi, walletApi, paymentsApi } from '@/lib/api';
 import { useWalletStore } from '@/store/wallet';
 import { Package } from '@/types';
 import { Button } from '@/components/ui/Button';
@@ -60,27 +60,76 @@ export default function UserPackagesPage() {
     }
   };
 
-  useEffect(() => {
-    const fetchData = async () => {
-      setIsLoading(true);
-      setError(null);
+  const fetchData = async () => {
+    setIsLoading(true);
+    setError(null);
 
-      try {
-        const [packagesRes, balanceRes] = await Promise.all([
-          packagesApi.getAll(),
-          walletApi.getBalance().catch(() => ({ data: { balance: 0 } })),
-        ]);
-        setPackages(packagesRes.data.packages || []);
-        setBalance(balanceRes.data.balance || 0);
-      } catch (err: any) {
-        console.error('Error fetching data:', err);
-        setError('ไม่สามารถโหลดข้อมูลได้');
-      } finally {
-        setIsLoading(false);
+    try {
+      const [packagesRes, balanceRes] = await Promise.all([
+        packagesApi.getAll(),
+        walletApi.getBalance().catch(() => ({ data: { balance: 0 } })),
+      ]);
+
+      const allPackages: Package[] = packagesRes.data.packages || [];
+      setBalance(balanceRes.data.balance || 0);
+
+      // Filter out packages that user has already purchased max times
+      const limitedPackages = allPackages.filter(
+        (pkg) => pkg.maxPurchasesPerUser && pkg.maxPurchasesPerUser > 0
+      );
+
+      if (limitedPackages.length > 0) {
+        const eligibilityResults = await Promise.all(
+          limitedPackages.map((pkg) =>
+            paymentsApi.checkEligibility(pkg._id).catch(() => ({
+              data: { canPurchase: true, purchaseCount: 0, maxPurchases: null, remainingPurchases: null },
+            }))
+          )
+        );
+
+        const exhaustedIds = new Set<string>();
+        limitedPackages.forEach((pkg, index) => {
+          if (!eligibilityResults[index].data.canPurchase) {
+            exhaustedIds.add(pkg._id);
+          }
+        });
+
+        setPackages(allPackages.filter((pkg) => !exhaustedIds.has(pkg._id)));
+      } else {
+        setPackages(allPackages);
+      }
+    } catch (err: unknown) {
+      console.error('Error fetching data:', err);
+      setError('ไม่สามารถโหลดข้อมูลได้');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchData();
+
+    // Refetch when page is restored from bfcache (browser back/forward)
+    const handlePageShow = (event: PageTransitionEvent) => {
+      if (event.persisted) {
+        fetchData();
       }
     };
 
-    fetchData();
+    // Refetch when tab regains focus
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        fetchData();
+      }
+    };
+
+    window.addEventListener('pageshow', handlePageShow);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      window.removeEventListener('pageshow', handlePageShow);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
   }, []);
 
   // ===== HANDLERS =====
@@ -129,13 +178,8 @@ export default function UserPackagesPage() {
     }
 
     try {
-      const response = await fetch(`/api/packages/${selectedPackage._id}/purchase`, {
-        method: 'POST',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
-      });
-
-      const data = await response.json();
+      const response = await api.post(`/packages/${selectedPackage._id}/purchase`);
+      const data = response.data;
 
       if (data.success) {
         setPurchaseResult({ success: true, message: data.message || 'ซื้อแพ็คเกจสำเร็จ!' });
@@ -148,17 +192,31 @@ export default function UserPackagesPage() {
         }
         // Refresh wallet balance in global store
         useWalletStore.getState().fetchBalance(true);
+
+        // Remove package from list if it's now exhausted
+        if (selectedPackage.maxPurchasesPerUser && selectedPackage.maxPurchasesPerUser > 0) {
+          try {
+            const eligRes = await paymentsApi.checkEligibility(selectedPackage._id);
+            if (!eligRes.data.canPurchase) {
+              setPackages((prev) => prev.filter((p) => p._id !== selectedPackage._id));
+            }
+          } catch {
+            // Safety: still remove if we can't verify (err on the side of hiding)
+          }
+        }
+
         setTimeout(() => {
           handleCloseModal();
-          window.location.reload();
         }, 2000);
       } else {
         setPurchaseResult({ success: false, message: data.message || 'เกิดข้อผิดพลาด' });
         // Refresh balance in case it changed
         await fetchBalance();
       }
-    } catch (err: any) {
-      setPurchaseResult({ success: false, message: 'เกิดข้อผิดพลาดในการเชื่อมต่อ' });
+    } catch (err: unknown) {
+      const axiosError = err as { response?: { data?: { message?: string } } };
+      const message = axiosError.response?.data?.message || 'เกิดข้อผิดพลาดในการเชื่อมต่อ';
+      setPurchaseResult({ success: false, message });
       // Refresh balance on error
       await fetchBalance();
     } finally {
