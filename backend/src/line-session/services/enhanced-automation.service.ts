@@ -2526,22 +2526,23 @@ export class EnhancedAutomationService implements OnModuleInit, OnModuleDestroy 
 
   /**
    * Retry login after wrong PIN
-   * Quick retry: cancel current login, reset cooldown, start new login
-   * Much faster than waiting for timeout (~30s vs ~4min)
+   * Quick retry: force close browser, reset cooldown, start fresh login
+   * Must use forceCloseBrowser (not soft cancel) because reused browser
+   * gets stuck on extension page causing navigation timeouts
    */
   async retryLoginAfterWrongPin(lineAccountId: string): Promise<EnhancedLoginResult> {
     this.logger.log(`[RetryWrongPin] Starting quick retry for ${lineAccountId}`);
 
-    // Step 1: Soft cancel current login (keep browser open)
+    // Step 1: Force close browser (NOT soft cancel - reused browser gets stuck)
     try {
-      await this.cancelLogin(lineAccountId);
-      this.logger.log(`[RetryWrongPin] Cancelled current login for ${lineAccountId}`);
+      await this.forceCloseBrowser(lineAccountId);
+      this.logger.log(`[RetryWrongPin] Force closed browser for ${lineAccountId}`);
     } catch (err: unknown) {
       const error = err as Error;
-      this.logger.warn(`[RetryWrongPin] Cancel failed (may already be idle): ${error.message}`);
+      this.logger.warn(`[RetryWrongPin] Force close failed (may already be idle): ${error.message}`);
     }
 
-    // Step 2: Wait 2 seconds for cleanup
+    // Step 2: Wait 2 seconds for browser process cleanup
     await new Promise(resolve => setTimeout(resolve, 2000));
 
     // Step 3: Reset cooldown to bypass wait
@@ -2552,7 +2553,7 @@ export class EnhancedAutomationService implements OnModuleInit, OnModuleDestroy 
 
     this.logger.log(`[RetryWrongPin] Cooldown reset and lock released for ${lineAccountId}`);
 
-    // Step 5: Start new login with saved credentials (source = 'manual')
+    // Step 5: Start fresh login with saved credentials (source = 'manual')
     const result = await this.startLogin(lineAccountId, undefined, undefined, 'manual');
 
     this.logger.log(`[RetryWrongPin] New login started for ${lineAccountId}: ${result.status}`);
