@@ -21,6 +21,7 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/Button';
+import { useSiteBranding } from '@/hooks/useSiteBranding';
 
 export default function LandingPage() {
   const router = useRouter();
@@ -29,6 +30,8 @@ export default function LandingPage() {
   const [isScrolled, setIsScrolled] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const authCheckRef = useRef(false);
+  const siteBranding = useSiteBranding();
+  const brandName = siteBranding.siteName || 'dooslip.com';
 
   // Handle hydration
   useEffect(() => {
@@ -123,11 +126,17 @@ export default function LandingPage() {
       >
         <div className="max-w-7xl mx-auto flex items-center justify-between">
           <Link href="/" className="flex items-center gap-2 group">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500 to-emerald-700 flex items-center justify-center shadow-lg shadow-emerald-500/20 group-hover:scale-110 transition-transform">
-              <Zap className="w-6 h-6 text-white fill-white/20" />
-            </div>
+            {siteBranding.siteLogoBase64 ? (
+              <div className="w-10 h-10 rounded-xl overflow-hidden shadow-lg shadow-emerald-500/20 group-hover:scale-110 transition-transform">
+                <img src={siteBranding.siteLogoBase64} alt="Logo" className="w-full h-full object-contain" />
+              </div>
+            ) : (
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500 to-emerald-700 flex items-center justify-center shadow-lg shadow-emerald-500/20 group-hover:scale-110 transition-transform">
+                <Zap className="w-6 h-6 text-white fill-white/20" />
+              </div>
+            )}
             <span className="text-xl font-black tracking-tighter bg-gradient-to-r from-white to-slate-400 bg-clip-text text-transparent">
-              dooslip<span className="text-emerald-500">.com</span>
+              {siteBranding.siteName ? siteBranding.siteName : (<>dooslip<span className="text-emerald-500">.com</span></>)}
             </span>
           </Link>
 
@@ -260,7 +269,7 @@ export default function LandingPage() {
               </div>
 
               <h1 className="text-5xl md:text-7xl font-black leading-[1.1] tracking-tight mb-8">
-                ตรวจสอบสลิปอัตโนมัติ <br /> <span className="text-emerald-500">dooslip.com</span> รวดเร็ว แม่นยำ
+                ตรวจสอบสลิปอัตโนมัติ <br /> <span className="text-emerald-500">{brandName}</span> รวดเร็ว แม่นยำ
               </h1>
 
               <p className="text-lg md:text-xl text-slate-400 leading-relaxed max-w-xl mb-10">
@@ -452,7 +461,7 @@ export default function LandingPage() {
                 รองรับทุกธนาคาร <br /> <span className="text-emerald-500">ชั้นนำในไทย</span>
               </h3>
               <p className="text-slate-400 text-lg mb-8 leading-relaxed">
-                ไม่ว่าลูกค้าของคุณจะเป็นผู้ใช้ธนาคารไหน ระบบ dooslip.com ของเราพร้อมตรวจสอบความถูกต้องได้ทันที แม่นยำ 100% พร้อมเชื่อมต่อ API ได้ง่ายๆ
+                ไม่ว่าลูกค้าของคุณจะเป็นผู้ใช้ธนาคารไหน ระบบ {brandName} ของเราพร้อมตรวจสอบความถูกต้องได้ทันที แม่นยำ 100% พร้อมเชื่อมต่อ API ได้ง่ายๆ
               </p>
               <div className="flex flex-wrap gap-4">
                 {['KBANK', 'SCB', 'BBL', 'KTB', 'BAY', 'GSB'].map(bank => (
@@ -607,15 +616,21 @@ export default function LandingPage() {
         <div className="max-w-7xl mx-auto grid md:grid-cols-4 gap-12 mb-16">
           <div className="col-span-1 md:col-span-1">
             <Link href="/" className="flex items-center gap-2 mb-6">
-              <div className="w-8 h-8 rounded-lg bg-emerald-500 flex items-center justify-center">
-                <Zap className="w-5 h-5 text-white" />
-              </div>
+              {siteBranding.siteLogoBase64 ? (
+                <div className="w-8 h-8 rounded-lg overflow-hidden">
+                  <img src={siteBranding.siteLogoBase64} alt="Logo" className="w-full h-full object-contain" />
+                </div>
+              ) : (
+                <div className="w-8 h-8 rounded-lg bg-emerald-500 flex items-center justify-center">
+                  <Zap className="w-5 h-5 text-white" />
+                </div>
+              )}
               <span className="text-lg font-black tracking-tighter">
-                dooslip<span className="text-emerald-500">.com</span>
+                {siteBranding.siteName ? siteBranding.siteName : (<>dooslip<span className="text-emerald-500">.com</span></>)}
               </span>
             </Link>
             <p className="text-slate-500 text-sm leading-relaxed mb-6">
-              dooslip.com คือผู้นำด้านระบบตรวจสอบสลิปอัตโนมัติ รองรับการชำระเงินผ่านธนาคารไทยและ USDT เพื่อประสิทธิภาพสูงสุดในธุรกิจของคุณ
+              {brandName} คือผู้นำด้านระบบตรวจสอบสลิปอัตโนมัติ รองรับการชำระเงินผ่านธนาคารไทยและ USDT เพื่อประสิทธิภาพสูงสุดในธุรกิจของคุณ
             </p>
           </div>
 
@@ -649,7 +664,7 @@ export default function LandingPage() {
         </div>
 
         <div className="max-w-7xl mx-auto pt-8 border-t border-white/5 flex flex-col md:flex-row items-center justify-between gap-4 text-xs text-slate-600 font-medium">
-          <p>© 2026 dooslip.com. All rights reserved.</p>
+          <p>© 2026 {brandName}. All rights reserved.</p>
           <div className="flex gap-6">
             <Link href="#" className="hover:text-emerald-500">Facebook</Link>
             <Link href="#" className="hover:text-emerald-500">Twitter</Link>

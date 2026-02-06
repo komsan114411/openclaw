@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { useForm } from 'react-hook-form';
 import { useAuthStore } from '@/store/auth';
 import { systemSettingsApi } from '@/lib/api';
+import { useSiteBranding } from '@/hooks/useSiteBranding';
 import toast from 'react-hot-toast';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
@@ -32,10 +33,8 @@ export default function RegisterPage() {
   } | null>(null);
   const [accessLoading, setAccessLoading] = useState(true);
 
-  // Site branding state
-  const [siteBranding, setSiteBranding] = useState<{ siteLogoBase64: string; siteName: string }>({
-    siteLogoBase64: '', siteName: '',
-  });
+  // Site branding — cached in localStorage to avoid flicker
+  const siteBranding = useSiteBranding();
 
   const {
     register,
@@ -71,18 +70,6 @@ export default function RegisterPage() {
     };
 
     checkAccessStatus();
-
-    // Fetch site branding
-    systemSettingsApi.getSiteBranding()
-      .then((res) => {
-        if (res.data?.success) {
-          setSiteBranding({
-            siteLogoBase64: res.data.siteLogoBase64 || '',
-            siteName: res.data.siteName || '',
-          });
-        }
-      })
-      .catch(() => { /* fallback to defaults */ });
   }, [mounted]);
 
   // Check auth on mount

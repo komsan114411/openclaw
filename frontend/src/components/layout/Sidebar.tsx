@@ -1,11 +1,11 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useAuthStore } from '@/store/auth';
 import { useWalletStore } from '@/store/wallet';
-import { systemSettingsApi } from '@/lib/api';
+import { useSiteBranding } from '@/hooks/useSiteBranding';
 import clsx from 'clsx';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -319,24 +319,8 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
   // Wallet balance from global store
   const { balance: walletBalance, fetchBalance } = useWalletStore();
 
-  // Site branding (dynamic logo/name)
-  const [siteBranding, setSiteBranding] = useState<{ siteLogoBase64: string; siteName: string; siteTagline: string }>({
-    siteLogoBase64: '', siteName: '', siteTagline: '',
-  });
-
-  useEffect(() => {
-    systemSettingsApi.getSiteBranding()
-      .then((res) => {
-        if (res.data?.success) {
-          setSiteBranding({
-            siteLogoBase64: res.data.siteLogoBase64 || '',
-            siteName: res.data.siteName || '',
-            siteTagline: res.data.siteTagline || '',
-          });
-        }
-      })
-      .catch(() => { /* fallback to defaults */ });
-  }, []);
+  // Site branding (dynamic logo/name) — cached in localStorage to avoid flicker
+  const siteBranding = useSiteBranding();
 
   // Fetch wallet balance on mount and when user changes
   useEffect(() => {
