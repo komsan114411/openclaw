@@ -195,12 +195,13 @@ export default function LineSessionPage() {
     bankCode: '',
   });
   const [showPassword, setShowPassword] = useState(false);
-  const [isSettingUp, setIsSettingUp] = useState(false);
+  // Per-account tracking Sets (แทน global boolean เพื่อรองรับหลายบัญชีพร้อมกัน)
+  const [settingUpAccounts, setSettingUpAccounts] = useState<Set<string>>(new Set());
+  const [pollingAccounts, setPollingAccounts] = useState<Set<string>>(new Set());
 
   // Session/Login status - Track แยกตามบัญชี
   const [sessionStatus, setSessionStatus] = useState<SessionStatus | null>(null);
   const [credentialsStatus, setCredentialsStatus] = useState<CredentialsStatus | null>(null);
-  const [isPolling, setIsPolling] = useState(false);
   
   // [FIX] Track login status แยกตามบัญชี - ป้องกันปัญหาหลายบัญชีปนกัน
   const [loginStatusMap, setLoginStatusMap] = useState<Map<string, LoginStatus>>(new Map());
@@ -233,9 +234,24 @@ export default function LineSessionPage() {
     });
   }, []);
   
+  // Per-account polling/settingUp helpers
+  const addPolling = useCallback((id: string) => setPollingAccounts(prev => new Set(prev).add(id)), []);
+  const removePolling = useCallback((id: string) => setPollingAccounts(prev => {
+    const next = new Set(prev); next.delete(id); return next;
+  }), []);
+  const isPollingAccount = useCallback((id: string) => pollingAccounts.has(id), [pollingAccounts]);
+
+  const addSettingUp = useCallback((id: string) => setSettingUpAccounts(prev => new Set(prev).add(id)), []);
+  const removeSettingUp = useCallback((id: string) => setSettingUpAccounts(prev => {
+    const next = new Set(prev); next.delete(id); return next;
+  }), []);
+  const isSettingUpAccount = useCallback((id: string) => settingUpAccounts.has(id), [settingUpAccounts]);
+
   // Current account status (for backward compatibility)
   const loginStatus = selectedSession ? getLoginStatus(selectedSession._id) : null;
   const loginSuccess = selectedSession ? getLoginSuccess(selectedSession._id) : { show: false };
+  const isSettingUp = selectedSession ? isSettingUpAccount(selectedSession._id) : false;
+  const isPolling = selectedSession ? isPollingAccount(selectedSession._id) : false;
 
   // WebSocket login notifications (real-time status + PIN clear)
   // [FIX] ใช้ event.lineAccountId เพื่อ track status แยกตามบัญชี
@@ -273,7 +289,7 @@ export default function LineSessionPage() {
       }
 
       if (isCompleted) {
-        setIsPolling(false);
+        removePolling(accountId);
         if (event.status === 'success') {
           // Clear PIN and login status for this account
           setLoginStatusForAccount(accountId, null);
@@ -302,7 +318,7 @@ export default function LineSessionPage() {
           }
         }
       } else if (isInProgress) {
-        setIsPolling(true);
+        addPolling(accountId);
       }
     },
     // [NEW] Listen for new transactions - auto-refresh when backend fetches new messages
@@ -566,15 +582,16 @@ export default function LineSessionPage() {
     }
   }, [fetchSessionStatus, fetchData, setLoginStatusForAccount, setLoginSuccessForAccount]);
 
-  // Start polling effect
+  // Start polling effect (per-account)
   useEffect(() => {
     let intervalId: NodeJS.Timeout;
 
-    if (isPolling && selectedSession) {
+    if (selectedSession && pollingAccounts.has(selectedSession._id)) {
+      const accountId = selectedSession._id;
       intervalId = setInterval(async () => {
-        const shouldContinue = await pollLoginStatus(selectedSession._id);
+        const shouldContinue = await pollLoginStatus(accountId);
         if (!shouldContinue) {
-          setIsPolling(false);
+          removePolling(accountId);
         }
       }, 2000);
     }
@@ -582,7 +599,7 @@ export default function LineSessionPage() {
     return () => {
       if (intervalId) clearInterval(intervalId);
     };
-  }, [isPolling, selectedSession, pollLoginStatus]);
+  }, [pollingAccounts, selectedSession, pollLoginStatus, removePolling]);
 
   // Create new LINE Login
   const handleCreateSession = async () => {
@@ -646,8 +663,10 @@ export default function LineSessionPage() {
   const handleSetup = async () => {
     if (!selectedSession) return;
 
-    // Prevent double-click while already in progress
-    if (isSettingUp || isPolling) {
+    const accountId = selectedSession._id;
+
+    // Prevent double-click while already in progress (per-account)
+    if (isSettingUpAccount(accountId) || isPollingAccount(accountId)) {
       toast('กำลังดำเนินการอยู่ กรุณารอสักครู่...', { icon: '⏳' });
       return;
     }
@@ -657,11 +676,10 @@ export default function LineSessionPage() {
       return;
     }
 
-    const accountId = selectedSession._id;
-    setIsSettingUp(true);
+    addSettingUp(accountId);
     // Set initial status to show loading state immediately
     setLoginStatusForAccount(accountId, { success: true, status: 'starting', message: 'กำลังเริ่มต้น...' });
-    
+
     try {
       const res = await lineSessionUserApi.setupSession(accountId, {
         email: setupForm.email,
@@ -679,11 +697,11 @@ export default function LineSessionPage() {
           message: 'รอยืนยัน PIN บนมือถือ',
         });
         toast.success(`PIN: ${res.data.pinCode}`, { duration: 60000, icon: '🔑' });
-        setIsPolling(true);
+        addPolling(accountId);
       } else if (res.data.success !== false) {
         // No PIN yet, start polling
         setLoginStatusForAccount(accountId, res.data);
-        setIsPolling(true);
+        addPolling(accountId);
         toast.success('เริ่มกระบวนการ Login แล้ว');
       } else {
         // Error from API
@@ -695,7 +713,7 @@ export default function LineSessionPage() {
       setLoginStatusForAccount(accountId, null);
       toast.error(error.response?.data?.message || 'เกิดข้อผิดพลาด');
     } finally {
-      setIsSettingUp(false);
+      removeSettingUp(accountId);
     }
   };
 
@@ -706,7 +724,7 @@ export default function LineSessionPage() {
     try {
       await lineSessionUserApi.cancelEnhancedLogin(selectedSession._id);
       setLoginStatusForAccount(selectedSession._id, null);
-      setIsPolling(false);
+      removePolling(selectedSession._id);
       toast.success('ยกเลิกแล้ว');
     } catch {
       toast.error('ไม่สามารถยกเลิกได้');
@@ -725,7 +743,7 @@ export default function LineSessionPage() {
         status: 'requesting',
         message: 'กำลังขอ PIN ใหม่...',
       });
-      setIsPolling(true);
+      addPolling(accountId);
 
       const res = await lineSessionUserApi.retryWrongPin(accountId);
 
@@ -742,13 +760,13 @@ export default function LineSessionPage() {
         toast.success('กำลังขอ PIN ใหม่...');
       } else {
         setLoginStatusForAccount(accountId, null);
-        setIsPolling(false);
+        removePolling(accountId);
         toast.error(res.data.message || res.data.error || 'เกิดข้อผิดพลาด');
       }
     } catch (err: unknown) {
       const error = err as { response?: { data?: { message?: string } } };
       setLoginStatusForAccount(accountId, null);
-      setIsPolling(false);
+      removePolling(accountId);
       toast.error(error.response?.data?.message || 'ไม่สามารถขอ PIN ใหม่ได้');
     }
   };
@@ -757,17 +775,18 @@ export default function LineSessionPage() {
   const handleRelogin = async () => {
     if (!selectedSession) return;
 
-    // Prevent double-click while already in progress
-    if (isSettingUp || isPolling) {
+    const accountId = selectedSession._id;
+
+    // Prevent double-click while already in progress (per-account)
+    if (isSettingUpAccount(accountId) || isPollingAccount(accountId)) {
       toast('กำลังดำเนินการอยู่ กรุณารอสักครู่...', { icon: '⏳' });
       return;
     }
 
-    const accountId = selectedSession._id;
-    setIsSettingUp(true);
+    addSettingUp(accountId);
     // Set initial status to show loading state immediately
     setLoginStatusForAccount(accountId, { success: true, status: 'starting', message: 'กำลังเริ่มต้น...' });
-    
+
     try {
       const res = await lineSessionUserApi.startEnhancedLogin(accountId, undefined, undefined, 'relogin');
 
@@ -781,11 +800,11 @@ export default function LineSessionPage() {
           message: 'รอยืนยัน PIN บนมือถือ',
         });
         toast.success(`PIN: ${res.data.pinCode}`, { duration: 60000, icon: '🔑' });
-        setIsPolling(true);
+        addPolling(accountId);
       } else if (res.data.success !== false) {
         // No PIN yet, start polling
         setLoginStatusForAccount(accountId, res.data);
-        setIsPolling(true);
+        addPolling(accountId);
         toast.success('เริ่มกระบวนการ Re-login แล้ว');
       } else {
         // Error from API
@@ -797,7 +816,7 @@ export default function LineSessionPage() {
       setLoginStatusForAccount(accountId, null);
       toast.error(error.response?.data?.message || 'เกิดข้อผิดพลาด');
     } finally {
-      setIsSettingUp(false);
+      removeSettingUp(accountId);
     }
   };
 

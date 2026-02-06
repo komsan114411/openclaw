@@ -2553,8 +2553,9 @@ export class EnhancedAutomationService implements OnModuleInit, OnModuleDestroy 
 
     this.logger.log(`[RetryWrongPin] Cooldown reset and lock released for ${lineAccountId}`);
 
-    // Step 5: Start fresh login with saved credentials (source = 'manual')
-    const result = await this.startLogin(lineAccountId, undefined, undefined, 'manual');
+    // Step 5: Start fresh login with saved credentials (source = 'manual', forceLogin = true)
+    // forceLogin = true → skip key copying from other sessions, always do browser login for new PIN
+    const result = await this.startLogin(lineAccountId, undefined, undefined, 'manual', true);
 
     this.logger.log(`[RetryWrongPin] New login started for ${lineAccountId}: ${result.status}`);
     return result;
