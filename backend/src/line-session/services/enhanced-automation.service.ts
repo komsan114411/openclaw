@@ -2524,6 +2524,41 @@ export class EnhancedAutomationService implements OnModuleInit, OnModuleDestroy 
     this.loginCoordinatorService.resetCooldown(lineAccountId);
   }
 
+  /**
+   * Retry login after wrong PIN
+   * Quick retry: cancel current login, reset cooldown, start new login
+   * Much faster than waiting for timeout (~30s vs ~4min)
+   */
+  async retryLoginAfterWrongPin(lineAccountId: string): Promise<EnhancedLoginResult> {
+    this.logger.log(`[RetryWrongPin] Starting quick retry for ${lineAccountId}`);
+
+    // Step 1: Soft cancel current login (keep browser open)
+    try {
+      await this.cancelLogin(lineAccountId);
+      this.logger.log(`[RetryWrongPin] Cancelled current login for ${lineAccountId}`);
+    } catch (err: unknown) {
+      const error = err as Error;
+      this.logger.warn(`[RetryWrongPin] Cancel failed (may already be idle): ${error.message}`);
+    }
+
+    // Step 2: Wait 2 seconds for cleanup
+    await new Promise(resolve => setTimeout(resolve, 2000));
+
+    // Step 3: Reset cooldown to bypass wait
+    this.loginCoordinatorService.resetCooldown(lineAccountId);
+
+    // Step 4: Release login lock so startLogin can acquire it
+    this.loginLockService.releaseLock(lineAccountId, 'enhanced');
+
+    this.logger.log(`[RetryWrongPin] Cooldown reset and lock released for ${lineAccountId}`);
+
+    // Step 5: Start new login with saved credentials (source = 'manual')
+    const result = await this.startLogin(lineAccountId, undefined, undefined, 'manual');
+
+    this.logger.log(`[RetryWrongPin] New login started for ${lineAccountId}: ${result.status}`);
+    return result;
+  }
+
   // ============================================
   // PIN Status Tracking Methods (ported from GSB)
   // ============================================

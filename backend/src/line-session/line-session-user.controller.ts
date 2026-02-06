@@ -362,6 +362,22 @@ export class LineSessionUserController {
   }
 
   /**
+   * Retry login after wrong PIN (by sessionId)
+   * Quick retry: cancel → reset cooldown → start new login
+   */
+  @Post(':sessionId/retry-wrong-pin')
+  @ApiOperation({ summary: 'Retry login after wrong PIN' })
+  async retryWrongPinById(
+    @Param('sessionId', ParseObjectIdPipe) sessionId: string,
+    @CurrentUser() user: AuthUser,
+  ) {
+    await this.validateSessionOwnership(sessionId, user.userId);
+
+    const result = await this.enhancedAutomationService.retryLoginAfterWrongPin(sessionId);
+    return result;
+  }
+
+  /**
    * Get cooldown info (by sessionId)
    */
   @Get(':sessionId/cooldown')
@@ -809,6 +825,21 @@ export class LineSessionUserController {
 
     await this.enhancedAutomationService.cancelLogin(lineAccountId);
     return { success: true, message: 'ยกเลิกการเข้าสู่ระบบแล้ว' };
+  }
+
+  /**
+   * Retry login after wrong PIN for user's LINE Account
+   */
+  @Post(':lineAccountId/retry-wrong-pin')
+  @ApiOperation({ summary: 'Retry login after wrong PIN' })
+  async retryWrongPin(
+    @Param('lineAccountId', ParseObjectIdPipe) lineAccountId: string,
+    @CurrentUser() user: AuthUser,
+  ) {
+    await this.validateLineAccountOwnership(lineAccountId, user.userId);
+
+    const result = await this.enhancedAutomationService.retryLoginAfterWrongPin(lineAccountId);
+    return result;
   }
 
   /**

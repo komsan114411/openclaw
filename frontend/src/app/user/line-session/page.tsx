@@ -713,6 +713,46 @@ export default function LineSessionPage() {
     }
   };
 
+  // Retry after wrong PIN (quick retry)
+  const handleRetryWrongPin = async () => {
+    if (!selectedSession) return;
+
+    const accountId = selectedSession._id;
+
+    try {
+      setLoginStatusForAccount(accountId, {
+        success: true,
+        status: 'requesting',
+        message: 'กำลังขอ PIN ใหม่...',
+      });
+      setIsPolling(true);
+
+      const res = await lineSessionUserApi.retryWrongPin(accountId);
+
+      if (res.data.pinCode) {
+        setLoginStatusForAccount(accountId, {
+          success: true,
+          status: 'waiting_for_pin',
+          pin: res.data.pinCode,
+          message: 'รอยืนยัน PIN บนมือถือ',
+        });
+        toast.success(`PIN ใหม่: ${res.data.pinCode}`, { duration: 60000, icon: '🔑' });
+      } else if (res.data.success !== false) {
+        setLoginStatusForAccount(accountId, res.data);
+        toast.success('กำลังขอ PIN ใหม่...');
+      } else {
+        setLoginStatusForAccount(accountId, null);
+        setIsPolling(false);
+        toast.error(res.data.message || res.data.error || 'เกิดข้อผิดพลาด');
+      }
+    } catch (err: unknown) {
+      const error = err as { response?: { data?: { message?: string } } };
+      setLoginStatusForAccount(accountId, null);
+      setIsPolling(false);
+      toast.error(error.response?.data?.message || 'ไม่สามารถขอ PIN ใหม่ได้');
+    }
+  };
+
   // Re-login (use saved credentials)
   const handleRelogin = async () => {
     if (!selectedSession) return;
@@ -1133,17 +1173,33 @@ export default function LineSessionPage() {
                           <p className="text-4xl font-bold tracking-[0.5em] text-emerald-600 dark:text-emerald-400">
                             {loginStatus.pin}
                           </p>
+                          <p className="text-xs text-slate-400 dark:text-slate-500 mt-2">
+                            เปิดแอป LINE บนมือถือแล้วกดยืนยันตัวเลขนี้
+                          </p>
                         </div>
                       )}
 
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={handleCancelLogin}
-                        className="mt-3 text-red-500 hover:text-red-600"
-                      >
-                        ยกเลิก
-                      </Button>
+                      <div className="flex items-center gap-2 mt-3">
+                        {loginStatus.pin && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={handleRetryWrongPin}
+                            className="text-amber-600 hover:text-amber-700 hover:bg-amber-50 dark:hover:bg-amber-900/20"
+                          >
+                            <RefreshCw className="w-3.5 h-3.5 mr-1" />
+                            PIN ผิด? ขอ PIN ใหม่
+                          </Button>
+                        )}
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={handleCancelLogin}
+                          className="text-red-500 hover:text-red-600"
+                        >
+                          ยกเลิก
+                        </Button>
+                      </div>
                     </div>
                   )}
 

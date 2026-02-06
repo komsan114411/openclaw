@@ -867,6 +867,10 @@ export const lineSessionUserApi = {
   resetCooldown: (sessionId: string) =>
     api.post(`/user/line-session/${sessionId}/reset-cooldown`),
 
+  // Retry login after wrong PIN (quick retry)
+  retryWrongPin: (sessionId: string) =>
+    apiLongRunning.post(`/user/line-session/${sessionId}/retry-wrong-pin`),
+
   // Get full keys for copying
   getFullKeys: (sessionId: string) =>
     api.get(`/user/line-session/${sessionId}/keys`),
