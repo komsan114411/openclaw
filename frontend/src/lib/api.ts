@@ -416,6 +416,8 @@ export const systemSettingsApi = {
     api.put('/system-settings/ai-toggle', { enabled }),
   // Floating Contact Button (public)
   getFloatingContact: () => api.get('/system-settings/floating-contact'),
+  // Site Branding (public - no auth required)
+  getSiteBranding: () => api.get('/system-settings/site-branding'),
   // Slip Provider Settings (admin only)
   getSlipProviderSettings: () => api.get('/system-settings/slip-provider-settings'),
   updateSlipProviderSettings: (data: {

@@ -357,4 +357,17 @@ export class UpdateSystemSettingsDto {
   @IsOptional()
   @IsBoolean()
   floatingContactShowOnMobile?: boolean;
+
+  // Site Branding
+  @IsOptional()
+  @IsString()
+  siteLogoBase64?: string;
+
+  @IsOptional()
+  @IsString()
+  siteName?: string;
+
+  @IsOptional()
+  @IsString()
+  siteTagline?: string;
 }

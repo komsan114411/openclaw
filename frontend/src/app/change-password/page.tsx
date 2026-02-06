@@ -1,10 +1,10 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { useAuthStore } from '@/store/auth';
-import { authApi } from '@/lib/api';
+import { authApi, systemSettingsApi } from '@/lib/api';
 import toast from 'react-hot-toast';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
@@ -20,6 +20,41 @@ export default function ChangePasswordPage() {
   const router = useRouter();
   const { user, checkAuth } = useAuthStore();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [authChecked, setAuthChecked] = useState(false);
+
+  // Site branding state
+  const [siteBranding, setSiteBranding] = useState<{ siteLogoBase64: string; siteName: string }>({
+    siteLogoBase64: '', siteName: '',
+  });
+
+  // Fetch site branding
+  useEffect(() => {
+    systemSettingsApi.getSiteBranding()
+      .then((res) => {
+        if (res.data?.success) {
+          setSiteBranding({
+            siteLogoBase64: res.data.siteLogoBase64 || '',
+            siteName: res.data.siteName || '',
+          });
+        }
+      })
+      .catch(() => { /* fallback to defaults */ });
+  }, []);
+
+  // Redirect to login if not authenticated
+  useEffect(() => {
+    const verify = async () => {
+      await checkAuth();
+      setAuthChecked(true);
+    };
+    verify();
+  }, [checkAuth]);
+
+  useEffect(() => {
+    if (authChecked && !user) {
+      router.replace('/auth/login');
+    }
+  }, [authChecked, user, router]);
 
   const {
     register,
@@ -28,6 +63,7 @@ export default function ChangePasswordPage() {
     formState: { errors },
   } = useForm<ChangePasswordForm>();
 
+  const currentPassword = watch('currentPassword');
   const newPassword = watch('newPassword');
 
   const onSubmit = async (data: ChangePasswordForm) => {
@@ -60,13 +96,22 @@ export default function ChangePasswordPage() {
       <div className="relative w-full max-w-md">
         <Card className="border-none shadow-2xl shadow-orange-900/20 bg-white/10 backdrop-blur-2xl rounded-[3rem] p-8 md:p-10 border-white/10">
           <div className="text-center mb-10">
-            <div className="w-20 h-20 rounded-[2rem] bg-gradient-to-br from-amber-400 to-orange-600 flex items-center justify-center mx-auto mb-6 shadow-xl shadow-orange-500/30 group hover:scale-110 transition-transform duration-500">
-              <svg className="w-10 h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-              </svg>
-            </div>
+            {siteBranding.siteLogoBase64 ? (
+              <div className="w-20 h-20 rounded-[2rem] overflow-hidden mx-auto mb-6 shadow-xl shadow-orange-500/30 hover:scale-110 transition-transform duration-500">
+                <img src={siteBranding.siteLogoBase64} alt="Logo" className="w-full h-full object-contain" />
+              </div>
+            ) : (
+              <div className="w-20 h-20 rounded-[2rem] bg-gradient-to-br from-amber-400 to-orange-600 flex items-center justify-center mx-auto mb-6 shadow-xl shadow-orange-500/30 group hover:scale-110 transition-transform duration-500">
+                <svg className="w-10 h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                </svg>
+              </div>
+            )}
             <h1 className="text-3xl font-black text-white tracking-tight uppercase">เปลี่ยนรหัสผ่าน</h1>
-            <p className="text-slate-400 mt-3 font-bold text-sm tracking-wide">เพื่อความปลอดภัย กรุณาตั้งรหัสผ่านใหม่</p>
+            {siteBranding.siteName && (
+              <p className="text-amber-400 mt-2 font-bold text-sm">{siteBranding.siteName}</p>
+            )}
+            <p className="text-slate-400 mt-2 font-bold text-sm tracking-wide">เพื่อความปลอดภัย กรุณาตั้งรหัสผ่านใหม่</p>
           </div>
 
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
@@ -91,6 +136,8 @@ export default function ChangePasswordPage() {
                 {...register('newPassword', {
                   required: 'กรุณากรอกรหัสผ่านใหม่',
                   minLength: { value: 6, message: 'รหัสผ่านต้องมีอย่างน้อย 6 ตัวอักษร' },
+                  maxLength: { value: 128, message: 'รหัสผ่านต้องไม่เกิน 128 ตัวอักษร' },
+                  validate: (value) => value !== currentPassword || 'รหัสผ่านใหม่ต้องไม่ซ้ำกับรหัสผ่านเดิม',
                 })}
                 error={errors.newPassword?.message}
                 autoComplete="new-password"

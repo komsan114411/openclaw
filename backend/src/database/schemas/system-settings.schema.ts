@@ -408,6 +408,28 @@ export class SystemSettings {
   floatingContactShowOnMobile: boolean;
 
   // ===============================
+  // Site Branding Settings (Logo & Name)
+  // ===============================
+
+  /**
+   * Site logo as base64 (uploaded by admin)
+   */
+  @Prop({ default: '' })
+  siteLogoBase64: string;
+
+  /**
+   * Site name displayed on sidebar, login, etc.
+   */
+  @Prop({ default: '' })
+  siteName: string;
+
+  /**
+   * Site tagline displayed below site name
+   */
+  @Prop({ default: '' })
+  siteTagline: string;
+
+  // ===============================
   // LINE Session Settings
   // ===============================
 

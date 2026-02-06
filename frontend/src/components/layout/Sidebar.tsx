@@ -1,10 +1,11 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useAuthStore } from '@/store/auth';
 import { useWalletStore } from '@/store/wallet';
+import { systemSettingsApi } from '@/lib/api';
 import clsx from 'clsx';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -318,6 +319,25 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
   // Wallet balance from global store
   const { balance: walletBalance, fetchBalance } = useWalletStore();
 
+  // Site branding (dynamic logo/name)
+  const [siteBranding, setSiteBranding] = useState<{ siteLogoBase64: string; siteName: string; siteTagline: string }>({
+    siteLogoBase64: '', siteName: '', siteTagline: '',
+  });
+
+  useEffect(() => {
+    systemSettingsApi.getSiteBranding()
+      .then((res) => {
+        if (res.data?.success) {
+          setSiteBranding({
+            siteLogoBase64: res.data.siteLogoBase64 || '',
+            siteName: res.data.siteName || '',
+            siteTagline: res.data.siteTagline || '',
+          });
+        }
+      })
+      .catch(() => { /* fallback to defaults */ });
+  }, []);
+
   // Fetch wallet balance on mount and when user changes
   useEffect(() => {
     if (user && !isAdmin) {
@@ -383,15 +403,23 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
       {/* Logo */}
       <div className="p-8 pb-4 relative">
         <div className="flex items-center gap-3">
-          <div className="p-2.5 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 shadow-lg shadow-emerald-500/20">
-            <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-            </svg>
-          </div>
+          {siteBranding.siteLogoBase64 ? (
+            <div className="w-11 h-11 rounded-xl overflow-hidden flex-shrink-0 shadow-lg shadow-emerald-500/20">
+              <img src={siteBranding.siteLogoBase64} alt="Logo" className="w-full h-full object-contain" />
+            </div>
+          ) : (
+            <div className="p-2.5 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 shadow-lg shadow-emerald-500/20">
+              <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+              </svg>
+            </div>
+          )}
           <div>
-            <h1 className="text-lg font-bold tracking-tight">dooslip<span className="text-emerald-500">.com</span></h1>
+            <h1 className="text-lg font-bold tracking-tight">
+              {siteBranding.siteName || (<>dooslip<span className="text-emerald-500">.com</span></>)}
+            </h1>
             <p className="text-[10px] text-emerald-400/60 font-medium tracking-widest uppercase">
-              ระบบจัดการสลิป
+              {siteBranding.siteTagline || 'ระบบจัดการสลิป'}
             </p>
           </div>
         </div>
@@ -488,15 +516,27 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
               </div>
             </div>
           </div>
-          <button
-            onClick={() => logout()}
-            className="w-full flex items-center justify-center gap-2 px-4 py-3 min-h-[44px] text-xs font-bold rounded-xl bg-white/5 text-slate-400 hover:bg-rose-500/10 hover:text-rose-400 hover:border-rose-500/20 transition-all duration-300 border border-transparent"
-          >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-            </svg>
-            ออกจากระบบ
-          </button>
+          <div className="flex gap-2">
+            <Link
+              href="/change-password"
+              onClick={() => window.innerWidth < 768 && onClose()}
+              className="flex-1 flex items-center justify-center gap-2 px-4 py-3 min-h-[44px] text-xs font-bold rounded-xl bg-white/5 text-slate-400 hover:bg-emerald-500/10 hover:text-emerald-400 hover:border-emerald-500/20 transition-all duration-300 border border-transparent"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
+              </svg>
+              เปลี่ยนรหัสผ่าน
+            </Link>
+            <button
+              onClick={() => logout()}
+              className="flex-1 flex items-center justify-center gap-2 px-4 py-3 min-h-[44px] text-xs font-bold rounded-xl bg-white/5 text-slate-400 hover:bg-rose-500/10 hover:text-rose-400 hover:border-rose-500/20 transition-all duration-300 border border-transparent"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+              </svg>
+              ออกจากระบบ
+            </button>
+          </div>
         </div>
       </div>
     </div>

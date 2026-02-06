@@ -102,6 +102,21 @@ export class SystemSettingsController {
     };
   }
 
+  @Get('site-branding')
+  @UseGuards(RateLimitGuard)
+  @RateLimit({ limit: 60, windowSeconds: 60, keyPrefix: 'public:site-branding' })
+  @ApiOperation({ summary: 'Get site branding settings (public - no auth required)' })
+  async getSiteBranding() {
+    const settings = await this.settingsService.getSettings();
+
+    return {
+      success: true,
+      siteLogoBase64: settings?.siteLogoBase64 || '',
+      siteName: settings?.siteName || '',
+      siteTagline: settings?.siteTagline || '',
+    };
+  }
+
   // ===============================
   // ADMIN ENDPOINTS
   // ===============================

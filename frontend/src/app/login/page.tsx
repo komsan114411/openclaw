@@ -38,6 +38,11 @@ export default function LoginPage() {
   } | null>(null);
   const [accessLoading, setAccessLoading] = useState(true);
 
+  // Site branding state
+  const [siteBranding, setSiteBranding] = useState<{ siteLogoBase64: string; siteName: string }>({
+    siteLogoBase64: '', siteName: '',
+  });
+
   // Error message from URL (when user is kicked from system)
   const kickedErrorMessage = searchParams.get('error');
 
@@ -83,6 +88,18 @@ export default function LoginPage() {
     };
 
     checkAccessStatus();
+
+    // Fetch site branding
+    systemSettingsApi.getSiteBranding()
+      .then((res) => {
+        if (res.data?.success) {
+          setSiteBranding({
+            siteLogoBase64: res.data.siteLogoBase64 || '',
+            siteName: res.data.siteName || '',
+          });
+        }
+      })
+      .catch(() => { /* fallback to defaults */ });
   }, [mounted]);
 
   // Load lockout state from localStorage
@@ -288,13 +305,21 @@ export default function LoginPage() {
           <div className="text-center mb-8">
             <div className="relative inline-block">
               <div className="absolute -inset-2 bg-[#06C755]/20 rounded-full blur-xl" />
-              <div className="relative w-20 h-20 rounded-2xl bg-gradient-to-br from-[#06C755] to-emerald-600 flex items-center justify-center shadow-xl shadow-[#06C755]/30 transform hover:scale-105 transition-all duration-300">
-                <svg className="w-10 h-10 text-white" viewBox="0 0 24 24" fill="currentColor">
-                  <path d="M12 2C6.48 2 2 6.48 2 12C2 17.52 6.48 22 12 22C17.52 22 22 17.52 22 12C22 6.48 17.52 2 12 2ZM16.59 7.58L10 14.17L7.41 11.59L6 13L10 17L18 9L16.59 7.58Z" />
-                </svg>
-              </div>
+              {siteBranding.siteLogoBase64 ? (
+                <div className="relative w-20 h-20 rounded-2xl overflow-hidden shadow-xl shadow-[#06C755]/30 transform hover:scale-105 transition-all duration-300">
+                  <img src={siteBranding.siteLogoBase64} alt="Logo" className="w-full h-full object-contain" />
+                </div>
+              ) : (
+                <div className="relative w-20 h-20 rounded-2xl bg-gradient-to-br from-[#06C755] to-emerald-600 flex items-center justify-center shadow-xl shadow-[#06C755]/30 transform hover:scale-105 transition-all duration-300">
+                  <svg className="w-10 h-10 text-white" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M12 2C6.48 2 2 6.48 2 12C2 17.52 6.48 22 12 22C17.52 22 22 17.52 22 12C22 6.48 17.52 2 12 2ZM16.59 7.58L10 14.17L7.41 11.59L6 13L10 17L18 9L16.59 7.58Z" />
+                  </svg>
+                </div>
+              )}
             </div>
-            <h1 className="text-2xl sm:text-3xl font-bold text-white mt-6 tracking-tight">LINE OA <span className="text-[#06C755]">Management</span></h1>
+            <h1 className="text-2xl sm:text-3xl font-bold text-white mt-6 tracking-tight">
+              {siteBranding.siteName || (<>dooslip<span className="text-[#06C755]">.com</span></>)}
+            </h1>
             <p className="text-slate-400 mt-2 text-sm">เข้าสู่ระบบเพื่อจัดการบัญชี LINE OA ของคุณ</p>
           </div>
 

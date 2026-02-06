@@ -32,6 +32,11 @@ export default function RegisterPage() {
   } | null>(null);
   const [accessLoading, setAccessLoading] = useState(true);
 
+  // Site branding state
+  const [siteBranding, setSiteBranding] = useState<{ siteLogoBase64: string; siteName: string }>({
+    siteLogoBase64: '', siteName: '',
+  });
+
   const {
     register,
     handleSubmit,
@@ -66,6 +71,18 @@ export default function RegisterPage() {
     };
 
     checkAccessStatus();
+
+    // Fetch site branding
+    systemSettingsApi.getSiteBranding()
+      .then((res) => {
+        if (res.data?.success) {
+          setSiteBranding({
+            siteLogoBase64: res.data.siteLogoBase64 || '',
+            siteName: res.data.siteName || '',
+          });
+        }
+      })
+      .catch(() => { /* fallback to defaults */ });
   }, [mounted]);
 
   // Check auth on mount
@@ -158,13 +175,22 @@ export default function RegisterPage() {
       <div className="relative w-full max-w-md">
         <Card className="border-none shadow-2xl shadow-emerald-900/20 bg-white/10 backdrop-blur-2xl rounded-[3rem] p-8 md:p-10 border-white/10">
           <div className="text-center mb-10">
-            <div className="w-20 h-20 rounded-[2rem] bg-gradient-to-br from-emerald-400 to-teal-600 flex items-center justify-center mx-auto mb-6 shadow-xl shadow-emerald-500/30 group hover:scale-110 transition-transform duration-500">
-              <svg className="w-10 h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 11c0 2.21-1.79 4-4 4s-4-1.79-4-4 1.79-4 4-4 4 1.79 4 4zm8 10H4a6 6 0 0112 0v0z" />
-              </svg>
-            </div>
+            {siteBranding.siteLogoBase64 ? (
+              <div className="w-20 h-20 rounded-[2rem] overflow-hidden mx-auto mb-6 shadow-xl shadow-emerald-500/30 hover:scale-110 transition-transform duration-500">
+                <img src={siteBranding.siteLogoBase64} alt="Logo" className="w-full h-full object-contain" />
+              </div>
+            ) : (
+              <div className="w-20 h-20 rounded-[2rem] bg-gradient-to-br from-emerald-400 to-teal-600 flex items-center justify-center mx-auto mb-6 shadow-xl shadow-emerald-500/30 group hover:scale-110 transition-transform duration-500">
+                <svg className="w-10 h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 11c0 2.21-1.79 4-4 4s-4-1.79-4-4 1.79-4 4-4 4 1.79 4 4zm8 10H4a6 6 0 0112 0v0z" />
+                </svg>
+              </div>
+            )}
             <h1 className="text-3xl font-black text-white tracking-tight uppercase">สมัครสมาชิก</h1>
-            <p className="text-slate-400 mt-3 font-bold text-sm tracking-wide">สร้างบัญชีเพื่อเริ่มใช้งานระบบอัตโนมัติ</p>
+            {siteBranding.siteName && (
+              <p className="text-emerald-400 mt-2 font-bold text-sm">{siteBranding.siteName}</p>
+            )}
+            <p className="text-slate-400 mt-2 font-bold text-sm tracking-wide">สร้างบัญชีเพื่อเริ่มใช้งานระบบอัตโนมัติ</p>
           </div>
 
           {/* Registration Disabled by Admin */}

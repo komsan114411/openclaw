@@ -62,6 +62,10 @@ interface SystemSettings {
   slipDuplicateColor?: string;
   slipErrorColor?: string;
   slipAmountColor?: string;
+  // Site Branding settings
+  siteLogoBase64?: string;
+  siteName?: string;
+  siteTagline?: string;
 }
 
 interface BankAccountInfo {
@@ -185,6 +189,13 @@ export default function SettingsPage() {
     floatingContactShowOnMobile: true,
   });
 
+  // Site Branding Settings (Logo & Name)
+  const [siteBrandingSettings, setSiteBrandingSettings] = useState({
+    siteLogoBase64: '',
+    siteName: '',
+    siteTagline: '',
+  });
+
   // Slip Provider Settings
   const [slipProviderSettings, setSlipProviderSettings] = useState({
     slipApiProvider: 'thunder',
@@ -298,6 +309,11 @@ export default function SettingsPage() {
         floatingContactTooltip: data.floatingContactTooltip || 'ติดต่อแอดมิน',
         floatingContactBgColor: data.floatingContactBgColor || '#25D366',
         floatingContactShowOnMobile: data.floatingContactShowOnMobile ?? true,
+      });
+      setSiteBrandingSettings({
+        siteLogoBase64: data.siteLogoBase64 || '',
+        siteName: data.siteName || '',
+        siteTagline: data.siteTagline || '',
       });
     } catch (error) {
       console.error('Error fetching settings:', error);
@@ -2591,6 +2607,143 @@ export default function SettingsPage() {
                 exit={{ opacity: 0, y: -10 }}
                 className="space-y-10"
               >
+                {/* Site Branding (Logo & Name) */}
+                <Card variant="glass" className="p-8 sm:p-10 rounded-[2.5rem] sm:rounded-[3rem]">
+                  <div className="flex flex-col sm:flex-row sm:items-center gap-6 mb-10">
+                    <div className="w-14 h-14 bg-emerald-500/10 rounded-2xl flex items-center justify-center text-2xl shadow-inner flex-shrink-0">🌐</div>
+                    <div>
+                      <h2 className="text-xl sm:text-2xl font-black text-white uppercase tracking-tight">โลโก้เว็บไซต์</h2>
+                      <p className="text-xs sm:text-sm text-slate-500 font-bold uppercase tracking-widest">โลโก้และชื่อที่แสดงบน Sidebar, Login</p>
+                    </div>
+                  </div>
+
+                  <div className="space-y-8">
+                    {/* Logo Upload */}
+                    <div>
+                      <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-2">
+                        โลโก้เว็บไซต์
+                      </label>
+                      <div className="flex items-center gap-4">
+                        <div className="w-16 h-16 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center overflow-hidden flex-shrink-0">
+                          {siteBrandingSettings.siteLogoBase64 ? (
+                            <img
+                              src={siteBrandingSettings.siteLogoBase64}
+                              alt="Site Logo"
+                              className="w-14 h-14 object-contain"
+                            />
+                          ) : (
+                            <svg className="w-8 h-8 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                            </svg>
+                          )}
+                        </div>
+                        <div className="flex-1 space-y-2">
+                          <input
+                            type="file"
+                            accept="image/png,image/jpeg,image/webp"
+                            onChange={(e) => {
+                              const file = e.target.files?.[0];
+                              if (file) {
+                                if (file.size > 500 * 1024) {
+                                  toast.error('ไฟล์ต้องมีขนาดไม่เกิน 500KB');
+                                  return;
+                                }
+                                const reader = new FileReader();
+                                reader.onload = (event) => {
+                                  setSiteBrandingSettings({
+                                    ...siteBrandingSettings,
+                                    siteLogoBase64: event.target?.result as string,
+                                  });
+                                };
+                                reader.readAsDataURL(file);
+                              }
+                            }}
+                            className="hidden"
+                            id="site-logo-upload"
+                          />
+                          <label
+                            htmlFor="site-logo-upload"
+                            className="inline-flex items-center gap-2 px-4 py-2 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl cursor-pointer transition-colors text-sm text-white"
+                          >
+                            อัปโหลดโลโก้
+                          </label>
+                          {siteBrandingSettings.siteLogoBase64 && (
+                            <button
+                              onClick={() => setSiteBrandingSettings({
+                                ...siteBrandingSettings,
+                                siteLogoBase64: '',
+                              })}
+                              className="ml-2 text-xs text-rose-400 hover:text-rose-300"
+                            >
+                              ลบโลโก้
+                            </button>
+                          )}
+                          <p className="text-[10px] text-slate-600">PNG, JPG, WEBP (สูงสุด 500KB)</p>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Site Name */}
+                    <div>
+                      <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-2">
+                        ชื่อเว็บไซต์
+                      </label>
+                      <Input
+                        value={siteBrandingSettings.siteName}
+                        onChange={(e) => setSiteBrandingSettings({
+                          ...siteBrandingSettings,
+                          siteName: e.target.value
+                        })}
+                        placeholder="dooslip.com"
+                        className="h-14 rounded-2xl bg-white/[0.03] border-white/10 text-white"
+                        hint="ชื่อที่แสดงบน Sidebar และหน้า Login (เว้นว่าง = ค่าเดิม)"
+                      />
+                    </div>
+
+                    {/* Site Tagline */}
+                    <div>
+                      <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-2">
+                        คำโปรย
+                      </label>
+                      <Input
+                        value={siteBrandingSettings.siteTagline}
+                        onChange={(e) => setSiteBrandingSettings({
+                          ...siteBrandingSettings,
+                          siteTagline: e.target.value
+                        })}
+                        placeholder="ระบบจัดการสลิป"
+                        className="h-14 rounded-2xl bg-white/[0.03] border-white/10 text-white"
+                        hint="คำอธิบายสั้นใต้ชื่อเว็บ (เว้นว่าง = ค่าเดิม)"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Save Button */}
+                  <div className="flex justify-end mt-8 gap-4">
+                    <Button
+                      variant="ghost"
+                      size="lg"
+                      className="px-8 h-16 rounded-2xl text-rose-400 hover:text-rose-300"
+                      onClick={() => setSiteBrandingSettings({
+                        siteLogoBase64: '',
+                        siteName: '',
+                        siteTagline: '',
+                      })}
+                    >
+                      ล้างทั้งหมด
+                    </Button>
+                    <Button
+                      variant="primary"
+                      size="lg"
+                      className="px-10 h-16 rounded-2xl shadow-emerald-500/20 font-black tracking-widest uppercase text-[11px]"
+                      onClick={() => handleUpdate('site-branding', siteBrandingSettings)}
+                      isLoading={isSaving === 'site-branding'}
+                    >
+                      บันทึกโลโก้เว็บไซต์
+                    </Button>
+                  </div>
+                </Card>
+
                 <Card variant="glass" className="p-8 sm:p-10 rounded-[2.5rem] sm:rounded-[3rem]">
                   <div className="flex flex-col sm:flex-row sm:items-center gap-6 mb-10">
                     <div className="w-14 h-14 bg-pink-500/10 rounded-2xl flex items-center justify-center text-2xl shadow-inner flex-shrink-0">🎨</div>
