@@ -116,8 +116,18 @@ export default function AdminPackagesPage() {
       setShowModal(false);
       resetForm();
       fetchPackages();
-    } catch (error: any) {
-      toast.error(error.response?.data?.message || 'เกิดข้อผิดพลาด');
+    } catch (error: unknown) {
+      const axiosError = error as { response?: { data?: { error?: { message?: string; field?: string; code?: string } } } };
+      const errData = axiosError.response?.data?.error;
+      const errMessage = errData?.message || 'เกิดข้อผิดพลาด';
+      const errField = errData?.field;
+
+      // Highlight the specific field that caused the error
+      if (errField) {
+        setFormErrors((prev) => ({ ...prev, [errField]: errMessage }));
+      }
+
+      toast.error(errMessage, { duration: 5000 });
     } finally {
       setIsSubmitting(false);
     }
@@ -155,8 +165,9 @@ export default function AdminPackagesPage() {
       toast.success('ปิดใช้งานแพ็คเกจสำเร็จ');
       setShowDeleteConfirm(false);
       fetchPackages();
-    } catch (error) {
-      toast.error('ไม่สามารถปิดใช้งานแพ็คเกจได้');
+    } catch (error: unknown) {
+      const axiosError = error as { response?: { data?: { error?: { message?: string } } } };
+      toast.error(axiosError.response?.data?.error?.message || 'ไม่สามารถปิดใช้งานแพ็คเกจได้', { duration: 5000 });
     } finally {
       setIsSubmitting(false);
     }
@@ -167,8 +178,9 @@ export default function AdminPackagesPage() {
       await packagesApi.activate(pkg._id);
       toast.success('เปิดใช้งานแพ็คเกจสำเร็จ');
       fetchPackages();
-    } catch (error) {
-      toast.error('ไม่สามารถเปิดใช้งานแพ็คเกจได้');
+    } catch (error: unknown) {
+      const axiosError = error as { response?: { data?: { error?: { message?: string } } } };
+      toast.error(axiosError.response?.data?.error?.message || 'ไม่สามารถเปิดใช้งานแพ็คเกจได้', { duration: 5000 });
     }
   };
 

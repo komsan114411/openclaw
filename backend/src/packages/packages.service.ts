@@ -16,22 +16,23 @@ export class PackagesService {
    */
   private validatePackageData(dto: CreatePackageDto | UpdatePackageDto): void {
     if (dto.price !== undefined && dto.price < 0) {
-      throw new BadRequestException('Price cannot be negative');
+      throw new BadRequestException({ message: 'ราคา (บาท) ต้องไม่ติดลบ', field: 'price', code: 'PRICE_NEGATIVE' });
     }
-    if ((dto as any).priceUsdt !== undefined && (dto as any).priceUsdt < 0) {
-      throw new BadRequestException('USDT price cannot be negative');
+    const priceUsdt = (dto as CreatePackageDto).priceUsdt;
+    if (priceUsdt !== undefined && priceUsdt < 0) {
+      throw new BadRequestException({ message: 'ราคา (USDT) ต้องไม่ติดลบ', field: 'priceUsdt', code: 'PRICE_USDT_NEGATIVE' });
     }
     if (dto.slipQuota !== undefined && dto.slipQuota <= 0) {
-      throw new BadRequestException('Slip quota must be greater than 0');
+      throw new BadRequestException({ message: 'โควต้าสลิปต้องมากกว่า 0', field: 'slipQuota', code: 'SLIP_QUOTA_INVALID' });
     }
     if (dto.slipQuota !== undefined && dto.slipQuota > 10000000) {
-      throw new BadRequestException('Slip quota cannot exceed 10,000,000');
+      throw new BadRequestException({ message: 'โควต้าสลิปต้องไม่เกิน 10,000,000', field: 'slipQuota', code: 'SLIP_QUOTA_EXCEEDED' });
     }
     if (dto.durationDays !== undefined && dto.durationDays <= 0) {
-      throw new BadRequestException('Duration must be greater than 0 days');
+      throw new BadRequestException({ message: 'ระยะเวลาต้องมากกว่า 0 วัน', field: 'durationDays', code: 'DURATION_INVALID' });
     }
     if (dto.durationDays !== undefined && dto.durationDays > 3650) {
-      throw new BadRequestException('Duration cannot exceed 10 years');
+      throw new BadRequestException({ message: 'ระยะเวลาต้องไม่เกิน 10 ปี (3,650 วัน)', field: 'durationDays', code: 'DURATION_EXCEEDED' });
     }
   }
 
@@ -41,7 +42,7 @@ export class PackagesService {
 
     const existing = await this.packageModel.findOne({ name: dto.name });
     if (existing) {
-      throw new BadRequestException('Package name already exists');
+      throw new BadRequestException({ message: `ชื่อแพ็คเกจ "${dto.name}" มีอยู่ในระบบแล้ว กรุณาใช้ชื่ออื่น`, field: 'name', code: 'NAME_DUPLICATE' });
     }
 
     const pkg = new this.packageModel({
@@ -67,14 +68,14 @@ export class PackagesService {
 
     const pkg = await this.packageModel.findById(id);
     if (!pkg) {
-      throw new NotFoundException('Package not found');
+      throw new NotFoundException({ message: 'ไม่พบแพ็คเกจที่ต้องการแก้ไข อาจถูกลบไปแล้ว', code: 'PACKAGE_NOT_FOUND' });
     }
 
     // Check for duplicate name if name is being changed
     if (dto.name && dto.name !== pkg.name) {
       const existing = await this.packageModel.findOne({ name: dto.name, _id: { $ne: id } });
       if (existing) {
-        throw new BadRequestException('Package name already exists');
+        throw new BadRequestException({ message: `ชื่อแพ็คเกจ "${dto.name}" มีอยู่ในระบบแล้ว กรุณาใช้ชื่ออื่น`, field: 'name', code: 'NAME_DUPLICATE' });
       }
     }
 
@@ -85,7 +86,7 @@ export class PackagesService {
   async deactivate(id: string): Promise<PackageDocument> {
     const pkg = await this.packageModel.findById(id);
     if (!pkg) {
-      throw new NotFoundException('Package not found');
+      throw new NotFoundException({ message: 'ไม่พบแพ็คเกจที่ต้องการปิดใช้งาน', code: 'PACKAGE_NOT_FOUND' });
     }
 
     pkg.isActive = false;
@@ -95,7 +96,7 @@ export class PackagesService {
   async activate(id: string): Promise<PackageDocument> {
     const pkg = await this.packageModel.findById(id);
     if (!pkg) {
-      throw new NotFoundException('Package not found');
+      throw new NotFoundException({ message: 'ไม่พบแพ็คเกจที่ต้องการเปิดใช้งาน', code: 'PACKAGE_NOT_FOUND' });
     }
 
     pkg.isActive = true;

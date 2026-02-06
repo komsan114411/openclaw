@@ -32,13 +32,16 @@ export class GlobalExceptionFilter implements ExceptionFilter {
     let errorCode: string;
     let details: any = null;
 
+    let field: string | null = null;
+
     if (exception instanceof HttpException) {
       status = exception.getStatus();
       const response = exception.getResponse();
       if (typeof response === 'object' && response !== null) {
         message = (response as any).message || exception.message;
-        errorCode = (response as any).errorCode || `HTTP_${status}`;
+        errorCode = (response as any).errorCode || (response as any).code || `HTTP_${status}`;
         details = (response as any).details;
+        field = (response as any).field || null;
       } else {
         message = String(response);
         errorCode = `HTTP_${status}`;
@@ -65,6 +68,7 @@ export class GlobalExceptionFilter implements ExceptionFilter {
       error: {
         code: errorCode,
         message,
+        ...(field && { field }),
         ...(details && { details }),
       },
       meta: {
