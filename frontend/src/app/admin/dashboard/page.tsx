@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import Link from 'next/link';
 import DashboardLayout from '@/components/layout/DashboardLayout';
-import { usersApi, lineAccountsApi, paymentsApi, packagesApi, thunderApi } from '@/lib/api';
+import { usersApi, lineAccountsApi, paymentsApi, packagesApi, thunderApi, walletApi, subscriptionsApi, systemSettingsApi } from '@/lib/api';
 import toast from 'react-hot-toast';
 import api from '@/lib/api';
 import { Card, StatCard } from '@/components/ui/Card';
@@ -54,6 +54,29 @@ interface ThunderQuota {
   error?: string;
 }
 
+interface WalletStats {
+  totalDeposited: number;
+  totalSpent: number;
+  totalWallets: number;
+  totalBalance: number;
+  pendingTransactions: number;
+  completedTransactions: number;
+}
+
+interface SubscriptionStats {
+  totalActive: number;
+  totalExpired: number;
+  totalQuotaUsed: number;
+  totalQuotaRemaining: number;
+}
+
+interface SlipProviderInfo {
+  success: boolean;
+  message: string;
+  remainingQuota?: number;
+  expiresAt?: string;
+}
+
 export default function AdminDashboard() {
   const [stats, setStats] = useState<Stats | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -63,14 +86,19 @@ export default function AdminDashboard() {
   const [isLoadingQuota, setIsLoadingQuota] = useState(true);
   const [growthData, setGrowthData] = useState<GrowthData[]>([]);
   const [isLoadingGrowth, setIsLoadingGrowth] = useState(true);
+  const [walletStats, setWalletStats] = useState<WalletStats | null>(null);
+  const [subscriptionStats, setSubscriptionStats] = useState<SubscriptionStats | null>(null);
+  const [slipProviders, setSlipProviders] = useState<Record<string, SlipProviderInfo>>({});
 
   const fetchStats = useCallback(async () => {
     try {
-      const [usersRes, lineAccountsRes, paymentsRes, packagesRes] = await Promise.all([
+      const [usersRes, lineAccountsRes, paymentsRes, packagesRes, walletRes, subsRes] = await Promise.all([
         usersApi.getStatistics(),
         lineAccountsApi.getStatistics(),
         paymentsApi.getAll('pending'),
         packagesApi.getAll(true),
+        walletApi.getStatistics().catch(() => null),
+        subscriptionsApi.getStatistics().catch(() => null),
       ]);
 
       setStats({
@@ -83,6 +111,13 @@ export default function AdminDashboard() {
         totalPackages: packagesRes.data.packages?.length || 0,
       });
       setRecentPayments(paymentsRes.data.payments?.slice(0, 5) || []);
+
+      if (walletRes?.data) {
+        setWalletStats(walletRes.data);
+      }
+      if (subsRes?.data) {
+        setSubscriptionStats(subsRes.data);
+      }
     } catch (error) {
       console.error('Error fetching stats:', error);
     } finally {
@@ -93,13 +128,29 @@ export default function AdminDashboard() {
   const fetchThunderQuota = useCallback(async () => {
     setIsLoadingQuota(true);
     try {
-      const res = await thunderApi.getQuota();
-      setThunderQuota(res.data);
-    } catch (error: any) {
+      const [thunderRes, providersRes] = await Promise.all([
+        thunderApi.getQuota(),
+        systemSettingsApi.getSlipProviderStatus().catch(() => null),
+      ]);
+      setThunderQuota(thunderRes.data);
+      if (providersRes?.data?.providers) {
+        const providersObj: Record<string, SlipProviderInfo> = {};
+        // Handle both array and object formats
+        if (Array.isArray(providersRes.data.providers)) {
+          for (const p of providersRes.data.providers) {
+            providersObj[p.provider] = p;
+          }
+        } else {
+          Object.assign(providersObj, providersRes.data.providers);
+        }
+        setSlipProviders(providersObj);
+      }
+    } catch (error: unknown) {
+      const err = error as { response?: { data?: { error?: string } } };
       console.error('Error fetching Thunder quota:', error);
       setThunderQuota({
         success: false,
-        error: error.response?.data?.error || 'ไม่สามารถดึงข้อมูลโควต้าได้',
+        error: err.response?.data?.error || 'ไม่สามารถดึงข้อมูลโควต้าได้',
       });
     } finally {
       setIsLoadingQuota(false);
@@ -237,10 +288,105 @@ export default function AdminDashboard() {
           </Card>
         </div>
 
+        {/* Wallet & Subscription Stats */}
+        <div className="grid grid-cols-1 xl:grid-cols-2 gap-3 sm:gap-4 md:gap-6">
+          {/* Wallet Stats Card */}
+          <Card variant="glass" className="p-4 sm:p-6 rounded-2xl border border-white/5 hover:border-emerald-500/20 transition-all">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-2xl bg-emerald-500/10 flex items-center justify-center">
+                <svg className="w-5 h-5 sm:w-6 sm:h-6 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
+                </svg>
+              </div>
+              <div>
+                <h3 className="text-sm sm:text-base font-bold text-white">สถิติกระเป๋าเงิน</h3>
+                <p className="text-[9px] sm:text-[10px] text-slate-500 font-medium uppercase tracking-wider">Wallet Statistics</p>
+              </div>
+            </div>
+            {isLoading ? (
+              <div className="flex items-center justify-center py-6">
+                <Spinner size="md" />
+              </div>
+            ) : walletStats ? (
+              <div className="space-y-3">
+                <div className="bg-emerald-500/5 border border-emerald-500/10 rounded-xl p-3 sm:p-4">
+                  <p className="text-[9px] sm:text-[10px] text-slate-500 font-bold uppercase tracking-widest mb-1">ยอดคงเหลือรวม</p>
+                  <p className="text-2xl sm:text-3xl font-black text-emerald-400">{(walletStats.totalBalance || 0).toLocaleString()} <span className="text-sm text-slate-500">บาท</span></p>
+                </div>
+                <div className="grid grid-cols-3 gap-2 sm:gap-3">
+                  <div className="bg-white/5 rounded-xl p-3 border border-white/5">
+                    <p className="text-[8px] sm:text-[9px] text-slate-500 font-bold uppercase tracking-widest mb-1">ยอดฝากรวม</p>
+                    <p className="text-base sm:text-lg font-black text-white">{(walletStats.totalDeposited || 0).toLocaleString()}</p>
+                  </div>
+                  <div className="bg-white/5 rounded-xl p-3 border border-white/5">
+                    <p className="text-[8px] sm:text-[9px] text-slate-500 font-bold uppercase tracking-widest mb-1">ยอดใช้ไป</p>
+                    <p className="text-base sm:text-lg font-black text-white">{(walletStats.totalSpent || 0).toLocaleString()}</p>
+                  </div>
+                  <div className="bg-white/5 rounded-xl p-3 border border-white/5">
+                    <p className="text-[8px] sm:text-[9px] text-slate-500 font-bold uppercase tracking-widest mb-1">รอดำเนินการ</p>
+                    <p className="text-base sm:text-lg font-black text-amber-400">{walletStats.pendingTransactions || 0}</p>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="flex items-center justify-center py-6 text-slate-500">
+                <p className="text-xs">ไม่มีข้อมูลกระเป๋าเงิน</p>
+              </div>
+            )}
+          </Card>
+
+          {/* Subscription Stats Card */}
+          <Card variant="glass" className="p-4 sm:p-6 rounded-2xl border border-white/5 hover:border-violet-500/20 transition-all">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-2xl bg-violet-500/10 flex items-center justify-center">
+                <svg className="w-5 h-5 sm:w-6 sm:h-6 text-violet-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z" />
+                </svg>
+              </div>
+              <div>
+                <h3 className="text-sm sm:text-base font-bold text-white">สถิติโควต้า</h3>
+                <p className="text-[9px] sm:text-[10px] text-slate-500 font-medium uppercase tracking-wider">Subscription Statistics</p>
+              </div>
+            </div>
+            {isLoading ? (
+              <div className="flex items-center justify-center py-6">
+                <Spinner size="md" />
+              </div>
+            ) : subscriptionStats ? (
+              <div className="space-y-3">
+                <div className="grid grid-cols-2 gap-2 sm:gap-3">
+                  <div className="bg-violet-500/5 border border-violet-500/10 rounded-xl p-3 sm:p-4">
+                    <p className="text-[9px] sm:text-[10px] text-slate-500 font-bold uppercase tracking-widest mb-1">Active</p>
+                    <p className="text-2xl sm:text-3xl font-black text-violet-400">{subscriptionStats.totalActive || 0}</p>
+                  </div>
+                  <div className="bg-white/5 rounded-xl p-3 sm:p-4 border border-white/5">
+                    <p className="text-[9px] sm:text-[10px] text-slate-500 font-bold uppercase tracking-widest mb-1">หมดอายุ</p>
+                    <p className="text-2xl sm:text-3xl font-black text-slate-400">{subscriptionStats.totalExpired || 0}</p>
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-2 sm:gap-3">
+                  <div className="bg-white/5 rounded-xl p-3 border border-white/5">
+                    <p className="text-[8px] sm:text-[9px] text-slate-500 font-bold uppercase tracking-widest mb-1">โควต้าใช้ไป</p>
+                    <p className="text-base sm:text-lg font-black text-white">{(subscriptionStats.totalQuotaUsed || 0).toLocaleString()}</p>
+                  </div>
+                  <div className="bg-emerald-500/5 border border-emerald-500/10 rounded-xl p-3">
+                    <p className="text-[8px] sm:text-[9px] text-slate-500 font-bold uppercase tracking-widest mb-1">โควต้าคงเหลือ</p>
+                    <p className="text-base sm:text-lg font-black text-emerald-400">{(subscriptionStats.totalQuotaRemaining || 0).toLocaleString()}</p>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="flex items-center justify-center py-6 text-slate-500">
+                <p className="text-xs">ไม่มีข้อมูลโควต้า</p>
+              </div>
+            )}
+          </Card>
+        </div>
+
         {/* 2. Main Content Grid */}
         <div className="grid grid-cols-1 xl:grid-cols-12 gap-4 md:gap-6 lg:gap-8 items-stretch">
 
-          {/* Thunder API Quota - Modern Glassmorphism */}
+          {/* Slip API Providers - Thunder / SlipMate / Slip2Go */}
           <div className="xl:col-span-8">
             <Card className="h-full bg-[#0F1A14] border border-emerald-500/10 relative overflow-hidden group">
               {/* Animated Background Gradients */}
@@ -256,7 +402,7 @@ export default function AdminDashboard() {
                       </svg>
                     </div>
                     <div>
-                      <h2 className="text-xl md:text-3xl font-black text-white tracking-tight uppercase leading-none">dooslip API</h2>
+                      <h2 className="text-xl md:text-3xl font-black text-white tracking-tight uppercase leading-none">Slip API</h2>
                       <p className="text-slate-400 font-bold text-[9px] md:text-xs tracking-[0.3em] uppercase opacity-40 mt-1 md:mt-2 text-gradient">ระบบตรวจสอบสลิป</p>
                     </div>
                   </div>
@@ -276,92 +422,163 @@ export default function AdminDashboard() {
                     <Spinner size="xl" color="white" />
                     <p className="mt-4 text-slate-400 font-medium animate-pulse text-sm">กำลังเชื่อมต่อเซิร์ฟเวอร์...</p>
                   </div>
-                ) : thunderQuota?.success && thunderQuota.data ? (
-                  <div className="space-y-6 md:space-y-10 flex-1 flex flex-col justify-between">
-                    {/* Progress Visual */}
-                    <div className="space-y-3 md:space-y-4">
-                      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-end gap-2">
-                        <div className="space-y-1">
-                          <p className="text-slate-400 font-bold text-[10px] md:text-xs uppercase tracking-widest">การใช้งานประจำเดือน</p>
-                          <div className="flex items-baseline gap-2">
-                            <span className="text-3xl md:text-5xl font-black text-white">{thunderQuota.data.usedQuota.toLocaleString()}</span>
-                            <span className="text-slate-500 font-bold text-lg md:text-xl">/ {thunderQuota.data.maxQuota.toLocaleString()}</span>
+                ) : (
+                  <div className="space-y-6 md:space-y-8 flex-1">
+                    {/* Thunder API (dooslip) Section */}
+                    {thunderQuota?.success && thunderQuota.data ? (
+                      <div className="space-y-4">
+                        <div className="flex items-center gap-2 mb-2">
+                          <div className="w-2 h-2 rounded-full bg-yellow-400" />
+                          <p className="text-xs sm:text-sm font-black text-white uppercase tracking-wider">dooslip API (Thunder)</p>
+                          <Badge variant="success" className="text-[8px] px-2 py-0.5">Active</Badge>
+                        </div>
+                        {/* Progress */}
+                        <div className="space-y-2">
+                          <div className="flex justify-between items-end">
+                            <div className="flex items-baseline gap-2">
+                              <span className="text-2xl md:text-4xl font-black text-white">{thunderQuota.data.usedQuota.toLocaleString()}</span>
+                              <span className="text-slate-500 font-bold text-sm md:text-base">/ {thunderQuota.data.maxQuota.toLocaleString()}</span>
+                            </div>
+                            <span className={cn(
+                              "text-xl md:text-2xl font-black",
+                              thunderQuota.data.usagePercentage > 90 ? "text-rose-500" :
+                                thunderQuota.data.usagePercentage > 70 ? "text-amber-400" : "text-emerald-400"
+                            )}>
+                              {thunderQuota.data.usagePercentage.toFixed(1)}%
+                            </span>
+                          </div>
+                          <div className="h-3 md:h-4 bg-white/5 rounded-xl p-0.5 md:p-1 border border-white/5 relative shadow-inner">
+                            <div
+                              className={cn(
+                                "h-full rounded-lg transition-all duration-1000 ease-out relative",
+                                thunderQuota.data.usagePercentage > 90 ? "bg-gradient-to-r from-rose-600 to-rose-400" :
+                                  thunderQuota.data.usagePercentage > 70 ? "bg-gradient-to-r from-amber-500 to-amber-300" :
+                                    "bg-gradient-to-r from-emerald-600 to-emerald-400"
+                              )}
+                              style={{ width: `${Math.max(thunderQuota.data.usagePercentage, 3)}%` }}
+                            />
                           </div>
                         </div>
-                        <div className="sm:text-right">
-                          <span className={cn(
-                            "text-2xl md:text-3xl font-black",
-                            thunderQuota.data.usagePercentage > 90 ? "text-rose-500" :
-                              thunderQuota.data.usagePercentage > 70 ? "text-amber-400" : "text-emerald-400"
-                          )}>
-                            {thunderQuota.data.usagePercentage.toFixed(1)}%
-                          </span>
+                        {/* Meta */}
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 md:gap-4">
+                          <div className="bg-white/5 rounded-xl md:rounded-2xl p-3 md:p-4 border border-white/5">
+                            <p className="text-slate-500 font-bold text-[8px] md:text-[9px] uppercase tracking-widest">เครดิต</p>
+                            <p className="text-lg md:text-2xl font-black text-emerald-400">{thunderQuota.data.currentCredit.toLocaleString()}</p>
+                          </div>
+                          <div className="bg-white/5 rounded-xl md:rounded-2xl p-3 md:p-4 border border-white/5">
+                            <p className="text-slate-500 font-bold text-[8px] md:text-[9px] uppercase tracking-widest">วันหมดอายุ</p>
+                            <p className="text-sm md:text-lg font-black text-white">{formatDate(thunderQuota.data.expiredAt)}</p>
+                          </div>
+                          <div className="bg-white/5 rounded-xl md:rounded-2xl p-3 md:p-4 border border-white/5">
+                            <p className="text-slate-500 font-bold text-[8px] md:text-[9px] uppercase tracking-widest">เหลือ</p>
+                            <p className={cn(
+                              "text-lg md:text-2xl font-black",
+                              thunderQuota.data.daysRemaining <= 7 ? "text-rose-400" : "text-blue-400"
+                            )}>
+                              {thunderQuota.data.daysRemaining} <span className="text-xs md:text-sm">วัน</span>
+                            </p>
+                          </div>
                         </div>
+                        {/* Warning */}
+                        {(thunderQuota.data.isExpired || thunderQuota.data.isLowQuota) && (
+                          <div className="bg-rose-500/10 border border-rose-500/30 rounded-xl p-3 flex items-center gap-3">
+                            <div className="w-8 h-8 rounded-full bg-rose-500 flex items-center justify-center text-white flex-shrink-0">
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                              </svg>
+                            </div>
+                            <p className="text-slate-400 text-xs font-medium">
+                              {thunderQuota.data.isExpired ? 'API หมดอายุแล้ว' : 'โควต้าใกล้หมด กรุณาเติมเครดิต'}
+                            </p>
+                          </div>
+                        )}
                       </div>
-
-                      <div className="h-4 md:h-6 bg-white/5 rounded-xl md:rounded-2xl p-1 md:p-1.5 border border-white/5 relative shadow-inner">
-                        <div
-                          className={cn(
-                            "h-full rounded-lg md:rounded-xl transition-all duration-1000 ease-out relative",
-                            thunderQuota.data.usagePercentage > 90 ? "bg-gradient-to-r from-rose-600 to-rose-400 shadow-[0_0_20px_rgba(225,29,72,0.4)]" :
-                              thunderQuota.data.usagePercentage > 70 ? "bg-gradient-to-r from-amber-500 to-amber-300 shadow-[0_0_20px_rgba(245,158,11,0.4)]" :
-                                "bg-gradient-to-r from-emerald-600 to-emerald-400 shadow-[0_0_20px_rgba(16,185,129,0.4)]"
-                          )}
-                          style={{ width: `${Math.max(thunderQuota.data.usagePercentage, 5)}%` }}
-                        >
-                          <div className="absolute inset-0 bg-white/20 animate-pulse rounded-lg md:rounded-xl" />
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Meta Grid */}
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 md:gap-6">
-                      <div className="bg-white/5 rounded-xl md:rounded-[2rem] p-4 md:p-6 border border-white/5 space-y-1 md:space-y-2">
-                        <p className="text-slate-500 font-bold text-[9px] md:text-[10px] uppercase tracking-widest">เครดิต dooslip API</p>
-                        <p className="text-2xl md:text-3xl font-black text-emerald-400">{thunderQuota.data.currentCredit.toLocaleString()}</p>
-                      </div>
-                      <div className="bg-white/5 rounded-xl md:rounded-[2rem] p-4 md:p-6 border border-white/5 space-y-1 md:space-y-2">
-                        <p className="text-slate-500 font-bold text-[9px] md:text-[10px] uppercase tracking-widest">วันหมดอายุ</p>
-                        <p className="text-lg md:text-2xl font-black text-white">{formatDate(thunderQuota.data.expiredAt)}</p>
-                      </div>
-                      <div className="bg-white/5 rounded-xl md:rounded-[2rem] p-4 md:p-6 border border-white/5 space-y-1 md:space-y-2">
-                        <p className="text-slate-500 font-bold text-[9px] md:text-[10px] uppercase tracking-widest">ระยะเวลาที่เหลือ</p>
-                        <p className={cn(
-                          "text-2xl md:text-3xl font-black",
-                          thunderQuota.data.daysRemaining <= 7 ? "text-rose-400" : "text-blue-400"
-                        )}>
-                          {thunderQuota.data.daysRemaining} <span className="text-base md:text-lg">วัน</span>
-                        </p>
-                      </div>
-                    </div>
-
-                    {/* Warnings */}
-                    {(thunderQuota.data.isExpired || thunderQuota.data.isLowQuota) && (
-                      <div className="bg-rose-500/10 border border-rose-500/30 rounded-2xl p-5 flex items-center gap-4 animate-bounce-slow">
-                        <div className="w-12 h-12 rounded-full bg-rose-500 flex items-center justify-center text-white shadow-lg shadow-rose-500/40">
-                          <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                          </svg>
-                        </div>
-                        <div>
-                          <p className="text-lg font-black text-white leading-none mb-1">ต้องการความสนใจ!</p>
-                          <p className="text-slate-400 text-sm font-medium">
-                            {thunderQuota.data.isExpired ? 'การกำหนดค่า API หมดอายุแล้ว ระบบอาจไม่เสถียร' : 'โควต้าปัจจุบันใกล้หมด กรุณาเติมเครดิตทันที'}
-                          </p>
-                        </div>
+                    ) : (
+                      <div className="bg-white/5 rounded-2xl border border-white/10 p-4 flex items-center gap-3">
+                        <div className="w-2 h-2 rounded-full bg-yellow-400" />
+                        <p className="text-xs font-bold text-white uppercase tracking-wider">dooslip API (Thunder)</p>
+                        <Badge variant="error" className="text-[8px] px-2 py-0.5">Offline</Badge>
+                        <p className="text-xs text-slate-500 ml-auto">{thunderQuota?.error || 'ไม่สามารถเชื่อมต่อได้'}</p>
                       </div>
                     )}
-                  </div>
-                ) : (
-                  <div className="flex-1 flex flex-col items-center justify-center py-20 bg-white/5 rounded-3xl border border-white/10">
-                    <div className="w-20 h-20 rounded-full bg-slate-800 flex items-center justify-center mb-6">
-                      <span className="text-4xl">🔌</span>
+
+                    {/* SlipMate API Section */}
+                    <div className="border-t border-white/5 pt-4 md:pt-6">
+                      <div className="flex items-center gap-2 mb-3">
+                        <div className="w-2 h-2 rounded-full bg-blue-400" />
+                        <p className="text-xs sm:text-sm font-black text-white uppercase tracking-wider">SlipMate API</p>
+                        {slipProviders['slipmate'] ? (
+                          <Badge variant={slipProviders['slipmate'].success ? 'success' : 'error'} className="text-[8px] px-2 py-0.5">
+                            {slipProviders['slipmate'].success ? 'Active' : 'Offline'}
+                          </Badge>
+                        ) : (
+                          <Badge variant="default" className="text-[8px] px-2 py-0.5">ไม่ได้ตั้งค่า</Badge>
+                        )}
+                      </div>
+                      {slipProviders['slipmate'] ? (
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 md:gap-4">
+                          <div className="bg-white/5 rounded-xl p-3 border border-white/5">
+                            <p className="text-slate-500 font-bold text-[8px] md:text-[9px] uppercase tracking-widest">สถานะ</p>
+                            <p className={cn("text-sm md:text-base font-black", slipProviders['slipmate'].success ? "text-emerald-400" : "text-rose-400")}>
+                              {slipProviders['slipmate'].message}
+                            </p>
+                          </div>
+                          <div className="bg-white/5 rounded-xl p-3 border border-white/5">
+                            <p className="text-slate-500 font-bold text-[8px] md:text-[9px] uppercase tracking-widest">โควต้าคงเหลือ</p>
+                            <p className="text-lg md:text-2xl font-black text-blue-400">
+                              {slipProviders['slipmate'].remainingQuota != null ? slipProviders['slipmate'].remainingQuota.toLocaleString() : '-'}
+                            </p>
+                          </div>
+                          <div className="bg-white/5 rounded-xl p-3 border border-white/5">
+                            <p className="text-slate-500 font-bold text-[8px] md:text-[9px] uppercase tracking-widest">วันหมดอายุ</p>
+                            <p className="text-sm md:text-base font-black text-white">
+                              {slipProviders['slipmate'].expiresAt ? formatDate(slipProviders['slipmate'].expiresAt) : '-'}
+                            </p>
+                          </div>
+                        </div>
+                      ) : (
+                        <p className="text-xs text-slate-500">ยังไม่ได้ตั้งค่า API Key</p>
+                      )}
                     </div>
-                    <p className="text-xl font-bold text-white mb-2">เชื่อมต่อบริการไม่สำเร็จ</p>
-                    <p className="text-slate-500 font-medium text-center px-10 max-w-md">
-                      {thunderQuota?.error || 'ไม่สามารถเชื่อมต่อกับ Verify API ได้ กรุณาตรวจสอบการตั้งค่าระบบ'}
-                    </p>
-                    <Button variant="ghost" className="mt-6 text-emerald-400" onClick={fetchThunderQuota}>ลองอีกครั้ง</Button>
+
+                    {/* Slip2Go API Section */}
+                    <div className="border-t border-white/5 pt-4 md:pt-6">
+                      <div className="flex items-center gap-2 mb-3">
+                        <div className="w-2 h-2 rounded-full bg-violet-400" />
+                        <p className="text-xs sm:text-sm font-black text-white uppercase tracking-wider">Slip2Go API</p>
+                        {slipProviders['slip2go'] ? (
+                          <Badge variant={slipProviders['slip2go'].success ? 'success' : 'error'} className="text-[8px] px-2 py-0.5">
+                            {slipProviders['slip2go'].success ? 'Active' : 'Offline'}
+                          </Badge>
+                        ) : (
+                          <Badge variant="default" className="text-[8px] px-2 py-0.5">ไม่ได้ตั้งค่า</Badge>
+                        )}
+                      </div>
+                      {slipProviders['slip2go'] ? (
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 md:gap-4">
+                          <div className="bg-white/5 rounded-xl p-3 border border-white/5">
+                            <p className="text-slate-500 font-bold text-[8px] md:text-[9px] uppercase tracking-widest">สถานะ</p>
+                            <p className={cn("text-sm md:text-base font-black", slipProviders['slip2go'].success ? "text-emerald-400" : "text-rose-400")}>
+                              {slipProviders['slip2go'].message}
+                            </p>
+                          </div>
+                          <div className="bg-white/5 rounded-xl p-3 border border-white/5">
+                            <p className="text-slate-500 font-bold text-[8px] md:text-[9px] uppercase tracking-widest">โควต้าคงเหลือ</p>
+                            <p className="text-lg md:text-2xl font-black text-violet-400">
+                              {slipProviders['slip2go'].remainingQuota != null ? slipProviders['slip2go'].remainingQuota.toLocaleString() : '-'}
+                            </p>
+                          </div>
+                          <div className="bg-white/5 rounded-xl p-3 border border-white/5">
+                            <p className="text-slate-500 font-bold text-[8px] md:text-[9px] uppercase tracking-widest">วันหมดอายุ</p>
+                            <p className="text-sm md:text-base font-black text-white">
+                              {slipProviders['slip2go'].expiresAt ? formatDate(slipProviders['slip2go'].expiresAt) : '-'}
+                            </p>
+                          </div>
+                        </div>
+                      ) : (
+                        <p className="text-xs text-slate-500">ยังไม่ได้ตั้งค่า API Key</p>
+                      )}
+                    </div>
                   </div>
                 )}
               </div>

@@ -84,6 +84,15 @@ export class SubscriptionsController {
     };
   }
 
+  @Get('statistics')
+  @UseGuards(RolesGuard)
+  @Roles(UserRole.ADMIN)
+  @ApiOperation({ summary: 'Get subscription statistics (Admin only)' })
+  async getStatistics() {
+    const stats = await this.subscriptionsService.getStatistics();
+    return { success: true, ...stats };
+  }
+
   @Post('expire')
   @UseGuards(RolesGuard)
   @Roles(UserRole.ADMIN)

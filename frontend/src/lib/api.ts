@@ -258,6 +258,7 @@ export const subscriptionsApi = {
   getAll: () => api.get('/subscriptions'),
   grant: (userId: string, packageId: string) =>
     api.post('/subscriptions/grant', { userId, packageId }),
+  getStatistics: () => api.get('/subscriptions/statistics'),
 };
 
 // Payments API
