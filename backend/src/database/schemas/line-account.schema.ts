@@ -113,6 +113,39 @@ export class LineAccountSettings {
 
   @Prop({ type: Object })
   slipErrorTemplate: Record<string, any>; // Flex message template for error
+
+  // ============================================
+  // Smart AI Settings
+  // ============================================
+
+  @Prop({ default: false })
+  enableSmartAi: boolean;
+
+  @Prop({ default: 'gpt-3.5-turbo' })
+  smartAiClassifierModel: string;
+
+  @Prop({ default: 5 })
+  duplicateDetectionWindowMinutes: number;
+
+  @Prop({ default: 5 })
+  spamThresholdMessagesPerMinute: number;
+
+  @Prop({ type: [Object], default: () => [] })
+  gameLinks: Array<{ name: string; url: string }>;
+
+  @Prop({
+    type: Object,
+    default: () => ({
+      deposit_issue: { enabled: true, useAi: true, customPrompt: '', responseTemplate: '' },
+      duplicate_request: { enabled: true, useAi: false, customPrompt: '', responseTemplate: 'แอดมินกำลังตรวจสอบอยู่ค่ะ กรุณารอสักครู่นะคะ' },
+      frustrated: { enabled: true, useAi: true, customPrompt: '', responseTemplate: '' },
+      abusive: { enabled: true, useAi: false, customPrompt: '', responseTemplate: '__NO_RESPONSE__' },
+      ask_link: { enabled: true, useAi: false, customPrompt: '', responseTemplate: '__SEND_LINKS__' },
+      ask_game_recommend: { enabled: true, useAi: true, customPrompt: '', responseTemplate: '' },
+      general: { enabled: true, useAi: true, customPrompt: '', responseTemplate: '' },
+    }),
+  })
+  intentRules: Record<string, { enabled: boolean; useAi: boolean; customPrompt: string; responseTemplate: string }>;
 }
 
 @Schema({ _id: false })

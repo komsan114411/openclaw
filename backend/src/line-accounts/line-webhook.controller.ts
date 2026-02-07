@@ -17,6 +17,7 @@ import { LineAccountsService } from './line-accounts.service';
 import { SlipVerificationService } from '../slip-verification/slip-verification.service';
 import { ChatbotService } from '../chatbot/chatbot.service';
 import { AiQuotaService } from '../chatbot/ai-quota.service';
+import { SmartResponseService } from '../chatbot/smart-response.service';
 import { SubscriptionsService } from '../subscriptions/subscriptions.service';
 import { MessageDirection, MessageType } from '../database/schemas/chat-message.schema';
 import { RedisService } from '../redis/redis.service';
@@ -36,6 +37,7 @@ export class LineWebhookController {
     private slipVerificationService: SlipVerificationService,
     private chatbotService: ChatbotService,
     private aiQuotaService: AiQuotaService,
+    private smartResponseService: SmartResponseService,
     private subscriptionsService: SubscriptionsService,
     private redisService: RedisService,
     private configurableMessagesService: ConfigurableMessagesService,
@@ -817,19 +819,71 @@ export class LineWebhookController {
       this.logger.log(`[AI] Reservation created, reservationId=${reservationId}`);
 
       // ============================================
-      // 4. Get AI response with retry (with account-specific model)
+      // 4. Smart AI or Legacy AI response
       // ============================================
-      const response = await retryWithBackoff(
-        () => this.chatbotService.getResponse(
+      let response: string;
+      const isSmartAiEnabled = account.settings?.enableSmartAi === true;
+
+      if (isSmartAiEnabled) {
+        // ---- Smart AI Pipeline ----
+        this.logger.log(`[AI] Smart AI enabled, using two-stage pipeline`);
+        const smartResult = await this.smartResponseService.processMessage(
           message.text,
           lineUserId,
           accountId,
-          account.settings?.aiSystemPrompt,
-          account.settings?.aiModel,  // Pass account-specific model
-        ),
-        retrySettings.maxAttempts,
-        retrySettings.delayMs,
-      );
+          {
+            enableSmartAi: true,
+            smartAiClassifierModel: account.settings?.smartAiClassifierModel || 'gpt-3.5-turbo',
+            duplicateDetectionWindowMinutes: account.settings?.duplicateDetectionWindowMinutes ?? 5,
+            spamThresholdMessagesPerMinute: account.settings?.spamThresholdMessagesPerMinute ?? 5,
+            gameLinks: account.settings?.gameLinks || [],
+            intentRules: account.settings?.intentRules || {},
+            aiSystemPrompt: account.settings?.aiSystemPrompt,
+            aiModel: account.settings?.aiModel,
+          },
+        );
+
+        this.logger.log(`[AI] Smart AI result: intent=${smartResult.intent}, shouldRespond=${smartResult.shouldRespond}, time=${smartResult.processingTimeMs}ms`);
+
+        if (!smartResult.shouldRespond) {
+          // Don't send a response, but confirm quota usage (classification used a call)
+          await this.subscriptionsService.confirmAiReservation(subscriptionId, 1);
+          await this.aiQuotaService.confirmReservation(reservationId);
+          this.logger.log(`[AI] Smart AI decided not to respond (intent=${smartResult.intent}), quota confirmed`);
+          await this.lineAccountsService.incrementStatistics(accountId, 'totalAiResponses');
+          return;
+        }
+
+        if (smartResult.response) {
+          response = smartResult.response;
+        } else {
+          // Fallback to legacy if smart AI returned null response
+          response = await retryWithBackoff(
+            () => this.chatbotService.getResponse(
+              message.text,
+              lineUserId,
+              accountId,
+              account.settings?.aiSystemPrompt,
+              account.settings?.aiModel,
+            ),
+            retrySettings.maxAttempts,
+            retrySettings.delayMs,
+          );
+        }
+      } else {
+        // ---- Legacy AI Response ----
+        response = await retryWithBackoff(
+          () => this.chatbotService.getResponse(
+            message.text,
+            lineUserId,
+            accountId,
+            account.settings?.aiSystemPrompt,
+            account.settings?.aiModel,
+          ),
+          retrySettings.maxAttempts,
+          retrySettings.delayMs,
+        );
+      }
 
       // ============================================
       // 5. Confirm AI quota

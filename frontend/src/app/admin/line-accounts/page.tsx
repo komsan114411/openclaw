@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback, useRef } from 'react';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import { lineAccountsApi, usersApi, systemSettingsApi, lineSessionApi } from '@/lib/api';
 import { useLoginNotifications } from '@/hooks';
-import { LineAccount, User } from '@/types';
+import { LineAccount, User, IntentRuleConfig } from '@/types';
 import toast from 'react-hot-toast';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Card, StatCard } from '@/components/ui/Card';
@@ -440,6 +440,13 @@ export default function AdminLineAccountsPage() {
     sendMessageWhenBotDisabled: 'default' as string,
     sendMessageWhenSlipDisabled: 'default' as string,
     sendMessageWhenAiDisabled: 'default' as string,
+    // Smart AI fields
+    enableSmartAi: false,
+    smartAiClassifierModel: 'gpt-3.5-turbo',
+    duplicateDetectionWindowMinutes: 5,
+    spamThresholdMessagesPerMinute: 5,
+    gameLinks: [] as Array<{ name: string; url: string }>,
+    intentRules: {} as Record<string, IntentRuleConfig>,
   });
 
   // AI Settings from system
@@ -657,6 +664,15 @@ export default function AdminLineAccountsPage() {
       if (val === null || val === undefined) return 'default';
       return val ? 'true' : 'false';
     };
+    const defaultIntentRules: Record<string, IntentRuleConfig> = {
+      deposit_issue: { enabled: true, useAi: true, customPrompt: '', responseTemplate: '' },
+      duplicate_request: { enabled: true, useAi: false, customPrompt: '', responseTemplate: 'แอดมินกำลังตรวจสอบอยู่ค่ะ กรุณารอสักครู่นะคะ' },
+      frustrated: { enabled: true, useAi: true, customPrompt: '', responseTemplate: '' },
+      abusive: { enabled: true, useAi: false, customPrompt: '', responseTemplate: '__NO_RESPONSE__' },
+      ask_link: { enabled: true, useAi: false, customPrompt: '', responseTemplate: '__SEND_LINKS__' },
+      ask_game_recommend: { enabled: true, useAi: true, customPrompt: '', responseTemplate: '' },
+      general: { enabled: true, useAi: true, customPrompt: '', responseTemplate: '' },
+    };
     setSettingsData({
       enableBot: s.enableBot ?? true,
       enableAi: s.enableAi ?? false,
@@ -676,6 +692,12 @@ export default function AdminLineAccountsPage() {
       sendMessageWhenBotDisabled: boolToString(s.sendMessageWhenBotDisabled),
       sendMessageWhenSlipDisabled: boolToString(s.sendMessageWhenSlipDisabled),
       sendMessageWhenAiDisabled: boolToString(s.sendMessageWhenAiDisabled),
+      enableSmartAi: s.enableSmartAi ?? false,
+      smartAiClassifierModel: s.smartAiClassifierModel || 'gpt-3.5-turbo',
+      duplicateDetectionWindowMinutes: s.duplicateDetectionWindowMinutes ?? 5,
+      spamThresholdMessagesPerMinute: s.spamThresholdMessagesPerMinute ?? 5,
+      gameLinks: s.gameLinks || [],
+      intentRules: { ...defaultIntentRules, ...(s.intentRules || {}) },
     });
     setShowSettingsModal(true);
   };
@@ -1143,10 +1165,19 @@ export default function AdminLineAccountsPage() {
     switch (status) {
       case 'healthy':
         return <Badge className="bg-emerald-500/10 text-emerald-400 border-emerald-500/20">Healthy</Badge>;
+      case 'active':
+        // [FIX] Keys active (same as healthy)
+        return <Badge className="bg-emerald-500/10 text-emerald-400 border-emerald-500/20">Healthy</Badge>;
+      case 'valid_grace_period':
+        // [FIX] Keys ใช้งานได้ (เพิ่งล็อกอินสำเร็จ อยู่ใน grace period)
+        return <Badge className="bg-emerald-500/10 text-emerald-400 border-emerald-500/20">Healthy</Badge>;
       case 'unhealthy':
         return <Badge className="bg-amber-500/10 text-amber-400 border-amber-500/20">Unhealthy</Badge>;
       case 'expired':
         return <Badge className="bg-rose-500/10 text-rose-400 border-rose-500/20">Expired</Badge>;
+      case 'validating':
+        // [FIX] กำลังตรวจสอบ Keys
+        return <Badge className="bg-blue-500/10 text-blue-400 border-blue-500/20">Validating</Badge>;
       default:
         return <Badge className="bg-slate-500/10 text-slate-400 border-slate-500/20">Unknown</Badge>;
     }
@@ -1945,6 +1976,166 @@ export default function AdminLineAccountsPage() {
                     </div>
                   </div>
                 </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          {/* Smart AI Settings */}
+          <AnimatePresence>
+            {settingsData.enableAi && (
+              <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95 }} className="space-y-8 p-10 bg-gradient-to-br from-violet-950 to-indigo-950 rounded-[3.5rem] text-white shadow-3xl relative overflow-hidden">
+                <div className="absolute top-0 right-0 w-96 h-96 bg-violet-500/10 rounded-full blur-[100px] -mr-40 -mt-40 pointer-events-none" />
+                <div className="flex items-center justify-between mb-4 relative z-10">
+                  <h3 className="text-xl font-black uppercase tracking-tight flex items-center gap-4 text-violet-400">
+                    <span className="w-1.5 h-8 bg-violet-500 rounded-full shadow-[0_0_20px_rgba(139,92,246,0.5)]" /> Smart AI Engine
+                  </h3>
+                  <div className="flex items-center gap-3">
+                    <Badge className="bg-white/10 text-white border-none font-black text-[9px] px-3 py-1 uppercase tracking-widest rounded-lg">TWO-STAGE</Badge>
+                    <Switch checked={settingsData.enableSmartAi} onChange={(checked) => setSettingsData({ ...settingsData, enableSmartAi: checked })} />
+                  </div>
+                </div>
+                <p className="text-xs text-white/40 relative z-10">วิเคราะห์เจตนาข้อความด้วย AI ก่อนตอบ — ตรวจจับสแปม/ข้อความซ้ำ แยกประเภทคำถาม แล้วตอบตาม intent</p>
+
+                {settingsData.enableSmartAi && (
+                  <div className="space-y-8 relative z-10">
+                    {/* Classifier Model */}
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-black text-white/40 uppercase tracking-[0.2em] px-4">Classifier Model (Stage 1)</label>
+                      <Select
+                        value={settingsData.smartAiClassifierModel}
+                        onChange={(e) => setSettingsData({ ...settingsData, smartAiClassifierModel: e.target.value })}
+                        className="bg-white/5 border-white/10 text-white h-14 rounded-2xl font-bold"
+                      >
+                        <option value="gpt-3.5-turbo">gpt-3.5-turbo (เร็ว/ถูก)</option>
+                        <option value="gpt-4o-mini">gpt-4o-mini (สมดุล)</option>
+                      </Select>
+                      <p className="text-[9px] text-white/30 px-4">Model สำหรับจำแนกประเภทข้อความ (ใช้ token น้อย)</p>
+                    </div>
+
+                    {/* Detection Settings */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <div className="space-y-2">
+                        <label className="text-[10px] font-black text-white/40 uppercase tracking-[0.2em] px-4">ตรวจจับข้อความซ้ำ (นาที)</label>
+                        <Input variant="glass" type="number" min="1" max="60" value={settingsData.duplicateDetectionWindowMinutes} onChange={(e) => setSettingsData({ ...settingsData, duplicateDetectionWindowMinutes: parseInt(e.target.value) || 5 })} className="bg-white/5 border-white/10 text-white h-14 rounded-2xl font-black text-center" />
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-[10px] font-black text-white/40 uppercase tracking-[0.2em] px-4">สแปม (ข้อความ/นาที)</label>
+                        <Input variant="glass" type="number" min="2" max="30" value={settingsData.spamThresholdMessagesPerMinute} onChange={(e) => setSettingsData({ ...settingsData, spamThresholdMessagesPerMinute: parseInt(e.target.value) || 5 })} className="bg-white/5 border-white/10 text-white h-14 rounded-2xl font-black text-center" />
+                      </div>
+                    </div>
+
+                    {/* Intent Rules */}
+                    <div className="space-y-4">
+                      <label className="text-[10px] font-black text-white/40 uppercase tracking-[0.2em] px-4">กฎตอบตาม Intent</label>
+                      <div className="space-y-3">
+                        {([
+                          { key: 'deposit_issue', label: 'ปัญหาการฝากเงิน 💰', desc: 'AI ขอสลิป+แจ้งแอดมินตรวจ' },
+                          { key: 'duplicate_request', label: 'ส่งซ้ำ/ถามซ้ำ 🔄', desc: 'Template: "แอดมินกำลังตรวจสอบ"' },
+                          { key: 'frustrated', label: 'หงุดหงิด/ผิดหวัง 😤', desc: 'AI ให้กำลังใจ' },
+                          { key: 'abusive', label: 'ก้าวร้าว/สแปม 🚫', desc: 'ไม่ตอบ' },
+                          { key: 'ask_link', label: 'ขอลิงก์เข้าเล่น 🔗', desc: 'ส่งลิงก์ที่ตั้งค่า' },
+                          { key: 'ask_game_recommend', label: 'แนะนำเกม 🎮', desc: 'AI + Web Search' },
+                          { key: 'general', label: 'ทั่วไป 💬', desc: 'AI ตอบปกติ' },
+                        ] as const).map((item) => {
+                          const rule = settingsData.intentRules[item.key] || { enabled: true, useAi: true, customPrompt: '', responseTemplate: '' };
+                          const updateRule = (field: string, value: boolean | string) => {
+                            setSettingsData({
+                              ...settingsData,
+                              intentRules: {
+                                ...settingsData.intentRules,
+                                [item.key]: { ...rule, [field]: value },
+                              },
+                            });
+                          };
+                          return (
+                            <div key={item.key} className="bg-white/5 rounded-2xl p-5 space-y-3 border border-white/10">
+                              <div className="flex items-center justify-between">
+                                <div>
+                                  <p className="text-sm font-bold text-white">{item.label}</p>
+                                  <p className="text-[10px] text-white/40">{item.desc}</p>
+                                </div>
+                                <Switch checked={rule.enabled} onChange={(checked) => updateRule('enabled', checked)} />
+                              </div>
+                              {rule.enabled && (
+                                <div className="space-y-2 pt-2 border-t border-white/5">
+                                  <div className="flex items-center gap-3">
+                                    <label className="text-[9px] text-white/40 uppercase tracking-widest w-20">ใช้ AI</label>
+                                    <Switch checked={rule.useAi} onChange={(checked) => updateRule('useAi', checked)} />
+                                  </div>
+                                  {!rule.useAi && (
+                                    <div className="space-y-1">
+                                      <label className="text-[9px] text-white/40 uppercase tracking-widest">ข้อความตอบกลับ</label>
+                                      <Input variant="glass" value={rule.responseTemplate} onChange={(e) => updateRule('responseTemplate', e.target.value)} placeholder="__NO_RESPONSE__ = ไม่ตอบ, __SEND_LINKS__ = ส่งลิงก์" className="bg-white/5 border-white/5 text-white h-10 rounded-xl text-xs" />
+                                    </div>
+                                  )}
+                                  {rule.useAi && (
+                                    <div className="space-y-1">
+                                      <label className="text-[9px] text-white/40 uppercase tracking-widest">Custom Prompt (เพิ่มเติม)</label>
+                                      <Input variant="glass" value={rule.customPrompt} onChange={(e) => updateRule('customPrompt', e.target.value)} placeholder="บริบทเพิ่มเติมสำหรับ AI..." className="bg-white/5 border-white/5 text-white h-10 rounded-xl text-xs" />
+                                    </div>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    {/* Game Links */}
+                    <div className="space-y-4">
+                      <div className="flex items-center justify-between">
+                        <label className="text-[10px] font-black text-white/40 uppercase tracking-[0.2em] px-4">ลิงก์เข้าเล่น (สำหรับ ask_link intent)</label>
+                        <button
+                          type="button"
+                          onClick={() => setSettingsData({ ...settingsData, gameLinks: [...settingsData.gameLinks, { name: '', url: '' }] })}
+                          className="text-xs bg-violet-500/20 text-violet-300 px-3 py-1 rounded-xl hover:bg-violet-500/30 transition-colors font-bold"
+                        >
+                          + เพิ่มลิงก์
+                        </button>
+                      </div>
+                      {settingsData.gameLinks.map((link, idx) => (
+                        <div key={idx} className="flex gap-3 items-center">
+                          <Input
+                            variant="glass"
+                            value={link.name}
+                            onChange={(e) => {
+                              const updated = [...settingsData.gameLinks];
+                              updated[idx] = { ...updated[idx], name: e.target.value };
+                              setSettingsData({ ...settingsData, gameLinks: updated });
+                            }}
+                            placeholder="ชื่อ (เช่น ทางเข้าหลัก)"
+                            className="bg-white/5 border-white/5 text-white h-10 rounded-xl text-xs flex-1"
+                          />
+                          <Input
+                            variant="glass"
+                            value={link.url}
+                            onChange={(e) => {
+                              const updated = [...settingsData.gameLinks];
+                              updated[idx] = { ...updated[idx], url: e.target.value };
+                              setSettingsData({ ...settingsData, gameLinks: updated });
+                            }}
+                            placeholder="URL"
+                            className="bg-white/5 border-white/5 text-white h-10 rounded-xl text-xs flex-[2]"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const updated = settingsData.gameLinks.filter((_, i) => i !== idx);
+                              setSettingsData({ ...settingsData, gameLinks: updated });
+                            }}
+                            className="text-rose-400 hover:text-rose-300 transition-colors p-1"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
+                      ))}
+                      {settingsData.gameLinks.length === 0 && (
+                        <p className="text-[10px] text-white/20 px-4">ยังไม่มีลิงก์ — กดปุ่ม &quot;+ เพิ่มลิงก์&quot; เพื่อเพิ่ม</p>
+                      )}
+                    </div>
+                  </div>
+                )}
               </motion.div>
             )}
           </AnimatePresence>

@@ -3,6 +3,11 @@ import { MongooseModule } from '@nestjs/mongoose';
 import { ChatbotService } from './chatbot.service';
 import { ChatbotController } from './chatbot.controller';
 import { AiQuotaService } from './ai-quota.service';
+import { SpamDetectorService } from './spam-detector.service';
+import { DuplicateDetectorService } from './duplicate-detector.service';
+import { IntentClassifierService } from './intent-classifier.service';
+import { WebSearchService } from './web-search.service';
+import { SmartResponseService } from './smart-response.service';
 import { SystemSettingsModule } from '../system-settings/system-settings.module';
 import {
   AiQuotaReservation,
@@ -16,8 +21,20 @@ import {
       { name: AiQuotaReservation.name, schema: AiQuotaReservationSchema },
     ]),
   ],
-  providers: [ChatbotService, AiQuotaService],
+  providers: [
+    ChatbotService,
+    AiQuotaService,
+    SpamDetectorService,
+    DuplicateDetectorService,
+    IntentClassifierService,
+    WebSearchService,
+    SmartResponseService,
+  ],
   controllers: [ChatbotController],
-  exports: [ChatbotService, AiQuotaService],
+  exports: [
+    ChatbotService,
+    AiQuotaService,
+    SmartResponseService,
+  ],
 })
 export class ChatbotModule {}

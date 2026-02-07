@@ -57,6 +57,13 @@ export interface LineAccount {
   updatedAt: string;
 }
 
+export interface IntentRuleConfig {
+  enabled: boolean;
+  useAi: boolean;
+  customPrompt: string;
+  responseTemplate: string;
+}
+
 export interface LineAccountSettings {
   enableBot?: boolean;
   enableAi?: boolean;
@@ -87,6 +94,13 @@ export interface LineAccountSettings {
   sendMessageWhenAiDisabled?: boolean | null;
   sendMessageWhenAiQuotaExhausted?: boolean | null;
   sendProcessingMessage?: boolean;
+  // Smart AI
+  enableSmartAi?: boolean;
+  smartAiClassifierModel?: string;
+  duplicateDetectionWindowMinutes?: number;
+  spamThresholdMessagesPerMinute?: number;
+  gameLinks?: Array<{ name: string; url: string }>;
+  intentRules?: Record<string, IntentRuleConfig>;
 }
 
 export interface Package {

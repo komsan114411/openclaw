@@ -177,6 +177,38 @@ export class ChatbotService {
     }
   }
 
+  /**
+   * Single-turn OpenAI call for classification/short tasks.
+   * No chat history, reuses getOpenAIClient().
+   */
+  async classifyWithModel(
+    systemPrompt: string,
+    userMessage: string,
+    model: string,
+    maxTokens: number,
+    temperature: number,
+  ): Promise<string> {
+    const client = await this.getOpenAIClient();
+    if (!client) {
+      throw new Error('OpenAI client not configured');
+    }
+
+    const completion = await client.chat.completions.create(
+      {
+        model,
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userMessage },
+        ],
+        max_tokens: maxTokens,
+        temperature,
+      },
+      { timeout: 15000 },
+    );
+
+    return completion.choices[0]?.message?.content || '';
+  }
+
   async clearHistory(userId: string, lineAccountId?: string): Promise<void> {
     if (lineAccountId) {
       await this.redisService.del(`chat:${lineAccountId}:${userId}`);
