@@ -240,7 +240,9 @@ interface UpdatePackageData {
 // Packages API
 export const packagesApi = {
   getAll: (includeInactive?: boolean) =>
-    api.get('/packages', { params: { includeInactive } }),
+    includeInactive
+      ? api.get('/packages/admin/all', { params: { includeInactive } })
+      : api.get('/packages'),
   getById: (id: string) => api.get(`/packages/${id}`),
   create: (data: CreatePackageData) => api.post('/packages', data),
   update: (id: string, data: UpdatePackageData) => api.put(`/packages/${id}`, data),

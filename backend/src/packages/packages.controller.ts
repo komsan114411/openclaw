@@ -27,6 +27,8 @@ import { UserRole } from '../database/schemas/user.schema';
 import { WalletService } from '../wallet/wallet.service';
 import { RedisService } from '../redis/redis.service';
 import { PaymentsService } from '../payments/payments.service';
+import { ParseObjectIdPipe } from '../common/pipes/parse-object-id.pipe';
+import { RateLimitGuard, RateLimit } from '../common/guards/rate-limit.guard';
 
 @ApiTags('Packages')
 @ApiBearerAuth()
@@ -56,8 +58,23 @@ export class PackagesController {
   }
 
   @Get()
-  @ApiOperation({ summary: 'Get all packages' })
-  async findAll(@Query('includeInactive') includeInactive: boolean) {
+  @UseGuards(RateLimitGuard)
+  @RateLimit({ limit: 60, windowSeconds: 60, keyPrefix: 'public:packages' })
+  @ApiOperation({ summary: 'Get all active packages (public)' })
+  async findAll() {
+    // Public endpoint always returns active-only packages
+    const packages = await this.packagesService.findAll(false);
+    return {
+      success: true,
+      packages,
+    };
+  }
+
+  @Get('admin/all')
+  @UseGuards(SessionAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
+  @ApiOperation({ summary: 'Get all packages including inactive (Admin only)' })
+  async findAllAdmin(@Query('includeInactive') includeInactive: boolean) {
     const packages = await this.packagesService.findAll(includeInactive);
     return {
       success: true,
@@ -66,8 +83,10 @@ export class PackagesController {
   }
 
   @Get(':id')
+  @UseGuards(RateLimitGuard)
+  @RateLimit({ limit: 60, windowSeconds: 60, keyPrefix: 'public:package' })
   @ApiOperation({ summary: 'Get package by ID' })
-  async findOne(@Param('id') id: string) {
+  async findOne(@Param('id', ParseObjectIdPipe) id: string) {
     const pkg = await this.packagesService.findById(id);
     return {
       success: true,

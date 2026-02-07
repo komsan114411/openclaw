@@ -41,6 +41,11 @@ export class WebsocketService {
     return this.clients.size;
   }
 
+  isClientVerified(clientId: string): boolean {
+    const client = this.clients.get(clientId);
+    return !!(client?.userId);
+  }
+
   getAdminClients(): ClientInfo[] {
     return Array.from(this.clients.values()).filter(
       (client) => client.role === 'admin',

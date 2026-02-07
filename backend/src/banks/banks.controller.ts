@@ -19,6 +19,7 @@ import { Roles } from '../auth/decorators/roles.decorator';
 import { UserRole } from '../database/schemas/user.schema';
 import { BanksService } from './banks.service';
 import { ParseObjectIdPipe } from '../common/pipes/parse-object-id.pipe';
+import { RateLimitGuard, RateLimit } from '../common/guards/rate-limit.guard';
 
 @Controller()
 export class BanksController {
@@ -28,6 +29,8 @@ export class BanksController {
    * Get all banks (public)
    */
   @Get('banks')
+  @UseGuards(RateLimitGuard)
+  @RateLimit({ limit: 60, windowSeconds: 60, keyPrefix: 'public:banks' })
   async getAllBanks() {
     const banks = await this.banksService.getAll();
     return { success: true, banks };
@@ -37,6 +40,8 @@ export class BanksController {
    * Search banks (public)
    */
   @Get('banks/search')
+  @UseGuards(RateLimitGuard)
+  @RateLimit({ limit: 30, windowSeconds: 60, keyPrefix: 'public:banks-search' })
   async searchBanks(@Query('q') query: string) {
     const banks = await this.banksService.search(query || '');
     return { success: true, banks };

@@ -147,12 +147,12 @@ export class WebsocketGateway implements OnGatewayConnection, OnGatewayDisconnec
     @ConnectedSocket() client: Socket,
     @MessageBody() data: { userId: string; role: string; sessionId?: string },
   ) {
-    // SECURITY: Verify session before allowing admin room access
+    // SECURITY: Require valid session for all room joins
     if (data.sessionId) {
       try {
         const session = await this.authService.validateSession(data.sessionId);
         if (session) {
-          // Use verified session data
+          // Use verified session data — never trust client-supplied userId/role
           this.websocketService.setClientUser(client.id, session.userId, session.role);
           client.join(`user:${session.userId}`);
           if (session.role === 'admin') {
@@ -165,12 +165,16 @@ export class WebsocketGateway implements OnGatewayConnection, OnGatewayDisconnec
       }
     }
 
-    // For unauthenticated: allow basic join but NOT admin room
-    this.websocketService.setClientUser(client.id, data.userId, 'user');
-    client.join(`user:${data.userId}`);
-    // Do NOT allow joining 'admins' room without verified session
+    // No valid session — do NOT join any rooms
+    this.logger.warn(`Client ${client.id} attempted join without valid session`);
+    return { success: false, verified: false, message: 'Valid session required' };
+  }
 
-    return { success: true, verified: false };
+  /**
+   * Helper: check if a client has been verified via the join handler
+   */
+  private isClientVerified(clientId: string): boolean {
+    return this.websocketService.isClientVerified(clientId);
   }
 
   @SubscribeMessage('subscribe')
@@ -178,6 +182,12 @@ export class WebsocketGateway implements OnGatewayConnection, OnGatewayDisconnec
     @ConnectedSocket() client: Socket,
     @MessageBody() data: { channel: string },
   ) {
+    // SECURITY: Require verified session before subscribing to channels
+    if (!this.isClientVerified(client.id)) {
+      this.logger.warn(`[Subscribe] Rejected unverified client ${client.id} from "${data.channel}"`);
+      return { success: false, message: 'Authentication required. Call join with sessionId first.' };
+    }
+
     client.join(data.channel);
 
     // Get current room member count
@@ -206,6 +216,12 @@ export class WebsocketGateway implements OnGatewayConnection, OnGatewayDisconnec
     @ConnectedSocket() client: Socket,
     @MessageBody() data: { lineAccountId: string },
   ) {
+    // SECURITY: Require verified session
+    if (!this.isClientVerified(client.id)) {
+      this.logger.warn(`[SubscribeChat] Rejected unverified client ${client.id}`);
+      return { success: false, message: 'Authentication required' };
+    }
+
     const channel = `chat:${data.lineAccountId}`;
     client.join(channel);
     this.logger.log(`Client ${client.id} subscribed to chat: ${data.lineAccountId}`);
@@ -220,6 +236,12 @@ export class WebsocketGateway implements OnGatewayConnection, OnGatewayDisconnec
     @ConnectedSocket() client: Socket,
     @MessageBody() data: { bankAccountId: string },
   ) {
+    // SECURITY: Require verified session
+    if (!this.isClientVerified(client.id)) {
+      this.logger.warn(`[SubscribeBankAccount] Rejected unverified client ${client.id}`);
+      return { success: false, message: 'Authentication required' };
+    }
+
     const channel = `bank-account:${data.bankAccountId}`;
     client.join(channel);
     this.logger.log(`Client ${client.id} subscribed to bank account: ${data.bankAccountId}`);
