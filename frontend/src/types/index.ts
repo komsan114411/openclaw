@@ -62,6 +62,7 @@ export interface IntentRuleConfig {
   useAi: boolean;
   customPrompt: string;
   responseTemplate: string;
+  confidenceThreshold?: number;
 }
 
 export interface LineAccountSettings {
@@ -101,6 +102,13 @@ export interface LineAccountSettings {
   spamThresholdMessagesPerMinute?: number;
   gameLinks?: Array<{ name: string; url: string }>;
   intentRules?: Record<string, IntentRuleConfig>;
+  // Smart AI Advanced
+  smartAiConfidenceThreshold?: number;
+  smartAiMaxTokens?: number;
+  smartAiResponseDelayMs?: number;
+  smartAiMaxRetries?: number;
+  smartAiRetryDelayMs?: number;
+  smartAiFallbackAction?: string;
 }
 
 export interface Package {

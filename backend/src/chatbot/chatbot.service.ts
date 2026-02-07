@@ -54,6 +54,7 @@ export class ChatbotService {
     lineAccountId: string,
     systemPrompt?: string,
     accountModel?: string,  // AI Model สำหรับบัญชีนี้
+    maxTokens?: number,
   ): Promise<string> {
     // Input validation
     if (!message || message.trim().length === 0) {
@@ -98,7 +99,7 @@ export class ChatbotService {
         {
           model,
           messages,
-          max_tokens: 500,
+          max_tokens: maxTokens || 500,
           temperature: 0.7,
         },
         {

@@ -145,7 +145,29 @@ export class LineAccountSettings {
       general: { enabled: true, useAi: true, customPrompt: '', responseTemplate: '' },
     }),
   })
-  intentRules: Record<string, { enabled: boolean; useAi: boolean; customPrompt: string; responseTemplate: string }>;
+  intentRules: Record<string, { enabled: boolean; useAi: boolean; customPrompt: string; responseTemplate: string; confidenceThreshold?: number }>;
+
+  // ============================================
+  // Smart AI Advanced Settings
+  // ============================================
+
+  @Prop({ default: 0.6 })
+  smartAiConfidenceThreshold: number;
+
+  @Prop({ default: 500 })
+  smartAiMaxTokens: number;
+
+  @Prop({ default: 0 })
+  smartAiResponseDelayMs: number;
+
+  @Prop({ default: 2 })
+  smartAiMaxRetries: number;
+
+  @Prop({ default: 1000 })
+  smartAiRetryDelayMs: number;
+
+  @Prop({ default: 'fallback_message' })
+  smartAiFallbackAction: string;
 }
 
 @Schema({ _id: false })

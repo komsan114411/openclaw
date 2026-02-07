@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback, useRef } from 'react';
 import DashboardLayout from '@/components/layout/DashboardLayout';
-import { lineAccountsApi, usersApi, systemSettingsApi, lineSessionApi } from '@/lib/api';
+import { lineAccountsApi, usersApi, systemSettingsApi, lineSessionApi, chatbotApi } from '@/lib/api';
 import { useLoginNotifications } from '@/hooks';
 import { LineAccount, User, IntentRuleConfig } from '@/types';
 import toast from 'react-hot-toast';
@@ -53,7 +53,9 @@ import {
   Wallet,
   TrendingUp,
   TrendingDown,
-  Download
+  Download,
+  Send,
+  FlaskConical
 } from 'lucide-react';
 
 interface ExtendedLineAccount extends LineAccount {
@@ -447,11 +449,31 @@ export default function AdminLineAccountsPage() {
     spamThresholdMessagesPerMinute: 5,
     gameLinks: [] as Array<{ name: string; url: string }>,
     intentRules: {} as Record<string, IntentRuleConfig>,
+    // Smart AI Advanced
+    smartAiConfidenceThreshold: 0.6,
+    smartAiMaxTokens: 500,
+    smartAiResponseDelayMs: 0,
+    smartAiMaxRetries: 2,
+    smartAiRetryDelayMs: 1000,
+    smartAiFallbackAction: 'fallback_message',
   });
 
   // AI Settings from system
   const [globalAiEnabled, setGlobalAiEnabled] = useState<boolean>(true);
   const [allowedAiModels, setAllowedAiModels] = useState<string[]>([]);
+
+  // Test classification state
+  const [testMessage, setTestMessage] = useState('');
+  const [testResult, setTestResult] = useState<{
+    intent: string;
+    confidence: number;
+    thresholdUsed: number;
+    fellBelowThreshold: boolean;
+    wouldRespond: boolean;
+    sampleResponse: string | null;
+    processingTimeMs: number;
+  } | null>(null);
+  const [isTesting, setIsTesting] = useState(false);
 
   const processingIdsRef = useRef<Set<string>>(new Set());
 
@@ -698,6 +720,12 @@ export default function AdminLineAccountsPage() {
       spamThresholdMessagesPerMinute: s.spamThresholdMessagesPerMinute ?? 5,
       gameLinks: s.gameLinks || [],
       intentRules: { ...defaultIntentRules, ...(s.intentRules || {}) },
+      smartAiConfidenceThreshold: (s as Record<string, unknown>).smartAiConfidenceThreshold as number ?? 0.6,
+      smartAiMaxTokens: (s as Record<string, unknown>).smartAiMaxTokens as number ?? 500,
+      smartAiResponseDelayMs: (s as Record<string, unknown>).smartAiResponseDelayMs as number ?? 0,
+      smartAiMaxRetries: (s as Record<string, unknown>).smartAiMaxRetries as number ?? 2,
+      smartAiRetryDelayMs: (s as Record<string, unknown>).smartAiRetryDelayMs as number ?? 1000,
+      smartAiFallbackAction: (s as Record<string, unknown>).smartAiFallbackAction as string || 'fallback_message',
     });
     setShowSettingsModal(true);
   };
@@ -1998,47 +2026,112 @@ export default function AdminLineAccountsPage() {
 
                 {settingsData.enableSmartAi && (
                   <div className="space-y-8 relative z-10">
-                    {/* Classifier Model */}
-                    <div className="space-y-2">
-                      <label className="text-[10px] font-black text-white/40 uppercase tracking-[0.2em] px-4">Classifier Model (Stage 1)</label>
-                      <Select
-                        value={settingsData.smartAiClassifierModel}
-                        onChange={(e) => setSettingsData({ ...settingsData, smartAiClassifierModel: e.target.value })}
-                        className="bg-white/5 border-white/10 text-white h-14 rounded-2xl font-bold"
-                      >
-                        <option value="gpt-3.5-turbo">gpt-3.5-turbo (เร็ว/ถูก)</option>
-                        <option value="gpt-4o-mini">gpt-4o-mini (สมดุล)</option>
-                      </Select>
-                      <p className="text-[9px] text-white/30 px-4">Model สำหรับจำแนกประเภทข้อความ (ใช้ token น้อย)</p>
-                    </div>
 
-                    {/* Detection Settings */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {/* 1. Classification Engine */}
+                    <div className="space-y-4 bg-white/5 rounded-2xl p-6 border border-white/10">
+                      <h4 className="text-xs font-black text-violet-300 uppercase tracking-[0.15em]">1. Classification Engine</h4>
                       <div className="space-y-2">
-                        <label className="text-[10px] font-black text-white/40 uppercase tracking-[0.2em] px-4">ตรวจจับข้อความซ้ำ (นาที)</label>
-                        <Input variant="glass" type="number" min="1" max="60" value={settingsData.duplicateDetectionWindowMinutes} onChange={(e) => setSettingsData({ ...settingsData, duplicateDetectionWindowMinutes: parseInt(e.target.value) || 5 })} className="bg-white/5 border-white/10 text-white h-14 rounded-2xl font-black text-center" />
+                        <label className="text-[10px] font-black text-white/40 uppercase tracking-[0.2em] px-1">Classifier Model (Stage 1)</label>
+                        <Select
+                          value={settingsData.smartAiClassifierModel}
+                          onChange={(e) => setSettingsData({ ...settingsData, smartAiClassifierModel: e.target.value })}
+                          className="bg-white/5 border-white/10 text-white h-14 rounded-2xl font-bold"
+                        >
+                          <option value="gpt-3.5-turbo">gpt-3.5-turbo (เร็ว/ถูก)</option>
+                          <option value="gpt-4o-mini">gpt-4o-mini (สมดุล)</option>
+                        </Select>
+                        <p className="text-[9px] text-white/30 px-1">Model สำหรับจำแนกประเภทข้อความ (ใช้ token น้อย)</p>
                       </div>
                       <div className="space-y-2">
-                        <label className="text-[10px] font-black text-white/40 uppercase tracking-[0.2em] px-4">สแปม (ข้อความ/นาที)</label>
-                        <Input variant="glass" type="number" min="2" max="30" value={settingsData.spamThresholdMessagesPerMinute} onChange={(e) => setSettingsData({ ...settingsData, spamThresholdMessagesPerMinute: parseInt(e.target.value) || 5 })} className="bg-white/5 border-white/10 text-white h-14 rounded-2xl font-black text-center" />
+                        <label className="text-[10px] font-black text-white/40 uppercase tracking-[0.2em] px-1">Global Confidence Threshold</label>
+                        <div className="flex items-center gap-4">
+                          <input
+                            type="range"
+                            min="0" max="1" step="0.05"
+                            value={settingsData.smartAiConfidenceThreshold}
+                            onChange={(e) => setSettingsData({ ...settingsData, smartAiConfidenceThreshold: parseFloat(e.target.value) })}
+                            className="flex-1 accent-violet-500"
+                          />
+                          <span className="text-sm font-black text-violet-300 w-12 text-center">{settingsData.smartAiConfidenceThreshold.toFixed(2)}</span>
+                        </div>
+                        <p className="text-[9px] text-white/30 px-1">ค่าต่ำสุด confidence ที่จะใช้กฎ intent (ต่ำกว่านี้ fallback เป็น general)</p>
                       </div>
                     </div>
 
-                    {/* Intent Rules */}
-                    <div className="space-y-4">
-                      <label className="text-[10px] font-black text-white/40 uppercase tracking-[0.2em] px-4">กฎตอบตาม Intent</label>
+                    {/* 2. Detection & Protection */}
+                    <div className="space-y-4 bg-white/5 rounded-2xl p-6 border border-white/10">
+                      <h4 className="text-xs font-black text-violet-300 uppercase tracking-[0.15em]">2. Detection & Protection</h4>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div className="space-y-2">
+                          <label className="text-[10px] font-black text-white/40 uppercase tracking-[0.2em] px-1">ตรวจจับข้อความซ้ำ (นาที)</label>
+                          <Input variant="glass" type="number" min="1" max="60" value={settingsData.duplicateDetectionWindowMinutes} onChange={(e) => setSettingsData({ ...settingsData, duplicateDetectionWindowMinutes: parseInt(e.target.value) || 5 })} className="bg-white/5 border-white/10 text-white h-14 rounded-2xl font-black text-center" />
+                        </div>
+                        <div className="space-y-2">
+                          <label className="text-[10px] font-black text-white/40 uppercase tracking-[0.2em] px-1">สแปม (ข้อความ/นาที)</label>
+                          <Input variant="glass" type="number" min="2" max="30" value={settingsData.spamThresholdMessagesPerMinute} onChange={(e) => setSettingsData({ ...settingsData, spamThresholdMessagesPerMinute: parseInt(e.target.value) || 5 })} className="bg-white/5 border-white/10 text-white h-14 rounded-2xl font-black text-center" />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* 3. AI Response Settings */}
+                    <div className="space-y-4 bg-white/5 rounded-2xl p-6 border border-white/10">
+                      <h4 className="text-xs font-black text-violet-300 uppercase tracking-[0.15em]">3. AI Response Settings</h4>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div className="space-y-2">
+                          <label className="text-[10px] font-black text-white/40 uppercase tracking-[0.2em] px-1">Max Tokens (100-4000)</label>
+                          <Input variant="glass" type="number" min="100" max="4000" step="50" value={settingsData.smartAiMaxTokens} onChange={(e) => setSettingsData({ ...settingsData, smartAiMaxTokens: parseInt(e.target.value) || 500 })} className="bg-white/5 border-white/10 text-white h-14 rounded-2xl font-black text-center" />
+                          <p className="text-[9px] text-white/30 px-1">จำนวน token สูงสุด (มาก = ตอบยาวขึ้น)</p>
+                        </div>
+                        <div className="space-y-2">
+                          <label className="text-[10px] font-black text-white/40 uppercase tracking-[0.2em] px-1">Response Delay (ms)</label>
+                          <Input variant="glass" type="number" min="0" max="5000" step="100" value={settingsData.smartAiResponseDelayMs} onChange={(e) => setSettingsData({ ...settingsData, smartAiResponseDelayMs: parseInt(e.target.value) || 0 })} className="bg-white/5 border-white/10 text-white h-14 rounded-2xl font-black text-center" />
+                          <p className="text-[9px] text-white/30 px-1">หน่วงเวลาจำลองพิมพ์ (0 = ทันที)</p>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* 4. Retry & Fallback */}
+                    <div className="space-y-4 bg-white/5 rounded-2xl p-6 border border-white/10">
+                      <h4 className="text-xs font-black text-violet-300 uppercase tracking-[0.15em]">4. Retry & Fallback</h4>
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <div className="space-y-2">
+                          <label className="text-[10px] font-black text-white/40 uppercase tracking-[0.2em] px-1">Max Retries (0-5)</label>
+                          <Input variant="glass" type="number" min="0" max="5" value={settingsData.smartAiMaxRetries} onChange={(e) => setSettingsData({ ...settingsData, smartAiMaxRetries: parseInt(e.target.value) || 0 })} className="bg-white/5 border-white/10 text-white h-14 rounded-2xl font-black text-center" />
+                        </div>
+                        <div className="space-y-2">
+                          <label className="text-[10px] font-black text-white/40 uppercase tracking-[0.2em] px-1">Retry Delay (ms)</label>
+                          <Input variant="glass" type="number" min="500" max="10000" step="500" value={settingsData.smartAiRetryDelayMs} onChange={(e) => setSettingsData({ ...settingsData, smartAiRetryDelayMs: parseInt(e.target.value) || 1000 })} className="bg-white/5 border-white/10 text-white h-14 rounded-2xl font-black text-center" />
+                        </div>
+                        <div className="space-y-2">
+                          <label className="text-[10px] font-black text-white/40 uppercase tracking-[0.2em] px-1">Fallback Action</label>
+                          <Select
+                            value={settingsData.smartAiFallbackAction}
+                            onChange={(e) => setSettingsData({ ...settingsData, smartAiFallbackAction: e.target.value })}
+                            className="bg-white/5 border-white/10 text-white h-14 rounded-2xl font-bold"
+                          >
+                            <option value="fallback_message">ส่งข้อความ fallback</option>
+                            <option value="legacy_ai">ใช้ AI แบบเดิม</option>
+                            <option value="no_response">ไม่ตอบ</option>
+                          </Select>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* 5. Intent Rules */}
+                    <div className="space-y-4 bg-white/5 rounded-2xl p-6 border border-white/10">
+                      <h4 className="text-xs font-black text-violet-300 uppercase tracking-[0.15em]">5. Intent Rules</h4>
                       <div className="space-y-3">
                         {([
-                          { key: 'deposit_issue', label: 'ปัญหาการฝากเงิน 💰', desc: 'AI ขอสลิป+แจ้งแอดมินตรวจ' },
-                          { key: 'duplicate_request', label: 'ส่งซ้ำ/ถามซ้ำ 🔄', desc: 'Template: "แอดมินกำลังตรวจสอบ"' },
-                          { key: 'frustrated', label: 'หงุดหงิด/ผิดหวัง 😤', desc: 'AI ให้กำลังใจ' },
-                          { key: 'abusive', label: 'ก้าวร้าว/สแปม 🚫', desc: 'ไม่ตอบ' },
-                          { key: 'ask_link', label: 'ขอลิงก์เข้าเล่น 🔗', desc: 'ส่งลิงก์ที่ตั้งค่า' },
-                          { key: 'ask_game_recommend', label: 'แนะนำเกม 🎮', desc: 'AI + Web Search' },
-                          { key: 'general', label: 'ทั่วไป 💬', desc: 'AI ตอบปกติ' },
+                          { key: 'deposit_issue', label: 'ปัญหาการฝากเงิน', desc: 'AI ขอสลิป+แจ้งแอดมินตรวจ' },
+                          { key: 'duplicate_request', label: 'ส่งซ้ำ/ถามซ้ำ', desc: 'Template: "แอดมินกำลังตรวจสอบ"' },
+                          { key: 'frustrated', label: 'หงุดหงิด/ผิดหวัง', desc: 'AI ให้กำลังใจ' },
+                          { key: 'abusive', label: 'ก้าวร้าว/สแปม', desc: 'ไม่ตอบ' },
+                          { key: 'ask_link', label: 'ขอลิงก์เข้าเล่น', desc: 'ส่งลิงก์ที่ตั้งค่า' },
+                          { key: 'ask_game_recommend', label: 'แนะนำเกม', desc: 'AI + Web Search' },
+                          { key: 'general', label: 'ทั่วไป', desc: 'AI ตอบปกติ' },
                         ] as const).map((item) => {
                           const rule = settingsData.intentRules[item.key] || { enabled: true, useAi: true, customPrompt: '', responseTemplate: '' };
-                          const updateRule = (field: string, value: boolean | string) => {
+                          const updateRule = (field: string, value: boolean | string | number | undefined) => {
                             setSettingsData({
                               ...settingsData,
                               intentRules: {
@@ -2074,6 +2167,23 @@ export default function AdminLineAccountsPage() {
                                       <Input variant="glass" value={rule.customPrompt} onChange={(e) => updateRule('customPrompt', e.target.value)} placeholder="บริบทเพิ่มเติมสำหรับ AI..." className="bg-white/5 border-white/5 text-white h-10 rounded-xl text-xs" />
                                     </div>
                                   )}
+                                  {item.key !== 'general' && (
+                                    <div className="space-y-1">
+                                      <label className="text-[9px] text-white/40 uppercase tracking-widest">Confidence Threshold (ว่าง = ใช้ global {settingsData.smartAiConfidenceThreshold})</label>
+                                      <Input
+                                        variant="glass"
+                                        type="number"
+                                        min="0" max="1" step="0.05"
+                                        value={rule.confidenceThreshold ?? ''}
+                                        onChange={(e) => {
+                                          const val = e.target.value;
+                                          updateRule('confidenceThreshold', val === '' ? undefined : parseFloat(val));
+                                        }}
+                                        placeholder={`${settingsData.smartAiConfidenceThreshold}`}
+                                        className="bg-white/5 border-white/5 text-white h-10 rounded-xl text-xs w-32"
+                                      />
+                                    </div>
+                                  )}
                                 </div>
                               )}
                             </div>
@@ -2082,10 +2192,10 @@ export default function AdminLineAccountsPage() {
                       </div>
                     </div>
 
-                    {/* Game Links */}
-                    <div className="space-y-4">
+                    {/* 6. Game Links */}
+                    <div className="space-y-4 bg-white/5 rounded-2xl p-6 border border-white/10">
                       <div className="flex items-center justify-between">
-                        <label className="text-[10px] font-black text-white/40 uppercase tracking-[0.2em] px-4">ลิงก์เข้าเล่น (สำหรับ ask_link intent)</label>
+                        <h4 className="text-xs font-black text-violet-300 uppercase tracking-[0.15em]">6. Game Links (ask_link intent)</h4>
                         <button
                           type="button"
                           onClick={() => setSettingsData({ ...settingsData, gameLinks: [...settingsData.gameLinks, { name: '', url: '' }] })}
@@ -2131,9 +2241,111 @@ export default function AdminLineAccountsPage() {
                         </div>
                       ))}
                       {settingsData.gameLinks.length === 0 && (
-                        <p className="text-[10px] text-white/20 px-4">ยังไม่มีลิงก์ — กดปุ่ม &quot;+ เพิ่มลิงก์&quot; เพื่อเพิ่ม</p>
+                        <p className="text-[10px] text-white/20 px-1">ยังไม่มีลิงก์ — กดปุ่ม &quot;+ เพิ่มลิงก์&quot; เพื่อเพิ่ม</p>
                       )}
                     </div>
+
+                    {/* 7. Test Classification */}
+                    <div className="space-y-4 bg-white/5 rounded-2xl p-6 border border-violet-500/30">
+                      <h4 className="text-xs font-black text-violet-300 uppercase tracking-[0.15em] flex items-center gap-2">
+                        <FlaskConical size={14} /> 7. Test Classification
+                      </h4>
+                      <div className="flex gap-3">
+                        <Input
+                          variant="glass"
+                          value={testMessage}
+                          onChange={(e) => setTestMessage(e.target.value)}
+                          placeholder="พิมพ์ข้อความทดสอบ..."
+                          className="bg-white/5 border-white/10 text-white h-12 rounded-xl text-sm flex-1"
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter' && testMessage.trim() && selectedAccount && !isTesting) {
+                              setIsTesting(true);
+                              setTestResult(null);
+                              chatbotApi.testClassification(testMessage, selectedAccount._id)
+                                .then((res) => setTestResult(res.data))
+                                .catch(() => toast.error('ทดสอบไม่สำเร็จ'))
+                                .finally(() => setIsTesting(false));
+                            }
+                          }}
+                        />
+                        <button
+                          type="button"
+                          disabled={!testMessage.trim() || isTesting}
+                          onClick={() => {
+                            if (!selectedAccount) return;
+                            setIsTesting(true);
+                            setTestResult(null);
+                            chatbotApi.testClassification(testMessage, selectedAccount._id)
+                              .then((res) => setTestResult(res.data))
+                              .catch(() => toast.error('ทดสอบไม่สำเร็จ'))
+                              .finally(() => setIsTesting(false));
+                          }}
+                          className="px-5 h-12 bg-violet-600 hover:bg-violet-500 disabled:opacity-40 text-white rounded-xl font-bold text-sm flex items-center gap-2 transition-colors"
+                        >
+                          {isTesting ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
+                          ทดสอบ
+                        </button>
+                      </div>
+                      {testResult && (
+                        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="bg-black/30 rounded-2xl p-5 space-y-4 border border-white/10">
+                          <div className="flex items-center gap-3 flex-wrap">
+                            <Badge className={cn(
+                              'font-black text-xs px-3 py-1 rounded-lg border-none',
+                              testResult.fellBelowThreshold
+                                ? 'bg-amber-500/20 text-amber-300'
+                                : testResult.confidence >= 0.8
+                                  ? 'bg-emerald-500/20 text-emerald-300'
+                                  : 'bg-blue-500/20 text-blue-300'
+                            )}>
+                              {testResult.intent}
+                            </Badge>
+                            {testResult.fellBelowThreshold && (
+                              <span className="text-[10px] text-amber-400 font-bold">BELOW THRESHOLD</span>
+                            )}
+                            <span className="text-[10px] text-white/40 ml-auto">{testResult.processingTimeMs}ms</span>
+                          </div>
+
+                          {/* Confidence bar */}
+                          <div className="space-y-1">
+                            <div className="flex justify-between text-[10px]">
+                              <span className="text-white/40">Confidence</span>
+                              <span className={cn('font-black', testResult.confidence >= testResult.thresholdUsed ? 'text-emerald-400' : 'text-rose-400')}>
+                                {(testResult.confidence * 100).toFixed(1)}%
+                              </span>
+                            </div>
+                            <div className="h-2 bg-white/10 rounded-full overflow-hidden relative">
+                              <div
+                                className={cn(
+                                  'h-full rounded-full transition-all',
+                                  testResult.confidence >= testResult.thresholdUsed ? 'bg-emerald-500' : 'bg-rose-500'
+                                )}
+                                style={{ width: `${Math.min(testResult.confidence * 100, 100)}%` }}
+                              />
+                              {/* Threshold marker */}
+                              <div
+                                className="absolute top-0 h-full w-0.5 bg-white/60"
+                                style={{ left: `${testResult.thresholdUsed * 100}%` }}
+                              />
+                            </div>
+                            <p className="text-[9px] text-white/30">Threshold: {testResult.thresholdUsed}</p>
+                          </div>
+
+                          <div className="flex gap-4 text-[10px]">
+                            <span className="text-white/40">ตอบกลับ: <span className={testResult.wouldRespond ? 'text-emerald-400 font-bold' : 'text-rose-400 font-bold'}>{testResult.wouldRespond ? 'ใช่' : 'ไม่'}</span></span>
+                          </div>
+
+                          {testResult.sampleResponse && (
+                            <div className="space-y-1">
+                              <p className="text-[9px] text-white/40 uppercase tracking-widest">ตัวอย่าง Response</p>
+                              <div className="bg-white/5 rounded-xl p-3 text-xs text-white/80 whitespace-pre-wrap max-h-40 overflow-y-auto">
+                                {testResult.sampleResponse}
+                              </div>
+                            </div>
+                          )}
+                        </motion.div>
+                      )}
+                    </div>
+
                   </div>
                 )}
               </motion.div>

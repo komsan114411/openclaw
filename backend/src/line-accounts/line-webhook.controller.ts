@@ -840,6 +840,12 @@ export class LineWebhookController {
             intentRules: account.settings?.intentRules || {},
             aiSystemPrompt: account.settings?.aiSystemPrompt,
             aiModel: account.settings?.aiModel,
+            smartAiConfidenceThreshold: account.settings?.smartAiConfidenceThreshold ?? 0.6,
+            smartAiMaxTokens: account.settings?.smartAiMaxTokens ?? 500,
+            smartAiResponseDelayMs: account.settings?.smartAiResponseDelayMs ?? 0,
+            smartAiMaxRetries: account.settings?.smartAiMaxRetries ?? 2,
+            smartAiRetryDelayMs: account.settings?.smartAiRetryDelayMs ?? 1000,
+            smartAiFallbackAction: account.settings?.smartAiFallbackAction || 'fallback_message',
           },
         );
 

@@ -7,14 +7,19 @@ import {
   Param,
   Query,
   Logger,
+  BadRequestException,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
+import { InjectModel } from '@nestjs/mongoose';
+import { Model } from 'mongoose';
 import { ChatbotService } from './chatbot.service';
+import { SmartResponseService } from './smart-response.service';
 import { SessionAuthGuard } from '../auth/guards/session-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { UserRole } from '../database/schemas/user.schema';
 import { SystemSettingsService } from '../system-settings/system-settings.service';
+import { LineAccount, LineAccountDocument } from '../database/schemas/line-account.schema';
 
 @ApiTags('Chatbot')
 @ApiBearerAuth()
@@ -25,7 +30,9 @@ export class ChatbotController {
 
   constructor(
     private chatbotService: ChatbotService,
+    private smartResponseService: SmartResponseService,
     private systemSettingsService: SystemSettingsService,
+    @InjectModel(LineAccount.name) private lineAccountModel: Model<LineAccountDocument>,
   ) {}
 
   @Post('test')
@@ -75,6 +82,46 @@ export class ChatbotController {
 
     const result = await this.chatbotService.testConnection(keyToTest);
     return result;
+  }
+
+  @Post('test-classification')
+  @UseGuards(RolesGuard)
+  @Roles(UserRole.ADMIN)
+  @ApiOperation({ summary: 'Test Smart AI intent classification (Admin only)' })
+  async testClassification(
+    @Body() body: { message: string; lineAccountId: string },
+  ) {
+    if (!body.message || !body.lineAccountId) {
+      throw new BadRequestException('message and lineAccountId are required');
+    }
+
+    const account = await this.lineAccountModel.findById(body.lineAccountId);
+    if (!account) {
+      throw new BadRequestException('LINE account not found');
+    }
+
+    const s = account.settings;
+    const result = await this.smartResponseService.testClassification(
+      body.message,
+      {
+        enableSmartAi: true,
+        smartAiClassifierModel: s?.smartAiClassifierModel || 'gpt-3.5-turbo',
+        duplicateDetectionWindowMinutes: s?.duplicateDetectionWindowMinutes ?? 5,
+        spamThresholdMessagesPerMinute: s?.spamThresholdMessagesPerMinute ?? 5,
+        gameLinks: s?.gameLinks || [],
+        intentRules: s?.intentRules || {},
+        aiSystemPrompt: s?.aiSystemPrompt,
+        aiModel: s?.aiModel,
+        smartAiConfidenceThreshold: s?.smartAiConfidenceThreshold ?? 0.6,
+        smartAiMaxTokens: s?.smartAiMaxTokens ?? 500,
+        smartAiResponseDelayMs: 0, // No delay for testing
+        smartAiMaxRetries: 1, // Single attempt for testing
+        smartAiRetryDelayMs: 0,
+        smartAiFallbackAction: s?.smartAiFallbackAction || 'fallback_message',
+      },
+    );
+
+    return { success: true, ...result };
   }
 
   @Delete('history/:userId')

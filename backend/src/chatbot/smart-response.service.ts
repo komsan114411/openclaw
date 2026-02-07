@@ -8,6 +8,7 @@ import {
   SmartAiIntent,
   IntentRuleConfig,
   SmartResponseResult,
+  IntentTestResult,
   GameLink,
 } from './types/smart-ai.types';
 
@@ -20,6 +21,16 @@ interface SmartAiSettings {
   intentRules: Record<string, IntentRuleConfig>;
   aiSystemPrompt?: string;
   aiModel?: string;
+  smartAiConfidenceThreshold?: number;
+  smartAiMaxTokens?: number;
+  smartAiResponseDelayMs?: number;
+  smartAiMaxRetries?: number;
+  smartAiRetryDelayMs?: number;
+  smartAiFallbackAction?: string;
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 @Injectable()
@@ -163,39 +174,48 @@ export class SmartResponseService {
     wasDuplicateDetected: boolean,
   ): Promise<SmartResponseResult> {
     const rules = settings.intentRules || {};
-    const rule: IntentRuleConfig = rules[intent] || {
+    let currentRule: IntentRuleConfig = rules[intent] || {
       enabled: true,
       useAi: true,
       customPrompt: '',
       responseTemplate: '',
     };
 
-    // If rule is disabled, don't respond
-    if (!rule.enabled) {
-      return {
-        shouldRespond: false,
-        response: null,
-        intent,
-        confidence,
-        processingTimeMs: Date.now() - startTime,
-        wasSpamDetected,
-        wasDuplicateDetected,
-      };
+    // Confidence threshold check: per-intent override > global threshold
+    const globalThreshold = settings.smartAiConfidenceThreshold ?? 0.6;
+    const threshold = currentRule.confidenceThreshold ?? globalThreshold;
+    let fellBelowThreshold = false;
+
+    if (intent !== 'general' && confidence < threshold) {
+      this.logger.log(
+        `[SMART-AI] Confidence ${confidence} below threshold ${threshold} for intent ${intent}, falling back to general`,
+      );
+      fellBelowThreshold = true;
+      intent = 'general';
+      currentRule = rules['general'] || { enabled: true, useAi: true, customPrompt: '', responseTemplate: '' };
     }
 
-    const template = rule.responseTemplate || '';
+    const makeResult = (shouldRespond: boolean, response: string | null): SmartResponseResult => ({
+      shouldRespond,
+      response,
+      intent,
+      confidence,
+      processingTimeMs: Date.now() - startTime,
+      wasSpamDetected,
+      wasDuplicateDetected,
+      fellBelowThreshold,
+    });
+
+    // If rule is disabled, don't respond
+    if (!currentRule.enabled) {
+      return makeResult(false, null);
+    }
+
+    const template = currentRule.responseTemplate || '';
 
     // Handle __NO_RESPONSE__
     if (template === '__NO_RESPONSE__') {
-      return {
-        shouldRespond: false,
-        response: null,
-        intent,
-        confidence,
-        processingTimeMs: Date.now() - startTime,
-        wasSpamDetected,
-        wasDuplicateDetected,
-      };
+      return makeResult(false, null);
     }
 
     // Handle __SEND_LINKS__
@@ -208,31 +228,72 @@ export class SmartResponseService {
         responseText = '🔗 ลิงก์เข้าเล่น:\n' +
           links.map((l) => `▸ ${l.name}: ${l.url}`).join('\n');
       }
-      return {
-        shouldRespond: true,
-        response: responseText,
-        intent,
-        confidence,
-        processingTimeMs: Date.now() - startTime,
-        wasSpamDetected,
-        wasDuplicateDetected,
-      };
+      return makeResult(true, responseText);
     }
 
     // If useAi is false, return the template
-    if (!rule.useAi && template) {
-      return {
-        shouldRespond: true,
-        response: template,
-        intent,
-        confidence,
-        processingTimeMs: Date.now() - startTime,
-        wasSpamDetected,
-        wasDuplicateDetected,
-      };
+    if (!currentRule.useAi && template) {
+      return makeResult(true, template);
+    }
+
+    // Response delay (simulate typing)
+    const delayMs = settings.smartAiResponseDelayMs ?? 0;
+    if (delayMs > 0) {
+      await sleep(delayMs);
     }
 
     // useAi is true — build specialized prompt and call AI
+    const fullPrompt = this.buildPrompt(intent, currentRule, settings, message);
+
+    // Retry logic for AI call
+    const maxRetries = settings.smartAiMaxRetries ?? 2;
+    const retryDelay = settings.smartAiRetryDelayMs ?? 1000;
+    const maxTokens = settings.smartAiMaxTokens ?? 500;
+
+    let lastError: Error | null = null;
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        const aiResponse = await this.chatbotService.getResponse(
+          message,
+          userId,
+          lineAccountId,
+          fullPrompt,
+          settings.aiModel,
+          maxTokens,
+        );
+        return makeResult(true, aiResponse);
+      } catch (error) {
+        lastError = error as Error;
+        this.logger.warn(`[SMART-AI] AI attempt ${attempt}/${maxRetries} failed:`, error);
+        if (attempt < maxRetries) {
+          await sleep(retryDelay);
+        }
+      }
+    }
+
+    // All retries failed — apply fallback action
+    this.logger.error('[SMART-AI] All AI retries failed:', lastError);
+    const fallbackAction = settings.smartAiFallbackAction || 'fallback_message';
+
+    switch (fallbackAction) {
+      case 'legacy_ai':
+        // Return null response — caller will use legacy chatbot.getResponse()
+        return makeResult(true, null);
+      case 'no_response':
+        return makeResult(false, null);
+      case 'fallback_message':
+      default:
+        // Return null to let caller use the aiFallbackMessage
+        return makeResult(true, null);
+    }
+  }
+
+  private buildPrompt(
+    intent: SmartAiIntent,
+    rule: IntentRuleConfig,
+    settings: SmartAiSettings,
+    message: string,
+  ): string {
     let contextPrompt = '';
     switch (intent) {
       case 'deposit_issue':
@@ -243,53 +304,112 @@ export class SmartResponseService {
         contextPrompt =
           'ลูกค้ารู้สึกหงุดหงิดหรือผิดหวัง ให้กำลังใจ แนะนำให้ลองเปลี่ยนเกม หรือพักผ่อนสักครู่แล้วกลับมาเล่นใหม่';
         break;
-      case 'ask_game_recommend': {
-        const webResults = await this.webSearchService.searchGameRecommendations(message);
-        contextPrompt = `ลูกค้าถามแนะนำเกม ให้แนะนำเกมที่น่าสนใจ โดยอ้างอิงข้อมูลด้านล่าง:\n\n${webResults}`;
+      case 'ask_game_recommend':
+        contextPrompt = 'ลูกค้าถามแนะนำเกม ให้แนะนำเกมที่น่าสนใจ';
         break;
-      }
       default:
         contextPrompt = '';
     }
 
-    // Combine system prompt with context
     const basePrompt =
       settings.aiSystemPrompt ||
       'คุณเป็นผู้ช่วยที่เป็นมิตรและให้ข้อมูลที่เป็นประโยชน์ ตอบเป็นภาษาไทย ตอบให้กระชับและตรงประเด็น';
-    const fullPrompt = contextPrompt
-      ? `${basePrompt}\n\nบริบทเพิ่มเติม: ${rule.customPrompt || contextPrompt}`
-      : rule.customPrompt
-        ? `${basePrompt}\n\nบริบทเพิ่มเติม: ${rule.customPrompt}`
-        : basePrompt;
+
+    if (contextPrompt) {
+      return `${basePrompt}\n\nบริบทเพิ่มเติม: ${rule.customPrompt || contextPrompt}`;
+    }
+    if (rule.customPrompt) {
+      return `${basePrompt}\n\nบริบทเพิ่มเติม: ${rule.customPrompt}`;
+    }
+    return basePrompt;
+  }
+
+  /**
+   * Test classification without sending LINE message.
+   * Used by the admin test-classification endpoint.
+   */
+  async testClassification(
+    message: string,
+    settings: SmartAiSettings,
+  ): Promise<IntentTestResult> {
+    const startTime = Date.now();
 
     try {
-      const aiResponse = await this.chatbotService.getResponse(
+      // Stage 1: Classify intent
+      const classificationResult = await this.intentClassifier.classifyIntent(
         message,
-        userId,
-        lineAccountId,
-        fullPrompt,
-        settings.aiModel,
+        settings.smartAiClassifierModel || 'gpt-3.5-turbo',
       );
 
+      const originalIntent = classificationResult.intent;
+      const confidence = classificationResult.confidence;
+      let intent: SmartAiIntent = originalIntent;
+
+      // Determine threshold
+      const rules = settings.intentRules || {};
+      const rule = rules[intent] || { enabled: true, useAi: true, customPrompt: '', responseTemplate: '' };
+      const globalThreshold = settings.smartAiConfidenceThreshold ?? 0.6;
+      const threshold = rule.confidenceThreshold ?? globalThreshold;
+      let fellBelowThreshold = false;
+
+      if (intent !== 'general' && confidence < threshold) {
+        fellBelowThreshold = true;
+        intent = 'general';
+      }
+
+      // Determine if it would respond
+      const finalRule = rules[intent] || { enabled: true, useAi: true, customPrompt: '', responseTemplate: '' };
+      let wouldRespond = finalRule.enabled;
+      const template = finalRule.responseTemplate || '';
+      if (template === '__NO_RESPONSE__') wouldRespond = false;
+
+      // Generate sample response
+      let sampleResponse: string | null = null;
+      if (wouldRespond) {
+        if (template === '__SEND_LINKS__') {
+          const links = settings.gameLinks || [];
+          sampleResponse = links.length === 0
+            ? 'ขออภัยค่ะ ยังไม่มีลิงก์ที่ตั้งค่าไว้'
+            : '🔗 ลิงก์เข้าเล่น:\n' + links.map((l) => `▸ ${l.name}: ${l.url}`).join('\n');
+        } else if (!finalRule.useAi && template) {
+          sampleResponse = template;
+        } else if (finalRule.useAi) {
+          // Build prompt and get sample AI response (use test user)
+          const fullPrompt = this.buildPrompt(intent, finalRule, settings, message);
+          try {
+            sampleResponse = await this.chatbotService.getResponse(
+              message,
+              'test-user',
+              'test-classification',
+              fullPrompt,
+              settings.aiModel,
+              settings.smartAiMaxTokens ?? 500,
+            );
+          } catch {
+            sampleResponse = '[AI ไม่สามารถสร้างตัวอย่างได้]';
+          }
+        }
+      }
+
       return {
-        shouldRespond: true,
-        response: aiResponse,
         intent,
         confidence,
+        thresholdUsed: threshold,
+        fellBelowThreshold,
+        wouldRespond,
+        sampleResponse,
         processingTimeMs: Date.now() - startTime,
-        wasSpamDetected,
-        wasDuplicateDetected,
       };
     } catch (error) {
-      this.logger.error('[SMART-AI] AI response failed:', error);
+      this.logger.error('[SMART-AI] Test classification error:', error);
       return {
-        shouldRespond: true,
-        response: null, // Let the caller handle with fallback
-        intent,
-        confidence,
+        intent: 'general',
+        confidence: 0,
+        thresholdUsed: settings.smartAiConfidenceThreshold ?? 0.6,
+        fellBelowThreshold: false,
+        wouldRespond: false,
+        sampleResponse: null,
         processingTimeMs: Date.now() - startTime,
-        wasSpamDetected,
-        wasDuplicateDetected,
       };
     }
   }

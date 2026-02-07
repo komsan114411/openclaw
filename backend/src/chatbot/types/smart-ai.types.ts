@@ -12,6 +12,7 @@ export interface IntentRuleConfig {
   useAi: boolean;
   customPrompt: string;
   responseTemplate: string; // '__NO_RESPONSE__' | '__SEND_LINKS__' | custom text
+  confidenceThreshold?: number; // per-intent override (0.0-1.0), empty = use global
 }
 
 export interface SmartResponseResult {
@@ -22,6 +23,17 @@ export interface SmartResponseResult {
   processingTimeMs: number;
   wasSpamDetected: boolean;
   wasDuplicateDetected: boolean;
+  fellBelowThreshold?: boolean;
+}
+
+export interface IntentTestResult {
+  intent: SmartAiIntent;
+  confidence: number;
+  thresholdUsed: number;
+  fellBelowThreshold: boolean;
+  wouldRespond: boolean;
+  sampleResponse: string | null;
+  processingTimeMs: number;
 }
 
 export interface GameLink {

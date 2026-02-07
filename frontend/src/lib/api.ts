@@ -456,6 +456,8 @@ export const chatbotApi = {
     api.post('/chatbot/test-connection', { apiKey }),
   test: (message: string, systemPrompt?: string) =>
     api.post('/chatbot/test', { message, systemPrompt }),
+  testClassification: (message: string, lineAccountId: string) =>
+    api.post('/chatbot/test-classification', { message, lineAccountId }),
 };
 
 // Chat Messages API

@@ -13,12 +13,17 @@ import {
   AiQuotaReservation,
   AiQuotaReservationSchema,
 } from '../database/schemas/ai-quota-reservation.schema';
+import {
+  LineAccount,
+  LineAccountSchema,
+} from '../database/schemas/line-account.schema';
 
 @Module({
   imports: [
     SystemSettingsModule,
     MongooseModule.forFeature([
       { name: AiQuotaReservation.name, schema: AiQuotaReservationSchema },
+      { name: LineAccount.name, schema: LineAccountSchema },
     ]),
   ],
   providers: [
