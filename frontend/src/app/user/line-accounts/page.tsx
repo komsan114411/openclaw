@@ -38,6 +38,9 @@ import {
   BookOpen,
   Zap,
   Settings,
+  ChevronDown,
+  RotateCcw,
+  SlidersHorizontal,
 } from 'lucide-react';
 
 // Extended SlipTemplate interface for preview
@@ -332,7 +335,8 @@ export default function UserLineAccountsPage() {
     knowledgeBase: [] as Array<{ topic: string; answer: string; enabled: boolean }>,
   });
 
-  const [activeSettingsTab, setActiveSettingsTab] = useState<'core' | 'knowledge' | 'ai'>('core');
+  const [activeSettingsTab, setActiveSettingsTab] = useState<'core' | 'ai'>('core');
+  const [showAdvancedAi, setShowAdvancedAi] = useState(false);
 
   // AI Settings from system
   const [globalAiEnabled, setGlobalAiEnabled] = useState<boolean>(true);
@@ -662,6 +666,7 @@ export default function UserLineAccountsPage() {
   const openSettingsModal = (account: LineAccount) => {
     setSelectedAccount(account);
     setActiveSettingsTab('core');
+    setShowAdvancedAi(false);
     const s = account.settings || {};
     setSettingsData({
       enableBot: s.enableBot ?? true,
@@ -1519,25 +1524,22 @@ export default function UserLineAccountsPage() {
         }
       >
         <div className="space-y-6 pb-2">
-          {/* Tab Navigation */}
+          {/* Tab Navigation — 2 tabs */}
           <div className="flex gap-1 bg-white/[0.03] rounded-2xl p-1.5 border border-white/5">
             {([
               { id: 'core' as const, name: 'ระบบหลัก', icon: Zap },
-              { id: 'knowledge' as const, name: 'คลังความรู้', icon: BookOpen },
-              { id: 'ai' as const, name: 'AI ตอบกลับ', icon: Brain },
+              { id: 'ai' as const, name: 'ตั้งค่า AI', icon: Brain },
             ]).map((tab) => {
               const isActive = activeSettingsTab === tab.id;
-              const isDisabled = tab.id === 'ai' && !settingsData.enableAi;
               const Icon = tab.icon;
               return (
                 <button
                   key={tab.id}
                   type="button"
-                  onClick={() => !isDisabled && setActiveSettingsTab(tab.id)}
+                  onClick={() => setActiveSettingsTab(tab.id)}
                   className={cn(
                     "relative flex-1 flex items-center justify-center gap-1.5 px-2 py-2.5 rounded-xl text-xs font-bold transition-all",
                     isActive ? "text-white" : "text-white/40 hover:text-white/60",
-                    isDisabled && "opacity-30 cursor-not-allowed"
                   )}
                 >
                   {isActive && (
@@ -1548,7 +1550,7 @@ export default function UserLineAccountsPage() {
                     />
                   )}
                   <Icon className="w-3.5 h-3.5 relative z-10" />
-                  <span className="relative z-10 hidden sm:inline">{tab.name}</span>
+                  <span className="relative z-10">{tab.name}</span>
                 </button>
               );
             })}
@@ -1633,9 +1635,6 @@ export default function UserLineAccountsPage() {
                         checked={settingsData.enableAi}
                         onChange={(checked) => {
                           setSettingsData({ ...settingsData, enableAi: checked });
-                          if (!checked) {
-                            setActiveSettingsTab(prev => prev === 'ai' ? 'core' : prev);
-                          }
                         }}
                         disabled={!globalAiEnabled}
                       />
@@ -1651,7 +1650,7 @@ export default function UserLineAccountsPage() {
                     </div>
                     <div>
                       <span>ตั้งค่าสลิป</span>
-                      <p className="text-[10px] text-slate-500 font-normal mt-0.5">ข้อความแจ้งเตือนเมื่อตรวจสอบสลิปสำเร็จ/ผิดพลาด</p>
+                      <p className="text-[10px] text-slate-500 font-normal mt-0.5">ข้อความแจ้งเตือนเมื่อตรวจสอบสลิป</p>
                     </div>
                   </h3>
                   <div className="bg-white/[0.02] p-5 sm:p-6 rounded-2xl border border-white/5 space-y-5">
@@ -1681,242 +1680,285 @@ export default function UserLineAccountsPage() {
               </motion.div>
             )}
 
-            {/* ===== TAB: คลังความรู้ ===== */}
-            {activeSettingsTab === 'knowledge' && (
-              <motion.div key="knowledge" initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 20 }} transition={{ duration: 0.2 }} className="space-y-6">
-                <div className="space-y-2">
-                  <h3 className="text-sm font-bold text-white flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-2xl bg-teal-500/10 flex items-center justify-center text-teal-400 border border-teal-500/10">
-                      <BookOpen className="w-5 h-5" />
-                    </div>
-                    <div>
-                      <span>คลังความรู้</span>
-                      <p className="text-[10px] text-slate-500 font-normal mt-0.5">เพิ่มข้อมูลสำคัญให้ AI ใช้ตอบลูกค้า เช่น ฝากขั้นต่ำ ถอนขั้นต่ำ โปรโมชั่น</p>
-                    </div>
-                  </h3>
-                  {!settingsData.enableAi && (
-                    <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl p-3">
-                      <p className="text-xs text-amber-400">กรุณาเปิด AI ที่แท็บ &quot;ระบบหลัก&quot; ก่อน จึงจะใช้คลังความรู้ได้</p>
-                    </div>
-                  )}
-                </div>
-
-                <div className={cn(!settingsData.enableAi && "opacity-50 pointer-events-none")}>
-                  {/* Quick Templates */}
-                  {settingsData.knowledgeBase.length === 0 && (
-                    <div className="space-y-3 mb-6">
-                      <p className="text-xs font-bold text-white/50">เริ่มต้นเร็วๆ — กดเพื่อเพิ่มตัวอย่าง:</p>
-                      <div className="flex flex-wrap gap-2">
-                        {[
-                          { topic: 'ฝากขั้นต่ำ', answer: '' },
-                          { topic: 'ถอนขั้นต่ำ', answer: '' },
-                          { topic: 'เวลาทำการ', answer: '' },
-                          { topic: 'โปรโมชั่นสมาชิกใหม่', answer: '' },
-                          { topic: 'วิธีสมัคร', answer: '' },
-                          { topic: 'ช่องทางติดต่อแอดมิน', answer: '' },
-                        ].map((tmpl) => (
-                          <button
-                            key={tmpl.topic}
-                            type="button"
-                            onClick={() => setSettingsData({ ...settingsData, knowledgeBase: [...settingsData.knowledgeBase, { ...tmpl, enabled: true }] })}
-                            className="text-xs bg-white/5 text-white/60 px-3 py-1.5 rounded-lg hover:bg-white/10 hover:text-white transition-colors border border-white/5"
-                          >
-                            + {tmpl.topic}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Knowledge Entries */}
-                  <div className="space-y-3">
-                    {settingsData.knowledgeBase.map((entry, idx) => (
-                      <div key={idx} className={cn(
-                        "rounded-xl p-4 space-y-3 border transition-all",
-                        entry.enabled ? "bg-white/[0.03] border-white/10" : "bg-white/[0.01] border-white/5 opacity-50"
-                      )}>
-                        <div className="flex items-center gap-3">
-                          <div className="flex-1 space-y-1">
-                            <label className="text-[10px] font-bold text-white/40">หัวข้อ</label>
-                            <Input
-                              value={entry.topic}
-                              onChange={(e) => {
-                                const updated = [...settingsData.knowledgeBase];
-                                updated[idx] = { ...updated[idx], topic: e.target.value };
-                                setSettingsData({ ...settingsData, knowledgeBase: updated });
-                              }}
-                              placeholder="เช่น ฝากขั้นต่ำ, ถอนขั้นต่ำ, วิธีสมัคร"
-                              className="bg-white/5 border-white/10 text-white h-10 rounded-lg text-sm"
-                            />
-                          </div>
-                          <div className="flex items-center gap-2 pt-5">
-                            <Switch
-                              checked={entry.enabled}
-                              onChange={(checked) => {
-                                const updated = [...settingsData.knowledgeBase];
-                                updated[idx] = { ...updated[idx], enabled: checked };
-                                setSettingsData({ ...settingsData, knowledgeBase: updated });
-                              }}
-                            />
-                            <button
-                              type="button"
-                              onClick={() => {
-                                const updated = settingsData.knowledgeBase.filter((_, i) => i !== idx);
-                                setSettingsData({ ...settingsData, knowledgeBase: updated });
-                              }}
-                              className="text-rose-400/60 hover:text-rose-400 transition-colors p-1"
-                            >
-                              <Trash2 size={14} />
-                            </button>
-                          </div>
-                        </div>
-                        <div className="space-y-1">
-                          <label className="text-[10px] font-bold text-white/40">คำตอบ (ข้อมูลที่ AI จะใช้ตอบ)</label>
-                          <Textarea
-                            value={entry.answer}
-                            onChange={(e) => {
-                              const updated = [...settingsData.knowledgeBase];
-                              updated[idx] = { ...updated[idx], answer: e.target.value };
-                              setSettingsData({ ...settingsData, knowledgeBase: updated });
-                            }}
-                            placeholder="เช่น ฝากขั้นต่ำ 100 บาท ผ่านธนาคารหรือทรูวอลเล็ท"
-                            rows={2}
-                            className="bg-white/5 border-white/10 text-white rounded-lg text-sm"
-                          />
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-
-                  {/* Summary Footer */}
-                  {settingsData.knowledgeBase.length > 0 && (
-                    <div className="flex items-center justify-between pt-3">
-                      <p className="text-[10px] text-white/30">ทั้งหมด {settingsData.knowledgeBase.length} รายการ, เปิดใช้ {settingsData.knowledgeBase.filter(k => k.enabled).length} รายการ</p>
-                      <button
-                        type="button"
-                        onClick={() => setSettingsData({ ...settingsData, knowledgeBase: [...settingsData.knowledgeBase, { topic: '', answer: '', enabled: true }] })}
-                        className="text-xs bg-white/5 text-white/50 px-3 py-1.5 rounded-lg hover:bg-white/10 hover:text-white transition-colors"
-                      >
-                        + เพิ่มอีก
-                      </button>
-                    </div>
-                  )}
-
-                  {settingsData.knowledgeBase.length === 0 && (
-                    <div className="text-center py-8">
-                      <BookOpen className="w-10 h-10 text-white/10 mx-auto mb-3" />
-                      <p className="text-xs text-white/30">ยังไม่มีข้อมูลในคลังความรู้</p>
-                      <p className="text-[10px] text-white/20 mt-1">กดปุ่มด้านบนเพื่อเพิ่มข้อมูล หรือเพิ่มเองด้านล่าง</p>
-                      <button
-                        type="button"
-                        onClick={() => setSettingsData({ ...settingsData, knowledgeBase: [{ topic: '', answer: '', enabled: true }] })}
-                        className="mt-4 text-xs bg-teal-500/20 text-teal-400 px-4 py-2 rounded-lg hover:bg-teal-500/30 transition-colors border border-teal-500/20"
-                      >
-                        + เพิ่มรายการแรก
-                      </button>
-                    </div>
-                  )}
-                </div>
-              </motion.div>
-            )}
-
-            {/* ===== TAB: AI ตอบกลับ ===== */}
+            {/* ===== TAB: ตั้งค่า AI (รวม คลังความรู้ + คำสั่ง AI + ขั้นสูง) ===== */}
             {activeSettingsTab === 'ai' && (
               <motion.div key="ai" initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 20 }} transition={{ duration: 0.2 }} className="space-y-6">
-                <h3 className="text-sm font-bold text-white flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-2xl bg-violet-500/10 flex items-center justify-center text-violet-400 border border-violet-500/10">
-                    <Brain className="w-5 h-5" />
-                  </div>
-                  <div>
-                    <span>ตั้งค่า AI Chatbot</span>
-                    <p className="text-[10px] text-slate-500 font-normal mt-0.5">ปรับแต่งพฤติกรรมและรูปแบบการตอบกลับของ AI</p>
-                  </div>
-                </h3>
 
-                {/* Admin Disabled Warning */}
+                {/* AI Disabled Warning */}
                 {!globalAiEnabled && (
                   <div className="p-4 rounded-2xl bg-rose-500/10 border border-rose-500/20">
                     <div className="flex items-start gap-3">
-                      <Ban className="w-5 h-5 text-rose-400 flex-shrink-0" />
+                      <Ban className="w-5 h-5 text-rose-400 flex-shrink-0 mt-0.5" />
                       <div>
-                        <p className="text-sm font-bold text-rose-300">ระบบ AI ถูกปิดโดยผู้ดูแลระบบ</p>
-                        <p className="text-xs text-rose-200/70 mt-1">การตั้งค่า AI จะไม่มีผลจนกว่าผู้ดูแลจะเปิดใช้งาน</p>
+                        <p className="text-sm font-bold text-rose-300">AI ถูกปิดโดยผู้ดูแลระบบ</p>
+                        <p className="text-xs text-rose-200/70 mt-1">การตั้งค่าจะไม่มีผลจนกว่าผู้ดูแลจะเปิดใช้งาน</p>
                       </div>
                     </div>
                   </div>
                 )}
 
-                <div className={cn(
-                  "bg-white/[0.02] p-5 sm:p-6 rounded-2xl border border-white/5 space-y-6",
-                  (!globalAiEnabled || !settingsData.enableAi) && "opacity-50 pointer-events-none"
-                )}>
-                  {/* AI Model Selection */}
-                  <div className="space-y-2">
-                    <label className="text-xs font-semibold text-white/50 ml-1">เลือก AI Model</label>
-                    <select
-                      value={settingsData.aiModel}
-                      onChange={(e) => setSettingsData({ ...settingsData, aiModel: e.target.value })}
-                      className="w-full h-12 px-4 bg-slate-950/50 border border-white/10 rounded-xl text-white text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/50"
-                    >
-                      <option value="">ใช้ค่าเริ่มต้นของระบบ</option>
-                      {allowedAiModels.map((model) => (
-                        <option key={model} value={model}>{model}</option>
-                      ))}
-                    </select>
-                    <p className="text-[10px] text-slate-500 ml-1">เลือก model ที่ต้องการ หรือปล่อยว่างเพื่อใช้ค่าเริ่มต้น</p>
-                  </div>
-
-                  {/* System Prompt */}
-                  <div className="space-y-2">
-                    <label className="text-xs font-semibold text-white/50 ml-1">System Prompt (คำสั่งเริ่มต้นให้ AI)</label>
-                    <Textarea
-                      value={settingsData.aiSystemPrompt}
-                      onChange={(e) => setSettingsData({ ...settingsData, aiSystemPrompt: e.target.value })}
-                      placeholder="ระบุคำสั่งและพฤติกรรมของ AI เช่น คุณเป็นพนักงานบริการลูกค้า ตอบสุภาพ..."
-                      className="bg-slate-950/50 border-white/10 text-white min-h-[120px] rounded-xl text-sm p-4"
-                    />
-                    <p className="text-[10px] text-slate-500 ml-1">กำหนดบุคลิกและแนวทางการตอบของ AI เช่น สุภาพ ตรงประเด็น ใช้ภาษาไทย</p>
-                  </div>
-
-                  {/* Temperature */}
-                  <div className="space-y-3">
-                    <div className="flex justify-between items-center px-1">
-                      <label className="text-xs font-semibold text-white/50">Temperature (ความคิดสร้างสรรค์)</label>
-                      <span className="text-[10px] font-mono font-black text-emerald-400 bg-emerald-500/20 px-2.5 py-1 rounded-lg border border-emerald-500/20">{settingsData.aiTemperature}</span>
+                {!settingsData.enableAi && globalAiEnabled && (
+                  <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/20">
+                    <div className="flex items-start gap-3">
+                      <AlertTriangle className="w-5 h-5 text-amber-400 flex-shrink-0 mt-0.5" />
+                      <div>
+                        <p className="text-sm font-bold text-amber-300">AI ยังไม่ได้เปิดใช้งาน</p>
+                        <p className="text-xs text-amber-200/70 mt-1">ไปที่แท็บ &quot;ระบบหลัก&quot; แล้วเปิดสวิตช์ AI ก่อน</p>
+                      </div>
                     </div>
-                    <input
-                      type="range"
-                      min="0"
-                      max="1"
-                      step="0.1"
-                      value={settingsData.aiTemperature}
-                      onChange={(e) => setSettingsData({ ...settingsData, aiTemperature: parseFloat(e.target.value) })}
-                      className="w-full h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-emerald-500"
-                    />
-                    <div className="flex justify-between text-[10px] font-semibold text-slate-500">
-                      <span>0 = ตรงๆ แม่นยำ</span>
-                      <span>1 = สร้างสรรค์ หลากหลาย</span>
-                    </div>
-                    <p className="text-[10px] text-slate-500 ml-1">แนะนำ 0.7 สำหรับงานบริการลูกค้าทั่วไป</p>
-                  </div>
-
-                  {/* Fallback Message */}
-                  <div className="space-y-2">
-                    <label className="text-xs font-semibold text-white/50 ml-1">ข้อความเมื่อ AI ตอบไม่ได้</label>
-                    <Input
-                      value={settingsData.aiFallbackMessage}
-                      onChange={(e) => setSettingsData({ ...settingsData, aiFallbackMessage: e.target.value })}
-                      className="bg-slate-950/50 border-white/10 h-12 rounded-xl text-white font-bold text-sm"
-                    />
-                    <p className="text-[10px] text-slate-500 ml-1">ข้อความสำรองเมื่อ AI เกิดข้อผิดพลาดหรือตอบไม่ได้</p>
-                  </div>
-                </div>
-
-                {!settingsData.enableAi && !(!globalAiEnabled) && (
-                  <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl p-3">
-                    <p className="text-xs text-amber-400">กรุณาเปิด AI ที่แท็บ &quot;ระบบหลัก&quot; ก่อนจึงจะตั้งค่าได้</p>
                   </div>
                 )}
+
+                <div className={cn((!globalAiEnabled || !settingsData.enableAi) && "opacity-40 pointer-events-none")}>
+
+                  {/* ========== SECTION 1: คลังความรู้ (สำคัญที่สุด — อยู่บนสุด) ========== */}
+                  <div className="space-y-4">
+                    <h3 className="text-sm font-bold text-white flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-2xl bg-teal-500/10 flex items-center justify-center text-teal-400 border border-teal-500/10">
+                        <BookOpen className="w-5 h-5" />
+                      </div>
+                      <div className="flex-1">
+                        <span>คลังความรู้</span>
+                        <p className="text-[10px] text-slate-500 font-normal mt-0.5">ใส่ข้อมูลธุรกิจให้ AI ใช้ตอบลูกค้า — AI จะตอบเฉพาะข้อมูลที่ใส่ไว้เท่านั้น</p>
+                      </div>
+                    </h3>
+
+                    {/* Quick Templates */}
+                    {settingsData.knowledgeBase.length === 0 && (
+                      <div className="space-y-3">
+                        <p className="text-xs font-bold text-white/50">เริ่มต้นเร็ว — กดเพื่อเพิ่ม:</p>
+                        <div className="flex flex-wrap gap-2">
+                          {[
+                            { topic: 'ฝากขั้นต่ำ', answer: '' },
+                            { topic: 'ถอนขั้นต่ำ', answer: '' },
+                            { topic: 'เวลาทำการ', answer: '' },
+                            { topic: 'โปรโมชั่นสมาชิกใหม่', answer: '' },
+                            { topic: 'วิธีสมัคร', answer: '' },
+                            { topic: 'ช่องทางติดต่อแอดมิน', answer: '' },
+                          ].map((tmpl) => (
+                            <button
+                              key={tmpl.topic}
+                              type="button"
+                              onClick={() => setSettingsData({ ...settingsData, knowledgeBase: [...settingsData.knowledgeBase, { ...tmpl, enabled: true }] })}
+                              className="text-xs bg-white/5 text-white/60 px-3 py-1.5 rounded-lg hover:bg-white/10 hover:text-white transition-colors border border-white/5"
+                            >
+                              + {tmpl.topic}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Knowledge Entries */}
+                    <div className="space-y-3">
+                      {settingsData.knowledgeBase.map((entry, idx) => (
+                        <div key={idx} className={cn(
+                          "rounded-xl p-4 space-y-3 border transition-all",
+                          entry.enabled ? "bg-white/[0.03] border-white/10" : "bg-white/[0.01] border-white/5 opacity-50"
+                        )}>
+                          <div className="flex items-center gap-3">
+                            <div className="flex-1 space-y-1">
+                              <label className="text-[10px] font-bold text-white/40">หัวข้อ</label>
+                              <Input
+                                value={entry.topic}
+                                onChange={(e) => {
+                                  const updated = [...settingsData.knowledgeBase];
+                                  updated[idx] = { ...updated[idx], topic: e.target.value };
+                                  setSettingsData({ ...settingsData, knowledgeBase: updated });
+                                }}
+                                placeholder="เช่น ฝากขั้นต่ำ, ถอนขั้นต่ำ, วิธีสมัคร"
+                                className="bg-white/5 border-white/10 text-white h-10 rounded-lg text-sm"
+                              />
+                            </div>
+                            <div className="flex items-center gap-2 pt-5">
+                              <Switch
+                                checked={entry.enabled}
+                                onChange={(checked) => {
+                                  const updated = [...settingsData.knowledgeBase];
+                                  updated[idx] = { ...updated[idx], enabled: checked };
+                                  setSettingsData({ ...settingsData, knowledgeBase: updated });
+                                }}
+                              />
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const updated = settingsData.knowledgeBase.filter((_, i) => i !== idx);
+                                  setSettingsData({ ...settingsData, knowledgeBase: updated });
+                                }}
+                                className="text-rose-400/60 hover:text-rose-400 transition-colors p-1"
+                              >
+                                <Trash2 size={14} />
+                              </button>
+                            </div>
+                          </div>
+                          <div className="space-y-1">
+                            <label className="text-[10px] font-bold text-white/40">คำตอบ</label>
+                            <Textarea
+                              value={entry.answer}
+                              onChange={(e) => {
+                                const updated = [...settingsData.knowledgeBase];
+                                updated[idx] = { ...updated[idx], answer: e.target.value };
+                                setSettingsData({ ...settingsData, knowledgeBase: updated });
+                              }}
+                              placeholder="เช่น ฝากขั้นต่ำ 100 บาท ผ่านธนาคารหรือทรูวอลเล็ท"
+                              rows={2}
+                              className="bg-white/5 border-white/10 text-white rounded-lg text-sm"
+                            />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* Add / Summary */}
+                    {settingsData.knowledgeBase.length > 0 ? (
+                      <div className="flex items-center justify-between">
+                        <p className="text-[10px] text-white/30">ทั้งหมด {settingsData.knowledgeBase.length} รายการ, เปิดใช้ {settingsData.knowledgeBase.filter(k => k.enabled).length}</p>
+                        <button
+                          type="button"
+                          onClick={() => setSettingsData({ ...settingsData, knowledgeBase: [...settingsData.knowledgeBase, { topic: '', answer: '', enabled: true }] })}
+                          className="text-xs bg-white/5 text-white/50 px-3 py-1.5 rounded-lg hover:bg-white/10 hover:text-white transition-colors"
+                        >
+                          + เพิ่มอีก
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="text-center py-6">
+                        <BookOpen className="w-8 h-8 text-white/10 mx-auto mb-2" />
+                        <p className="text-xs text-white/30">ยังไม่มีข้อมูลในคลังความรู้</p>
+                        <button
+                          type="button"
+                          onClick={() => setSettingsData({ ...settingsData, knowledgeBase: [{ topic: '', answer: '', enabled: true }] })}
+                          className="mt-3 text-xs bg-teal-500/20 text-teal-400 px-4 py-2 rounded-lg hover:bg-teal-500/30 transition-colors border border-teal-500/20"
+                        >
+                          + เพิ่มรายการแรก
+                        </button>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Divider */}
+                  <div className="border-t border-white/5 my-6" />
+
+                  {/* ========== SECTION 2: คำสั่งให้ AI ========== */}
+                  <div className="space-y-4">
+                    <h3 className="text-sm font-bold text-white flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-2xl bg-violet-500/10 flex items-center justify-center text-violet-400 border border-violet-500/10">
+                        <Brain className="w-5 h-5" />
+                      </div>
+                      <div className="flex-1">
+                        <span>คำสั่งให้ AI</span>
+                        <p className="text-[10px] text-slate-500 font-normal mt-0.5">กำหนดบุคลิกและแนวทางการตอบ เช่น ตอบสุภาพ ใช้ภาษาไทย</p>
+                      </div>
+                    </h3>
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <label className="text-xs font-semibold text-white/50 ml-1">คำสั่งเริ่มต้น</label>
+                        <button
+                          type="button"
+                          onClick={() => setSettingsData({ ...settingsData, aiSystemPrompt: 'คุณเป็นผู้ช่วยที่เป็นมิตรและให้ข้อมูลที่เป็นประโยชน์ ตอบเป็นภาษาไทย ตอบให้กระชับและตรงประเด็น' })}
+                          className="text-[10px] text-indigo-400 hover:text-indigo-300 flex items-center gap-1 transition-colors"
+                        >
+                          <RotateCcw size={10} />
+                          รีเซ็ตเป็นค่าเริ่มต้น
+                        </button>
+                      </div>
+                      <Textarea
+                        value={settingsData.aiSystemPrompt}
+                        onChange={(e) => setSettingsData({ ...settingsData, aiSystemPrompt: e.target.value })}
+                        placeholder="คุณเป็นผู้ช่วยที่เป็นมิตรและให้ข้อมูลที่เป็นประโยชน์ ตอบเป็นภาษาไทย ตอบให้กระชับและตรงประเด็น"
+                        className="bg-slate-950/50 border-white/10 text-white min-h-[100px] rounded-xl text-sm p-4"
+                      />
+                      <p className="text-[10px] text-slate-500 ml-1">เว้นว่างไว้จะใช้ค่าเริ่มต้น — กฎเรื่องตอบจากข้อมูลเท่านั้นจะถูกเพิ่มให้อัตโนมัติ</p>
+                    </div>
+                  </div>
+
+                  {/* Divider */}
+                  <div className="border-t border-white/5 my-6" />
+
+                  {/* ========== SECTION 3: ขั้นสูง (ซ่อน/แสดง) ========== */}
+                  <div className="space-y-4">
+                    <button
+                      type="button"
+                      onClick={() => setShowAdvancedAi(!showAdvancedAi)}
+                      className="w-full flex items-center justify-between text-sm font-bold text-white/50 hover:text-white/70 transition-colors"
+                    >
+                      <span className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-2xl bg-slate-500/10 flex items-center justify-center text-slate-400 border border-slate-500/10">
+                          <SlidersHorizontal className="w-5 h-5" />
+                        </div>
+                        <div className="text-left">
+                          <span className="block text-sm">ตั้งค่าขั้นสูง</span>
+                          <span className="block text-[10px] text-slate-500 font-normal">AI Model, Temperature, ข้อความสำรอง</span>
+                        </div>
+                      </span>
+                      <ChevronDown className={cn("w-5 h-5 transition-transform", showAdvancedAi && "rotate-180")} />
+                    </button>
+
+                    <AnimatePresence>
+                      {showAdvancedAi && (
+                        <motion.div
+                          initial={{ height: 0, opacity: 0 }}
+                          animate={{ height: 'auto', opacity: 1 }}
+                          exit={{ height: 0, opacity: 0 }}
+                          transition={{ duration: 0.2 }}
+                          className="overflow-hidden"
+                        >
+                          <div className="bg-white/[0.02] p-5 rounded-2xl border border-white/5 space-y-6">
+                            {/* AI Model */}
+                            <div className="space-y-2">
+                              <label className="text-xs font-semibold text-white/50 ml-1">AI Model</label>
+                              <select
+                                value={settingsData.aiModel}
+                                onChange={(e) => setSettingsData({ ...settingsData, aiModel: e.target.value })}
+                                className="w-full h-12 px-4 bg-slate-950/50 border border-white/10 rounded-xl text-white text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/50"
+                              >
+                                <option value="">ใช้ค่าเริ่มต้นของระบบ</option>
+                                {allowedAiModels.map((model) => (
+                                  <option key={model} value={model}>{model}</option>
+                                ))}
+                              </select>
+                              <p className="text-[10px] text-slate-500 ml-1">ปล่อยว่างเพื่อใช้ค่าเริ่มต้น</p>
+                            </div>
+
+                            {/* Temperature */}
+                            <div className="space-y-3">
+                              <div className="flex justify-between items-center px-1">
+                                <label className="text-xs font-semibold text-white/50">ความหลากหลายในการตอบ</label>
+                                <span className="text-[10px] font-mono font-black text-emerald-400 bg-emerald-500/20 px-2.5 py-1 rounded-lg border border-emerald-500/20">{settingsData.aiTemperature}</span>
+                              </div>
+                              <input
+                                type="range"
+                                min="0"
+                                max="1"
+                                step="0.1"
+                                value={settingsData.aiTemperature}
+                                onChange={(e) => setSettingsData({ ...settingsData, aiTemperature: parseFloat(e.target.value) })}
+                                className="w-full h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-emerald-500"
+                              />
+                              <div className="flex justify-between text-[10px] font-semibold text-slate-500">
+                                <span>0 = ตรงๆ แม่นยำ</span>
+                                <span>1 = หลากหลาย สร้างสรรค์</span>
+                              </div>
+                              <p className="text-[10px] text-slate-500 ml-1">แนะนำ 0.7 สำหรับงานบริการลูกค้า</p>
+                            </div>
+
+                            {/* Fallback Message */}
+                            <div className="space-y-2">
+                              <label className="text-xs font-semibold text-white/50 ml-1">ข้อความเมื่อ AI ตอบไม่ได้</label>
+                              <Input
+                                value={settingsData.aiFallbackMessage}
+                                onChange={(e) => setSettingsData({ ...settingsData, aiFallbackMessage: e.target.value })}
+                                className="bg-slate-950/50 border-white/10 h-12 rounded-xl text-white font-bold text-sm"
+                              />
+                              <p className="text-[10px] text-slate-500 ml-1">ข้อความสำรองเมื่อ AI เกิดข้อผิดพลาด</p>
+                            </div>
+                          </div>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </div>
+
+                </div>
               </motion.div>
             )}
 
