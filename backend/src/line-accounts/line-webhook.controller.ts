@@ -15,9 +15,9 @@ import * as crypto from 'crypto';
 import axios from 'axios';
 import { LineAccountsService } from './line-accounts.service';
 import { SlipVerificationService } from '../slip-verification/slip-verification.service';
-import { ChatbotService } from '../chatbot/chatbot.service';
 import { AiQuotaService } from '../chatbot/ai-quota.service';
 import { SmartResponseService } from '../chatbot/smart-response.service';
+import { buildSmartAiSettings } from '../chatbot/types/smart-ai.types';
 import { SubscriptionsService } from '../subscriptions/subscriptions.service';
 import { MessageDirection, MessageType } from '../database/schemas/chat-message.schema';
 import { RedisService } from '../redis/redis.service';
@@ -35,7 +35,6 @@ export class LineWebhookController {
   constructor(
     private lineAccountsService: LineAccountsService,
     private slipVerificationService: SlipVerificationService,
-    private chatbotService: ChatbotService,
     private aiQuotaService: AiQuotaService,
     private smartResponseService: SmartResponseService,
     private subscriptionsService: SubscriptionsService,
@@ -742,31 +741,6 @@ export class LineWebhookController {
       }
     };
 
-    // Get retry settings
-    const retrySettings = await this.configurableMessagesService.getRetrySettings();
-
-    // Helper for retry logic
-    const retryWithBackoff = async <T>(
-      fn: () => Promise<T>,
-      maxRetries: number,
-      baseDelayMs: number,
-    ): Promise<T> => {
-      let lastError: Error | null = null;
-      for (let attempt = 1; attempt <= maxRetries; attempt++) {
-        try {
-          return await fn();
-        } catch (error) {
-          lastError = error as Error;
-          this.logger.warn(`AI response attempt ${attempt}/${maxRetries} failed:`, error);
-          if (attempt < maxRetries) {
-            const delay = baseDelayMs * Math.pow(2, attempt - 1);
-            await new Promise(resolve => setTimeout(resolve, delay));
-          }
-        }
-      }
-      throw lastError;
-    };
-
     try {
       // ============================================
       // 1. Check AI quota before processing
@@ -831,24 +805,7 @@ export class LineWebhookController {
           message.text,
           lineUserId,
           accountId,
-          {
-            enableSmartAi: true,
-            smartAiClassifierModel: account.settings?.smartAiClassifierModel || 'gpt-3.5-turbo',
-            duplicateDetectionWindowMinutes: account.settings?.duplicateDetectionWindowMinutes ?? 5,
-            spamThresholdMessagesPerMinute: account.settings?.spamThresholdMessagesPerMinute ?? 5,
-            gameLinks: account.settings?.gameLinks || [],
-            knowledgeBase: account.settings?.knowledgeBase || [],
-            intentRules: account.settings?.intentRules || {},
-            aiSystemPrompt: account.settings?.aiSystemPrompt,
-            aiModel: account.settings?.aiModel,
-            aiTemperature: account.settings?.aiTemperature,
-            smartAiConfidenceThreshold: account.settings?.smartAiConfidenceThreshold ?? 0.6,
-            smartAiMaxTokens: account.settings?.smartAiMaxTokens ?? 500,
-            smartAiResponseDelayMs: account.settings?.smartAiResponseDelayMs ?? 0,
-            smartAiMaxRetries: account.settings?.smartAiMaxRetries ?? 2,
-            smartAiRetryDelayMs: account.settings?.smartAiRetryDelayMs ?? 1000,
-            smartAiFallbackAction: account.settings?.smartAiFallbackAction || 'fallback_message',
-          },
+          buildSmartAiSettings(account.settings || {}),
         );
 
         this.logger.log(`[AI] Smart AI result: intent=${smartResult.intent}, shouldRespond=${smartResult.shouldRespond}, time=${smartResult.processingTimeMs}ms`);
@@ -865,59 +822,31 @@ export class LineWebhookController {
         if (smartResult.response) {
           response = smartResult.response;
         } else {
-          // Fallback to legacy if smart AI returned null response — inject knowledge base
-          let fallbackPrompt = account.settings?.aiSystemPrompt || '';
-          const fbKb = (account.settings?.knowledgeBase || []).filter((k: { enabled: boolean }) => k.enabled);
-          if (fbKb.length > 0) {
-            const fbEntries = fbKb.map((k: { topic: string; answer: string }) => `- ${k.topic}: ${k.answer}`).join('\n');
-            fallbackPrompt = (fallbackPrompt || 'คุณเป็นผู้ช่วยที่เป็นมิตรและให้ข้อมูลที่เป็นประโยชน์ ตอบเป็นภาษาไทย ตอบให้กระชับและตรงประเด็น') +
-              `\n\nคลังความรู้ (ข้อมูลจริง — ตอบจากข้อมูลนี้เท่านั้น):\n${fbEntries}`;
-          }
-          fallbackPrompt = (fallbackPrompt || 'คุณเป็นผู้ช่วยที่เป็นมิตรและให้ข้อมูลที่เป็นประโยชน์ ตอบเป็นภาษาไทย') +
-            '\n\nกฎ: ตอบเฉพาะสิ่งที่มีข้อมูล ห้ามเดา ถ้าไม่มีข้อมูลให้แนะนำติดต่อแอดมิน';
-          response = await retryWithBackoff(
-            () => this.chatbotService.getResponse(
-              message.text,
-              lineUserId,
-              accountId,
-              fallbackPrompt || undefined,
-              account.settings?.aiModel,
-              undefined,
-              account.settings?.aiTemperature,
-            ),
-            retrySettings.maxAttempts,
-            retrySettings.delayMs,
+          // Fallback to legacy if smart AI returned null response
+          response = await this.smartResponseService.getLegacyResponse(
+            message.text,
+            lineUserId,
+            accountId,
+            {
+              aiSystemPrompt: account.settings?.aiSystemPrompt,
+              knowledgeBase: account.settings?.knowledgeBase || [],
+              aiModel: account.settings?.aiModel,
+              aiTemperature: account.settings?.aiTemperature,
+            },
           );
         }
       } else {
         // ---- Legacy AI Response ----
-        // Build system prompt with knowledge base for legacy path
-        let legacyPrompt = account.settings?.aiSystemPrompt || '';
-        const kb = (account.settings?.knowledgeBase || []).filter((k: { enabled: boolean }) => k.enabled);
-        if (kb.length > 0) {
-          const entries = kb.map((k: { topic: string; answer: string }) => `- ${k.topic}: ${k.answer}`).join('\n');
-          const knowledgeSection = `\n\nคลังความรู้ (ข้อมูลจริงของธุรกิจ — ใช้ข้อมูลนี้ตอบลูกค้าเท่านั้น ห้ามแต่งเพิ่มเอง ถ้าลูกค้าถามเรื่องที่ไม่มีในนี้ให้แจ้งว่าไม่มีข้อมูลและแนะนำติดต่อแอดมิน):\n${entries}`;
-          legacyPrompt = (legacyPrompt || 'คุณเป็นผู้ช่วยที่เป็นมิตรและให้ข้อมูลที่เป็นประโยชน์ ตอบเป็นภาษาไทย ตอบให้กระชับและตรงประเด็น') + knowledgeSection;
-        }
-        const legacyCoreRules =
-          '\n\nกฎสำคัญ:\n' +
-          '1. ตอบคำถามของลูกค้าโดยตรงก่อนเสมอ อย่าเปลี่ยนเรื่อง\n' +
-          '2. ตอบเฉพาะสิ่งที่มีข้อมูล ห้ามแต่งเรื่องหรือเดาข้อมูลที่ไม่มี\n' +
-          '3. ถ้าคำถามอยู่นอกเหนือขอบเขตข้อมูลที่มี ให้แจ้งว่าไม่มีข้อมูลและแนะนำติดต่อแอดมิน\n' +
-          '4. ห้ามให้ข้อมูลที่อาจไม่ถูกต้อง เช่น ตัวเลข จำนวนเงิน ลิงก์ ที่ไม่มีในคลังความรู้';
-        legacyPrompt = (legacyPrompt || 'คุณเป็นผู้ช่วยที่เป็นมิตรและให้ข้อมูลที่เป็นประโยชน์ ตอบเป็นภาษาไทย ตอบให้กระชับและตรงประเด็น') + legacyCoreRules;
-        response = await retryWithBackoff(
-          () => this.chatbotService.getResponse(
-            message.text,
-            lineUserId,
-            accountId,
-            legacyPrompt || undefined,
-            account.settings?.aiModel,
-            undefined,
-            account.settings?.aiTemperature,
-          ),
-          retrySettings.maxAttempts,
-          retrySettings.delayMs,
+        response = await this.smartResponseService.getLegacyResponse(
+          message.text,
+          lineUserId,
+          accountId,
+          {
+            aiSystemPrompt: account.settings?.aiSystemPrompt,
+            knowledgeBase: account.settings?.knowledgeBase || [],
+            aiModel: account.settings?.aiModel,
+            aiTemperature: account.settings?.aiTemperature,
+          },
         );
       }
 

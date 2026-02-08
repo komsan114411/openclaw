@@ -20,6 +20,7 @@ import { Roles } from '../auth/decorators/roles.decorator';
 import { UserRole } from '../database/schemas/user.schema';
 import { SystemSettingsService } from '../system-settings/system-settings.service';
 import { LineAccount, LineAccountDocument } from '../database/schemas/line-account.schema';
+import { buildSmartAiSettings } from './types/smart-ai.types';
 
 @ApiTags('Chatbot')
 @ApiBearerAuth()
@@ -100,27 +101,15 @@ export class ChatbotController {
       throw new BadRequestException('LINE account not found');
     }
 
-    const s = account.settings;
+    const settings = buildSmartAiSettings((account.settings || {}) as unknown as Record<string, unknown>);
+    // Override for testing: no delay, single attempt
+    settings.smartAiResponseDelayMs = 0;
+    settings.smartAiMaxRetries = 1;
+    settings.smartAiRetryDelayMs = 0;
+
     const result = await this.smartResponseService.testClassification(
       body.message,
-      {
-        enableSmartAi: true,
-        smartAiClassifierModel: s?.smartAiClassifierModel || 'gpt-3.5-turbo',
-        duplicateDetectionWindowMinutes: s?.duplicateDetectionWindowMinutes ?? 5,
-        spamThresholdMessagesPerMinute: s?.spamThresholdMessagesPerMinute ?? 5,
-        gameLinks: s?.gameLinks || [],
-        knowledgeBase: s?.knowledgeBase || [],
-        intentRules: s?.intentRules || {},
-        aiSystemPrompt: s?.aiSystemPrompt,
-        aiModel: s?.aiModel,
-        aiTemperature: s?.aiTemperature,
-        smartAiConfidenceThreshold: s?.smartAiConfidenceThreshold ?? 0.6,
-        smartAiMaxTokens: s?.smartAiMaxTokens ?? 500,
-        smartAiResponseDelayMs: 0, // No delay for testing
-        smartAiMaxRetries: 1, // Single attempt for testing
-        smartAiRetryDelayMs: 0,
-        smartAiFallbackAction: s?.smartAiFallbackAction || 'fallback_message',
-      },
+      settings,
     );
 
     return { success: true, ...result };

@@ -2,6 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import OpenAI from 'openai';
 import { SystemSettingsService } from '../system-settings/system-settings.service';
 import { RedisService } from '../redis/redis.service';
+import { DEFAULT_SYSTEM_PROMPT } from './prompt-builder';
 
 @Injectable()
 export class ChatbotService {
@@ -75,9 +76,7 @@ export class ChatbotService {
       const settings = await this.systemSettingsService.getSettings();
       // Use account-specific model if provided, otherwise use system default
       const model = accountModel || settings?.aiModel || 'gpt-3.5-turbo';
-      const defaultPrompt =
-        systemPrompt ||
-        'คุณเป็นผู้ช่วยที่เป็นมิตรและให้ข้อมูลที่เป็นประโยชน์ ตอบเป็นภาษาไทย ตอบให้กระชับและตรงประเด็น';
+      const defaultPrompt = systemPrompt || DEFAULT_SYSTEM_PROMPT;
 
       // Get chat history from Redis
       const historyKey = `chat:${lineAccountId}:${userId}`;

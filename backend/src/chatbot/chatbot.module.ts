@@ -6,7 +6,6 @@ import { AiQuotaService } from './ai-quota.service';
 import { SpamDetectorService } from './spam-detector.service';
 import { DuplicateDetectorService } from './duplicate-detector.service';
 import { IntentClassifierService } from './intent-classifier.service';
-import { WebSearchService } from './web-search.service';
 import { SmartResponseService } from './smart-response.service';
 import { SystemSettingsModule } from '../system-settings/system-settings.module';
 import {
@@ -32,7 +31,6 @@ import {
     SpamDetectorService,
     DuplicateDetectorService,
     IntentClassifierService,
-    WebSearchService,
     SmartResponseService,
   ],
   controllers: [ChatbotController],

@@ -9,7 +9,6 @@ interface ClassificationResult {
 
 const VALID_INTENTS: SmartAiIntent[] = [
   'deposit_issue',
-  'duplicate_request',
   'frustrated',
   'abusive',
   'ask_link',
@@ -27,7 +26,6 @@ const CLASSIFICATION_PROMPT = `คุณเป็น intent classifier สำห
 
 Intent ที่เป็นไปได้:
 - deposit_issue: ปัญหาการฝากเงิน/เติมเงิน/โอนเงิน/เครดิตไม่เข้า (เช่น "เติมเงินไม่เข้า", "โอนแล้วยังไม่ได้เครดิต")
-- duplicate_request: ถามซ้ำเรื่องเดิมที่เพิ่งถามไป/ติดตามเรื่องเดิม (เช่น "ถามเรื่องเมื่อกี้", "เรื่องเดิมนะ")
 - frustrated: แสดงอารมณ์หงุดหงิด/ผิดหวัง/โกรธ โดยไม่ได้ถามคำถามชัดเจน (เช่น "เล่นแล้วเสียตลอด", "ไม่แจ็คพ็อตเลย")
 - abusive: คำหยาบคาย/ด่า/ข้อความก้าวร้าวชัดเจน
 - ask_link: ขอลิงก์เข้าเล่น/ทางเข้า/URL (เช่น "ขอทางเข้า", "ลิงก์เล่น")

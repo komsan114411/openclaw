@@ -101,3 +101,44 @@ export const INTENT_LABELS: Record<SmartAiIntent, string> = {
   ask_game_recommend: 'แนะนำเกม 🎮',
   general: 'ทั่วไป 💬',
 };
+
+export interface SmartAiSettings {
+  enableSmartAi: boolean;
+  smartAiClassifierModel: string;
+  duplicateDetectionWindowMinutes: number;
+  spamThresholdMessagesPerMinute: number;
+  gameLinks: GameLink[];
+  knowledgeBase: KnowledgeEntry[];
+  intentRules: Record<string, IntentRuleConfig>;
+  aiSystemPrompt?: string;
+  aiModel?: string;
+  aiTemperature?: number;
+  smartAiConfidenceThreshold?: number;
+  smartAiMaxTokens?: number;
+  smartAiResponseDelayMs?: number;
+  smartAiMaxRetries?: number;
+  smartAiRetryDelayMs?: number;
+  smartAiFallbackAction?: string;
+}
+
+/** Build SmartAiSettings from account.settings with defaults */
+export function buildSmartAiSettings(s: Record<string, unknown>): SmartAiSettings {
+  return {
+    enableSmartAi: true,
+    smartAiClassifierModel: (s?.smartAiClassifierModel as string) || 'gpt-3.5-turbo',
+    duplicateDetectionWindowMinutes: (s?.duplicateDetectionWindowMinutes as number) ?? 5,
+    spamThresholdMessagesPerMinute: (s?.spamThresholdMessagesPerMinute as number) ?? 5,
+    gameLinks: (s?.gameLinks as GameLink[]) || [],
+    knowledgeBase: (s?.knowledgeBase as KnowledgeEntry[]) || [],
+    intentRules: (s?.intentRules as Record<string, IntentRuleConfig>) || {},
+    aiSystemPrompt: s?.aiSystemPrompt as string | undefined,
+    aiModel: s?.aiModel as string | undefined,
+    aiTemperature: s?.aiTemperature as number | undefined,
+    smartAiConfidenceThreshold: (s?.smartAiConfidenceThreshold as number) ?? 0.6,
+    smartAiMaxTokens: (s?.smartAiMaxTokens as number) ?? 500,
+    smartAiResponseDelayMs: (s?.smartAiResponseDelayMs as number) ?? 0,
+    smartAiMaxRetries: (s?.smartAiMaxRetries as number) ?? 2,
+    smartAiRetryDelayMs: (s?.smartAiRetryDelayMs as number) ?? 1000,
+    smartAiFallbackAction: (s?.smartAiFallbackAction as string) || 'fallback_message',
+  };
+}

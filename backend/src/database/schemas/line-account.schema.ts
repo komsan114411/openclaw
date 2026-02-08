@@ -23,7 +23,7 @@ export class LineAccountSettings {
   @Prop()
   aiCustomResponse: string;
 
-  @Prop({ default: 'คุณเป็นผู้ช่วยที่เป็นมิตรและให้ข้อมูลที่เป็นประโยชน์' })
+  @Prop({ default: 'คุณเป็นผู้ช่วยที่เป็นมิตรและให้ข้อมูลที่เป็นประโยชน์ ตอบเป็นภาษาไทย ตอบให้กระชับและตรงประเด็น' })
   aiSystemPrompt: string;
 
   @Prop({ default: 0.7 })
