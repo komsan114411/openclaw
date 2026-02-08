@@ -870,8 +870,11 @@ export class LineWebhookController {
           const fbKb = (account.settings?.knowledgeBase || []).filter((k: { enabled: boolean }) => k.enabled);
           if (fbKb.length > 0) {
             const fbEntries = fbKb.map((k: { topic: string; answer: string }) => `- ${k.topic}: ${k.answer}`).join('\n');
-            fallbackPrompt = (fallbackPrompt || 'คุณเป็นผู้ช่วยที่เป็นมิตรและให้ข้อมูลที่เป็นประโยชน์ ตอบเป็นภาษาไทย ตอบให้กระชับและตรงประเด็น') + `\n\nคลังความรู้:\n${fbEntries}`;
+            fallbackPrompt = (fallbackPrompt || 'คุณเป็นผู้ช่วยที่เป็นมิตรและให้ข้อมูลที่เป็นประโยชน์ ตอบเป็นภาษาไทย ตอบให้กระชับและตรงประเด็น') +
+              `\n\nคลังความรู้ (ข้อมูลจริง — ตอบจากข้อมูลนี้เท่านั้น):\n${fbEntries}`;
           }
+          fallbackPrompt = (fallbackPrompt || 'คุณเป็นผู้ช่วยที่เป็นมิตรและให้ข้อมูลที่เป็นประโยชน์ ตอบเป็นภาษาไทย') +
+            '\n\nกฎ: ตอบเฉพาะสิ่งที่มีข้อมูล ห้ามเดา ถ้าไม่มีข้อมูลให้แนะนำติดต่อแอดมิน';
           response = await retryWithBackoff(
             () => this.chatbotService.getResponse(
               message.text,
@@ -893,10 +896,16 @@ export class LineWebhookController {
         const kb = (account.settings?.knowledgeBase || []).filter((k: { enabled: boolean }) => k.enabled);
         if (kb.length > 0) {
           const entries = kb.map((k: { topic: string; answer: string }) => `- ${k.topic}: ${k.answer}`).join('\n');
-          const knowledgeSection = `\n\nคลังความรู้ (ใช้ข้อมูลนี้ตอบลูกค้าเมื่อเกี่ยวข้อง ถ้าไม่มีข้อมูลที่ต้องการให้แจ้งว่าจะส่งต่อแอดมิน):\n${entries}`;
+          const knowledgeSection = `\n\nคลังความรู้ (ข้อมูลจริงของธุรกิจ — ใช้ข้อมูลนี้ตอบลูกค้าเท่านั้น ห้ามแต่งเพิ่มเอง ถ้าลูกค้าถามเรื่องที่ไม่มีในนี้ให้แจ้งว่าไม่มีข้อมูลและแนะนำติดต่อแอดมิน):\n${entries}`;
           legacyPrompt = (legacyPrompt || 'คุณเป็นผู้ช่วยที่เป็นมิตรและให้ข้อมูลที่เป็นประโยชน์ ตอบเป็นภาษาไทย ตอบให้กระชับและตรงประเด็น') + knowledgeSection;
-          legacyPrompt += '\n\nสิ่งสำคัญที่สุด: อ่านคำถามของลูกค้าให้เข้าใจ แล้วตอบคำถามนั้นโดยตรงก่อนเสมอ อย่าเปลี่ยนเรื่อง อย่าข้ามคำถาม';
         }
+        const legacyCoreRules =
+          '\n\nกฎสำคัญ:\n' +
+          '1. ตอบคำถามของลูกค้าโดยตรงก่อนเสมอ อย่าเปลี่ยนเรื่อง\n' +
+          '2. ตอบเฉพาะสิ่งที่มีข้อมูล ห้ามแต่งเรื่องหรือเดาข้อมูลที่ไม่มี\n' +
+          '3. ถ้าคำถามอยู่นอกเหนือขอบเขตข้อมูลที่มี ให้แจ้งว่าไม่มีข้อมูลและแนะนำติดต่อแอดมิน\n' +
+          '4. ห้ามให้ข้อมูลที่อาจไม่ถูกต้อง เช่น ตัวเลข จำนวนเงิน ลิงก์ ที่ไม่มีในคลังความรู้';
+        legacyPrompt = (legacyPrompt || 'คุณเป็นผู้ช่วยที่เป็นมิตรและให้ข้อมูลที่เป็นประโยชน์ ตอบเป็นภาษาไทย ตอบให้กระชับและตรงประเด็น') + legacyCoreRules;
         response = await retryWithBackoff(
           () => this.chatbotService.getResponse(
             message.text,

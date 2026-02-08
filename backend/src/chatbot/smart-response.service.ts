@@ -303,9 +303,14 @@ export class SmartResponseService {
       settings.aiSystemPrompt ||
       'คุณเป็นผู้ช่วยที่เป็นมิตรและให้ข้อมูลที่เป็นประโยชน์ ตอบเป็นภาษาไทย ตอบให้กระชับและตรงประเด็น';
 
-    // Core instruction: always answer the user's actual question first
+    // Core instruction: answer based on knowledge + analyze whether to respond
     const coreInstruction =
-      'สิ่งสำคัญที่สุด: อ่านคำถามของลูกค้าให้เข้าใจ แล้วตอบคำถามนั้นโดยตรงก่อนเสมอ อย่าเปลี่ยนเรื่อง อย่าข้ามคำถาม';
+      'กฎสำคัญ:\n' +
+      '1. ตอบคำถามของลูกค้าโดยตรงก่อนเสมอ อย่าเปลี่ยนเรื่อง อย่าข้ามคำถาม\n' +
+      '2. ตอบเฉพาะสิ่งที่คุณมีข้อมูล (จาก System Prompt และคลังความรู้) เท่านั้น ห้ามแต่งเรื่องหรือเดาข้อมูลที่ไม่มี\n' +
+      '3. ถ้าคำถามอยู่นอกเหนือขอบเขตข้อมูลที่มี ให้ตอบสั้นๆ ว่าไม่มีข้อมูลในส่วนนี้ แนะนำให้ติดต่อแอดมินโดยตรง\n' +
+      '4. ถ้าข้อความไม่ใช่คำถามหรือไม่ต้องการคำตอบ (เช่น "ขอบคุณ", "โอเค") ให้ตอบสั้นๆ สุภาพ\n' +
+      '5. ห้ามให้ข้อมูลที่อาจไม่ถูกต้อง เช่น ตัวเลข จำนวนเงิน ลิงก์ ที่ไม่มีในคลังความรู้';
 
     // Intent-specific guidance (advisory, not directive)
     let intentGuidance = '';
@@ -331,7 +336,7 @@ export class SmartResponseService {
     let knowledgeSection = '';
     if (enabledKnowledge.length > 0) {
       const entries = enabledKnowledge.map((k) => `- ${k.topic}: ${k.answer}`).join('\n');
-      knowledgeSection = `คลังความรู้ (ใช้ข้อมูลนี้ตอบลูกค้าเมื่อเกี่ยวข้อง ถ้าไม่มีข้อมูลที่ต้องการให้แจ้งว่าจะส่งต่อแอดมิน):\n${entries}`;
+      knowledgeSection = `คลังความรู้ (ข้อมูลจริงของธุรกิจ — ใช้ข้อมูลนี้ตอบลูกค้าเท่านั้น ห้ามแต่งเพิ่มเอง ถ้าลูกค้าถามเรื่องที่ไม่มีในนี้ให้แจ้งว่าไม่มีข้อมูลและแนะนำติดต่อแอดมิน):\n${entries}`;
     }
 
     // Build final prompt: base + knowledge + core instruction + guidance

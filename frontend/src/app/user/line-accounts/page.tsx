@@ -10,7 +10,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Card, EmptyState } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { Button, IconButton } from '@/components/ui/Button';
-import { Input, Textarea, Select, Switch } from '@/components/ui/Input';
+import { Input, Textarea, Switch } from '@/components/ui/Input';
 import { Modal, ConfirmModal } from '@/components/ui/Modal';
 import { cn } from '@/lib/utils';
 import {
@@ -326,26 +326,13 @@ export default function UserLineAccountsPage() {
     aiTemperature: 0.7,
     aiFallbackMessage: 'ขออภัย ระบบไม่สามารถตอบคำถามได้ในขณะนี้',
     aiModel: '' as string,  // AI Model สำหรับบัญชีนี้
+    sendProcessingMessage: true,
     slipImmediateMessage: 'กำลังตรวจสอบสลิป กรุณารอสักครู่...',
-    // Custom messages per account
-    customQuotaExceededMessage: '',
-    customBotDisabledMessage: '',
-    customSlipDisabledMessage: '',
-    customAiDisabledMessage: '',
-    customDuplicateSlipMessage: '',
-    customSlipErrorMessage: '',
-    customSlipSuccessMessage: '',
-    // ตัวเลือกการส่งข้อความ
-    sendMessageWhenBotDisabled: 'default' as string,
-    sendMessageWhenSlipDisabled: 'default' as string,
-    sendMessageWhenAiDisabled: 'default' as string,
-    sendMessageWhenAiQuotaExhausted: 'default' as string,
-    sendProcessingMessage: true, // ส่งข้อความ "กำลังประมวลผล" หรือไม่
     // Knowledge Base
     knowledgeBase: [] as Array<{ topic: string; answer: string; enabled: boolean }>,
   });
 
-  const [activeSettingsTab, setActiveSettingsTab] = useState<'core' | 'knowledge' | 'ai' | 'messages'>('core');
+  const [activeSettingsTab, setActiveSettingsTab] = useState<'core' | 'knowledge' | 'ai'>('core');
 
   // AI Settings from system
   const [globalAiEnabled, setGlobalAiEnabled] = useState<boolean>(true);
@@ -676,11 +663,6 @@ export default function UserLineAccountsPage() {
     setSelectedAccount(account);
     setActiveSettingsTab('core');
     const s = account.settings || {};
-    // Convert boolean/null to string for frontend select
-    const boolToString = (val: boolean | null | undefined): string => {
-      if (val === null || val === undefined) return 'default';
-      return val ? 'true' : 'false';
-    };
     setSettingsData({
       enableBot: s.enableBot ?? true,
       enableAi: s.enableAi ?? false,
@@ -689,19 +671,8 @@ export default function UserLineAccountsPage() {
       aiTemperature: s.aiTemperature ?? 0.7,
       aiFallbackMessage: s.aiFallbackMessage || 'ขออภัย ระบบไม่สามารถตอบคำถามได้ในขณะนี้',
       aiModel: s.aiModel || '',
-      slipImmediateMessage: s.slipImmediateMessage || 'กำลังตรวจสอบสลิป กรุณารอสักครู่...',
-      customQuotaExceededMessage: s.customQuotaExceededMessage || '',
-      customBotDisabledMessage: s.customBotDisabledMessage || '',
-      customSlipDisabledMessage: s.customSlipDisabledMessage || '',
-      customAiDisabledMessage: s.customAiDisabledMessage || '',
-      customDuplicateSlipMessage: s.customDuplicateSlipMessage || '',
-      customSlipErrorMessage: s.customSlipErrorMessage || '',
-      customSlipSuccessMessage: s.customSlipSuccessMessage || '',
-      sendMessageWhenBotDisabled: boolToString(s.sendMessageWhenBotDisabled),
-      sendMessageWhenSlipDisabled: boolToString(s.sendMessageWhenSlipDisabled),
-      sendMessageWhenAiDisabled: boolToString(s.sendMessageWhenAiDisabled),
-      sendMessageWhenAiQuotaExhausted: boolToString(s.sendMessageWhenAiQuotaExhausted),
       sendProcessingMessage: s.sendProcessingMessage ?? true,
+      slipImmediateMessage: s.slipImmediateMessage || 'กำลังตรวจสอบสลิป กรุณารอสักครู่...',
       knowledgeBase: (s as Record<string, unknown>).knowledgeBase as Array<{ topic: string; answer: string; enabled: boolean }> || [],
     });
     setShowSettingsModal(true);
@@ -710,20 +681,7 @@ export default function UserLineAccountsPage() {
   const handleSaveSettings = async () => {
     if (!selectedAccount) return;
     try {
-      // Convert string values back to boolean/null for backend
-      const stringToBool = (val: string): boolean | null => {
-        if (val === 'default') return null;
-        return val === 'true';
-      };
-      const dataToSave = {
-        ...settingsData,
-        sendMessageWhenBotDisabled: stringToBool(settingsData.sendMessageWhenBotDisabled),
-        sendMessageWhenSlipDisabled: stringToBool(settingsData.sendMessageWhenSlipDisabled),
-        sendMessageWhenAiDisabled: stringToBool(settingsData.sendMessageWhenAiDisabled),
-        sendMessageWhenAiQuotaExhausted: stringToBool(settingsData.sendMessageWhenAiQuotaExhausted),
-        sendProcessingMessage: settingsData.sendProcessingMessage,
-      };
-      await lineAccountsApi.updateSettings(selectedAccount._id, dataToSave);
+      await lineAccountsApi.updateSettings(selectedAccount._id, settingsData);
       toast.success('บันทึกการตั้งค่าสำเร็จ');
       setShowSettingsModal(false);
       fetchAccounts();
@@ -1567,10 +1525,9 @@ export default function UserLineAccountsPage() {
               { id: 'core' as const, name: 'ระบบหลัก', icon: Zap },
               { id: 'knowledge' as const, name: 'คลังความรู้', icon: BookOpen },
               { id: 'ai' as const, name: 'AI ตอบกลับ', icon: Brain },
-              { id: 'messages' as const, name: 'ข้อความ', icon: MessageSquare },
             ]).map((tab) => {
               const isActive = activeSettingsTab === tab.id;
-              const isDisabled = (tab.id === 'ai' || tab.id === 'knowledge') && !settingsData.enableAi && tab.id === 'ai';
+              const isDisabled = tab.id === 'ai' && !settingsData.enableAi;
               const Icon = tab.icon;
               return (
                 <button
@@ -1963,179 +1920,6 @@ export default function UserLineAccountsPage() {
               </motion.div>
             )}
 
-            {/* ===== TAB: ข้อความ ===== */}
-            {activeSettingsTab === 'messages' && (
-              <motion.div key="messages" initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 20 }} transition={{ duration: 0.2 }} className="space-y-6">
-                <h3 className="text-sm font-bold text-white flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-2xl bg-violet-500/10 flex items-center justify-center text-violet-400 border border-violet-500/10">
-                    <MessageSquare className="w-5 h-5" />
-                  </div>
-                  <div>
-                    <span>ข้อความตอบกลับทั้งหมด</span>
-                    <p className="text-[10px] text-slate-500 font-normal mt-0.5">กำหนดข้อความที่ส่งให้ลูกค้าในแต่ละสถานการณ์ — ถ้าไม่กรอกจะใช้ค่าเริ่มต้นของระบบ</p>
-                  </div>
-                </h3>
-
-                {/* Send Toggles Section */}
-                <div className="space-y-3">
-                  <p className="text-xs font-bold text-white/40 ml-1">ควบคุมการส่งข้อความ</p>
-                  <div className="bg-white/[0.02] rounded-2xl border border-white/5 divide-y divide-white/5">
-                    {/* Bot disabled */}
-                    <div className="p-4 flex items-center justify-between gap-3">
-                      <div className="space-y-0.5 flex-1">
-                        <p className="text-xs font-bold text-white">เมื่อ Bot ปิด</p>
-                        <p className="text-[10px] text-slate-500">แจ้งลูกค้าเมื่อส่งข้อความมาแต่ Bot ปิดอยู่</p>
-                      </div>
-                      <Select
-                        value={settingsData.sendMessageWhenBotDisabled}
-                        onChange={(e) => setSettingsData({ ...settingsData, sendMessageWhenBotDisabled: e.target.value })}
-                        className="w-28 bg-slate-950/50 border-white/10 h-9 rounded-lg text-white text-[10px]"
-                      >
-                        <option value="default">ค่าระบบ</option>
-                        <option value="true">ส่ง</option>
-                        <option value="false">ไม่ส่ง</option>
-                      </Select>
-                    </div>
-                    {/* Slip disabled */}
-                    <div className="p-4 flex items-center justify-between gap-3">
-                      <div className="space-y-0.5 flex-1">
-                        <p className="text-xs font-bold text-white">เมื่อตรวจสลิปปิด</p>
-                        <p className="text-[10px] text-slate-500">แจ้งลูกค้าเมื่อส่งรูปมาแต่ระบบตรวจสลิปปิดอยู่</p>
-                      </div>
-                      <Select
-                        value={settingsData.sendMessageWhenSlipDisabled}
-                        onChange={(e) => setSettingsData({ ...settingsData, sendMessageWhenSlipDisabled: e.target.value })}
-                        className="w-28 bg-slate-950/50 border-white/10 h-9 rounded-lg text-white text-[10px]"
-                      >
-                        <option value="default">ค่าระบบ</option>
-                        <option value="true">ส่ง</option>
-                        <option value="false">ไม่ส่ง</option>
-                      </Select>
-                    </div>
-                    {/* AI disabled */}
-                    <div className="p-4 flex items-center justify-between gap-3">
-                      <div className="space-y-0.5 flex-1">
-                        <p className="text-xs font-bold text-white">เมื่อ AI ปิด</p>
-                        <p className="text-[10px] text-slate-500">แจ้งลูกค้าเมื่อส่งข้อความมาแต่ AI ปิดอยู่</p>
-                      </div>
-                      <Select
-                        value={settingsData.sendMessageWhenAiDisabled}
-                        onChange={(e) => setSettingsData({ ...settingsData, sendMessageWhenAiDisabled: e.target.value })}
-                        className="w-28 bg-slate-950/50 border-white/10 h-9 rounded-lg text-white text-[10px]"
-                      >
-                        <option value="default">ค่าระบบ</option>
-                        <option value="true">ส่ง</option>
-                        <option value="false">ไม่ส่ง</option>
-                      </Select>
-                    </div>
-                    {/* AI quota exhausted */}
-                    <div className="p-4 flex items-center justify-between gap-3">
-                      <div className="space-y-0.5 flex-1">
-                        <p className="text-xs font-bold text-white">เมื่อโควต้า AI หมด</p>
-                        <p className="text-[10px] text-slate-500">แจ้งลูกค้าเมื่อโควต้า AI ใช้หมดแล้ว</p>
-                      </div>
-                      <Select
-                        value={settingsData.sendMessageWhenAiQuotaExhausted}
-                        onChange={(e) => setSettingsData({ ...settingsData, sendMessageWhenAiQuotaExhausted: e.target.value })}
-                        className="w-28 bg-slate-950/50 border-white/10 h-9 rounded-lg text-white text-[10px]"
-                      >
-                        <option value="default">ค่าระบบ</option>
-                        <option value="true">ส่ง</option>
-                        <option value="false">ไม่ส่ง</option>
-                      </Select>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Custom Messages Section */}
-                <div className="space-y-3">
-                  <p className="text-xs font-bold text-white/40 ml-1">ข้อความกำหนดเอง (ถ้าไม่กรอก ใช้ค่าเริ่มต้นของระบบ)</p>
-                  <div className="bg-white/[0.02] rounded-2xl border border-white/5 p-5 space-y-5">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      {/* Bot disabled message */}
-                      <div className="space-y-1.5">
-                        <label className="text-[10px] font-bold text-white/40 ml-1">ข้อความเมื่อ Bot ปิด</label>
-                        <Input
-                          placeholder="ระบบปิดให้บริการชั่วคราว..."
-                          value={settingsData.customBotDisabledMessage}
-                          onChange={(e) => setSettingsData({ ...settingsData, customBotDisabledMessage: e.target.value })}
-                          disabled={settingsData.sendMessageWhenBotDisabled === 'false'}
-                          className="bg-slate-950/50 border-white/10 h-11 rounded-xl text-white text-sm"
-                        />
-                      </div>
-                      {/* Slip disabled message */}
-                      <div className="space-y-1.5">
-                        <label className="text-[10px] font-bold text-white/40 ml-1">ข้อความเมื่อตรวจสลิปปิด</label>
-                        <Input
-                          placeholder="ระบบตรวจสอบสลิปปิดชั่วคราว..."
-                          value={settingsData.customSlipDisabledMessage}
-                          onChange={(e) => setSettingsData({ ...settingsData, customSlipDisabledMessage: e.target.value })}
-                          disabled={settingsData.sendMessageWhenSlipDisabled === 'false'}
-                          className="bg-slate-950/50 border-white/10 h-11 rounded-xl text-white text-sm"
-                        />
-                      </div>
-                      {/* AI disabled message */}
-                      <div className="space-y-1.5">
-                        <label className="text-[10px] font-bold text-white/40 ml-1">ข้อความเมื่อ AI ปิด</label>
-                        <Input
-                          placeholder="ระบบ AI ปิดให้บริการชั่วคราว..."
-                          value={settingsData.customAiDisabledMessage}
-                          onChange={(e) => setSettingsData({ ...settingsData, customAiDisabledMessage: e.target.value })}
-                          disabled={settingsData.sendMessageWhenAiDisabled === 'false'}
-                          className="bg-slate-950/50 border-white/10 h-11 rounded-xl text-white text-sm"
-                        />
-                      </div>
-                      {/* Quota exceeded message */}
-                      <div className="space-y-1.5">
-                        <label className="text-[10px] font-bold text-white/40 ml-1">ข้อความเมื่อโควต้าหมด</label>
-                        <Input
-                          placeholder="โควต้าหมด กรุณาซื้อเพิ่ม..."
-                          value={settingsData.customQuotaExceededMessage}
-                          onChange={(e) => setSettingsData({ ...settingsData, customQuotaExceededMessage: e.target.value })}
-                          className="bg-slate-950/50 border-white/10 h-11 rounded-xl text-white text-sm"
-                        />
-                      </div>
-                    </div>
-
-                    <div className="border-t border-white/5 pt-5">
-                      <p className="text-[10px] font-bold text-white/30 mb-3 ml-1">ข้อความเกี่ยวกับสลิป</p>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        {/* Slip success message */}
-                        <div className="space-y-1.5">
-                          <label className="text-[10px] font-bold text-white/40 ml-1">สลิปถูกต้อง</label>
-                          <Input
-                            placeholder="สลิปถูกต้อง!"
-                            value={settingsData.customSlipSuccessMessage}
-                            onChange={(e) => setSettingsData({ ...settingsData, customSlipSuccessMessage: e.target.value })}
-                            className="bg-slate-950/50 border-white/10 h-11 rounded-xl text-white text-sm"
-                          />
-                        </div>
-                        {/* Duplicate slip message */}
-                        <div className="space-y-1.5">
-                          <label className="text-[10px] font-bold text-white/40 ml-1">สลิปซ้ำ</label>
-                          <Input
-                            placeholder="สลิปนี้เคยใช้แล้ว"
-                            value={settingsData.customDuplicateSlipMessage}
-                            onChange={(e) => setSettingsData({ ...settingsData, customDuplicateSlipMessage: e.target.value })}
-                            className="bg-slate-950/50 border-white/10 h-11 rounded-xl text-white text-sm"
-                          />
-                        </div>
-                        {/* Slip error message */}
-                        <div className="space-y-1.5">
-                          <label className="text-[10px] font-bold text-white/40 ml-1">สลิปผิดพลาด</label>
-                          <Input
-                            placeholder="เกิดข้อผิดพลาดในการตรวจสอบ..."
-                            value={settingsData.customSlipErrorMessage}
-                            onChange={(e) => setSettingsData({ ...settingsData, customSlipErrorMessage: e.target.value })}
-                            className="bg-slate-950/50 border-white/10 h-11 rounded-xl text-white text-sm"
-                          />
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </motion.div>
-            )}
           </AnimatePresence>
         </div>
       </Modal>
