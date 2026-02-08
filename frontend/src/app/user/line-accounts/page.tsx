@@ -41,6 +41,7 @@ import {
   ChevronDown,
   RotateCcw,
   SlidersHorizontal,
+  Sparkles,
 } from 'lucide-react';
 
 // Extended SlipTemplate interface for preview
@@ -122,6 +123,25 @@ interface ConnectionStatusInfo {
   errorMessage?: string;
   botName?: string;
 }
+
+// Smart AI Intent UI Configuration
+const INTENT_UI_CONFIG: Record<string, { name: string; desc: string; emoji: string; defaultUseAi: boolean; defaultTemplate: string }> = {
+  deposit_issue: { name: 'ฝาก/ถอนเงิน', desc: 'AI ตอบเรื่องฝาก-ถอน', emoji: '💰', defaultUseAi: true, defaultTemplate: '' },
+  frustrated: { name: 'ลูกค้าหงุดหงิด', desc: 'ตอบสุภาพ ให้กำลังใจ', emoji: '😤', defaultUseAi: true, defaultTemplate: '' },
+  abusive: { name: 'ข้อความหยาบคาย', desc: 'ไม่ตอบข้อความไม่เหมาะสม', emoji: '🚫', defaultUseAi: false, defaultTemplate: '__NO_RESPONSE__' },
+  ask_link: { name: 'ถามลิงก์เกม', desc: 'ส่งลิงก์ให้อัตโนมัติ', emoji: '🔗', defaultUseAi: false, defaultTemplate: '__SEND_LINKS__' },
+  ask_game_recommend: { name: 'แนะนำเกม', desc: 'AI แนะนำเกมที่เหมาะ', emoji: '🎮', defaultUseAi: true, defaultTemplate: '' },
+  general: { name: 'ข้อความทั่วไป', desc: 'AI ตอบตามคลังความรู้', emoji: '💬', defaultUseAi: true, defaultTemplate: '' },
+};
+
+const DEFAULT_INTENT_RULES: Record<string, { enabled: boolean; useAi: boolean; customPrompt: string; responseTemplate: string }> = {
+  deposit_issue: { enabled: true, useAi: true, customPrompt: '', responseTemplate: '' },
+  frustrated: { enabled: true, useAi: true, customPrompt: '', responseTemplate: '' },
+  abusive: { enabled: true, useAi: false, customPrompt: '', responseTemplate: '__NO_RESPONSE__' },
+  ask_link: { enabled: true, useAi: false, customPrompt: '', responseTemplate: '__SEND_LINKS__' },
+  ask_game_recommend: { enabled: true, useAi: true, customPrompt: '', responseTemplate: '' },
+  general: { enabled: true, useAi: true, customPrompt: '', responseTemplate: '' },
+};
 
 // SlipPreview Component (Admin-style design with real bank logos)
 const SlipPreview = memo(({ template, senderBank, receiverBank, sampleData = DEFAULT_SAMPLE_DATA }: {
@@ -333,6 +353,10 @@ export default function UserLineAccountsPage() {
     slipImmediateMessage: 'กำลังตรวจสอบสลิป กรุณารอสักครู่...',
     // Knowledge Base
     knowledgeBase: [] as Array<{ topic: string; answer: string; enabled: boolean }>,
+    // Smart AI
+    enableSmartAi: false,
+    intentRules: {} as Record<string, { enabled: boolean; useAi: boolean; customPrompt: string; responseTemplate: string }>,
+    gameLinks: [] as Array<{ name: string; url: string }>,
   });
 
   const [activeSettingsTab, setActiveSettingsTab] = useState<'core' | 'ai'>('core');
@@ -679,6 +703,9 @@ export default function UserLineAccountsPage() {
       sendProcessingMessage: s.sendProcessingMessage ?? true,
       slipImmediateMessage: s.slipImmediateMessage || 'กำลังตรวจสอบสลิป กรุณารอสักครู่...',
       knowledgeBase: (s as Record<string, unknown>).knowledgeBase as Array<{ topic: string; answer: string; enabled: boolean }> || [],
+      enableSmartAi: (s as Record<string, unknown>).enableSmartAi as boolean ?? false,
+      intentRules: ((s as Record<string, unknown>).intentRules as Record<string, { enabled: boolean; useAi: boolean; customPrompt: string; responseTemplate: string }>) || { ...DEFAULT_INTENT_RULES },
+      gameLinks: ((s as Record<string, unknown>).gameLinks as Array<{ name: string; url: string }>) || [],
     });
     setShowSettingsModal(true);
   };
@@ -1870,6 +1897,133 @@ export default function UserLineAccountsPage() {
                       />
                       <p className="text-[10px] text-slate-500 ml-1">เว้นว่างไว้จะใช้ค่าเริ่มต้น — กฎเรื่องตอบจากข้อมูลเท่านั้นจะถูกเพิ่มให้อัตโนมัติ</p>
                     </div>
+                  </div>
+
+                  {/* Divider */}
+                  <div className="border-t border-white/5 my-6" />
+
+                  {/* ========== SECTION: AI วิเคราะห์แชท (Smart AI) ========== */}
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-sm font-bold text-white flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-2xl bg-amber-500/10 flex items-center justify-center text-amber-400 border border-amber-500/10">
+                          <Sparkles className="w-5 h-5" />
+                        </div>
+                        <div>
+                          <span>AI วิเคราะห์แชท</span>
+                          <p className="text-[10px] text-slate-500 font-normal mt-0.5">ให้ AI วิเคราะห์ข้อความและตัดสินใจว่าควรตอบหรือไม่</p>
+                        </div>
+                      </h3>
+                      <Switch
+                        checked={settingsData.enableSmartAi}
+                        onChange={(checked) => setSettingsData({ ...settingsData, enableSmartAi: checked })}
+                      />
+                    </div>
+
+                    <AnimatePresence>
+                      {settingsData.enableSmartAi && (
+                        <motion.div
+                          initial={{ height: 0, opacity: 0 }}
+                          animate={{ height: 'auto', opacity: 1 }}
+                          exit={{ height: 0, opacity: 0 }}
+                          transition={{ duration: 0.2 }}
+                          className="overflow-hidden"
+                        >
+                          <div className="space-y-4">
+                            {/* Intent Rule Cards */}
+                            <p className="text-xs font-semibold text-white/50 ml-1">ประเภทข้อความที่ AI จะจัดการ</p>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                              {Object.entries(INTENT_UI_CONFIG).map(([intent, config]) => {
+                                const rule = settingsData.intentRules[intent] || DEFAULT_INTENT_RULES[intent] || { enabled: true, useAi: config.defaultUseAi, customPrompt: '', responseTemplate: config.defaultTemplate };
+                                return (
+                                  <div
+                                    key={intent}
+                                    className={cn(
+                                      "p-3 rounded-xl border transition-all",
+                                      rule.enabled ? "bg-white/[0.03] border-white/10" : "bg-white/[0.01] border-white/5 opacity-50"
+                                    )}
+                                  >
+                                    <div className="flex items-center justify-between gap-2">
+                                      <div className="flex items-center gap-2 flex-1 min-w-0">
+                                        <span className="text-base flex-shrink-0">{config.emoji}</span>
+                                        <div className="min-w-0">
+                                          <p className="text-xs font-bold text-white truncate">{config.name}</p>
+                                          <p className="text-[10px] text-slate-500 truncate">{config.desc}</p>
+                                        </div>
+                                      </div>
+                                      <Switch
+                                        checked={rule.enabled}
+                                        onChange={(checked) => {
+                                          const updatedRules = { ...settingsData.intentRules };
+                                          updatedRules[intent] = { ...rule, enabled: checked };
+                                          setSettingsData({ ...settingsData, intentRules: updatedRules });
+                                        }}
+                                      />
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                            </div>
+
+                            {/* Game Links (for ask_link intent) */}
+                            {(settingsData.intentRules['ask_link']?.enabled ?? true) && (
+                              <div className="space-y-3 p-4 rounded-xl bg-white/[0.02] border border-white/5">
+                                <div className="flex items-center justify-between">
+                                  <p className="text-xs font-semibold text-white/70 flex items-center gap-2">
+                                    <span>🔗</span> ลิงก์เกม
+                                  </p>
+                                  <p className="text-[10px] text-slate-500">ส่งให้ลูกค้าเมื่อถามลิงก์</p>
+                                </div>
+                                {settingsData.gameLinks.map((link, idx) => (
+                                  <div key={idx} className="flex items-center gap-2">
+                                    <Input
+                                      value={link.name}
+                                      onChange={(e) => {
+                                        const updated = [...settingsData.gameLinks];
+                                        updated[idx] = { ...updated[idx], name: e.target.value };
+                                        setSettingsData({ ...settingsData, gameLinks: updated });
+                                      }}
+                                      placeholder="ชื่อเกม"
+                                      className="bg-white/5 border-white/10 text-white h-10 rounded-lg text-sm flex-1"
+                                    />
+                                    <Input
+                                      value={link.url}
+                                      onChange={(e) => {
+                                        const updated = [...settingsData.gameLinks];
+                                        updated[idx] = { ...updated[idx], url: e.target.value };
+                                        setSettingsData({ ...settingsData, gameLinks: updated });
+                                      }}
+                                      placeholder="https://..."
+                                      className="bg-white/5 border-white/10 text-white h-10 rounded-lg text-sm flex-[2]"
+                                    />
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        const updated = settingsData.gameLinks.filter((_, i) => i !== idx);
+                                        setSettingsData({ ...settingsData, gameLinks: updated });
+                                      }}
+                                      className="text-rose-400/60 hover:text-rose-400 transition-colors p-1 flex-shrink-0"
+                                    >
+                                      <Trash2 size={14} />
+                                    </button>
+                                  </div>
+                                ))}
+                                {settingsData.gameLinks.length === 0 && (
+                                  <p className="text-[10px] text-slate-500 text-center py-2">ยังไม่มีลิงก์เกม — เพิ่มลิงก์เพื่อให้ AI ส่งให้ลูกค้าอัตโนมัติ</p>
+                                )}
+                                <button
+                                  type="button"
+                                  onClick={() => setSettingsData({ ...settingsData, gameLinks: [...settingsData.gameLinks, { name: '', url: '' }] })}
+                                  className="text-xs bg-white/5 text-white/50 px-3 py-1.5 rounded-lg hover:bg-white/10 hover:text-white transition-colors"
+                                >
+                                  + เพิ่มลิงก์
+                                </button>
+                              </div>
+                            )}
+                          </div>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
                   </div>
 
                   {/* Divider */}
