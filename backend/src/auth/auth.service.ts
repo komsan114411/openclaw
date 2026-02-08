@@ -318,6 +318,11 @@ export class AuthService {
       throw new BadRequestException('รหัสผ่านปัจจุบันไม่ถูกต้อง กรุณาตรวจสอบและลองใหม่');
     }
 
+    // Prevent reusing the same password
+    if (dto.newPassword === dto.currentPassword) {
+      throw new BadRequestException('รหัสผ่านใหม่ต้องไม่ซ้ำกับรหัสผ่านเดิม');
+    }
+
     const hashedPassword = await bcrypt.hash(dto.newPassword, 12);
     await this.userModel.updateOne(
       { _id: userId },

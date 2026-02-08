@@ -152,9 +152,11 @@ export class AuthController {
   }
 
   @Post('change-password')
-  @UseGuards(SessionAuthGuard)
+  @UseGuards(SessionAuthGuard, RateLimitGuard)
+  @RateLimit({ limit: 5, windowSeconds: 300, keyPrefix: 'auth:change-password' })
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Change password' })
+  @ApiResponse({ status: 429, description: 'Too many password change attempts' })
   async changePassword(
     @CurrentUser() user: AuthUser,
     @Body() changePasswordDto: ChangePasswordDto,

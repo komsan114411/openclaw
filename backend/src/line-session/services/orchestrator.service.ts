@@ -392,7 +392,10 @@ export class OrchestratorService implements OnModuleInit, OnModuleDestroy {
             continue;
           }
 
-          // Validate keys with actual LINE API call
+          // [FIX] Check if session has recent login success (grace period protection)
+          const recentSuccessInfo = this.enhancedAutomationService.hasRecentSuccess(sessionId);
+
+          // Validate keys with actual LINE API call (always validate to get real status)
           this.logger.log(`[HealthCheck] Validating keys for ${session.name}...`);
           const keysValid = await this.enhancedAutomationService.validateKeys(session.xLineAccess, session.xHmac);
 
@@ -412,7 +415,26 @@ export class OrchestratorService implements OnModuleInit, OnModuleDestroy {
                   },
                 },
               );
+            } else if (recentSuccessInfo.hasRecentSuccess) {
+              // [FIX] Keys validation failed BUT session has recent login success
+              // Don't mark as expired - trust the recent login (LINE API may have delay)
+              this.logger.warn(
+                `[HealthCheck] Session ${session.name}: LINE API returned expired, but TRUSTING recent login success (${recentSuccessInfo.ageSeconds}s ago, grace period: ${recentSuccessInfo.gracePeriodSeconds}s)`,
+              );
+              await this.lineSessionModel.updateOne(
+                { _id: session._id },
+                {
+                  $set: {
+                    lastCheckedAt: new Date(),
+                    lastCheckResult: 'valid_grace_period',
+                    status: 'active',
+                    lastError: null,
+                    consecutiveFailures: 0,
+                  },
+                },
+              );
             } else {
+              // Keys validation failed AND no recent success - truly expired
               this.logger.warn(`[HealthCheck] Session ${session.name}: keys EXPIRED ✗`);
               await this.lineSessionModel.updateOne(
                 { _id: session._id },
@@ -574,6 +596,28 @@ export class OrchestratorService implements OnModuleInit, OnModuleDestroy {
             continue;
           }
 
+          // [FIX] Skip relogin for sessions with recent login success
+          // This prevents triggering relogin immediately after successful login
+          const recentSuccessInfo = this.enhancedAutomationService.hasRecentSuccess(sessionId);
+          if (recentSuccessInfo.hasRecentSuccess) {
+            this.logger.log(
+              `[ReloginCheck] Session ${session.name}: SKIPPING relogin (recent login success ${recentSuccessInfo.ageSeconds}s ago, grace period: ${recentSuccessInfo.gracePeriodSeconds}s)`,
+            );
+            // Update status back to active since login was recently successful
+            await this.lineSessionModel.updateOne(
+              { _id: session._id },
+              {
+                $set: {
+                  status: 'active',
+                  lastCheckResult: 'valid',
+                  lastCheckedAt: new Date(),
+                  lastError: null,
+                },
+              },
+            );
+            continue;
+          }
+
           // Double-check: Validate keys with LINE API before triggering relogin
           // This prevents unnecessary relogin attempts
           if (session.xLineAccess && session.xHmac) {
@@ -592,6 +636,28 @@ export class OrchestratorService implements OnModuleInit, OnModuleDestroy {
               );
               continue;
             }
+
+            // [FIX] Keys validation failed - but check grace period again before relogin
+            // (in case login just completed during validation)
+            const recentSuccessRecheck = this.enhancedAutomationService.hasRecentSuccess(sessionId);
+            if (recentSuccessRecheck.hasRecentSuccess) {
+              this.logger.warn(
+                `[ReloginCheck] Session ${session.name}: LINE API returned expired, but TRUSTING recent login (${recentSuccessRecheck.ageSeconds}s ago), skipping relogin`,
+              );
+              await this.lineSessionModel.updateOne(
+                { _id: session._id },
+                {
+                  $set: {
+                    status: 'active',
+                    lastCheckResult: 'valid_grace_period',
+                    lastCheckedAt: new Date(),
+                    lastError: null,
+                  },
+                },
+              );
+              continue;
+            }
+
             this.logger.log(`[ReloginCheck] Keys confirmed expired for ${session.name}, proceeding with relogin`);
           }
 
