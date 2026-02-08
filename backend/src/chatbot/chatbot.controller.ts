@@ -109,9 +109,11 @@ export class ChatbotController {
         duplicateDetectionWindowMinutes: s?.duplicateDetectionWindowMinutes ?? 5,
         spamThresholdMessagesPerMinute: s?.spamThresholdMessagesPerMinute ?? 5,
         gameLinks: s?.gameLinks || [],
+        knowledgeBase: s?.knowledgeBase || [],
         intentRules: s?.intentRules || {},
         aiSystemPrompt: s?.aiSystemPrompt,
         aiModel: s?.aiModel,
+        aiTemperature: s?.aiTemperature,
         smartAiConfidenceThreshold: s?.smartAiConfidenceThreshold ?? 0.6,
         smartAiMaxTokens: s?.smartAiMaxTokens ?? 500,
         smartAiResponseDelayMs: 0, // No delay for testing

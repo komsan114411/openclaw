@@ -837,9 +837,11 @@ export class LineWebhookController {
             duplicateDetectionWindowMinutes: account.settings?.duplicateDetectionWindowMinutes ?? 5,
             spamThresholdMessagesPerMinute: account.settings?.spamThresholdMessagesPerMinute ?? 5,
             gameLinks: account.settings?.gameLinks || [],
+            knowledgeBase: account.settings?.knowledgeBase || [],
             intentRules: account.settings?.intentRules || {},
             aiSystemPrompt: account.settings?.aiSystemPrompt,
             aiModel: account.settings?.aiModel,
+            aiTemperature: account.settings?.aiTemperature,
             smartAiConfidenceThreshold: account.settings?.smartAiConfidenceThreshold ?? 0.6,
             smartAiMaxTokens: account.settings?.smartAiMaxTokens ?? 500,
             smartAiResponseDelayMs: account.settings?.smartAiResponseDelayMs ?? 0,
@@ -863,14 +865,22 @@ export class LineWebhookController {
         if (smartResult.response) {
           response = smartResult.response;
         } else {
-          // Fallback to legacy if smart AI returned null response
+          // Fallback to legacy if smart AI returned null response — inject knowledge base
+          let fallbackPrompt = account.settings?.aiSystemPrompt || '';
+          const fbKb = (account.settings?.knowledgeBase || []).filter((k: { enabled: boolean }) => k.enabled);
+          if (fbKb.length > 0) {
+            const fbEntries = fbKb.map((k: { topic: string; answer: string }) => `- ${k.topic}: ${k.answer}`).join('\n');
+            fallbackPrompt = (fallbackPrompt || 'คุณเป็นผู้ช่วยที่เป็นมิตรและให้ข้อมูลที่เป็นประโยชน์ ตอบเป็นภาษาไทย ตอบให้กระชับและตรงประเด็น') + `\n\nคลังความรู้:\n${fbEntries}`;
+          }
           response = await retryWithBackoff(
             () => this.chatbotService.getResponse(
               message.text,
               lineUserId,
               accountId,
-              account.settings?.aiSystemPrompt,
+              fallbackPrompt || undefined,
               account.settings?.aiModel,
+              undefined,
+              account.settings?.aiTemperature,
             ),
             retrySettings.maxAttempts,
             retrySettings.delayMs,
@@ -878,13 +888,24 @@ export class LineWebhookController {
         }
       } else {
         // ---- Legacy AI Response ----
+        // Build system prompt with knowledge base for legacy path
+        let legacyPrompt = account.settings?.aiSystemPrompt || '';
+        const kb = (account.settings?.knowledgeBase || []).filter((k: { enabled: boolean }) => k.enabled);
+        if (kb.length > 0) {
+          const entries = kb.map((k: { topic: string; answer: string }) => `- ${k.topic}: ${k.answer}`).join('\n');
+          const knowledgeSection = `\n\nคลังความรู้ (ใช้ข้อมูลนี้ตอบลูกค้าเมื่อเกี่ยวข้อง ถ้าไม่มีข้อมูลที่ต้องการให้แจ้งว่าจะส่งต่อแอดมิน):\n${entries}`;
+          legacyPrompt = (legacyPrompt || 'คุณเป็นผู้ช่วยที่เป็นมิตรและให้ข้อมูลที่เป็นประโยชน์ ตอบเป็นภาษาไทย ตอบให้กระชับและตรงประเด็น') + knowledgeSection;
+          legacyPrompt += '\n\nสิ่งสำคัญที่สุด: อ่านคำถามของลูกค้าให้เข้าใจ แล้วตอบคำถามนั้นโดยตรงก่อนเสมอ อย่าเปลี่ยนเรื่อง อย่าข้ามคำถาม';
+        }
         response = await retryWithBackoff(
           () => this.chatbotService.getResponse(
             message.text,
             lineUserId,
             accountId,
-            account.settings?.aiSystemPrompt,
+            legacyPrompt || undefined,
             account.settings?.aiModel,
+            undefined,
+            account.settings?.aiTemperature,
           ),
           retrySettings.maxAttempts,
           retrySettings.delayMs,

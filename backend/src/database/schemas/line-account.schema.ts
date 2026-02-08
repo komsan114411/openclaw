@@ -133,6 +133,10 @@ export class LineAccountSettings {
   @Prop({ type: [Object], default: () => [] })
   gameLinks: Array<{ name: string; url: string }>;
 
+  // Knowledge Base - ข้อมูลสำคัญที่ AI ใช้ตอบลูกค้า
+  @Prop({ type: [Object], default: () => [] })
+  knowledgeBase: Array<{ topic: string; answer: string; enabled: boolean }>;
+
   @Prop({
     type: Object,
     default: () => ({

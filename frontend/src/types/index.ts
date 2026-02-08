@@ -101,6 +101,7 @@ export interface LineAccountSettings {
   duplicateDetectionWindowMinutes?: number;
   spamThresholdMessagesPerMinute?: number;
   gameLinks?: Array<{ name: string; url: string }>;
+  knowledgeBase?: Array<{ topic: string; answer: string; enabled: boolean }>;
   intentRules?: Record<string, IntentRuleConfig>;
   // Smart AI Advanced
   smartAiConfidenceThreshold?: number;

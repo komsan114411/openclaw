@@ -10,6 +10,7 @@ import {
   SmartResponseResult,
   IntentTestResult,
   GameLink,
+  KnowledgeEntry,
 } from './types/smart-ai.types';
 
 interface SmartAiSettings {
@@ -18,9 +19,11 @@ interface SmartAiSettings {
   duplicateDetectionWindowMinutes: number;
   spamThresholdMessagesPerMinute: number;
   gameLinks: GameLink[];
+  knowledgeBase: KnowledgeEntry[];
   intentRules: Record<string, IntentRuleConfig>;
   aiSystemPrompt?: string;
   aiModel?: string;
+  aiTemperature?: number;
   smartAiConfidenceThreshold?: number;
   smartAiMaxTokens?: number;
   smartAiResponseDelayMs?: number;
@@ -249,6 +252,7 @@ export class SmartResponseService {
     const maxRetries = settings.smartAiMaxRetries ?? 2;
     const retryDelay = settings.smartAiRetryDelayMs ?? 1000;
     const maxTokens = settings.smartAiMaxTokens ?? 500;
+    const temperature = settings.aiTemperature;
 
     let lastError: Error | null = null;
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
@@ -260,6 +264,7 @@ export class SmartResponseService {
           fullPrompt,
           settings.aiModel,
           maxTokens,
+          temperature,
         );
         return makeResult(true, aiResponse);
       } catch (error) {
@@ -292,36 +297,59 @@ export class SmartResponseService {
     intent: SmartAiIntent,
     rule: IntentRuleConfig,
     settings: SmartAiSettings,
-    message: string,
+    _message: string,
   ): string {
-    let contextPrompt = '';
-    switch (intent) {
-      case 'deposit_issue':
-        contextPrompt =
-          'ลูกค้ามีปัญหาเรื่องการฝากเงิน ให้ขอสลิปโอนเงินจากลูกค้า แล้วแจ้งว่าแอดมินกำลังตรวจสอบ ตอบสุภาพและให้กำลังใจ';
-        break;
-      case 'frustrated':
-        contextPrompt =
-          'ลูกค้ารู้สึกหงุดหงิดหรือผิดหวัง ให้กำลังใจ แนะนำให้ลองเปลี่ยนเกม หรือพักผ่อนสักครู่แล้วกลับมาเล่นใหม่';
-        break;
-      case 'ask_game_recommend':
-        contextPrompt = 'ลูกค้าถามแนะนำเกม ให้แนะนำเกมที่น่าสนใจ';
-        break;
-      default:
-        contextPrompt = '';
-    }
-
     const basePrompt =
       settings.aiSystemPrompt ||
       'คุณเป็นผู้ช่วยที่เป็นมิตรและให้ข้อมูลที่เป็นประโยชน์ ตอบเป็นภาษาไทย ตอบให้กระชับและตรงประเด็น';
 
-    if (contextPrompt) {
-      return `${basePrompt}\n\nบริบทเพิ่มเติม: ${rule.customPrompt || contextPrompt}`;
+    // Core instruction: always answer the user's actual question first
+    const coreInstruction =
+      'สิ่งสำคัญที่สุด: อ่านคำถามของลูกค้าให้เข้าใจ แล้วตอบคำถามนั้นโดยตรงก่อนเสมอ อย่าเปลี่ยนเรื่อง อย่าข้ามคำถาม';
+
+    // Intent-specific guidance (advisory, not directive)
+    let intentGuidance = '';
+    switch (intent) {
+      case 'deposit_issue':
+        intentGuidance =
+          'ลูกค้ากำลังถามเรื่องเกี่ยวกับการฝากเงิน/โอนเงิน — ตอบคำถามที่ถามก่อน ถ้าลูกค้าบอกว่ามีปัญหาจริง ค่อยแนะนำให้ส่งสลิปมาให้ตรวจสอบ';
+        break;
+      case 'frustrated':
+        intentGuidance =
+          'ลูกค้าดูหงุดหงิดหรือผิดหวัง — ตอบคำถามหรือข้อกังวลของลูกค้าก่อน แล้วค่อยให้กำลังใจเพิ่มเติม';
+        break;
+      case 'ask_game_recommend':
+        intentGuidance =
+          'ลูกค้าสนใจเรื่องเกม — ตอบคำถามที่ถามตรงๆ ก่อน แล้วค่อยแนะนำเพิ่มเติมถ้าเหมาะสม';
+        break;
+      default:
+        intentGuidance = '';
     }
+
+    // Build knowledge base section
+    const enabledKnowledge = (settings.knowledgeBase || []).filter((k) => k.enabled);
+    let knowledgeSection = '';
+    if (enabledKnowledge.length > 0) {
+      const entries = enabledKnowledge.map((k) => `- ${k.topic}: ${k.answer}`).join('\n');
+      knowledgeSection = `คลังความรู้ (ใช้ข้อมูลนี้ตอบลูกค้าเมื่อเกี่ยวข้อง ถ้าไม่มีข้อมูลที่ต้องการให้แจ้งว่าจะส่งต่อแอดมิน):\n${entries}`;
+    }
+
+    // Build final prompt: base + knowledge + core instruction + guidance
+    const parts = [basePrompt];
+
+    if (knowledgeSection) {
+      parts.push(knowledgeSection);
+    }
+
+    parts.push(coreInstruction);
+
     if (rule.customPrompt) {
-      return `${basePrompt}\n\nบริบทเพิ่มเติม: ${rule.customPrompt}`;
+      parts.push(`บริบทเพิ่มเติม: ${rule.customPrompt}`);
+    } else if (intentGuidance) {
+      parts.push(`บริบทเพิ่มเติม: ${intentGuidance}`);
     }
-    return basePrompt;
+
+    return parts.join('\n\n');
   }
 
   /**
@@ -384,6 +412,7 @@ export class SmartResponseService {
               fullPrompt,
               settings.aiModel,
               settings.smartAiMaxTokens ?? 500,
+              settings.aiTemperature,
             );
           } catch {
             sampleResponse = '[AI ไม่สามารถสร้างตัวอย่างได้]';

@@ -41,6 +41,12 @@ export interface GameLink {
   url: string;
 }
 
+export interface KnowledgeEntry {
+  topic: string;
+  answer: string;
+  enabled: boolean;
+}
+
 export const DEFAULT_INTENT_RULES: Record<SmartAiIntent, IntentRuleConfig> = {
   deposit_issue: {
     enabled: true,
