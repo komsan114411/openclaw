@@ -378,6 +378,17 @@ export class LineAccountsService {
     this.logger.log(`[updateSettings] Updated settings for account ${id}: slipTemplateIds=${JSON.stringify(mergedSettings.slipTemplateIds || {})}`);
 
     await this.redisService.invalidateCache(`line-account:${id}`);
+
+    // Clear AI chat history when AI-related settings change
+    // This ensures the AI uses the new prompt/knowledge base without stale context
+    const aiRelatedKeys = ['enableAi', 'enableSmartAi', 'knowledgeBase', 'aiSystemPrompt', 'aiModel', 'intentRules'];
+    const hasAiSettingsChanged = aiRelatedKeys.some((key) => key in (settings as Record<string, unknown>));
+    if (hasAiSettingsChanged) {
+      const deletedCount = await this.redisService.deleteKeysByPattern(`chat:${id}:*`);
+      if (deletedCount > 0) {
+        this.logger.log(`[updateSettings] Cleared ${deletedCount} chat history entries for account ${id} (AI settings changed)`);
+      }
+    }
   }
 
   async delete(id: string): Promise<void> {

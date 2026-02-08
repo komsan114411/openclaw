@@ -125,13 +125,13 @@ interface ConnectionStatusInfo {
 }
 
 // Smart AI Intent UI Configuration
-const INTENT_UI_CONFIG: Record<string, { name: string; desc: string; emoji: string; defaultUseAi: boolean; defaultTemplate: string }> = {
-  deposit_issue: { name: 'ฝาก/ถอนเงิน', desc: 'AI ตอบเรื่องฝาก-ถอน', emoji: '💰', defaultUseAi: true, defaultTemplate: '' },
-  frustrated: { name: 'ลูกค้าหงุดหงิด', desc: 'ตอบสุภาพ ให้กำลังใจ', emoji: '😤', defaultUseAi: true, defaultTemplate: '' },
-  abusive: { name: 'ข้อความหยาบคาย', desc: 'ไม่ตอบข้อความไม่เหมาะสม', emoji: '🚫', defaultUseAi: false, defaultTemplate: '__NO_RESPONSE__' },
-  ask_link: { name: 'ถามลิงก์เกม', desc: 'ส่งลิงก์ให้อัตโนมัติ', emoji: '🔗', defaultUseAi: false, defaultTemplate: '__SEND_LINKS__' },
-  ask_game_recommend: { name: 'แนะนำเกม', desc: 'AI แนะนำเกมที่เหมาะ', emoji: '🎮', defaultUseAi: true, defaultTemplate: '' },
-  general: { name: 'ข้อความทั่วไป', desc: 'AI ตอบตามคลังความรู้', emoji: '💬', defaultUseAi: true, defaultTemplate: '' },
+const INTENT_UI_CONFIG: Record<string, { name: string; desc: string; example: string; action: string; emoji: string; defaultUseAi: boolean; defaultTemplate: string }> = {
+  deposit_issue: { name: 'ฝาก/ถอนเงิน', desc: 'ลูกค้าถามเรื่องฝาก-ถอนเงิน', example: '"เติมเงินไม่เข้า", "โอนแล้วยังไม่ได้"', action: 'AI ตอบ + แนะนำส่งสลิป', emoji: '💰', defaultUseAi: true, defaultTemplate: '' },
+  frustrated: { name: 'ลูกค้าหงุดหงิด', desc: 'ข้อความแสดงอารมณ์ไม่พอใจ', example: '"เล่นแล้วเสียตลอด", "ไม่แจ็คพ็อตเลย"', action: 'AI ตอบสุภาพ ให้กำลังใจ', emoji: '😤', defaultUseAi: true, defaultTemplate: '' },
+  abusive: { name: 'ข้อความหยาบคาย', desc: 'คำหยาบ ด่า ก้าวร้าว', example: 'คำหยาบคาย, ข้อความก้าวร้าว', action: 'ไม่ตอบ (เงียบ)', emoji: '🚫', defaultUseAi: false, defaultTemplate: '__NO_RESPONSE__' },
+  ask_link: { name: 'ถามลิงก์เกม', desc: 'ลูกค้าขอลิงก์ทางเข้าเล่น', example: '"ขอทางเข้า", "ลิงก์เล่นอยู่ไหน"', action: 'ส่งลิงก์อัตโนมัติ', emoji: '🔗', defaultUseAi: false, defaultTemplate: '__SEND_LINKS__' },
+  ask_game_recommend: { name: 'แนะนำเกม', desc: 'ลูกค้าอยากได้เกมที่เหมาะ', example: '"เกมไหนดี", "แนะนำเกมแตกง่าย"', action: 'AI แนะนำจากความรู้', emoji: '🎮', defaultUseAi: true, defaultTemplate: '' },
+  general: { name: 'ข้อความทั่วไป', desc: 'คำถามอื่นๆ ที่ไม่เข้าข้างบน', example: '"สมัครยังไง", "ขอบคุณ", "สวัสดี"', action: 'AI ตอบจากคลังความรู้', emoji: '💬', defaultUseAi: true, defaultTemplate: '' },
 };
 
 const DEFAULT_INTENT_RULES: Record<string, { enabled: boolean; useAi: boolean; customPrompt: string; responseTemplate: string }> = {
@@ -1750,6 +1750,17 @@ export default function UserLineAccountsPage() {
                       </div>
                     </h3>
 
+                    {/* Tip Box */}
+                    <div className="p-3 rounded-xl bg-teal-500/5 border border-teal-500/10">
+                      <p className="text-[11px] text-teal-300/80 font-semibold mb-1">ทำงานอย่างไร?</p>
+                      <p className="text-[10px] text-slate-400 leading-relaxed">เมื่อลูกค้าถามคำถาม AI จะค้นหาคำตอบจากข้อมูลที่คุณใส่ไว้ ถ้าไม่มีข้อมูลตรง AI จะแจ้งว่าไม่มีข้อมูลและแนะนำให้ติดต่อแอดมิน</p>
+                      <div className="mt-2 space-y-1">
+                        <p className="text-[10px] text-slate-500">ตัวอย่างการใส่ข้อมูล:</p>
+                        <p className="text-[10px] text-white/40 font-mono">หัวข้อ: ฝากขั้นต่ำ → คำตอบ: ฝากขั้นต่ำ 100 บาท ผ่านธนาคารหรือทรูวอลเล็ท</p>
+                        <p className="text-[10px] text-white/40 font-mono">หัวข้อ: เวลาทำการ → คำตอบ: เปิดให้บริการ 24 ชั่วโมง</p>
+                      </div>
+                    </div>
+
                     {/* Quick Templates */}
                     {settingsData.knowledgeBase.length === 0 && (
                       <div className="space-y-3">
@@ -1873,10 +1884,22 @@ export default function UserLineAccountsPage() {
                         <Brain className="w-5 h-5" />
                       </div>
                       <div className="flex-1">
-                        <span>คำสั่งให้ AI</span>
-                        <p className="text-[10px] text-slate-500 font-normal mt-0.5">กำหนดบุคลิกและแนวทางการตอบ เช่น ตอบสุภาพ ใช้ภาษาไทย</p>
+                        <span>คำสั่งให้ AI (System Prompt)</span>
+                        <p className="text-[10px] text-slate-500 font-normal mt-0.5">กำหนดบุคลิก น้ำเสียง และแนวทางการตอบของ AI</p>
                       </div>
                     </h3>
+
+                    {/* Tip Box */}
+                    <div className="p-3 rounded-xl bg-violet-500/5 border border-violet-500/10">
+                      <p className="text-[11px] text-violet-300/80 font-semibold mb-1">ทำงานอย่างไร?</p>
+                      <p className="text-[10px] text-slate-400 leading-relaxed">คำสั่งนี้จะถูกส่งให้ AI ทุกครั้งที่ตอบแชท เหมือนกับบอก AI ว่า &quot;คุณเป็นใคร ตอบแบบไหน&quot;</p>
+                      <div className="mt-2 space-y-1">
+                        <p className="text-[10px] text-slate-500">ตัวอย่าง:</p>
+                        <p className="text-[10px] text-white/40 font-mono">&quot;คุณชื่อน้องมิ้น เป็นผู้ช่วยร้านค้า ตอบสุภาพ ใช้คำลงท้ายค่ะ/ครับ&quot;</p>
+                        <p className="text-[10px] text-white/40 font-mono">&quot;ตอบสั้นกระชับไม่เกิน 2 บรรทัด ห้ามใช้อีโมจิ&quot;</p>
+                      </div>
+                    </div>
+
                     <div className="space-y-2">
                       <div className="flex items-center justify-between">
                         <label className="text-xs font-semibold text-white/50 ml-1">คำสั่งเริ่มต้น</label>
@@ -1895,7 +1918,7 @@ export default function UserLineAccountsPage() {
                         placeholder="คุณเป็นผู้ช่วยที่เป็นมิตรและให้ข้อมูลที่เป็นประโยชน์ ตอบเป็นภาษาไทย ตอบให้กระชับและตรงประเด็น"
                         className="bg-slate-950/50 border-white/10 text-white min-h-[100px] rounded-xl text-sm p-4"
                       />
-                      <p className="text-[10px] text-slate-500 ml-1">เว้นว่างไว้จะใช้ค่าเริ่มต้น — กฎเรื่องตอบจากข้อมูลเท่านั้นจะถูกเพิ่มให้อัตโนมัติ</p>
+                      <p className="text-[10px] text-slate-500 ml-1">เว้นว่างไว้จะใช้ค่าเริ่มต้น — กฎเรื่อง &quot;ตอบจากข้อมูลเท่านั้น&quot; จะถูกเพิ่มให้อัตโนมัติ ไม่ต้องพิมพ์เอง</p>
                     </div>
                   </div>
 
@@ -1910,14 +1933,24 @@ export default function UserLineAccountsPage() {
                           <Sparkles className="w-5 h-5" />
                         </div>
                         <div>
-                          <span>AI วิเคราะห์แชท</span>
-                          <p className="text-[10px] text-slate-500 font-normal mt-0.5">ให้ AI วิเคราะห์ข้อความและตัดสินใจว่าควรตอบหรือไม่</p>
+                          <span>AI วิเคราะห์แชท (Smart AI)</span>
+                          <p className="text-[10px] text-slate-500 font-normal mt-0.5">ให้ AI วิเคราะห์ข้อความแล้วตัดสินใจว่าจะตอบหรือไม่ ตอบแบบไหน</p>
                         </div>
                       </h3>
                       <Switch
                         checked={settingsData.enableSmartAi}
                         onChange={(checked) => setSettingsData({ ...settingsData, enableSmartAi: checked })}
                       />
+                    </div>
+
+                    {/* Smart AI Explanation */}
+                    <div className="p-3 rounded-xl bg-amber-500/5 border border-amber-500/10">
+                      <p className="text-[11px] text-amber-300/80 font-semibold mb-1">{settingsData.enableSmartAi ? 'Smart AI เปิดอยู่' : 'Smart AI ปิดอยู่'}</p>
+                      {settingsData.enableSmartAi ? (
+                        <p className="text-[10px] text-slate-400 leading-relaxed">AI จะอ่านข้อความลูกค้าก่อน → จำแนกประเภท → แล้วตอบตามกฎที่ตั้งไว้ เช่น ข้อความหยาบคายจะไม่ตอบ, ถามลิงก์จะส่งลิงก์ทันที, คำถามทั่วไปจะใช้ AI ตอบจากคลังความรู้</p>
+                      ) : (
+                        <p className="text-[10px] text-slate-400 leading-relaxed">AI จะตอบทุกข้อความเหมือนกันหมด โดยใช้คลังความรู้ + คำสั่งด้านบน ไม่แยกประเภทข้อความ เปิด Smart AI เพื่อให้ AI ฉลาดขึ้น</p>
+                      )}
                     </div>
 
                     <AnimatePresence>
@@ -1931,8 +1964,8 @@ export default function UserLineAccountsPage() {
                         >
                           <div className="space-y-4">
                             {/* Intent Rule Cards */}
-                            <p className="text-xs font-semibold text-white/50 ml-1">ประเภทข้อความที่ AI จะจัดการ</p>
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            <p className="text-xs font-semibold text-white/50 ml-1">ประเภทข้อความที่ AI จะจัดการ — เปิด/ปิดแต่ละประเภทได้</p>
+                            <div className="grid grid-cols-1 gap-3">
                               {Object.entries(INTENT_UI_CONFIG).map(([intent, config]) => {
                                 const rule = settingsData.intentRules[intent] || DEFAULT_INTENT_RULES[intent] || { enabled: true, useAi: config.defaultUseAi, customPrompt: '', responseTemplate: config.defaultTemplate };
                                 return (
@@ -1943,12 +1976,16 @@ export default function UserLineAccountsPage() {
                                       rule.enabled ? "bg-white/[0.03] border-white/10" : "bg-white/[0.01] border-white/5 opacity-50"
                                     )}
                                   >
-                                    <div className="flex items-center justify-between gap-2">
-                                      <div className="flex items-center gap-2 flex-1 min-w-0">
-                                        <span className="text-base flex-shrink-0">{config.emoji}</span>
-                                        <div className="min-w-0">
-                                          <p className="text-xs font-bold text-white truncate">{config.name}</p>
-                                          <p className="text-[10px] text-slate-500 truncate">{config.desc}</p>
+                                    <div className="flex items-center justify-between gap-3">
+                                      <div className="flex items-center gap-3 flex-1 min-w-0">
+                                        <span className="text-lg flex-shrink-0">{config.emoji}</span>
+                                        <div className="min-w-0 flex-1">
+                                          <div className="flex items-center gap-2 flex-wrap">
+                                            <p className="text-xs font-bold text-white">{config.name}</p>
+                                            <span className="text-[9px] px-1.5 py-0.5 rounded bg-white/5 text-slate-400 font-medium">{config.action}</span>
+                                          </div>
+                                          <p className="text-[10px] text-slate-500 mt-0.5">{config.desc}</p>
+                                          <p className="text-[9px] text-white/20 mt-0.5 italic">ตัวอย่าง: {config.example}</p>
                                         </div>
                                       </div>
                                       <Switch
@@ -1968,11 +2005,11 @@ export default function UserLineAccountsPage() {
                             {/* Game Links (for ask_link intent) */}
                             {(settingsData.intentRules['ask_link']?.enabled ?? true) && (
                               <div className="space-y-3 p-4 rounded-xl bg-white/[0.02] border border-white/5">
-                                <div className="flex items-center justify-between">
+                                <div>
                                   <p className="text-xs font-semibold text-white/70 flex items-center gap-2">
                                     <span>🔗</span> ลิงก์เกม
                                   </p>
-                                  <p className="text-[10px] text-slate-500">ส่งให้ลูกค้าเมื่อถามลิงก์</p>
+                                  <p className="text-[10px] text-slate-500 mt-1">เมื่อลูกค้าถาม &quot;ขอทางเข้า&quot; หรือ &quot;ลิงก์เล่น&quot; AI จะส่งลิงก์เหล่านี้ให้อัตโนมัติ</p>
                                 </div>
                                 {settingsData.gameLinks.map((link, idx) => (
                                   <div key={idx} className="flex items-center gap-2">
@@ -1983,7 +2020,7 @@ export default function UserLineAccountsPage() {
                                         updated[idx] = { ...updated[idx], name: e.target.value };
                                         setSettingsData({ ...settingsData, gameLinks: updated });
                                       }}
-                                      placeholder="ชื่อเกม"
+                                      placeholder="เช่น PG Slot"
                                       className="bg-white/5 border-white/10 text-white h-10 rounded-lg text-sm flex-1"
                                     />
                                     <Input
@@ -1993,7 +2030,7 @@ export default function UserLineAccountsPage() {
                                         updated[idx] = { ...updated[idx], url: e.target.value };
                                         setSettingsData({ ...settingsData, gameLinks: updated });
                                       }}
-                                      placeholder="https://..."
+                                      placeholder="https://example.com/play"
                                       className="bg-white/5 border-white/10 text-white h-10 rounded-lg text-sm flex-[2]"
                                     />
                                     <button
@@ -2009,7 +2046,7 @@ export default function UserLineAccountsPage() {
                                   </div>
                                 ))}
                                 {settingsData.gameLinks.length === 0 && (
-                                  <p className="text-[10px] text-slate-500 text-center py-2">ยังไม่มีลิงก์เกม — เพิ่มลิงก์เพื่อให้ AI ส่งให้ลูกค้าอัตโนมัติ</p>
+                                  <p className="text-[10px] text-slate-500 text-center py-2">ยังไม่มีลิงก์ — เพิ่มลิงก์เพื่อให้ AI ส่งให้ลูกค้าเมื่อถาม &quot;ขอทางเข้า&quot;</p>
                                 )}
                                 <button
                                   type="button"

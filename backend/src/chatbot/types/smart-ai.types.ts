@@ -130,7 +130,10 @@ export function buildSmartAiSettings(s: Record<string, unknown>): SmartAiSetting
     spamThresholdMessagesPerMinute: (s?.spamThresholdMessagesPerMinute as number) ?? 5,
     gameLinks: (s?.gameLinks as GameLink[]) || [],
     knowledgeBase: (s?.knowledgeBase as KnowledgeEntry[]) || [],
-    intentRules: (s?.intentRules as Record<string, IntentRuleConfig>) || {},
+    intentRules: {
+      ...DEFAULT_INTENT_RULES,
+      ...((s?.intentRules as Record<string, IntentRuleConfig>) || {}),
+    },
     aiSystemPrompt: s?.aiSystemPrompt as string | undefined,
     aiModel: s?.aiModel as string | undefined,
     aiTemperature: s?.aiTemperature as number | undefined,

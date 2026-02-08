@@ -310,6 +310,27 @@ export class RedisService {
   }
 
   /**
+   * Delete all keys matching a pattern (no prefix).
+   * Used for clearing chat history, etc.
+   */
+  async deleteKeysByPattern(pattern: string): Promise<number> {
+    if (this.isRedisAvailable()) {
+      try {
+        const keys = await this.redis!.keys(pattern);
+        if (keys.length > 0) {
+          await this.redis!.del(...keys);
+          this.logger.log(`Deleted ${keys.length} keys matching pattern: ${pattern}`);
+        }
+        return keys.length;
+      } catch (error) {
+        this.logger.warn(`Redis deleteKeysByPattern failed: ${error}`);
+        return 0;
+      }
+    }
+    return 0;
+  }
+
+  /**
    * Rate limiting with TRUE Sliding Window Log Algorithm
    * Uses Redis sorted sets for accurate sliding window
    * Returns object with allowed status, current count, and reset time
