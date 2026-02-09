@@ -108,48 +108,27 @@ export class SlipVerificationService {
   }
 
   /**
-   * Get recent slip from slip_history by lineUserId and lineAccountId
-   * Used when transRef is not available (e.g., Slip2Go duplicate without data)
-   * Falls back to searching by lineAccountId only if user-specific search fails
+   * Get original slip from slip_history by QR decode payload.
+   * Used when Slip2Go returns duplicate without transRef.
+   * The 'decode' field (QR payload) is the same for identical slip images,
+   * so it uniquely identifies the original transaction.
    */
-  async getRecentSlipByUser(lineUserId: string, lineAccountId: string): Promise<SlipHistoryDocument | null> {
-    if (!lineAccountId) return null;
+  async getOriginalSlipByDecode(decode: string): Promise<SlipHistoryDocument | null> {
+    if (!decode) return null;
 
     try {
-      // Search in the last 30 days
-      const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
-
-      // First: Try to find by specific user
-      if (lineUserId) {
-        const userSlip = await this.slipHistoryModel.findOne({
-          lineUserId,
-          lineAccountId,
-          status: 'success',
-          createdAt: { $gte: thirtyDaysAgo },
-        }).sort({ createdAt: -1 }).lean().exec();
-
-        if (userSlip) {
-          this.logger.log(`[DUPLICATE] Found slip by user: ${lineUserId}`);
-          return userSlip as unknown as SlipHistoryDocument;
-        }
-      }
-
-      // Fallback: Find any recent successful slip in this LINE account
-      this.logger.log(`[DUPLICATE] User slip not found, searching by lineAccountId only`);
-      const accountSlip = await this.slipHistoryModel.findOne({
-        lineAccountId,
+      // Search rawData.rawData.decode (nested: slip_history.rawData = NormalizedSlipData which has rawData = provider response)
+      const originalSlip = await this.slipHistoryModel.findOne({
         status: 'success',
-        createdAt: { $gte: thirtyDaysAgo },
+        $or: [
+          { 'rawData.rawData.decode': decode },
+          { 'rawData.decode': decode },
+        ],
       }).sort({ createdAt: -1 }).lean().exec();
 
-      if (accountSlip) {
-        this.logger.log(`[DUPLICATE] Found slip by lineAccountId: ${lineAccountId}`);
-        return accountSlip as unknown as SlipHistoryDocument;
-      }
-
-      return null;
+      return originalSlip as SlipHistoryDocument | null;
     } catch (error) {
-      this.logger.warn(`Failed to get recent slip: ${error}`);
+      this.logger.warn(`Failed to get original slip by decode: ${error}`);
       return null;
     }
   }
@@ -1414,41 +1393,47 @@ export class SlipVerificationService {
         } else {
           this.logger.warn(`[DUPLICATE] No original slip found in slip_history for transRef: ${transRef}`);
         }
-      } else if (!transRef && needsEnrichment && context?.lineUserId && context?.lineAccountId) {
-        // Method 2: Fallback - Lookup by user (Slip2Go duplicate doesn't return transRef)
-        this.logger.log(`[DUPLICATE] No transRef, trying to get recent slip by user: ${context.lineUserId}`);
-        const recentSlip = await this.getRecentSlipByUser(context.lineUserId, context.lineAccountId);
-        if (recentSlip) {
-          this.logger.log(`[DUPLICATE] Found recent slip for user: amount=${recentSlip.amount}, sender=${recentSlip.senderName}, transRef=${recentSlip.transRef}`);
-          const historyData = this.buildSlipDataFromHistory(recentSlip);
+      } else if (!transRef && needsEnrichment) {
+        // Method 2: Match by QR decode payload (Slip2Go duplicate returns decode but not transRef)
+        // The decode field is the raw QR/barcode content — same slip always produces the same decode
+        const decodeValue = duplicateData.rawData?.decode || (result.data as any)?.rawData?.decode;
+        if (decodeValue) {
+          this.logger.log(`[DUPLICATE] No transRef, trying to match by decode payload: ${decodeValue.substring(0, 40)}...`);
+          const originalSlip = await this.getOriginalSlipByDecode(decodeValue);
+          if (originalSlip) {
+            this.logger.log(`[DUPLICATE] Found original slip by decode: amount=${originalSlip.amount}, sender=${originalSlip.senderName}, transRef=${originalSlip.transRef}`);
+            const historyData = this.buildSlipDataFromHistory(originalSlip);
 
-          // Helper to check if value is meaningful (not empty, not zero)
-          const isMeaningful = (val: any): boolean => {
-            if (val === null || val === undefined || val === '') return false;
-            if (typeof val === 'number' && val === 0) return false;
-            if (typeof val === 'string' && (val === '฿0' || val === '0' || val.trim() === '')) return false;
-            return true;
-          };
+            const isMeaningful = (val: any): boolean => {
+              if (val === null || val === undefined || val === '') return false;
+              if (typeof val === 'number' && val === 0) return false;
+              if (typeof val === 'string' && (val === '฿0' || val === '0' || val.trim() === '')) return false;
+              return true;
+            };
 
-          // Prefer history data over API data for empty/zero values
-          duplicateData = {
-            ...historyData, // Start with history data
-            // Only use API data if it's meaningful, otherwise keep history
-            transRef: isMeaningful(duplicateData.transRef) ? duplicateData.transRef : historyData.transRef,
-            amount: isMeaningful(duplicateData.amount) ? duplicateData.amount : historyData.amount,
-            amountFormatted: isMeaningful(duplicateData.amountFormatted) ? duplicateData.amountFormatted : historyData.amountFormatted,
-            senderName: isMeaningful(duplicateData.senderName) ? duplicateData.senderName : historyData.senderName,
-            senderBank: isMeaningful(duplicateData.senderBank) ? duplicateData.senderBank : historyData.senderBank,
-            senderBankCode: isMeaningful(duplicateData.senderBankCode) ? duplicateData.senderBankCode : historyData.senderBankCode,
-            receiverName: isMeaningful(duplicateData.receiverName) ? duplicateData.receiverName : historyData.receiverName,
-            receiverBank: isMeaningful(duplicateData.receiverBank) ? duplicateData.receiverBank : historyData.receiverBank,
-            receiverBankCode: isMeaningful(duplicateData.receiverBankCode) ? duplicateData.receiverBankCode : historyData.receiverBankCode,
-            receiverAccountNumber: isMeaningful(duplicateData.receiverAccountNumber) ? duplicateData.receiverAccountNumber : historyData.receiverAccountNumber,
-            isDuplicate: true,
-          };
-          this.logger.log(`[DUPLICATE] Enriched from user history: amountFormatted=${duplicateData.amountFormatted}, senderName=${duplicateData.senderName}, senderBankCode=${duplicateData.senderBankCode}`);
+            duplicateData = {
+              ...historyData,
+              transRef: isMeaningful(duplicateData.transRef) ? duplicateData.transRef : historyData.transRef,
+              amount: isMeaningful(duplicateData.amount) ? duplicateData.amount : historyData.amount,
+              amountFormatted: isMeaningful(duplicateData.amountFormatted) ? duplicateData.amountFormatted : historyData.amountFormatted,
+              senderName: isMeaningful(duplicateData.senderName) ? duplicateData.senderName : historyData.senderName,
+              senderBank: isMeaningful(duplicateData.senderBank) ? duplicateData.senderBank : historyData.senderBank,
+              senderBankCode: isMeaningful(duplicateData.senderBankCode) ? duplicateData.senderBankCode : historyData.senderBankCode,
+              receiverName: isMeaningful(duplicateData.receiverName) ? duplicateData.receiverName : historyData.receiverName,
+              receiverBank: isMeaningful(duplicateData.receiverBank) ? duplicateData.receiverBank : historyData.receiverBank,
+              receiverBankCode: isMeaningful(duplicateData.receiverBankCode) ? duplicateData.receiverBankCode : historyData.receiverBankCode,
+              receiverAccountNumber: isMeaningful(duplicateData.receiverAccountNumber) ? duplicateData.receiverAccountNumber : historyData.receiverAccountNumber,
+              isDuplicate: true,
+            };
+            this.logger.log(`[DUPLICATE] Enriched from decode match: amountFormatted=${duplicateData.amountFormatted}, senderName=${duplicateData.senderName}, senderBankCode=${duplicateData.senderBankCode}`);
+          } else {
+            this.logger.warn(`[DUPLICATE] No original slip found by decode payload — showing generic duplicate message`);
+            duplicateData = { isDuplicate: true };
+          }
         } else {
-          this.logger.warn(`[DUPLICATE] No recent slip found for user: ${context.lineUserId}`);
+          // No transRef and no decode — cannot identify original slip, show generic message
+          this.logger.warn(`[DUPLICATE] No transRef and no decode available — showing generic duplicate message`);
+          duplicateData = { isDuplicate: true };
         }
       } else {
         this.logger.warn(`[DUPLICATE] Cannot enrich - conditions not met: transRef=${!!transRef}, needsEnrichment=${needsEnrichment}, hasLineUserId=${!!context?.lineUserId}, hasLineAccountId=${!!context?.lineAccountId}`);
