@@ -4,6 +4,7 @@ import { Model } from 'mongoose';
 import axios from 'axios';
 import { Bank, BankDocument } from '../database/schemas/bank.schema';
 import { SystemSettingsService } from '../system-settings/system-settings.service';
+import { escapeRegex } from '../common/utils/validation.util';
 
 // Default Thai banks data
 const DEFAULT_BANKS = [
@@ -115,7 +116,7 @@ export class BanksService {
       bank = await this.bankModel.findOne({
         $or: [
           { code: normalizedCode },
-          { shortName: { $regex: new RegExp(`^${normalizedCode}$`, 'i') } },
+          { shortName: { $regex: new RegExp(`^${escapeRegex(normalizedCode)}$`, 'i') } },
         ]
       });
     }

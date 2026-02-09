@@ -35,9 +35,14 @@ async function bootstrap() {
       },
     }));
 
-    // Increase body size limit for base64 image uploads (10MB)
-    app.use(bodyParser.json({ limit: '10mb' }));
-    app.use(bodyParser.urlencoded({ limit: '10mb', extended: true }));
+    // Default body size limit (1MB for regular API calls)
+    app.use(bodyParser.json({ limit: '1mb' }));
+    app.use(bodyParser.urlencoded({ limit: '1mb', extended: true }));
+
+    // Larger limit for webhook + wallet endpoints that handle base64 images (10MB)
+    app.use('/api/webhook', bodyParser.json({ limit: '10mb' }));
+    app.use('/api/wallet', bodyParser.json({ limit: '10mb' }));
+    app.use('/api/line-accounts', bodyParser.json({ limit: '5mb' }));
 
     // Correlation ID middleware for request tracking
     app.use((req: any, res: any, next: any) => {

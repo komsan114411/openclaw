@@ -47,17 +47,17 @@ export class AuthService {
         const initialPassword = process.env.ADMIN_INITIAL_PASSWORD;
         let password: string;
 
-        if (initialPassword && initialPassword.length >= 6) {
+        if (initialPassword && initialPassword.length >= 8) {
           password = initialPassword;
           this.logger.log('Using ADMIN_INITIAL_PASSWORD from environment variable');
         } else {
           // Generate a secure random password if env var not set
           password = crypto.randomBytes(16).toString('hex');
           this.logger.warn('='.repeat(60));
-          this.logger.warn('ADMIN_INITIAL_PASSWORD not set! Generated random password:');
-          this.logger.warn(`  Username: admin`);
-          this.logger.warn(`  Password: ${password}`);
-          this.logger.warn('Please set ADMIN_INITIAL_PASSWORD env var in production!');
+          this.logger.warn('ADMIN_INITIAL_PASSWORD not set or too short (min 8 chars)!');
+          this.logger.warn('A random password has been generated.');
+          this.logger.warn('  Username: admin');
+          this.logger.warn('  Check ADMIN_INITIAL_PASSWORD env var or reset via DB.');
           this.logger.warn('='.repeat(60));
         }
 
@@ -207,9 +207,12 @@ export class AuthService {
       }
     }
 
-    // Validate password strength
-    if (registerDto.password.length < 6) {
-      throw new BadRequestException('รหัสผ่านต้องมีอย่างน้อย 6 ตัวอักษร');
+    // Validate password strength (min 8 chars, at least 1 letter + 1 number)
+    if (registerDto.password.length < 8) {
+      throw new BadRequestException('รหัสผ่านต้องมีอย่างน้อย 8 ตัวอักษร');
+    }
+    if (!/[a-zA-Z]/.test(registerDto.password) || !/[0-9]/.test(registerDto.password)) {
+      throw new BadRequestException('รหัสผ่านต้องมีทั้งตัวอักษรและตัวเลข');
     }
 
     const hashedPassword = await bcrypt.hash(registerDto.password, 12);

@@ -1,17 +1,22 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Transform } from 'class-transformer';
-import { IsEmail, IsNotEmpty, IsOptional, IsString, MinLength } from 'class-validator';
+import { IsEmail, IsNotEmpty, IsOptional, IsString, Matches, MaxLength, MinLength } from 'class-validator';
 
 export class RegisterDto {
   @ApiProperty({ example: 'newuser' })
   @IsString()
   @IsNotEmpty()
+  @MaxLength(30)
   username: string;
 
   @ApiProperty({ example: 'password123' })
   @IsString()
   @IsNotEmpty()
-  @MinLength(6)
+  @MinLength(8)
+  @MaxLength(128)
+  @Matches(/^(?=.*[a-zA-Z])(?=.*[0-9])/, {
+    message: 'รหัสผ่านต้องมีทั้งตัวอักษรและตัวเลข',
+  })
   password: string;
 
   @ApiPropertyOptional({ example: 'user@example.com' })

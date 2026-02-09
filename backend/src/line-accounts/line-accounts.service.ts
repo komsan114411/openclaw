@@ -174,10 +174,21 @@ export class LineAccountsService {
   }
 
   async findByOwner(ownerId: string): Promise<LineAccountDocument[]> {
-    return this.lineAccountModel.find({ ownerId, isActive: true }).exec();
+    return this.lineAccountModel.find({ ownerId, isActive: true })
+      .select('-accessToken -channelSecret')
+      .exec();
   }
 
   async findById(id: string): Promise<LineAccountDocument | null> {
+    return this.lineAccountModel.findById(id)
+      .select('-accessToken -channelSecret')
+      .exec();
+  }
+
+  /**
+   * Find by ID with sensitive fields included (for internal use: webhook, test-connection)
+   */
+  async findByIdInternal(id: string): Promise<LineAccountDocument | null> {
     return this.lineAccountModel.findById(id).exec();
   }
 
@@ -333,11 +344,42 @@ export class LineAccountsService {
     return account;
   }
 
+  // Allowed settings fields — prevents injection of arbitrary fields into the document
+  private static readonly ALLOWED_SETTINGS_FIELDS = new Set([
+    // Slip & payment
+    'slipTemplateId', 'slipTemplateIds', 'autoReplyEnabled', 'autoReplyMessage',
+    'slipVerificationEnabled', 'minDepositAmount', 'maxDepositAmount',
+    // AI settings
+    'enableAi', 'enableSmartAi', 'aiSystemPrompt', 'aiModel', 'aiTemperature',
+    'aiFallbackMessage', 'knowledgeBase', 'intentRules', 'gameLinks',
+    'smartAiClassifierModel', 'duplicateDetectionWindowMinutes',
+    'spamThresholdMessagesPerMinute',
+    // Smart AI advanced
+    'smartAiConfidenceThreshold', 'smartAiMaxTokens', 'smartAiResponseDelayMs',
+    'smartAiMaxRetries', 'smartAiRetryDelayMs', 'smartAiFallbackAction',
+    // Notifications & display
+    'welcomeMessage', 'notifyOnDeposit', 'notifyOnWithdraw',
+    'richMenuId', 'richMenuEnabled',
+    // Quota
+    'quotaAlertEnabled', 'quotaAlertThreshold',
+  ]);
+
   async updateSettings(id: string, settings: Partial<LineAccountDocument['settings']>): Promise<void> {
     const account = await this.lineAccountModel.findById(id);
     if (!account) {
       throw new NotFoundException('LINE account not found');
     }
+
+    // Filter out unknown/disallowed fields
+    const sanitizedSettings: Record<string, unknown> = {};
+    for (const [key, value] of Object.entries(settings as Record<string, unknown>)) {
+      if (LineAccountsService.ALLOWED_SETTINGS_FIELDS.has(key)) {
+        sanitizedSettings[key] = value;
+      } else {
+        this.logger.warn(`[updateSettings] Rejected unknown settings field: ${key}`);
+      }
+    }
+    settings = sanitizedSettings as typeof settings;
 
     // Convert existing settings to plain object to avoid Mongoose subdocument issues
     const rawSettings = account.settings as any;

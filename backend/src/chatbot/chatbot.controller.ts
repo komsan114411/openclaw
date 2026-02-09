@@ -21,6 +21,7 @@ import { UserRole } from '../database/schemas/user.schema';
 import { SystemSettingsService } from '../system-settings/system-settings.service';
 import { LineAccount, LineAccountDocument } from '../database/schemas/line-account.schema';
 import { buildSmartAiSettings } from './types/smart-ai.types';
+import { RateLimitGuard, RateLimit } from '../common/guards/rate-limit.guard';
 
 @ApiTags('Chatbot')
 @ApiBearerAuth()
@@ -37,8 +38,9 @@ export class ChatbotController {
   ) {}
 
   @Post('test')
-  @UseGuards(RolesGuard)
+  @UseGuards(RolesGuard, RateLimitGuard)
   @Roles(UserRole.ADMIN)
+  @RateLimit({ limit: 20, windowSeconds: 60, keyPrefix: 'chatbot:test' })
   @ApiOperation({ summary: 'Test chatbot (Admin only)' })
   async testChat(@Body() body: { message: string; systemPrompt?: string; lineAccountId?: string }) {
     const response = await this.chatbotService.getResponse(
@@ -54,8 +56,9 @@ export class ChatbotController {
   }
 
   @Post('test-connection')
-  @UseGuards(RolesGuard)
+  @UseGuards(RolesGuard, RateLimitGuard)
   @Roles(UserRole.ADMIN)
+  @RateLimit({ limit: 10, windowSeconds: 60, keyPrefix: 'chatbot:test-conn' })
   @ApiOperation({ summary: 'Test AI API connection (Admin only)' })
   async testConnection(@Body() body: { apiKey: string }) {
     // Get the API key to test
@@ -86,8 +89,9 @@ export class ChatbotController {
   }
 
   @Post('test-classification')
-  @UseGuards(RolesGuard)
+  @UseGuards(RolesGuard, RateLimitGuard)
   @Roles(UserRole.ADMIN)
+  @RateLimit({ limit: 20, windowSeconds: 60, keyPrefix: 'chatbot:test-classify' })
   @ApiOperation({ summary: 'Test Smart AI intent classification (Admin only)' })
   async testClassification(
     @Body() body: { message: string; lineAccountId: string },

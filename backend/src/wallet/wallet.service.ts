@@ -10,6 +10,7 @@ import { SubscriptionsService } from '../subscriptions/subscriptions.service';
 import { RedisService } from '../redis/redis.service';
 
 import { BlockchainVerificationService } from './blockchain-verification.service';
+import { escapeRegex } from '../common/utils/validation.util';
 
 @Injectable()
 export class WalletService {
@@ -579,10 +580,11 @@ export class WalletService {
         try {
             // === SECURITY: Check for duplicate TxHash (case-insensitive) ===
             const normalizedTxHash = sanitizedTxHash.toLowerCase();
+            const escapedTxHash = escapeRegex(normalizedTxHash);
             const existingTx = await this.transactionModel.findOne({
                 $or: [
-                    { 'metadata.transactionHash': { $regex: new RegExp(`^${normalizedTxHash}$`, 'i') } },
-                    { transRef: { $regex: new RegExp(`^${normalizedTxHash}$`, 'i') } },
+                    { 'metadata.transactionHash': { $regex: new RegExp(`^${escapedTxHash}$`, 'i') } },
+                    { transRef: { $regex: new RegExp(`^${escapedTxHash}$`, 'i') } },
                 ],
             });
 

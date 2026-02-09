@@ -260,7 +260,9 @@ export class LineAccountsController {
       throw new ForbiddenException('ไม่มีสิทธิ์ดูประวัติแชท');
     }
 
-    const messages = await this.lineAccountsService.getChatHistory(id, userId, limit);
+    // Cap limit to prevent excessive queries
+    const safeLimit = Math.min(Math.max(1, Number(limit) || 50), 200);
+    const messages = await this.lineAccountsService.getChatHistory(id, userId, safeLimit);
     return {
       success: true,
       messages,
@@ -273,7 +275,8 @@ export class LineAccountsController {
     @Param('id', ParseObjectIdPipe) id: string,
     @CurrentUser() user: AuthUser,
   ) {
-    const account = await this.lineAccountsService.findById(id);
+    // Use findByIdInternal to access accessToken for the API call
+    const account = await this.lineAccountsService.findByIdInternal(id);
     if (!account) {
       throw new NotFoundException('ไม่พบบัญชี LINE');
     }
@@ -289,7 +292,9 @@ export class LineAccountsController {
   }
 
   @Post('test-connection')
-  @ApiOperation({ summary: 'Test LINE channel connection with access token' })
+  @UseGuards(RolesGuard)
+  @Roles(UserRole.ADMIN)
+  @ApiOperation({ summary: 'Test LINE channel connection with access token (Admin only)' })
   async testConnectionWithToken(
     @Body() body: { accessToken: string },
   ) {
