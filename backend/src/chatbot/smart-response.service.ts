@@ -41,15 +41,16 @@ export class SmartResponseService {
     let confidence = 0;
 
     try {
-      // 1. Record message for spam tracking
-      await this.spamDetector.recordMessage(lineAccountId, userId);
+      // 1. Record message for spam tracking (use same window as check)
+      const spamWindowSeconds = 60;
+      await this.spamDetector.recordMessage(lineAccountId, userId, spamWindowSeconds);
 
       // 2. Check spam
       const isSpam = await this.spamDetector.isSpamming(
         lineAccountId,
         userId,
         settings.spamThresholdMessagesPerMinute,
-        60,
+        spamWindowSeconds,
       );
       if (isSpam) {
         wasSpamDetected = true;

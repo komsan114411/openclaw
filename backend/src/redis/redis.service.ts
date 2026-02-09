@@ -218,6 +218,32 @@ export class RedisService {
     });
   }
 
+  /**
+   * Atomic set-if-not-exists with TTL. Returns true if lock acquired, false if key already exists.
+   * Used for distributed locking (e.g., slip processing lock).
+   */
+  async setNX(key: string, value: string, ttlSeconds: number): Promise<boolean> {
+    if (this.isRedisAvailable()) {
+      try {
+        const result = await this.redis!.set(key, value, 'EX', ttlSeconds, 'NX');
+        return result === 'OK';
+      } catch (error) {
+        this.logger.warn(`Redis setNX failed: ${error}`);
+      }
+    }
+    // Memory cache fallback — check if key exists and not expired
+    const existing = this.memoryCache.get(key);
+    if (existing && (!existing.expiry || existing.expiry > Date.now())) {
+      return false; // Key exists, lock not acquired
+    }
+    this.memoryCache.set(key, {
+      value,
+      expiry: Date.now() + ttlSeconds * 1000,
+      accessTime: Date.now(),
+    });
+    return true;
+  }
+
   async del(key: string): Promise<void> {
     if (this.isRedisAvailable()) {
       try {
@@ -316,12 +342,23 @@ export class RedisService {
   async deleteKeysByPattern(pattern: string): Promise<number> {
     if (this.isRedisAvailable()) {
       try {
-        const keys = await this.redis!.keys(pattern);
-        if (keys.length > 0) {
-          await this.redis!.del(...keys);
-          this.logger.log(`Deleted ${keys.length} keys matching pattern: ${pattern}`);
+        let cursor = '0';
+        let totalDeleted = 0;
+        // Use SCAN instead of KEYS to avoid blocking Redis on large datasets
+        do {
+          const [nextCursor, keys] = await this.redis!.scan(
+            cursor, 'MATCH', pattern, 'COUNT', 100,
+          );
+          cursor = nextCursor;
+          if (keys.length > 0) {
+            await this.redis!.del(...keys);
+            totalDeleted += keys.length;
+          }
+        } while (cursor !== '0');
+        if (totalDeleted > 0) {
+          this.logger.log(`Deleted ${totalDeleted} keys matching pattern: ${pattern}`);
         }
-        return keys.length;
+        return totalDeleted;
       } catch (error) {
         this.logger.warn(`Redis deleteKeysByPattern failed: ${error}`);
         return 0;

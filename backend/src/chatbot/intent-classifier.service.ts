@@ -57,8 +57,13 @@ export class IntentClassifierService {
         0,
       );
 
-      // Parse JSON response
-      const cleaned = raw.trim();
+      // Parse JSON response — handle markdown code blocks from some models
+      let cleaned = raw.trim();
+      // Strip markdown code fences if present (e.g., ```json ... ```)
+      const codeBlockMatch = cleaned.match(/```(?:json)?\s*([\s\S]*?)```/);
+      if (codeBlockMatch) {
+        cleaned = codeBlockMatch[1].trim();
+      }
       const parsed = JSON.parse(cleaned);
 
       const intent = VALID_INTENTS.includes(parsed.intent)

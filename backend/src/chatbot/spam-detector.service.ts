@@ -9,17 +9,17 @@ export class SpamDetectorService {
 
   /**
    * Record a message timestamp for spam tracking
+   * @param windowSeconds - time window to keep timestamps for (matches isSpamming window)
    */
-  async recordMessage(accountId: string, userId: string): Promise<void> {
+  async recordMessage(accountId: string, userId: string, windowSeconds = 120): Promise<void> {
     const key = `spam:${accountId}:${userId}`;
     const now = Date.now();
     try {
       const timestamps = (await this.redisService.getJson<number[]>(key)) || [];
-      // Keep only timestamps from the last 120 seconds
-      const cutoff = now - 120_000;
+      const cutoff = now - windowSeconds * 1000;
       const filtered = timestamps.filter((t) => t > cutoff);
       filtered.push(now);
-      await this.redisService.setJson(key, filtered, 120);
+      await this.redisService.setJson(key, filtered, windowSeconds);
     } catch (error) {
       this.logger.warn('Failed to record spam message:', error);
     }

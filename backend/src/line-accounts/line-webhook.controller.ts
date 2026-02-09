@@ -455,12 +455,12 @@ export class LineWebhookController {
     try {
       this.logger.log(`[SLIP] Starting verification for messageId=${messageId}, accountId=${accountId}`);
 
-      // Prevent duplicate concurrent processing per message
-      if (await this.redisService.exists(lockKey)) {
+      // Prevent duplicate concurrent processing per message (atomic lock)
+      const lockAcquired = await this.redisService.setNX(lockKey, '1', 300);
+      if (!lockAcquired) {
         this.logger.log(`[SLIP] Duplicate slip processing blocked: ${messageId}`);
         return;
       }
-      await this.redisService.set(lockKey, '1', 300); // 5 minutes lock
       this.logger.log(`[SLIP] Lock acquired for ${messageId}`);
 
       // ============================================
@@ -821,11 +821,22 @@ export class LineWebhookController {
         this.logger.log(`[AI] Smart AI result: intent=${smartResult.intent}, shouldRespond=${smartResult.shouldRespond}, time=${smartResult.processingTimeMs}ms`);
 
         if (!smartResult.shouldRespond) {
-          // Don't send a response, but confirm quota usage (classification used a call)
-          await this.subscriptionsService.confirmAiReservation(subscriptionId, 1);
-          await this.aiQuotaService.confirmReservation(reservationId);
-          this.logger.log(`[AI] Smart AI decided not to respond (intent=${smartResult.intent}), quota confirmed`);
-          await this.lineAccountsService.incrementStatistics(accountId, 'totalAiResponses');
+          if (smartResult.wasSpamDetected || smartResult.wasDuplicateDetected) {
+            // No API calls were made (caught before classification) — rollback quota
+            await this.subscriptionsService.rollbackAiReservation(subscriptionId, 1).catch((e) => {
+              this.logger.error('Failed to rollback AI quota (spam/dup):', e);
+            });
+            await this.aiQuotaService.rollbackReservation(reservationId, 'no_api_call').catch((e) => {
+              this.logger.error('Failed to rollback AI reservation (spam/dup):', e);
+            });
+            this.logger.log(`[AI] Spam/duplicate detected before classification — quota rolled back (intent=${smartResult.intent})`);
+          } else {
+            // Classification API call was made — confirm quota
+            await this.subscriptionsService.confirmAiReservation(subscriptionId, 1);
+            await this.aiQuotaService.confirmReservation(reservationId);
+            this.logger.log(`[AI] Smart AI decided not to respond (intent=${smartResult.intent}), quota confirmed (classification used)`);
+            await this.lineAccountsService.incrementStatistics(accountId, 'totalAiResponses');
+          }
           return;
         }
 
@@ -863,9 +874,13 @@ export class LineWebhookController {
       // ============================================
       // 5. Confirm AI quota
       // ============================================
-      await this.subscriptionsService.confirmAiReservation(subscriptionId, 1);
-      await this.aiQuotaService.confirmReservation(reservationId);
-      this.logger.log(`[AI] AI quota confirmed for ${ownerId}`);
+      try {
+        await this.subscriptionsService.confirmAiReservation(subscriptionId, 1);
+        await this.aiQuotaService.confirmReservation(reservationId);
+        this.logger.log(`[AI] AI quota confirmed for ${ownerId}`);
+      } catch (quotaError) {
+        this.logger.error(`[AI] Failed to confirm quota for ${ownerId}:`, quotaError);
+      }
 
       // Save outgoing message
       await this.lineAccountsService.saveChatMessage(
