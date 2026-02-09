@@ -795,8 +795,18 @@ export class LineWebhookController {
       // ============================================
       // 4. Smart AI or Legacy AI response
       // ============================================
+      // Convert Mongoose subdocument to plain object to avoid getter/Mixed-type edge cases
+      const rawSettings = account.settings && typeof (account.settings as any).toObject === 'function'
+        ? (account.settings as any).toObject()
+        : (account.settings || {});
+
       let response: string;
-      const isSmartAiEnabled = account.settings?.enableSmartAi === true;
+      const isSmartAiEnabled = rawSettings.enableSmartAi === true;
+
+      // Debug: log settings being used for AI response
+      const kbCount = Array.isArray(rawSettings.knowledgeBase) ? rawSettings.knowledgeBase.filter((k: any) => k.enabled).length : 0;
+      const rulesCount = rawSettings.intentRules ? Object.keys(rawSettings.intentRules).length : 0;
+      this.logger.log(`[AI] Settings: smartAi=${isSmartAiEnabled}, knowledgeBase=${kbCount} entries, intentRules=${rulesCount} rules, model=${rawSettings.aiModel || 'system-default'}`);
 
       if (isSmartAiEnabled) {
         // ---- Smart AI Pipeline ----
@@ -805,7 +815,7 @@ export class LineWebhookController {
           message.text,
           lineUserId,
           accountId,
-          buildSmartAiSettings(account.settings || {}),
+          buildSmartAiSettings(rawSettings),
         );
 
         this.logger.log(`[AI] Smart AI result: intent=${smartResult.intent}, shouldRespond=${smartResult.shouldRespond}, time=${smartResult.processingTimeMs}ms`);
@@ -828,10 +838,10 @@ export class LineWebhookController {
             lineUserId,
             accountId,
             {
-              aiSystemPrompt: account.settings?.aiSystemPrompt,
-              knowledgeBase: account.settings?.knowledgeBase || [],
-              aiModel: account.settings?.aiModel,
-              aiTemperature: account.settings?.aiTemperature,
+              aiSystemPrompt: rawSettings.aiSystemPrompt,
+              knowledgeBase: rawSettings.knowledgeBase || [],
+              aiModel: rawSettings.aiModel,
+              aiTemperature: rawSettings.aiTemperature,
             },
           );
         }
@@ -842,10 +852,10 @@ export class LineWebhookController {
           lineUserId,
           accountId,
           {
-            aiSystemPrompt: account.settings?.aiSystemPrompt,
-            knowledgeBase: account.settings?.knowledgeBase || [],
-            aiModel: account.settings?.aiModel,
-            aiTemperature: account.settings?.aiTemperature,
+            aiSystemPrompt: rawSettings.aiSystemPrompt,
+            knowledgeBase: rawSettings.knowledgeBase || [],
+            aiModel: rawSettings.aiModel,
+            aiTemperature: rawSettings.aiTemperature,
           },
         );
       }

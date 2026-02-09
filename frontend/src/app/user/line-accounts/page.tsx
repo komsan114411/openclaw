@@ -704,7 +704,7 @@ export default function UserLineAccountsPage() {
       slipImmediateMessage: s.slipImmediateMessage || 'กำลังตรวจสอบสลิป กรุณารอสักครู่...',
       knowledgeBase: (s as Record<string, unknown>).knowledgeBase as Array<{ topic: string; answer: string; enabled: boolean }> || [],
       enableSmartAi: (s as Record<string, unknown>).enableSmartAi as boolean ?? false,
-      intentRules: ((s as Record<string, unknown>).intentRules as Record<string, { enabled: boolean; useAi: boolean; customPrompt: string; responseTemplate: string }>) || { ...DEFAULT_INTENT_RULES },
+      intentRules: { ...DEFAULT_INTENT_RULES, ...((s as Record<string, unknown>).intentRules as Record<string, { enabled: boolean; useAi: boolean; customPrompt: string; responseTemplate: string }> || {}) },
       gameLinks: ((s as Record<string, unknown>).gameLinks as Array<{ name: string; url: string }>) || [],
     });
     setShowSettingsModal(true);

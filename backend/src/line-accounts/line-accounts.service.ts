@@ -381,7 +381,7 @@ export class LineAccountsService {
 
     // Clear AI chat history when AI-related settings change
     // This ensures the AI uses the new prompt/knowledge base without stale context
-    const aiRelatedKeys = ['enableAi', 'enableSmartAi', 'knowledgeBase', 'aiSystemPrompt', 'aiModel', 'intentRules'];
+    const aiRelatedKeys = ['enableAi', 'enableSmartAi', 'knowledgeBase', 'aiSystemPrompt', 'aiModel', 'intentRules', 'gameLinks', 'aiTemperature', 'aiFallbackMessage'];
     const hasAiSettingsChanged = aiRelatedKeys.some((key) => key in (settings as Record<string, unknown>));
     if (hasAiSettingsChanged) {
       const deletedCount = await this.redisService.deleteKeysByPattern(`chat:${id}:*`);
