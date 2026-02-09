@@ -1841,13 +1841,13 @@ export class EnhancedAutomationService implements OnModuleInit, OnModuleDestroy 
       return false;
     }
 
-    // Method 1: Try direct navigation first (with shorter timeout)
+    // Method 1: Try direct navigation first
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
       try {
         this.logger.log(`[Extension] Method 1: Direct navigation (attempt ${attempt}/${maxRetries})...`);
 
-        // Navigate with shorter timeout
-        await page.goto(extensionUrl, { waitUntil: 'domcontentloaded', timeout: 10000 });
+        // Navigate with 30s timeout (server อาจ overloaded)
+        await page.goto(extensionUrl, { waitUntil: 'domcontentloaded', timeout: 30000 });
 
         const currentUrl = page.url();
         this.logger.log(`[Extension] Current URL: ${currentUrl}`);
@@ -1871,8 +1871,8 @@ export class EnhancedAutomationService implements OnModuleInit, OnModuleDestroy 
         // If timeout, browser might be overloaded
         if (navError.message?.includes('timeout')) {
           this.logger.warn(`[Extension] Navigation timeout - browser might be overloaded`);
-          // Short delay before retry
-          await this.delay(1000);
+          // Delay before retry
+          await this.delay(2000);
         }
       }
 
@@ -1891,7 +1891,7 @@ export class EnhancedAutomationService implements OnModuleInit, OnModuleDestroy 
       await this.delay(1000);
 
       // Then navigate to extension
-      await page.goto(extensionUrl, { waitUntil: 'domcontentloaded', timeout: 15000 });
+      await page.goto(extensionUrl, { waitUntil: 'domcontentloaded', timeout: 30000 });
 
       const currentUrl = page.url();
       this.logger.log(`[Extension] Method 2 URL: ${currentUrl}`);
@@ -1945,7 +1945,7 @@ export class EnhancedAutomationService implements OnModuleInit, OnModuleDestroy 
     try {
       this.logger.log(`[Extension] Method 4: Checking chrome://extensions...`);
 
-      await page.goto('chrome://extensions', { waitUntil: 'load', timeout: 10000 });
+      await page.goto('chrome://extensions', { waitUntil: 'load', timeout: 30000 });
       await this.delay(2000);
 
       // Check if LINE extension exists
@@ -1962,7 +1962,7 @@ export class EnhancedAutomationService implements OnModuleInit, OnModuleDestroy 
       if (extensionCheck.hasLine || extensionCheck.hasExtensions > 0) {
         // Extension is present, try navigating one more time
         await this.delay(1000);
-        await page.goto(extensionUrl, { waitUntil: 'domcontentloaded', timeout: 15000 });
+        await page.goto(extensionUrl, { waitUntil: 'domcontentloaded', timeout: 30000 });
 
         const currentUrl = page.url();
         if (currentUrl.includes(this.LINE_EXTENSION_ID)) {
