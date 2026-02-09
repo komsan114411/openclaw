@@ -34,6 +34,9 @@ import {
   TrendingUp,
   TrendingDown,
   Download,
+  Search,
+  ChevronLeft,
+  ChevronRight,
 } from 'lucide-react';
 import { useLoginNotifications } from '@/hooks';
 
@@ -326,8 +329,8 @@ export default function LineSessionPage() {
       // event: { lineSessionId, newCount, total }
       if (event.lineSessionId === selectedSession?._id) {
         toast.success(`ดึงรายการใหม่ ${event.newCount} รายการ`, { icon: '📥' });
-        // Refresh transactions list
-        fetchTransactions(selectedSession._id);
+        // Refresh transactions list (keep current search/filter/page)
+        fetchTransactions(selectedSession._id, false, currentPage, searchQuery, filterType);
       }
     },
   });
@@ -343,6 +346,14 @@ export default function LineSessionPage() {
   const [isLoadingTransactions, setIsLoadingTransactions] = useState(false);
   const [isFetchingTransactions, setIsFetchingTransactions] = useState(false);
   const [showTransactions, setShowTransactions] = useState(false);
+
+  // Search + Pagination + Filter state
+  const [searchQuery, setSearchQuery] = useState('');
+  const [filterType, setFilterType] = useState<string>('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(0);
+  const [totalTransactions, setTotalTransactions] = useState(0);
+  const ITEMS_PER_PAGE = 50;
 
   // Auto-refresh state
   const [lastRefreshTime, setLastRefreshTime] = useState<Date | null>(null);
@@ -404,15 +415,32 @@ export default function LineSessionPage() {
   }, []);
 
   // Fetch transactions for selected session
-  const fetchTransactions = useCallback(async (sessionId: string, silent = false) => {
+  const fetchTransactions = useCallback(async (
+    sessionId: string,
+    silent = false,
+    page = 1,
+    search = '',
+    type = '',
+  ) => {
     if (!silent) setIsLoadingTransactions(true);
     try {
+      const offset = (page - 1) * ITEMS_PER_PAGE;
+      const params: { limit: number; offset: number; search?: string; type?: string } = {
+        limit: ITEMS_PER_PAGE,
+        offset,
+      };
+      if (search.trim()) params.search = search.trim();
+      if (type) params.type = type;
+
       const [txRes, summaryRes] = await Promise.all([
-        lineSessionUserApi.getTransactions(sessionId, { limit: 20 }),
+        lineSessionUserApi.getTransactions(sessionId, params),
         lineSessionUserApi.getTransactionSummary(sessionId),
       ]);
 
       setTransactions(txRes.data.transactions || []);
+      setTotalPages(txRes.data.totalPages || 1);
+      setTotalTransactions(txRes.data.total || 0);
+      setCurrentPage(page);
       setTransactionSummary(summaryRes.data.summary || null);
       setLastRefreshTime(new Date());
     } catch {
@@ -437,8 +465,8 @@ export default function LineSessionPage() {
         // Only show toast if new messages found
         toast.success(`พบรายการใหม่ ${res.data.newMessages} รายการ`, { icon: '📥', duration: 3000 });
       }
-      // Always refresh UI from database
-      await fetchTransactions(sessionId, true);
+      // Always refresh UI from database (keep current search/filter/page)
+      await fetchTransactions(sessionId, true, currentPage, searchQuery, filterType);
 
       // Refresh auto-fetch status
       const autoFetchRes = await lineSessionUserApi.getAutoFetchStatus().catch(() => null);
@@ -452,11 +480,11 @@ export default function LineSessionPage() {
       }
     } catch {
       // Silent fail - just refresh from database
-      await fetchTransactions(sessionId, true);
+      await fetchTransactions(sessionId, true, currentPage, searchQuery, filterType);
     } finally {
       setIsAutoFetching(false);
     }
-  }, [fetchTransactions]);
+  }, [fetchTransactions, currentPage, searchQuery, filterType]);
 
   // Auto-refresh transactions based on backend config
   useEffect(() => {
@@ -494,8 +522,9 @@ export default function LineSessionPage() {
       const res = await lineSessionUserApi.fetchTransactions(selectedSession._id);
       if (res.data.success) {
         toast.success(res.data.message || 'ดึงรายการสำเร็จ');
-        // Refresh transactions list
-        await fetchTransactions(selectedSession._id);
+        // Refresh transactions list (keep current search/filter, reset to page 1)
+        setCurrentPage(1);
+        await fetchTransactions(selectedSession._id, false, 1, searchQuery, filterType);
       } else {
         toast.error(res.data.message || 'ไม่สามารถดึงรายการได้');
       }
@@ -512,12 +541,18 @@ export default function LineSessionPage() {
   useEffect(() => {
     if (selectedSession) {
       fetchSessionStatus(selectedSession._id);
+      // Reset search/filter/page when switching sessions
+      setSearchQuery('');
+      setFilterType('');
+      setCurrentPage(1);
       // Fetch transactions if session has keys
       if (selectedSession.hasKeys) {
         fetchTransactions(selectedSession._id);
       } else {
         setTransactions([]);
         setTransactionSummary(null);
+        setTotalPages(0);
+        setTotalTransactions(0);
       }
       // ไม่ต้อง clear loginStatus และ loginSuccess เพราะ track แยกตามบัญชีแล้ว
       setSetupForm({ email: '', password: '', bankCode: '' });
@@ -1496,6 +1531,60 @@ export default function LineSessionPage() {
                       {/* Transaction List */}
                       {showTransactions && (
                         <div className="space-y-2">
+                          {/* Search + Filter Bar */}
+                          <div className="flex flex-col sm:flex-row gap-2 mb-4">
+                            <div className="relative flex-1">
+                              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                              <input
+                                type="text"
+                                placeholder="ค้นหาข้อความ, จำนวนเงิน..."
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter' && selectedSession) {
+                                    setCurrentPage(1);
+                                    fetchTransactions(selectedSession._id, false, 1, searchQuery, filterType);
+                                  }
+                                }}
+                                className="w-full pl-10 pr-4 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                              />
+                            </div>
+                            <select
+                              value={filterType}
+                              onChange={(e) => {
+                                setFilterType(e.target.value);
+                                setCurrentPage(1);
+                                if (selectedSession) {
+                                  fetchTransactions(selectedSession._id, false, 1, searchQuery, e.target.value);
+                                }
+                              }}
+                              className="px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                            >
+                              <option value="">ทั้งหมด</option>
+                              <option value="deposit">เงินเข้า</option>
+                              <option value="withdraw">เงินออก</option>
+                              <option value="transfer">โอน</option>
+                            </select>
+                            <button
+                              onClick={() => {
+                                setCurrentPage(1);
+                                if (selectedSession) {
+                                  fetchTransactions(selectedSession._id, false, 1, searchQuery, filterType);
+                                }
+                              }}
+                              className="px-4 py-2 rounded-lg bg-emerald-500 text-white text-sm font-medium hover:bg-emerald-600 transition-colors"
+                            >
+                              ค้นหา
+                            </button>
+                          </div>
+
+                          {/* Result Count */}
+                          <p className="text-sm text-slate-500 dark:text-slate-400 mb-2">
+                            แสดง {transactions.length} จาก {totalTransactions} รายการ
+                            {searchQuery && ` (ค้นหา: "${searchQuery}")`}
+                            {filterType && ` (${filterType === 'deposit' ? 'เงินเข้า' : filterType === 'withdraw' ? 'เงินออก' : 'โอน'})`}
+                          </p>
+
                           {isLoadingTransactions ? (
                             <div className="flex items-center justify-center py-8">
                               <Loader2 className="w-6 h-6 animate-spin text-emerald-500" />
@@ -1503,11 +1592,15 @@ export default function LineSessionPage() {
                           ) : transactions.length === 0 ? (
                             <div className="text-center py-8 text-slate-500">
                               <History className="w-12 h-12 mx-auto mb-2 opacity-30" />
-                              <p>ยังไม่มีรายการธุรกรรม</p>
-                              <p className="text-xs mt-1">กดปุ่ม "ดึงรายการใหม่" เพื่อดึงข้อมูลจาก LINE</p>
+                              <p>{searchQuery || filterType ? 'ไม่พบรายการที่ค้นหา' : 'ยังไม่มีรายการธุรกรรม'}</p>
+                              <p className="text-xs mt-1">
+                                {searchQuery || filterType
+                                  ? 'ลองเปลี่ยนคำค้นหาหรือตัวกรอง'
+                                  : 'กดปุ่ม "ดึงรายการใหม่" เพื่อดึงข้อมูลจาก LINE'}
+                              </p>
                             </div>
                           ) : (
-                            <div className="max-h-[500px] overflow-y-auto space-y-3">
+                            <div className="space-y-3">
                               {transactions.map((tx) => {
                                 // Parse bank message to extract full details
                                 const parsed = parseBankMessage(tx.text || tx.originalMsg || '');
@@ -1616,6 +1709,72 @@ export default function LineSessionPage() {
                                   </div>
                                 );
                               })}
+                            </div>
+                          )}
+
+                          {/* Pagination */}
+                          {totalPages > 1 && (
+                            <div className="flex items-center justify-center gap-2 mt-4 pt-4 border-t border-slate-200 dark:border-slate-700">
+                              <button
+                                onClick={() => {
+                                  if (selectedSession && currentPage > 1) {
+                                    const newPage = currentPage - 1;
+                                    setCurrentPage(newPage);
+                                    fetchTransactions(selectedSession._id, false, newPage, searchQuery, filterType);
+                                  }
+                                }}
+                                disabled={currentPage <= 1}
+                                className="p-2 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                              >
+                                <ChevronLeft className="w-4 h-4" />
+                              </button>
+
+                              {/* Page numbers: show up to 5 pages around current */}
+                              {(() => {
+                                const pages: number[] = [];
+                                let start = Math.max(1, currentPage - 2);
+                                let end = Math.min(totalPages, currentPage + 2);
+                                // Adjust if near edges
+                                if (currentPage <= 2) end = Math.min(totalPages, 5);
+                                if (currentPage >= totalPages - 1) start = Math.max(1, totalPages - 4);
+                                for (let i = start; i <= end; i++) pages.push(i);
+                                return pages.map((p) => (
+                                  <button
+                                    key={p}
+                                    onClick={() => {
+                                      if (selectedSession && p !== currentPage) {
+                                        setCurrentPage(p);
+                                        fetchTransactions(selectedSession._id, false, p, searchQuery, filterType);
+                                      }
+                                    }}
+                                    className={`min-w-[36px] h-9 rounded-lg text-sm font-medium transition-colors ${
+                                      p === currentPage
+                                        ? 'bg-emerald-500 text-white'
+                                        : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'
+                                    }`}
+                                  >
+                                    {p}
+                                  </button>
+                                ));
+                              })()}
+
+                              <button
+                                onClick={() => {
+                                  if (selectedSession && currentPage < totalPages) {
+                                    const newPage = currentPage + 1;
+                                    setCurrentPage(newPage);
+                                    fetchTransactions(selectedSession._id, false, newPage, searchQuery, filterType);
+                                  }
+                                }}
+                                disabled={currentPage >= totalPages}
+                                className="p-2 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                              >
+                                <ChevronRight className="w-4 h-4" />
+                              </button>
+
+                              <span className="text-sm text-slate-500 dark:text-slate-400 ml-2">
+                                หน้า {currentPage} / {totalPages}
+                              </span>
                             </div>
                           )}
                         </div>

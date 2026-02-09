@@ -934,7 +934,7 @@ export const lineSessionUserApi = {
     api.post(`/user/line-session/${sessionId}/validate-keys`),
 
   // Get transactions for session
-  getTransactions: (sessionId: string, params?: { limit?: number; offset?: number; type?: string }) =>
+  getTransactions: (sessionId: string, params?: { limit?: number; offset?: number; type?: string; search?: string }) =>
     api.get(`/user/line-session/${sessionId}/transactions`, { params }),
 
   // Fetch new transactions from LINE API

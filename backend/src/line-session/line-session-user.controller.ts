@@ -501,12 +501,14 @@ export class LineSessionUserController {
   @ApiQuery({ name: 'limit', required: false, type: Number })
   @ApiQuery({ name: 'offset', required: false, type: Number })
   @ApiQuery({ name: 'type', required: false, type: String, description: 'deposit, withdraw, transfer' })
+  @ApiQuery({ name: 'search', required: false, type: String })
   async getTransactionsById(
     @Param('sessionId', ParseObjectIdPipe) sessionId: string,
     @CurrentUser() user: AuthUser,
     @Query('limit') limit?: number,
     @Query('offset') offset?: number,
     @Query('type') type?: string,
+    @Query('search') search?: string,
   ) {
     // Validate ownership
     const session = await this.validateSessionOwnership(sessionId, user.userId);
@@ -517,14 +519,28 @@ export class LineSessionUserController {
       query.transactionType = type;
     }
 
-    // Fetch transactions
-    const transactions = await this.lineMessageModel
-      .find(query)
-      .sort({ messageDate: -1 })
-      .skip(offset || 0)
-      .limit(limit || 50);
+    // Search: regex search in text, originalMsg, amount
+    if (search && search.trim()) {
+      const escaped = search.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      query.$or = [
+        { text: { $regex: escaped, $options: 'i' } },
+        { originalMsg: { $regex: escaped, $options: 'i' } },
+        { amount: { $regex: escaped, $options: 'i' } },
+      ];
+    }
 
-    const total = await this.lineMessageModel.countDocuments(query);
+    const actualLimit = Math.min(limit || 50, 100);
+    const actualOffset = offset || 0;
+
+    // Fetch transactions
+    const [transactions, total] = await Promise.all([
+      this.lineMessageModel
+        .find(query)
+        .sort({ messageDate: -1 })
+        .skip(actualOffset)
+        .limit(actualLimit),
+      this.lineMessageModel.countDocuments(query),
+    ]);
 
     return {
       success: true,
@@ -540,8 +556,10 @@ export class LineSessionUserController {
         createdAt: (t as any).createdAt,
       })),
       total,
-      limit: limit || 50,
-      offset: offset || 0,
+      limit: actualLimit,
+      offset: actualOffset,
+      totalPages: Math.ceil(total / actualLimit),
+      currentPage: Math.floor(actualOffset / actualLimit) + 1,
       sessionId,
       sessionName: session.name,
       bankName: session.bankName,
