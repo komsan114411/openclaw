@@ -29,7 +29,7 @@ export interface FetchResult {
 }
 
 export interface ParsedTransaction {
-  transactionType: 'deposit' | 'withdraw' | 'transfer' | 'unknown';
+  transactionType: 'deposit' | 'withdraw' | 'transfer' | 'payment' | 'fee' | 'interest' | 'bill' | 'unknown';
   amount?: number;
   balance?: number;
   messageDate?: Date;
@@ -824,6 +824,22 @@ export class MessageFetchService implements OnModuleInit, OnModuleDestroy {
     else if (text.includes('โอน')) {
       result.transactionType = 'transfer';
     }
+    // Payment (debit card, POS)
+    else if (/บัตรเดบิต|debit|POS|EDC|ซื้อสินค้า/i.test(text)) {
+      result.transactionType = 'payment';
+    }
+    // Fee
+    else if (/ค่าธรรมเนียม|fee|ค่าบริการ|annual\s*fee|ค่ารักษา/i.test(text)) {
+      result.transactionType = 'fee';
+    }
+    // Interest
+    else if (/ดอกเบี้ย|interest/i.test(text)) {
+      result.transactionType = 'interest';
+    }
+    // Bill payment / loan
+    else if (/ชำระบิล|bill\s*pay|สินเชื่อ|ผ่อน|งวด/i.test(text)) {
+      result.transactionType = 'bill';
+    }
 
     // Extract amount
     const amountMatch = text.match(/(?:จำนวน|จน\.|THB|฿)\s*([\d,]+\.?\d*)/i);
@@ -858,6 +874,22 @@ export class MessageFetchService implements OnModuleInit, OnModuleDestroy {
     } else if (text.includes('ถอน') || text.includes('โอน') || text.includes('ชำระ')) {
       result.transactionType = 'withdraw';
     }
+    // Payment (debit card, POS)
+    else if (/บัตรเดบิต|debit|POS|EDC|ซื้อสินค้า/i.test(text)) {
+      result.transactionType = 'payment';
+    }
+    // Fee
+    else if (/ค่าธรรมเนียม|fee|ค่าบริการ|annual\s*fee|ค่ารักษา/i.test(text)) {
+      result.transactionType = 'fee';
+    }
+    // Interest
+    else if (/ดอกเบี้ย|interest/i.test(text)) {
+      result.transactionType = 'interest';
+    }
+    // Bill payment / loan
+    else if (/ชำระบิล|bill\s*pay|สินเชื่อ|ผ่อน|งวด/i.test(text)) {
+      result.transactionType = 'bill';
+    }
 
     // Amount patterns for GSB
     const amountMatch = text.match(/(?:จำนวน|จน\.|บาท)\s*([\d,]+\.?\d*)/i) ||
@@ -885,6 +917,22 @@ export class MessageFetchService implements OnModuleInit, OnModuleDestroy {
       result.transactionType = 'deposit';
     } else if (text.includes('โอนเงิน') || text.includes('ถอน') || text.includes('จ่าย')) {
       result.transactionType = 'withdraw';
+    }
+    // Payment (debit card, POS)
+    else if (/บัตรเดบิต|debit|POS|EDC|ซื้อสินค้า/i.test(text)) {
+      result.transactionType = 'payment';
+    }
+    // Fee
+    else if (/ค่าธรรมเนียม|fee|ค่าบริการ|annual\s*fee|ค่ารักษา/i.test(text)) {
+      result.transactionType = 'fee';
+    }
+    // Interest
+    else if (/ดอกเบี้ย|interest/i.test(text)) {
+      result.transactionType = 'interest';
+    }
+    // Bill payment / loan
+    else if (/ชำระบิล|bill\s*pay|สินเชื่อ|ผ่อน|งวด/i.test(text)) {
+      result.transactionType = 'bill';
     }
 
     // Amount
@@ -915,6 +963,22 @@ export class MessageFetchService implements OnModuleInit, OnModuleDestroy {
     // Generic withdraw keywords
     else if (/โอน|ถอน|จ่าย|ออก|withdraw|transfer/i.test(text)) {
       result.transactionType = 'withdraw';
+    }
+    // Payment (debit card, POS)
+    else if (/บัตรเดบิต|debit|POS|EDC|ซื้อสินค้า/i.test(text)) {
+      result.transactionType = 'payment';
+    }
+    // Fee
+    else if (/ค่าธรรมเนียม|fee|ค่าบริการ|annual\s*fee|ค่ารักษา/i.test(text)) {
+      result.transactionType = 'fee';
+    }
+    // Interest
+    else if (/ดอกเบี้ย|interest/i.test(text)) {
+      result.transactionType = 'interest';
+    }
+    // Bill payment / loan
+    else if (/ชำระบิล|bill\s*pay|สินเชื่อ|ผ่อน|งวด/i.test(text)) {
+      result.transactionType = 'bill';
     }
 
     // Generic amount pattern

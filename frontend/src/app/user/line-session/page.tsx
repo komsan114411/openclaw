@@ -37,6 +37,11 @@ import {
   Search,
   ChevronLeft,
   ChevronRight,
+  CreditCard,
+  Receipt,
+  Percent,
+  FileText,
+  HelpCircle,
 } from 'lucide-react';
 import { useLoginNotifications } from '@/hooks';
 
@@ -161,6 +166,14 @@ function parseBankMessage(text: string): {
     result.type = 'deposit';
   } else if (text.includes('ถอน') || text.includes('เงินออก') || text.includes('โอนออก') || text.includes('ชำระ')) {
     result.type = 'withdraw';
+  } else if (/บัตรเดบิต|debit|POS|EDC|ซื้อสินค้า/i.test(text)) {
+    result.type = 'payment';
+  } else if (/ค่าธรรมเนียม|fee|ค่าบริการ|annual\s*fee|ค่ารักษา/i.test(text)) {
+    result.type = 'fee';
+  } else if (/ดอกเบี้ย|interest/i.test(text)) {
+    result.type = 'interest';
+  } else if (/ชำระบิล|bill\s*pay|สินเชื่อ|ผ่อน|งวด/i.test(text)) {
+    result.type = 'bill';
   }
 
   result.description = text;
@@ -1564,6 +1577,11 @@ export default function LineSessionPage() {
                               <option value="deposit">เงินเข้า</option>
                               <option value="withdraw">เงินออก</option>
                               <option value="transfer">โอน</option>
+                              <option value="payment">ชำระเงิน/บัตรเดบิต</option>
+                              <option value="fee">ค่าธรรมเนียม</option>
+                              <option value="interest">ดอกเบี้ย</option>
+                              <option value="bill">ชำระบิล/สินเชื่อ</option>
+                              <option value="unknown">อื่นๆ</option>
                             </select>
                             <button
                               onClick={() => {
@@ -1582,7 +1600,16 @@ export default function LineSessionPage() {
                           <p className="text-sm text-slate-500 dark:text-slate-400 mb-2">
                             แสดง {transactions.length} จาก {totalTransactions} รายการ
                             {searchQuery && ` (ค้นหา: "${searchQuery}")`}
-                            {filterType && ` (${filterType === 'deposit' ? 'เงินเข้า' : filterType === 'withdraw' ? 'เงินออก' : 'โอน'})`}
+                            {filterType && ` (${
+                              filterType === 'deposit' ? 'เงินเข้า' :
+                              filterType === 'withdraw' ? 'เงินออก' :
+                              filterType === 'transfer' ? 'โอน' :
+                              filterType === 'payment' ? 'ชำระเงิน' :
+                              filterType === 'fee' ? 'ค่าธรรมเนียม' :
+                              filterType === 'interest' ? 'ดอกเบี้ย' :
+                              filterType === 'bill' ? 'ชำระบิล' :
+                              filterType === 'unknown' ? 'อื่นๆ' : filterType
+                            })`}
                           </p>
 
                           {isLoadingTransactions ? (
@@ -1618,6 +1645,16 @@ export default function LineSessionPage() {
                                         ? 'bg-emerald-50 dark:bg-emerald-900/10 border-emerald-200 dark:border-emerald-800'
                                         : txType === 'withdraw'
                                         ? 'bg-red-50 dark:bg-red-900/10 border-red-200 dark:border-red-800'
+                                        : txType === 'transfer'
+                                        ? 'bg-blue-50 dark:bg-blue-900/10 border-blue-200 dark:border-blue-800'
+                                        : txType === 'payment'
+                                        ? 'bg-orange-50 dark:bg-orange-900/10 border-orange-200 dark:border-orange-800'
+                                        : txType === 'fee'
+                                        ? 'bg-slate-50 dark:bg-slate-800/50 border-slate-300 dark:border-slate-600'
+                                        : txType === 'interest'
+                                        ? 'bg-cyan-50 dark:bg-cyan-900/10 border-cyan-200 dark:border-cyan-800'
+                                        : txType === 'bill'
+                                        ? 'bg-purple-50 dark:bg-purple-900/10 border-purple-200 dark:border-purple-800'
                                         : 'bg-slate-50 dark:bg-slate-800/50 border-slate-200 dark:border-slate-700'
                                     }`}
                                   >
@@ -1629,20 +1666,45 @@ export default function LineSessionPage() {
                                             ? 'bg-emerald-100 dark:bg-emerald-900/30'
                                             : txType === 'withdraw'
                                             ? 'bg-red-100 dark:bg-red-900/30'
+                                            : txType === 'transfer'
+                                            ? 'bg-blue-100 dark:bg-blue-900/30'
+                                            : txType === 'payment'
+                                            ? 'bg-orange-100 dark:bg-orange-900/30'
+                                            : txType === 'fee'
+                                            ? 'bg-slate-200 dark:bg-slate-700'
+                                            : txType === 'interest'
+                                            ? 'bg-cyan-100 dark:bg-cyan-900/30'
+                                            : txType === 'bill'
+                                            ? 'bg-purple-100 dark:bg-purple-900/30'
                                             : 'bg-slate-100 dark:bg-slate-800'
                                         }`}>
                                           {txType === 'deposit' ? (
                                             <ArrowDownCircle className="w-5 h-5 text-emerald-500" />
                                           ) : txType === 'withdraw' ? (
                                             <ArrowUpCircle className="w-5 h-5 text-red-500" />
+                                          ) : txType === 'transfer' ? (
+                                            <ArrowUpCircle className="w-5 h-5 text-blue-500" />
+                                          ) : txType === 'payment' ? (
+                                            <CreditCard className="w-5 h-5 text-orange-500" />
+                                          ) : txType === 'fee' ? (
+                                            <Receipt className="w-5 h-5 text-slate-500" />
+                                          ) : txType === 'interest' ? (
+                                            <Percent className="w-5 h-5 text-cyan-500" />
+                                          ) : txType === 'bill' ? (
+                                            <FileText className="w-5 h-5 text-purple-500" />
                                           ) : (
-                                            <History className="w-5 h-5 text-slate-500" />
+                                            <HelpCircle className="w-5 h-5 text-slate-500" />
                                           )}
                                         </div>
                                         <div>
                                           <p className="font-semibold text-slate-900 dark:text-white">
                                             {txType === 'deposit' ? 'เงินเข้า' :
-                                             txType === 'withdraw' ? 'เงินออก' : 'รายการ'}
+                                             txType === 'withdraw' ? 'เงินออก' :
+                                             txType === 'transfer' ? 'โอน' :
+                                             txType === 'payment' ? 'ชำระเงิน' :
+                                             txType === 'fee' ? 'ค่าธรรมเนียม' :
+                                             txType === 'interest' ? 'ดอกเบี้ย' :
+                                             txType === 'bill' ? 'ชำระบิล' : 'อื่นๆ'}
                                           </p>
                                           {tx.messageDate && (
                                             <p className="text-xs text-slate-500">
@@ -1658,9 +1720,19 @@ export default function LineSessionPage() {
                                               ? 'text-emerald-600 dark:text-emerald-400'
                                               : txType === 'withdraw'
                                               ? 'text-red-600 dark:text-red-400'
+                                              : txType === 'transfer'
+                                              ? 'text-blue-600 dark:text-blue-400'
+                                              : txType === 'payment'
+                                              ? 'text-orange-600 dark:text-orange-400'
+                                              : txType === 'fee'
+                                              ? 'text-slate-600 dark:text-slate-400'
+                                              : txType === 'interest'
+                                              ? 'text-cyan-600 dark:text-cyan-400'
+                                              : txType === 'bill'
+                                              ? 'text-purple-600 dark:text-purple-400'
                                               : 'text-slate-600 dark:text-slate-400'
                                           }`}>
-                                            {txType === 'deposit' ? '+' : txType === 'withdraw' ? '-' : ''}฿{parseFloat(displayAmount).toLocaleString()}
+                                            {txType === 'deposit' || txType === 'interest' ? '+' : txType === 'withdraw' || txType === 'payment' || txType === 'fee' || txType === 'bill' || txType === 'transfer' ? '-' : ''}฿{parseFloat(displayAmount).toLocaleString()}
                                           </p>
                                         )}
                                         {displayBalance && (

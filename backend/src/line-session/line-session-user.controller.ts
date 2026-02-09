@@ -500,7 +500,7 @@ export class LineSessionUserController {
   @ApiOperation({ summary: 'Get transactions for LINE session' })
   @ApiQuery({ name: 'limit', required: false, type: Number })
   @ApiQuery({ name: 'offset', required: false, type: Number })
-  @ApiQuery({ name: 'type', required: false, type: String, description: 'deposit, withdraw, transfer' })
+  @ApiQuery({ name: 'type', required: false, type: String, description: 'deposit, withdraw, transfer, payment, fee, interest, bill, unknown' })
   @ApiQuery({ name: 'search', required: false, type: String })
   async getTransactionsById(
     @Param('sessionId', ParseObjectIdPipe) sessionId: string,
