@@ -17,6 +17,7 @@ export type LoginStatusType =
   | 'triggering_messages'
   | 'success'
   | 'failed'
+  | 'credential_error'
   | 'cooldown';
 
 export interface LoginStatusEvent {
@@ -218,6 +219,7 @@ export function useLoginNotifications(options: UseLoginNotificationsOptions = {}
       triggering_messages: 'กำลังดึงข้อความ...',
       success: 'Login สำเร็จ!',
       failed: message || 'Login ล้มเหลว',
+      credential_error: 'อีเมลหรือรหัสผ่าน LINE ไม่ถูกต้อง กรุณาแก้ไขข้อมูลเข้าสู่ระบบ',
       cooldown: 'กำลังรอ Cooldown...',
     };
     return translations[status] || message || status;
@@ -385,6 +387,11 @@ export function useLoginNotifications(options: UseLoginNotificationsOptions = {}
           });
         } else if (data.status === 'success') {
           toast.success('Login สำเร็จ!', { icon: '✅' });
+        } else if (data.status === 'credential_error') {
+          toast.error('อีเมลหรือรหัสผ่าน LINE ไม่ถูกต้อง กรุณาแก้ไขข้อมูลเข้าสู่ระบบ', {
+            icon: '🔑',
+            duration: 10000,
+          });
         } else if (data.status === 'failed') {
           toast.error(data.error || 'Login ล้มเหลว', { icon: '❌' });
         } else if (data.status === 'cooldown') {

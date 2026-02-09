@@ -145,7 +145,13 @@ export class LineSession {
    * สถานะ session
    */
   @Prop({ default: 'active' })
-  status: string; // 'active', 'expired', 'invalid', 'pending_relogin'
+  status: string; // 'active', 'expired', 'invalid', 'pending_relogin', 'credential_error'
+
+  /**
+   * ข้อความ error ล่าสุด
+   */
+  @Prop()
+  lastError: string;
 
   /**
    * จำนวนครั้งที่ตรวจสอบแล้วล้มเหลวติดต่อกัน

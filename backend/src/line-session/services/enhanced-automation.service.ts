@@ -25,6 +25,7 @@ export enum EnhancedLoginStatus {
   TRIGGERING_MESSAGES = 'triggering_messages',
   SUCCESS = 'success',
   FAILED = 'failed',
+  CREDENTIAL_ERROR = 'credential_error',
   COOLDOWN = 'cooldown',
 }
 
@@ -82,6 +83,23 @@ export interface EnhancedLoginResult {
   chatMid?: string;
   sessionReused?: boolean;
   cooldownRemainingMs?: number;
+  isCredentialError?: boolean;
+}
+
+/**
+ * Check if an error message indicates invalid credentials (not retryable)
+ */
+export function isCredentialError(errorMessage: string): boolean {
+  const patterns = [
+    /email.*password.*incorrect/i,
+    /password.*incorrect/i,
+    /incorrect.*password/i,
+    /not registered with LINE/i,
+    /invalid.*credentials/i,
+    /รหัสผ่าน.*ไม่ถูกต้อง/i,
+    /อีเมล.*ไม่ถูกต้อง/i,
+  ];
+  return patterns.some(p => p.test(errorMessage));
 }
 
 /**
@@ -297,14 +315,20 @@ export class EnhancedAutomationService implements OnModuleInit, OnModuleDestroy 
     const encryptedPassword = this.encryptPasswordValue(password);
 
     // Update using the found session's _id to ensure correct document is updated
+    // Also clear credential_error status if previously set
+    const updateFields: Record<string, unknown> = {
+      lineEmail: email,
+      linePassword: encryptedPassword,
+    };
+    if (existingSession.status === 'credential_error') {
+      updateFields.status = 'expired'; // Reset to expired so relogin can be triggered
+      updateFields.lastError = null;
+      this.logger.log(`[SaveCredentials] Cleared credential_error for ${lineAccountId} — new credentials saved`);
+    }
+
     await this.lineSessionModel.updateOne(
       { _id: existingSession._id },
-      {
-        $set: {
-          lineEmail: email,
-          linePassword: encryptedPassword,
-        },
-      },
+      { $set: updateFields },
     );
 
     this.logger.log(`Credentials saved for ${lineAccountId}`);
@@ -659,16 +683,30 @@ export class EnhancedAutomationService implements OnModuleInit, OnModuleDestroy 
     } catch (error: any) {
       this.logger.error(`Login failed for ${lineAccountId}: ${error.message}`);
       this.loginCoordinatorService.markLoginFailed(lineAccountId, error.message);
-      this.emitStatus(lineAccountId, EnhancedLoginStatus.FAILED, { requestId, error: error.message });
+
+      // Detect credential errors — these should NOT be retried
+      const credentialErr = isCredentialError(error.message);
+      const status = credentialErr ? EnhancedLoginStatus.CREDENTIAL_ERROR : EnhancedLoginStatus.FAILED;
+
+      if (credentialErr) {
+        this.logger.warn(`[Login] CREDENTIAL ERROR for ${lineAccountId} — auto-relogin will be stopped. User must update email/password.`);
+      }
+
+      this.emitStatus(lineAccountId, status, {
+        requestId,
+        error: error.message,
+        isCredentialError: credentialErr,
+      });
 
       // Release lock on error (background process releases its own lock)
       this.loginLockService.releaseLock(lineAccountId, 'enhanced');
 
       return {
         success: false,
-        status: EnhancedLoginStatus.FAILED,
+        status,
         requestId,
         error: error.message,
+        isCredentialError: credentialErr,
       };
     }
     // Note: Don't release lock here - if PIN returned, background process handles it

@@ -862,6 +862,8 @@ export default function LineSessionPage() {
         return { color: 'warning' as const, text: 'รอดึง Keys', icon: Clock };
       case 'pending_relogin':
         return { color: 'error' as const, text: 'ต้อง Login ใหม่', icon: XCircle };
+      case 'credential_error':
+        return { color: 'error' as const, text: 'อีเมล/รหัสผ่านผิด', icon: XCircle };
       case 'invalid':
         return { color: 'error' as const, text: 'Keys ไม่ถูกต้อง', icon: XCircle };
       case 'relogin_in_progress':
@@ -906,6 +908,8 @@ export default function LineSessionPage() {
       case 'failed':
       case 'error':
         return { text: 'ล้มเหลว', color: 'text-red-500' };
+      case 'credential_error':
+        return { text: 'อีเมลหรือรหัสผ่านไม่ถูกต้อง', color: 'text-red-500' };
       default:
         return { text: status || 'ไม่ทราบ', color: 'text-slate-500' };
     }
@@ -1173,6 +1177,21 @@ export default function LineSessionPage() {
                     </div>
                   )}
 
+                  {/* Credential Error Banner */}
+                  {sessionStatus?.status === 'credential_error' && (
+                    <div className="p-4 bg-red-50 dark:bg-red-900/20 rounded-xl border border-red-200 dark:border-red-800">
+                      <div className="flex items-center gap-3 mb-2">
+                        <XCircle className="w-5 h-5 text-red-500 flex-shrink-0" />
+                        <p className="font-medium text-red-800 dark:text-red-200">
+                          อีเมลหรือรหัสผ่าน LINE ไม่ถูกต้อง
+                        </p>
+                      </div>
+                      <p className="text-sm text-red-600 dark:text-red-400 ml-8">
+                        ระบบหยุด Login อัตโนมัติแล้ว กรุณาตรวจสอบและแก้ไขอีเมล/รหัสผ่านด้านล่าง แล้วกด Login ใหม่อีกครั้ง
+                      </p>
+                    </div>
+                  )}
+
                   {/* Login Status (when in progress) */}
                   {loginStatus && (['waiting_for_pin', 'waiting_pin', 'pin_displayed', 'extracting_keys', 'triggering_messages', 'capturing_curl', 'starting', 'initializing', 'launching_browser', 'loading_extension', 'checking_session', 'entering_credentials', 'verifying'].includes(loginStatus.status || '')) && (
                     <div className="p-4 bg-amber-50 dark:bg-amber-900/20 rounded-xl border border-amber-200 dark:border-amber-800">
@@ -1225,7 +1244,7 @@ export default function LineSessionPage() {
                   )}
 
                   {/* Setup Form */}
-                  {(!loginStatus || loginStatus.status === 'completed' || loginStatus.status === 'success' || loginStatus.status === 'failed' || loginStatus.status === 'error') && (
+                  {(!loginStatus || loginStatus.status === 'completed' || loginStatus.status === 'success' || loginStatus.status === 'failed' || loginStatus.status === 'error' || loginStatus.status === 'credential_error') && (
                     <div className="space-y-4">
                       <h4 className="font-medium text-slate-900 dark:text-white flex items-center gap-2">
                         <LogIn className="w-4 h-4" />

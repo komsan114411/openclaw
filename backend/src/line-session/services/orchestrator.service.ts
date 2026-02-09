@@ -5,7 +5,7 @@ import { EventEmitter2 } from '@nestjs/event-emitter';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { LineSession, LineSessionDocument } from '../schemas/line-session.schema';
 import { SystemSettings, SystemSettingsDocument } from '../../database/schemas/system-settings.schema';
-import { EnhancedAutomationService, KeysStatus } from './enhanced-automation.service';
+import { EnhancedAutomationService, KeysStatus, isCredentialError } from './enhanced-automation.service';
 import { WorkerPoolService } from './worker-pool.service';
 import { KeyStorageService } from './key-storage.service';
 import { EventBusService } from '../../core/events';
@@ -358,6 +358,11 @@ export class OrchestratorService implements OnModuleInit, OnModuleDestroy {
 
       for (const session of sessions) {
         try {
+          // Skip sessions with credential_error — user must fix email/password manually
+          if (session.status === 'credential_error') {
+            continue;
+          }
+
           // Use session._id as the primary identifier (lineAccountId might be empty)
           const sessionId = session._id.toString();
 
@@ -511,8 +516,10 @@ export class OrchestratorService implements OnModuleInit, OnModuleDestroy {
       // 2. Last check result is expired
       // 3. Too many consecutive failures
       // 4. No keys at all (xLineAccess is empty)
+      // EXCLUDE: credential_error (user must fix email/password manually)
       const sessions = await this.lineSessionModel.find({
         isActive: true,
+        status: { $ne: 'credential_error' },
         $or: [
           { status: 'expired' },
           { status: 'pending_relogin' },
@@ -698,19 +705,48 @@ export class OrchestratorService implements OnModuleInit, OnModuleDestroy {
             });
           } else {
             this.reloginFailures++;
-            const recoveryData = this.recoveryAttempts.get(sessionId) || { attempts: 0, lastAttempt: new Date() };
-            recoveryData.attempts++;
-            recoveryData.lastAttempt = new Date();
-            this.recoveryAttempts.set(sessionId, recoveryData);
-
-            // Update status with error
             const errorMsg = result.error || 'เข้าสู่ระบบไม่สำเร็จ';
-            await this.lineSessionModel.updateOne(
-              { _id: session._id },
-              { $set: { status: 'failed', lastError: errorMsg } },
-            );
 
-            this.logger.error(`[ReloginCheck] Relogin failed for ${session.name}: ${errorMsg} (attempt ${recoveryData.attempts}/5)`);
+            // Check if this is a credential error (wrong email/password)
+            // Credential errors should NOT be retried — user must fix credentials manually
+            if (result.isCredentialError || isCredentialError(errorMsg)) {
+              this.logger.error(
+                `[ReloginCheck] CREDENTIAL ERROR for ${session.name}: ${errorMsg} — stopping auto-relogin permanently`,
+              );
+              await this.lineSessionModel.updateOne(
+                { _id: session._id },
+                {
+                  $set: {
+                    status: 'credential_error',
+                    lastError: 'อีเมลหรือรหัสผ่าน LINE ไม่ถูกต้อง กรุณาแก้ไขข้อมูลเข้าสู่ระบบ',
+                    lastCheckedAt: new Date(),
+                  },
+                },
+              );
+              // Remove from recovery tracking — no point retrying
+              this.recoveryAttempts.delete(sessionId);
+
+              // Emit event for frontend notification
+              this.eventEmitter.emit('session.credential_error', {
+                lineAccountId: sessionId,
+                sessionId: session._id,
+                name: session.name,
+                error: errorMsg,
+              });
+            } else {
+              // Normal failure — track attempts and retry later
+              const recoveryData = this.recoveryAttempts.get(sessionId) || { attempts: 0, lastAttempt: new Date() };
+              recoveryData.attempts++;
+              recoveryData.lastAttempt = new Date();
+              this.recoveryAttempts.set(sessionId, recoveryData);
+
+              await this.lineSessionModel.updateOne(
+                { _id: session._id },
+                { $set: { status: 'failed', lastError: errorMsg } },
+              );
+
+              this.logger.error(`[ReloginCheck] Relogin failed for ${session.name}: ${errorMsg} (attempt ${recoveryData.attempts}/5)`);
+            }
           }
         } catch (error: any) {
           this.reloginFailures++;
@@ -764,12 +800,14 @@ export class OrchestratorService implements OnModuleInit, OnModuleDestroy {
             loginStatus: this.mapWorkerStateToLoginStatus(workerStatus?.worker?.state),
             pinCode: pinStatus.pinCode || undefined,
             pinStatus: pinStatus.status,
-            needsRelogin: !keysStatus.isValid || keysStatus.keysStatus === KeysStatus.EXPIRED,
-            reloginReason: !keysStatus.hasKeys ? 'No keys' :
+            needsRelogin: session.status !== 'credential_error' &&
+              (!keysStatus.isValid || keysStatus.keysStatus === KeysStatus.EXPIRED),
+            reloginReason: session.status === 'credential_error' ? 'Credential error' :
+                          !keysStatus.hasKeys ? 'No keys' :
                           keysStatus.keysStatus === KeysStatus.EXPIRED ? 'Keys expired' : undefined,
             isAutoReloginEnabled: this.settings?.lineSessionAutoReloginEnabled !== false,
             lastCheckedAt: session.lastCheckedAt || new Date(),
-            lastError: workerStatus?.error,
+            lastError: workerStatus?.error || (session as any).lastError || undefined,
           });
         } catch (error: any) {
           // Skip this session
@@ -860,12 +898,14 @@ export class OrchestratorService implements OnModuleInit, OnModuleDestroy {
           loginStatus: this.mapWorkerStateToLoginStatus(workerStatus?.worker?.state),
           pinCode: pinStatus.pinCode || undefined,
           pinStatus: pinStatus.status,
-          needsRelogin: !keysStatus.isValid || keysStatus.keysStatus === KeysStatus.EXPIRED,
-          reloginReason: !keysStatus.hasKeys ? 'No keys' :
+          needsRelogin: session.status !== 'credential_error' &&
+            (!keysStatus.isValid || keysStatus.keysStatus === KeysStatus.EXPIRED),
+          reloginReason: session.status === 'credential_error' ? 'Credential error' :
+                        !keysStatus.hasKeys ? 'No keys' :
                         keysStatus.keysStatus === KeysStatus.EXPIRED ? 'Keys expired' : undefined,
           isAutoReloginEnabled: this.settings?.lineSessionAutoReloginEnabled !== false,
           lastCheckedAt: session.lastCheckedAt || new Date(),
-          lastError: workerStatus?.error,
+          lastError: workerStatus?.error || (session as any).lastError || undefined,
         });
       } catch (error: any) {
         // Skip this session
