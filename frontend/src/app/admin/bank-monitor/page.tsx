@@ -244,7 +244,7 @@ export default function AdminBankMonitorPage() {
       setDetailTotal(total);
       setDetailTotalPages(Math.ceil(total / DETAIL_ITEMS_PER_PAGE));
       setDetailCurrentPage(page);
-      setSummary(summaryRes.data || null);
+      setSummary(summaryRes.data?.summary || null);
     } catch (error) {
       toast.error('Failed to load transaction details');
     }
@@ -385,72 +385,72 @@ export default function AdminBankMonitorPage() {
               Monitor bank transactions from LINE sessions ({stats.sessionsWithKeys}/{stats.totalSessions} มี Keys)
             </p>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 sm:gap-3">
             <Button
               variant="primary"
               onClick={handleBatchFetchAll}
               disabled={isBatchFetching || stats.sessionsWithKeys === 0}
-              className="h-12 rounded-xl font-bold bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700"
+              className="h-10 sm:h-12 rounded-xl font-bold bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-xs sm:text-sm"
             >
               {isBatchFetching ? (
                 <>
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" /> Fetching...
+                  <Loader2 className="w-4 h-4 mr-1 sm:mr-2 animate-spin" /> <span className="hidden sm:inline">Fetching...</span><span className="sm:hidden">...</span>
                 </>
               ) : (
                 <>
-                  <Download className="w-4 h-4 mr-2" /> Fetch All ({stats.sessionsWithKeys})
+                  <Download className="w-4 h-4 mr-1 sm:mr-2" /> <span className="hidden sm:inline">Fetch All</span><span className="sm:hidden">Fetch</span> ({stats.sessionsWithKeys})
                 </>
               )}
             </Button>
             <Button
               variant="secondary"
               onClick={fetchData}
-              className="h-12 rounded-xl font-bold"
+              className="h-10 sm:h-12 rounded-xl font-bold text-xs sm:text-sm"
             >
-              <RefreshCw className="w-4 h-4 mr-2" /> Refresh
+              <RefreshCw className="w-4 h-4 mr-1 sm:mr-2" /> <span className="hidden sm:inline">Refresh</span>
             </Button>
           </div>
         </div>
 
         {/* Stats Cards */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <div className="p-6 bg-slate-800/50 rounded-2xl border border-slate-700/50">
-            <div className="flex items-center gap-3 mb-3">
-              <div className="w-10 h-10 rounded-xl bg-blue-500/20 flex items-center justify-center">
-                <Building2 className="w-5 h-5 text-blue-400" />
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
+          <div className="p-4 md:p-6 bg-slate-800/50 rounded-2xl border border-slate-700/50">
+            <div className="flex items-center gap-2 md:gap-3 mb-3">
+              <div className="w-8 h-8 md:w-10 md:h-10 rounded-xl bg-blue-500/20 flex items-center justify-center shrink-0">
+                <Building2 className="w-4 h-4 md:w-5 md:h-5 text-blue-400" />
               </div>
-              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Total Sessions</span>
+              <span className="text-[9px] md:text-[10px] font-bold text-slate-400 uppercase tracking-widest leading-tight">Sessions</span>
             </div>
-            <p className="text-2xl font-black text-white">{stats.totalSessions}</p>
+            <p className="text-xl md:text-2xl font-black text-white">{stats.totalSessions}</p>
           </div>
-          <div className="p-6 bg-slate-800/50 rounded-2xl border border-slate-700/50">
-            <div className="flex items-center gap-3 mb-3">
-              <div className="w-10 h-10 rounded-xl bg-emerald-500/20 flex items-center justify-center">
-                <Activity className="w-5 h-5 text-emerald-400" />
+          <div className="p-4 md:p-6 bg-slate-800/50 rounded-2xl border border-slate-700/50">
+            <div className="flex items-center gap-2 md:gap-3 mb-3">
+              <div className="w-8 h-8 md:w-10 md:h-10 rounded-xl bg-emerald-500/20 flex items-center justify-center shrink-0">
+                <Activity className="w-4 h-4 md:w-5 md:h-5 text-emerald-400" />
               </div>
-              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Active</span>
+              <span className="text-[9px] md:text-[10px] font-bold text-slate-400 uppercase tracking-widest leading-tight">Active</span>
             </div>
-            <p className="text-2xl font-black text-emerald-400">{stats.activeSessions}</p>
+            <p className="text-xl md:text-2xl font-black text-emerald-400">{stats.activeSessions}</p>
           </div>
-          <div className="p-6 bg-slate-800/50 rounded-2xl border border-slate-700/50">
-            <div className="flex items-center gap-3 mb-3">
-              <div className="w-10 h-10 rounded-xl bg-green-500/20 flex items-center justify-center">
-                <TrendingUp className="w-5 h-5 text-green-400" />
+          <div className="p-4 md:p-6 bg-slate-800/50 rounded-2xl border border-slate-700/50">
+            <div className="flex items-center gap-2 md:gap-3 mb-3">
+              <div className="w-8 h-8 md:w-10 md:h-10 rounded-xl bg-green-500/20 flex items-center justify-center shrink-0">
+                <TrendingUp className="w-4 h-4 md:w-5 md:h-5 text-green-400" />
               </div>
-              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Total Deposits</span>
+              <span className="text-[9px] md:text-[10px] font-bold text-slate-400 uppercase tracking-widest leading-tight">เงินเข้า</span>
             </div>
-            <p className="text-xl font-black text-green-400">
+            <p className="text-base md:text-xl font-black text-green-400">
               {stats.totalDeposits.toLocaleString('th-TH', { style: 'currency', currency: 'THB' })}
             </p>
           </div>
-          <div className="p-6 bg-slate-800/50 rounded-2xl border border-slate-700/50">
-            <div className="flex items-center gap-3 mb-3">
-              <div className="w-10 h-10 rounded-xl bg-rose-500/20 flex items-center justify-center">
-                <TrendingDown className="w-5 h-5 text-rose-400" />
+          <div className="p-4 md:p-6 bg-slate-800/50 rounded-2xl border border-slate-700/50">
+            <div className="flex items-center gap-2 md:gap-3 mb-3">
+              <div className="w-8 h-8 md:w-10 md:h-10 rounded-xl bg-rose-500/20 flex items-center justify-center shrink-0">
+                <TrendingDown className="w-4 h-4 md:w-5 md:h-5 text-rose-400" />
               </div>
-              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Total Withdrawals</span>
+              <span className="text-[9px] md:text-[10px] font-bold text-slate-400 uppercase tracking-widest leading-tight">เงินออก</span>
             </div>
-            <p className="text-xl font-black text-rose-400">
+            <p className="text-base md:text-xl font-black text-rose-400">
               {stats.totalWithdrawals.toLocaleString('th-TH', { style: 'currency', currency: 'THB' })}
             </p>
           </div>
@@ -541,73 +541,63 @@ export default function AdminBankMonitorPage() {
                   {group.sessions.map((session) => (
               <div
                 key={session._id}
-                className="p-6 bg-slate-800/50 rounded-2xl border border-slate-700/50 hover:border-emerald-500/30 transition-all cursor-pointer group"
+                className="p-4 md:p-6 bg-slate-800/50 rounded-2xl border border-slate-700/50 hover:border-emerald-500/30 transition-all cursor-pointer group"
                 onClick={() => openDetailModal(session)}
               >
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-4">
+                <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+                  <div className="flex items-center gap-3 sm:gap-4 flex-1 min-w-0">
                     <div className={cn(
-                      "w-14 h-14 rounded-xl flex items-center justify-center border",
+                      "w-10 h-10 sm:w-14 sm:h-14 rounded-xl flex items-center justify-center border shrink-0",
                       session.hasKeys
                         ? "bg-gradient-to-br from-emerald-500/20 to-teal-500/20 border-emerald-500/20"
                         : "bg-gradient-to-br from-slate-500/20 to-slate-600/20 border-slate-500/20"
                     )}>
-                      <Building2 className={cn("w-7 h-7", session.hasKeys ? "text-emerald-400" : "text-slate-500")} />
+                      <Building2 className={cn("w-5 h-5 sm:w-7 sm:h-7", session.hasKeys ? "text-emerald-400" : "text-slate-500")} />
                     </div>
-                    <div>
-                      <div className="flex items-center gap-3 mb-1">
-                        <h3 className="text-lg font-bold text-white group-hover:text-emerald-400 transition-colors">
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-center gap-2 mb-1">
+                        <h3 className="text-base sm:text-lg font-bold text-white group-hover:text-emerald-400 transition-colors truncate">
                           {session.accountName}
                         </h3>
                         {getStatusBadge(session.status)}
-                        {/* Keys Status Badge */}
                         {session.hasKeys ? (
                           <span className="flex items-center gap-1 px-2 py-0.5 bg-emerald-500/10 text-emerald-400 rounded text-xs border border-emerald-500/20">
                             <CheckCircle className="w-3 h-3" />
-                            มี Keys
+                            <span className="hidden xs:inline">มี</span> Keys
                           </span>
                         ) : (
                           <span className="flex items-center gap-1 px-2 py-0.5 bg-red-500/10 text-red-400 rounded text-xs border border-red-500/20">
                             <XCircle className="w-3 h-3" />
-                            ไม่มี Keys
+                            <span className="hidden xs:inline">ไม่มี</span> Keys
                           </span>
                         )}
                       </div>
-                      <div className="flex flex-wrap items-center gap-3 text-sm text-slate-400">
-                        {/* Owner Info - Highlighted */}
+                      <div className="flex flex-wrap items-center gap-2 text-xs sm:text-sm text-slate-400">
                         <span className="flex items-center gap-1 px-2 py-0.5 bg-violet-500/10 text-violet-400 rounded-lg border border-violet-500/20">
-                          <User className="w-3.5 h-3.5" />
-                          <span className="font-medium">{session.ownerName || 'ไม่ทราบเจ้าของ'}</span>
+                          <User className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
+                          <span className="font-medium truncate max-w-[120px] sm:max-w-none">{session.ownerName || 'ไม่ทราบเจ้าของ'}</span>
                         </span>
                         {session.bankName || session.bankCode ? (
                           <span className="flex items-center gap-1">
-                            <Building2 className="w-4 h-4" />
+                            <Building2 className="w-3.5 h-3.5" />
                             {session.bankName || session.bankCode}
                           </span>
                         ) : (
                           <span className="flex items-center gap-1 text-slate-500">
-                            <Building2 className="w-4 h-4" />
-                            ยังไม่ตั้งค่าธนาคาร
+                            <Building2 className="w-3.5 h-3.5" />
+                            ยังไม่ตั้งค่า
                           </span>
                         )}
                         {session.accountNumber && (
                           <span className="flex items-center gap-1">
-                            <Wallet className="w-4 h-4" />
+                            <Wallet className="w-3.5 h-3.5" />
                             {session.accountNumber}
                           </span>
                         )}
                       </div>
-                      {/* LINE Email & Stats */}
-                      <div className="flex flex-wrap items-center gap-3 text-xs text-slate-500 mt-1">
+                      <div className="flex flex-wrap items-center gap-2 text-[10px] sm:text-xs text-slate-500 mt-1">
                         {session.lineEmail && (
-                          <span className="flex items-center gap-1">
-                            LINE: {session.lineEmail}
-                          </span>
-                        )}
-                        {session.messageCount !== undefined && session.messageCount > 0 && (
-                          <span className="flex items-center gap-1 text-blue-400">
-                            📩 {session.messageCount} ข้อความ
-                          </span>
+                          <span className="truncate max-w-[180px]">LINE: {session.lineEmail}</span>
                         )}
                         {session.lastCheckedAt && (
                           <span className="flex items-center gap-1">
@@ -618,37 +608,36 @@ export default function AdminBankMonitorPage() {
                       </div>
                     </div>
                   </div>
-                  <div className="flex items-center gap-4">
-                    {/* View Keys Button */}
+                  <div className="flex items-center justify-between sm:justify-end gap-3 sm:gap-4 pl-13 sm:pl-0">
                     {session.hasKeys && (
                       <Button
                         variant="secondary"
                         size="sm"
                         onClick={(e) => openKeysModal(session, e)}
-                        className="gap-1.5 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border-emerald-500/20"
+                        className="gap-1.5 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border-emerald-500/20 text-xs"
                       >
-                        <Key className="w-4 h-4" />
-                        ดู Keys
+                        <Key className="w-3.5 h-3.5" />
+                        Keys
                       </Button>
                     )}
                     <div className="text-right">
                       {session.balance ? (
                         <>
-                          <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Balance</p>
-                          <p className="text-xl font-black text-emerald-400">
-                            {Number(session.balance).toLocaleString()} THB
+                          <p className="text-[9px] sm:text-[10px] font-bold text-slate-500 uppercase tracking-widest">Balance</p>
+                          <p className="text-lg sm:text-xl font-black text-emerald-400">
+                            {Number(session.balance).toLocaleString()} <span className="text-xs">THB</span>
                           </p>
                         </>
                       ) : (
                         <>
-                          <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">ข้อความ</p>
-                          <p className="text-xl font-black text-blue-400">
+                          <p className="text-[9px] sm:text-[10px] font-bold text-slate-500 uppercase tracking-widest">ข้อความ</p>
+                          <p className="text-lg sm:text-xl font-black text-blue-400">
                             {session.messageCount || 0}
                           </p>
                         </>
                       )}
                     </div>
-                    <ChevronRight className="w-5 h-5 text-slate-500 group-hover:text-emerald-400 group-hover:translate-x-1 transition-all" />
+                    <ChevronRight className="w-5 h-5 text-slate-500 group-hover:text-emerald-400 group-hover:translate-x-1 transition-all hidden sm:block" />
                   </div>
                 </div>
               </div>
@@ -670,54 +659,54 @@ export default function AdminBankMonitorPage() {
         {selectedSession && (
           <div className="space-y-6 pt-4 max-h-[75vh] overflow-y-auto px-2 custom-scrollbar pb-6">
             {/* Owner Info Card */}
-            <div className="p-4 bg-gradient-to-r from-violet-500/10 to-purple-500/10 rounded-2xl border border-violet-500/20">
-              <div className="flex items-center justify-between">
+            <div className="p-3 sm:p-4 bg-gradient-to-r from-violet-500/10 to-purple-500/10 rounded-2xl border border-violet-500/20">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-violet-500/20 flex items-center justify-center">
+                  <div className="w-10 h-10 rounded-xl bg-violet-500/20 flex items-center justify-center shrink-0">
                     <User className="w-5 h-5 text-violet-400" />
                   </div>
-                  <div>
+                  <div className="min-w-0">
                     <p className="text-[10px] font-bold text-violet-400 uppercase tracking-widest">เจ้าของบัญชี</p>
-                    <p className="text-white font-bold">{selectedSession.ownerName || 'ไม่ทราบ'}</p>
+                    <p className="text-white font-bold truncate">{selectedSession.ownerName || 'ไม่ทราบ'}</p>
                   </div>
                 </div>
                 {selectedSession.lineEmail && (
-                  <div className="text-right">
+                  <div className="sm:text-right pl-13 sm:pl-0">
                     <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">LINE Email</p>
-                    <p className="text-sm text-slate-300">{selectedSession.lineEmail}</p>
+                    <p className="text-sm text-slate-300 truncate">{selectedSession.lineEmail}</p>
                   </div>
                 )}
               </div>
             </div>
 
             {/* Account Info */}
-            <div className="p-6 bg-gradient-to-br from-emerald-500 to-teal-600 text-white rounded-[2rem] relative overflow-hidden">
+            <div className="p-4 sm:p-6 bg-gradient-to-br from-emerald-500 to-teal-600 text-white rounded-2xl sm:rounded-[2rem] relative overflow-hidden">
               <div className="absolute top-0 right-0 w-48 h-48 bg-white/10 rounded-full blur-[60px] -mr-24 -mt-24 pointer-events-none" />
               <div className="relative z-10">
-                <div className="flex items-center justify-between mb-4">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
                   <div className="flex items-center gap-3">
-                    <div className="w-12 h-12 rounded-xl bg-white/20 flex items-center justify-center">
-                      <Building2 className="w-6 h-6 text-white" />
+                    <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-white/20 flex items-center justify-center shrink-0">
+                      <Building2 className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
                     </div>
-                    <div>
-                      <p className="text-[10px] font-black text-white/70 uppercase tracking-widest">
+                    <div className="min-w-0">
+                      <p className="text-[9px] sm:text-[10px] font-black text-white/70 uppercase tracking-widest">
                         {selectedSession.bankName || selectedSession.bankCode}
                       </p>
-                      <p className="text-white font-bold">{selectedSession.accountNumber || 'No Account'}</p>
+                      <p className="text-white font-bold truncate">{selectedSession.accountNumber || 'No Account'}</p>
                     </div>
                   </div>
                   {getStatusBadge(selectedSession.status)}
                 </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="bg-white/10 rounded-xl p-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+                  <div className="bg-white/10 rounded-xl p-3 sm:p-4">
                     <p className="text-[9px] font-bold text-white/60 uppercase tracking-widest mb-1">Current Balance</p>
-                    <p className="text-2xl font-black text-white">
+                    <p className="text-xl sm:text-2xl font-black text-white">
                       {selectedSession.balance ? `${Number(selectedSession.balance).toLocaleString()} THB` : 'N/A'}
                     </p>
                   </div>
-                  <div className="bg-white/10 rounded-xl p-4">
+                  <div className="bg-white/10 rounded-xl p-3 sm:p-4">
                     <p className="text-[9px] font-bold text-white/60 uppercase tracking-widest mb-1">Chat MID</p>
-                    <p className="text-sm font-mono text-white/80 truncate">
+                    <p className="text-xs sm:text-sm font-mono text-white/80 truncate">
                       {selectedSession.chatMid || 'Not configured'}
                     </p>
                   </div>
@@ -733,32 +722,32 @@ export default function AdminBankMonitorPage() {
             ) : (
               <>
                 {summary && (
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="p-6 bg-emerald-50 rounded-[2rem] border border-emerald-200">
-                      <div className="flex items-center gap-3 mb-4">
-                        <div className="w-10 h-10 rounded-xl bg-emerald-100 flex items-center justify-center">
-                          <TrendingUp className="w-5 h-5 text-emerald-600" />
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+                    <div className="p-4 sm:p-6 bg-emerald-50 rounded-2xl sm:rounded-[2rem] border border-emerald-200">
+                      <div className="flex items-center gap-3 mb-3 sm:mb-4">
+                        <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-emerald-100 flex items-center justify-center shrink-0">
+                          <TrendingUp className="w-4 h-4 sm:w-5 sm:h-5 text-emerald-600" />
                         </div>
                         <div>
-                          <p className="text-[9px] font-bold text-emerald-500 uppercase tracking-widest">Deposits</p>
-                          <p className="text-lg font-black text-emerald-700">{summary.deposits?.count || 0} transactions</p>
+                          <p className="text-[9px] font-bold text-emerald-500 uppercase tracking-widest">เงินเข้า</p>
+                          <p className="text-sm sm:text-lg font-black text-emerald-700">{summary.deposits?.count || 0} รายการ</p>
                         </div>
                       </div>
-                      <p className="text-2xl font-black text-emerald-600">
+                      <p className="text-xl sm:text-2xl font-black text-emerald-600">
                         {Number(summary.deposits?.total || 0).toLocaleString('th-TH', { style: 'currency', currency: 'THB' })}
                       </p>
                     </div>
-                    <div className="p-6 bg-rose-50 rounded-[2rem] border border-rose-200">
-                      <div className="flex items-center gap-3 mb-4">
-                        <div className="w-10 h-10 rounded-xl bg-rose-100 flex items-center justify-center">
-                          <TrendingDown className="w-5 h-5 text-rose-600" />
+                    <div className="p-4 sm:p-6 bg-rose-50 rounded-2xl sm:rounded-[2rem] border border-rose-200">
+                      <div className="flex items-center gap-3 mb-3 sm:mb-4">
+                        <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-rose-100 flex items-center justify-center shrink-0">
+                          <TrendingDown className="w-4 h-4 sm:w-5 sm:h-5 text-rose-600" />
                         </div>
                         <div>
-                          <p className="text-[9px] font-bold text-rose-500 uppercase tracking-widest">Withdrawals</p>
-                          <p className="text-lg font-black text-rose-700">{summary.withdrawals?.count || 0} transactions</p>
+                          <p className="text-[9px] font-bold text-rose-500 uppercase tracking-widest">เงินออก</p>
+                          <p className="text-sm sm:text-lg font-black text-rose-700">{summary.withdrawals?.count || 0} รายการ</p>
                         </div>
                       </div>
-                      <p className="text-2xl font-black text-rose-600">
+                      <p className="text-xl sm:text-2xl font-black text-rose-600">
                         {Number(summary.withdrawals?.total || 0).toLocaleString('th-TH', { style: 'currency', currency: 'THB' })}
                       </p>
                     </div>
@@ -766,18 +755,18 @@ export default function AdminBankMonitorPage() {
                 )}
 
                 {/* Fetch Button */}
-                <div className="flex items-center justify-between p-4 bg-slate-50 rounded-xl">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 sm:p-4 bg-slate-50 rounded-xl">
                   <div>
                     <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Messages</p>
-                    <p className="text-sm text-slate-600">{detailTotal} messages total</p>
+                    <p className="text-sm text-slate-600">{detailTotal} รายการทั้งหมด</p>
                   </div>
                   <Button
                     variant="secondary"
                     onClick={handleFetchMessages}
                     isLoading={isFetching}
-                    className="h-10 rounded-xl font-bold"
+                    className="h-10 rounded-xl font-bold w-full sm:w-auto"
                   >
-                    <Download className="w-4 h-4 mr-2" /> Fetch Now
+                    <Download className="w-4 h-4 mr-2" /> ดึงข้อความใหม่
                   </Button>
                 </div>
 
@@ -819,8 +808,8 @@ export default function AdminBankMonitorPage() {
 
                 {/* Info bar */}
                 {detailTotal > 0 && (
-                  <div className="flex items-center justify-between px-2">
-                    <p className="text-xs text-slate-500">
+                  <div className="px-2">
+                    <p className="text-[11px] sm:text-xs text-slate-500">
                       แสดง {((detailCurrentPage - 1) * DETAIL_ITEMS_PER_PAGE) + 1}-{Math.min(detailCurrentPage * DETAIL_ITEMS_PER_PAGE, detailTotal)} จาก {detailTotal} รายการ
                       {detailFilterType && <span className="ml-1 text-emerald-600">({detailFilterType})</span>}
                       {detailSearchQuery.trim() && <span className="ml-1 text-blue-600">ค้นหา: &quot;{detailSearchQuery}&quot; ({filteredMessages.length} ผลลัพธ์)</span>}
@@ -841,7 +830,7 @@ export default function AdminBankMonitorPage() {
                   ) : (
                     <div className="space-y-2 max-h-[500px] overflow-y-auto custom-scrollbar">
                       {filteredMessages.map((msg, index) => (
-                        <div key={msg._id || index} className="p-4 bg-slate-50 rounded-xl border border-slate-100">
+                        <div key={msg._id || index} className="p-3 sm:p-4 bg-slate-50 rounded-xl border border-slate-100">
                           <div className="flex items-center justify-between mb-2">
                             <Badge className={cn(
                               "text-[9px] font-bold",
@@ -856,17 +845,17 @@ export default function AdminBankMonitorPage() {
                             )}>
                               {msg.transactionType || 'unknown'}
                             </Badge>
-                            <span className="text-[9px] text-slate-400">
+                            <span className="text-[9px] text-slate-400 shrink-0 ml-2">
                               {msg.messageDate ? new Date(msg.messageDate).toLocaleString('th-TH') : '-'}
                             </span>
                           </div>
-                          <div className="flex items-center justify-between">
-                            <p className="text-xs text-slate-600 truncate flex-1 mr-4">
-                              {msg.text?.substring(0, 60) || 'No text'}
+                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
+                            <p className="text-xs text-slate-600 truncate">
+                              {msg.text?.substring(0, 80) || 'No text'}
                             </p>
                             {msg.amount && (
                               <p className={cn(
-                                "text-sm font-bold",
+                                "text-sm font-bold shrink-0",
                                 msg.transactionType === 'deposit' ? "text-emerald-600" : "text-rose-600"
                               )}>
                                 {msg.transactionType === 'deposit' ? '+' : '-'}{Number(msg.amount).toLocaleString()} THB
@@ -875,7 +864,7 @@ export default function AdminBankMonitorPage() {
                           </div>
                           {msg.balance && (
                             <p className="text-[10px] text-slate-400 mt-1">
-                              Balance: {Number(msg.balance).toLocaleString()} THB
+                              คงเหลือ: {Number(msg.balance).toLocaleString()} THB
                             </p>
                           )}
                         </div>
@@ -886,7 +875,7 @@ export default function AdminBankMonitorPage() {
 
                 {/* Pagination Controls */}
                 {detailTotalPages > 1 && (
-                  <div className="flex items-center justify-center gap-2 pt-2">
+                  <div className="flex flex-wrap items-center justify-center gap-1.5 sm:gap-2 pt-2">
                     <button
                       onClick={() => {
                         if (selectedSession && detailCurrentPage > 1) {
@@ -984,11 +973,11 @@ export default function AdminBankMonitorPage() {
         {keysSession && (
           <div className="space-y-6 pt-4 max-h-[75vh] overflow-y-auto px-2 custom-scrollbar pb-6">
             {/* Session Info */}
-            <div className="p-4 bg-gradient-to-r from-violet-500/10 to-purple-500/10 rounded-2xl border border-violet-500/20">
-              <div className="grid grid-cols-2 gap-4">
+            <div className="p-3 sm:p-4 bg-gradient-to-r from-violet-500/10 to-purple-500/10 rounded-2xl border border-violet-500/20">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                 <div>
                   <p className="text-[10px] font-bold text-violet-400 uppercase tracking-widest">เจ้าของ</p>
-                  <p className="text-white font-bold">{keysSession.ownerName || 'ไม่ทราบ'}</p>
+                  <p className="text-white font-bold truncate">{keysSession.ownerName || 'ไม่ทราบ'}</p>
                 </div>
                 <div>
                   <p className="text-[10px] font-bold text-violet-400 uppercase tracking-widest">ธนาคาร</p>
@@ -996,13 +985,13 @@ export default function AdminBankMonitorPage() {
                 </div>
                 <div>
                   <p className="text-[10px] font-bold text-violet-400 uppercase tracking-widest">LINE Email</p>
-                  <div className="flex items-center gap-2">
-                    <Mail className="w-4 h-4 text-slate-400" />
-                    <p className="text-white font-medium">{keysSession.lineEmail || '-'}</p>
+                  <div className="flex items-center gap-2 min-w-0">
+                    <Mail className="w-4 h-4 text-slate-400 shrink-0" />
+                    <p className="text-white font-medium truncate">{keysSession.lineEmail || '-'}</p>
                     {keysSession.lineEmail && (
                       <button
                         onClick={() => copyToClipboard(keysSession.lineEmail!, 'LINE Email')}
-                        className="p-1 hover:bg-slate-700 rounded"
+                        className="p-1 hover:bg-slate-700 rounded shrink-0"
                       >
                         <Copy className="w-3.5 h-3.5 text-slate-400 hover:text-white" />
                       </button>
@@ -1011,13 +1000,13 @@ export default function AdminBankMonitorPage() {
                 </div>
                 <div>
                   <p className="text-[10px] font-bold text-violet-400 uppercase tracking-widest">LINE Password</p>
-                  <div className="flex items-center gap-2">
-                    <Key className="w-4 h-4 text-slate-400" />
-                    <p className="text-white font-medium font-mono">{keysSession.linePassword || '-'}</p>
+                  <div className="flex items-center gap-2 min-w-0">
+                    <Key className="w-4 h-4 text-slate-400 shrink-0" />
+                    <p className="text-white font-medium font-mono truncate">{keysSession.linePassword || '-'}</p>
                     {keysSession.linePassword && (
                       <button
                         onClick={() => copyToClipboard(keysSession.linePassword!, 'LINE Password')}
-                        className="p-1 hover:bg-slate-700 rounded"
+                        className="p-1 hover:bg-slate-700 rounded shrink-0"
                       >
                         <Copy className="w-3.5 h-3.5 text-slate-400 hover:text-white" />
                       </button>
@@ -1146,9 +1135,9 @@ export default function AdminBankMonitorPage() {
             </div>
 
             {/* Metadata */}
-            <div className="p-4 bg-slate-800/30 rounded-xl border border-slate-700/30">
+            <div className="p-3 sm:p-4 bg-slate-800/30 rounded-xl border border-slate-700/30">
               <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-3">ข้อมูลเพิ่มเติม</p>
-              <div className="grid grid-cols-2 gap-3 text-xs">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
                 <div>
                   <span className="text-slate-500">User Agent:</span>
                   <p className="text-slate-300 truncate">{keysSession.userAgent || '-'}</p>
