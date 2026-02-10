@@ -368,23 +368,21 @@ export default function AdminBankMonitorPage() {
   const getStatusBadge = (status?: string) => {
     switch (status) {
       case 'active':
-        return <Badge className="bg-emerald-100 text-emerald-700 border-emerald-200">Active</Badge>;
+        return <Badge className="bg-emerald-100 text-emerald-700 border-emerald-200">ใช้งาน</Badge>;
       case 'valid_grace_period':
-        // [FIX] Keys ใช้งานได้ (เพิ่งล็อกอินสำเร็จ อยู่ใน grace period)
-        return <Badge className="bg-emerald-100 text-emerald-700 border-emerald-200">Active</Badge>;
+        return <Badge className="bg-emerald-100 text-emerald-700 border-emerald-200">ใช้งาน</Badge>;
       case 'expired':
-        return <Badge className="bg-rose-100 text-rose-700 border-rose-200">Expired</Badge>;
+        return <Badge className="bg-rose-100 text-rose-700 border-rose-200">หมดอายุ</Badge>;
       case 'error':
-        return <Badge className="bg-amber-100 text-amber-700 border-amber-200">Error</Badge>;
+        return <Badge className="bg-amber-100 text-amber-700 border-amber-200">ข้อผิดพลาด</Badge>;
       case 'no_session':
-        return <Badge className="bg-slate-100 text-slate-500 border-slate-200">No Session</Badge>;
+        return <Badge className="bg-slate-100 text-slate-500 border-slate-200">ไม่มี Session</Badge>;
       case 'pending':
-        return <Badge className="bg-blue-100 text-blue-700 border-blue-200">Pending</Badge>;
+        return <Badge className="bg-blue-100 text-blue-700 border-blue-200">รอดำเนินการ</Badge>;
       case 'validating':
-        // [FIX] กำลังตรวจสอบ Keys
-        return <Badge className="bg-blue-100 text-blue-700 border-blue-200">Validating</Badge>;
+        return <Badge className="bg-blue-100 text-blue-700 border-blue-200">กำลังตรวจสอบ</Badge>;
       default:
-        return <Badge className="bg-slate-100 text-slate-600 border-slate-200">Unknown</Badge>;
+        return <Badge className="bg-slate-100 text-slate-600 border-slate-200">ไม่ทราบ</Badge>;
     }
   };
 
@@ -463,7 +461,7 @@ export default function AdminBankMonitorPage() {
               title={autoRefresh ? 'ปิดรีเฟรชอัตโนมัติ' : 'เปิดรีเฟรชอัตโนมัติ (ทุก 60 วินาที)'}
             >
               <Clock className="w-4 h-4" />
-              <span className="hidden sm:inline">{autoRefresh ? 'อัตโนมัติ' : 'อัตโนมัติ'}</span>
+              <span className="hidden sm:inline">{autoRefresh ? 'อัตโนมัติ: เปิด' : 'อัตโนมัติ: ปิด'}</span>
             </button>
           </div>
         </div>
@@ -801,55 +799,55 @@ export default function AdminBankMonitorPage() {
               <>
                 {summary && (
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
-                    <div className="p-4 sm:p-5 bg-emerald-50 rounded-2xl border border-emerald-200">
+                    <div className="p-4 sm:p-5 bg-emerald-500/10 rounded-2xl border border-emerald-500/20">
                       <div className="flex items-center gap-3 mb-3">
-                        <div className="w-9 h-9 rounded-xl bg-emerald-100 flex items-center justify-center shrink-0">
-                          <TrendingUp className="w-4 h-4 text-emerald-600" />
+                        <div className="w-9 h-9 rounded-xl bg-emerald-500/20 flex items-center justify-center shrink-0">
+                          <TrendingUp className="w-4 h-4 text-emerald-400" />
                         </div>
                         <div>
-                          <p className="text-[9px] font-bold text-emerald-500 uppercase tracking-widest">เงินเข้า</p>
-                          <p className="text-sm font-black text-emerald-700">{summary.deposits?.count || 0} รายการ</p>
+                          <p className="text-[9px] font-bold text-emerald-400 uppercase tracking-widest">เงินเข้า</p>
+                          <p className="text-sm font-black text-emerald-300">{summary.deposits?.count || 0} รายการ</p>
                         </div>
                       </div>
-                      <p className="text-lg sm:text-xl font-black text-emerald-600">
+                      <p className="text-lg sm:text-xl font-black text-emerald-400">
                         {Number(summary.deposits?.total || 0).toLocaleString('th-TH', { style: 'currency', currency: 'THB' })}
                       </p>
                     </div>
-                    <div className="p-4 sm:p-5 bg-rose-50 rounded-2xl border border-rose-200">
+                    <div className="p-4 sm:p-5 bg-rose-500/10 rounded-2xl border border-rose-500/20">
                       <div className="flex items-center gap-3 mb-3">
-                        <div className="w-9 h-9 rounded-xl bg-rose-100 flex items-center justify-center shrink-0">
-                          <TrendingDown className="w-4 h-4 text-rose-600" />
+                        <div className="w-9 h-9 rounded-xl bg-rose-500/20 flex items-center justify-center shrink-0">
+                          <TrendingDown className="w-4 h-4 text-rose-400" />
                         </div>
                         <div>
-                          <p className="text-[9px] font-bold text-rose-500 uppercase tracking-widest">เงินออก</p>
-                          <p className="text-sm font-black text-rose-700">{summary.withdrawals?.count || 0} รายการ</p>
+                          <p className="text-[9px] font-bold text-rose-400 uppercase tracking-widest">เงินออก</p>
+                          <p className="text-sm font-black text-rose-300">{summary.withdrawals?.count || 0} รายการ</p>
                         </div>
                       </div>
-                      <p className="text-lg sm:text-xl font-black text-rose-600">
+                      <p className="text-lg sm:text-xl font-black text-rose-400">
                         {Number(summary.withdrawals?.total || 0).toLocaleString('th-TH', { style: 'currency', currency: 'THB' })}
                       </p>
                     </div>
                     <div className={cn(
                       "p-4 sm:p-5 rounded-2xl border",
                       (summary.deposits?.total || 0) - (summary.withdrawals?.total || 0) >= 0
-                        ? "bg-amber-50 border-amber-200"
-                        : "bg-red-50 border-red-200"
+                        ? "bg-amber-500/10 border-amber-500/20"
+                        : "bg-red-500/10 border-red-500/20"
                     )}>
                       <div className="flex items-center gap-3 mb-3">
                         <div className={cn(
                           "w-9 h-9 rounded-xl flex items-center justify-center shrink-0",
                           (summary.deposits?.total || 0) - (summary.withdrawals?.total || 0) >= 0
-                            ? "bg-amber-100" : "bg-red-100"
+                            ? "bg-amber-500/20" : "bg-red-500/20"
                         )}>
                           <Wallet className={cn(
                             "w-4 h-4",
                             (summary.deposits?.total || 0) - (summary.withdrawals?.total || 0) >= 0
-                              ? "text-amber-600" : "text-red-600"
+                              ? "text-amber-400" : "text-red-400"
                           )} />
                         </div>
                         <div>
-                          <p className="text-[9px] font-bold text-amber-500 uppercase tracking-widest">คงเหลือสุทธิ</p>
-                          <p className="text-sm font-black text-slate-700">
+                          <p className="text-[9px] font-bold text-amber-400 uppercase tracking-widest">คงเหลือสุทธิ</p>
+                          <p className="text-sm font-black text-slate-300">
                             {(summary.deposits?.count || 0) + (summary.withdrawals?.count || 0)} รายการรวม
                           </p>
                         </div>
@@ -857,7 +855,7 @@ export default function AdminBankMonitorPage() {
                       <p className={cn(
                         "text-lg sm:text-xl font-black",
                         (summary.deposits?.total || 0) - (summary.withdrawals?.total || 0) >= 0
-                          ? "text-amber-600" : "text-red-600"
+                          ? "text-amber-400" : "text-red-400"
                       )}>
                         {((summary.deposits?.total || 0) - (summary.withdrawals?.total || 0)).toLocaleString('th-TH', { style: 'currency', currency: 'THB' })}
                       </p>
@@ -866,9 +864,9 @@ export default function AdminBankMonitorPage() {
                 )}
 
                 {/* Fetch Button */}
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 sm:p-4 bg-slate-50 rounded-xl">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 sm:p-4 bg-slate-800/50 rounded-xl border border-slate-700/50">
                   <div>
-                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Messages</p>
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">ข้อความ</p>
                     <p className="text-sm text-slate-600">{detailTotal} รายการทั้งหมด</p>
                   </div>
                   <Button
@@ -890,7 +888,7 @@ export default function AdminBankMonitorPage() {
                       placeholder="ค้นหาข้อความ, จำนวนเงิน..."
                       value={detailSearchQuery}
                       onChange={(e) => setDetailSearchQuery(e.target.value)}
-                      className="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm text-slate-700 placeholder-slate-400 focus:outline-none focus:border-emerald-500"
+                      className="w-full pl-10 pr-4 py-2.5 bg-slate-800/50 border border-slate-700/50 rounded-xl text-sm text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500/50"
                     />
                   </div>
                   <select
@@ -903,7 +901,7 @@ export default function AdminBankMonitorPage() {
                         fetchDetailMessages(selectedSession.lineAccountId, 1, newType, false, detailStartDate, detailEndDate);
                       }
                     }}
-                    className="px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm text-slate-700 focus:outline-none focus:border-emerald-500 min-w-[160px]"
+                    className="px-4 py-2.5 bg-slate-800/50 border border-slate-700/50 rounded-xl text-sm text-white focus:outline-none focus:border-emerald-500/50 min-w-[160px]"
                   >
                     <option value="">ทั้งหมด</option>
                     <option value="deposit">เงินเข้า</option>
@@ -925,7 +923,7 @@ export default function AdminBankMonitorPage() {
                       type="date"
                       value={detailStartDate}
                       onChange={(e) => setDetailStartDate(e.target.value)}
-                      className="w-full px-3 py-2.5 bg-white border border-slate-200 rounded-xl text-sm text-slate-700 focus:outline-none focus:border-emerald-500"
+                      className="w-full px-3 py-2.5 bg-slate-800/50 border border-slate-700/50 rounded-xl text-sm text-white focus:outline-none focus:border-emerald-500/50"
                     />
                   </div>
                   <div className="flex-1 w-full sm:w-auto">
@@ -934,7 +932,7 @@ export default function AdminBankMonitorPage() {
                       type="date"
                       value={detailEndDate}
                       onChange={(e) => setDetailEndDate(e.target.value)}
-                      className="w-full px-3 py-2.5 bg-white border border-slate-200 rounded-xl text-sm text-slate-700 focus:outline-none focus:border-emerald-500"
+                      className="w-full px-3 py-2.5 bg-slate-800/50 border border-slate-700/50 rounded-xl text-sm text-white focus:outline-none focus:border-emerald-500/50"
                     />
                   </div>
                   <div className="flex gap-2 w-full sm:w-auto">
@@ -949,7 +947,7 @@ export default function AdminBankMonitorPage() {
                         "flex-1 sm:flex-none px-4 py-2.5 rounded-xl text-sm font-bold transition-colors",
                         detailStartDate || detailEndDate
                           ? "bg-emerald-500 text-white hover:bg-emerald-600"
-                          : "bg-slate-100 text-slate-400 cursor-not-allowed"
+                          : "bg-slate-700/50 text-slate-500 cursor-not-allowed"
                       )}
                     >
                       กรอง
@@ -995,8 +993,8 @@ export default function AdminBankMonitorPage() {
                 <div className="space-y-3">
                   <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-2">รายการธุรกรรมล่าสุด</p>
                   {filteredMessages.length === 0 ? (
-                    <div className="p-8 bg-slate-50 rounded-[2rem] text-center">
-                      <Wallet className="w-12 h-12 text-slate-300 mx-auto mb-3" />
+                    <div className="p-8 bg-slate-800/30 rounded-[2rem] text-center border border-slate-700/30">
+                      <Wallet className="w-12 h-12 text-slate-600 mx-auto mb-3" />
                       <p className="text-sm text-slate-500">
                         {detailSearchQuery.trim() ? 'ไม่พบรายการที่ค้นหา' : 'ยังไม่มีรายการธุรกรรม'}
                       </p>
@@ -1004,12 +1002,12 @@ export default function AdminBankMonitorPage() {
                   ) : (
                     <div className="relative space-y-2 max-h-[500px] overflow-y-auto custom-scrollbar">
                       {isDetailPageLoading && (
-                        <div className="absolute inset-0 bg-white/60 flex items-center justify-center z-10 rounded-xl">
+                        <div className="absolute inset-0 bg-slate-900/60 flex items-center justify-center z-10 rounded-xl">
                           <Loader2 className="w-6 h-6 text-emerald-500 animate-spin" />
                         </div>
                       )}
                       {filteredMessages.map((msg, index) => (
-                        <div key={msg.id || msg.messageId || index} className="p-3 sm:p-4 bg-slate-50 rounded-xl border border-slate-100">
+                        <div key={msg.id || msg.messageId || index} className="p-3 sm:p-4 bg-slate-800/50 rounded-xl border border-slate-700/50">
                           <div className="flex items-center justify-between mb-2">
                             <Badge className={cn(
                               "text-[9px] font-bold",
@@ -1029,7 +1027,7 @@ export default function AdminBankMonitorPage() {
                             </span>
                           </div>
                           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
-                            <p className="text-xs text-slate-600 truncate">
+                            <p className="text-xs text-slate-400 truncate">
                               {msg.text?.substring(0, 80) || 'ไม่มีข้อความ'}
                             </p>
                             {msg.amount && (
@@ -1066,7 +1064,7 @@ export default function AdminBankMonitorPage() {
                         "w-9 h-9 rounded-lg flex items-center justify-center transition-colors",
                         detailCurrentPage <= 1
                           ? "text-slate-300 cursor-not-allowed"
-                          : "text-slate-600 hover:bg-slate-100"
+                          : "text-slate-400 hover:bg-slate-700/50"
                       )}
                     >
                       <ChevronLeft className="w-4 h-4" />
@@ -1091,7 +1089,7 @@ export default function AdminBankMonitorPage() {
                             "w-9 h-9 rounded-lg text-sm font-bold transition-colors",
                             page === detailCurrentPage
                               ? "bg-emerald-500 text-white"
-                              : "text-slate-600 hover:bg-slate-100"
+                              : "text-slate-400 hover:bg-slate-700/50"
                           )}
                         >
                           {page}
@@ -1110,7 +1108,7 @@ export default function AdminBankMonitorPage() {
                         "w-9 h-9 rounded-lg flex items-center justify-center transition-colors",
                         detailCurrentPage >= detailTotalPages
                           ? "text-slate-300 cursor-not-allowed"
-                          : "text-slate-600 hover:bg-slate-100"
+                          : "text-slate-400 hover:bg-slate-700/50"
                       )}
                     >
                       <ChevronRight className="w-4 h-4" />

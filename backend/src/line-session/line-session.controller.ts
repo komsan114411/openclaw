@@ -970,6 +970,20 @@ export class LineSessionController {
     };
   }
 
+  /**
+   * Get batch transaction summary across all sessions
+   * IMPORTANT: Must be before :lineAccountId/messages routes to avoid param capture
+   */
+  @Get('batch/messages/summary')
+  @ApiOperation({ summary: 'Get batch transaction summary' })
+  async getBatchTransactionSummary() {
+    const result = await this.messageFetchService.getBatchTransactionSummary();
+    return {
+      success: true,
+      ...result,
+    };
+  }
+
   // ================================
   // Auto Message Fetch Settings
   // ================================
@@ -1097,19 +1111,6 @@ export class LineSessionController {
   // ================================
   // MESSAGE CLEANUP
   // ================================
-
-  /**
-   * Get batch transaction summary across all sessions
-   */
-  @Get('batch/messages/summary')
-  @ApiOperation({ summary: 'Get batch transaction summary' })
-  async getBatchTransactionSummary() {
-    const result = await this.messageFetchService.getBatchTransactionSummary();
-    return {
-      success: true,
-      ...result,
-    };
-  }
 
   /**
    * สถิติข้อความรวม (เรียกตอนโหลดหน้า)
