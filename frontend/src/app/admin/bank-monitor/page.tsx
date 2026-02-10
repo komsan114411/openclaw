@@ -4,12 +4,10 @@ import { useEffect, useState, useCallback } from 'react';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import { lineSessionApi, usersApi } from '@/lib/api';
 import toast from 'react-hot-toast';
-import { Card, StatCard } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
-import { Button, IconButton } from '@/components/ui/Button';
+import { Button } from '@/components/ui/Button';
 import { Modal } from '@/components/ui/Modal';
 import { PageLoading, Spinner } from '@/components/ui/Loading';
-import { Input, Select } from '@/components/ui/Input';
 import { cn } from '@/lib/utils';
 import {
   Building2,
@@ -25,13 +23,9 @@ import {
   Clock,
   CheckCircle,
   XCircle,
-  AlertCircle,
   ChevronLeft,
   ChevronRight,
-  Filter,
   User,
-  Users,
-  MessageSquare,
   Key,
   Loader2,
   Copy,
@@ -81,8 +75,7 @@ interface OwnerInfo {
 }
 
 interface TransactionMessage {
-  _id: string;
-  lineAccountId: string;
+  id: string;
   messageId: string;
   text?: string;
   transactionType: string;
@@ -100,7 +93,6 @@ interface TransactionSummary {
 export default function AdminBankMonitorPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [sessions, setSessions] = useState<BankSession[]>([]);
-  const [lineAccounts, setLineAccounts] = useState<any[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterBank, setFilterBank] = useState('');
   const [filterOwner, setFilterOwner] = useState('');
@@ -143,19 +135,15 @@ export default function AdminBankMonitorPage() {
 
   const fetchData = useCallback(async () => {
     try {
-      // Fetch LINE sessions directly (includes sessions from user/line-session without lineAccountId)
-      console.log('[BankMonitor] Fetching sessions...');
-      const [sessionsRes, banksRes, usersRes] = await Promise.all([
+      const [sessionsRes, banksRes, usersRes, msgStatsRes] = await Promise.all([
         lineSessionApi.getAll(),
         lineSessionApi.getBanks(),
         usersApi.getAll().catch(() => ({ data: [] })),
+        lineSessionApi.getMessageStats().catch(() => ({ data: { totalMessages: 0, perSession: [] } })),
       ]);
 
-      console.log('[BankMonitor] Sessions response:', sessionsRes.data);
-      console.log('[BankMonitor] Users response:', usersRes.data);
       const allSessions = sessionsRes.data?.sessions || [];
       const banksList = banksRes.data?.banks || [];
-      // Users API returns { success: true, users: [...] }
       const usersList: OwnerInfo[] = usersRes.data?.users || usersRes.data || [];
 
       // Create user lookup map
@@ -164,54 +152,74 @@ export default function AdminBankMonitorPage() {
         usersMap.set(user._id, user);
       });
 
-      setLineAccounts([]);
+      // Create message count lookup from stats endpoint
+      const perSession: Array<{ _id: string; lineAccountId?: string; count: number }> =
+        msgStatsRes.data?.perSession || [];
+      const msgCountMap = new Map<string, number>();
+      perSession.forEach((s) => {
+        if (s.lineAccountId) msgCountMap.set(s.lineAccountId, s.count);
+        msgCountMap.set(s._id, s.count);
+      });
+
       setBanks(banksList);
       setOwners(usersList);
 
       // Map sessions to BankSession format
-      const sessionsData: BankSession[] = allSessions.map((session: any) => {
-        const owner = session.ownerId ? usersMap.get(session.ownerId) : null;
+      const sessionsData: BankSession[] = allSessions.map((session: Record<string, unknown>) => {
+        const ownerId = session.ownerId as string | undefined;
+        const owner = ownerId ? usersMap.get(ownerId) : null;
+        const lineAccountId = (session.lineAccountId as string) || (session._id as string);
 
         return {
-          _id: session._id,
-          lineAccountId: session.lineAccountId || session._id,
-          accountName: session.name || 'ไม่มีชื่อ',
-          bankCode: session.bankCode,
-          bankName: session.bankName,
-          accountNumber: session.accountNumber,
-          chatMid: session.chatMid,
-          balance: session.balance,
-          status: session.status || 'pending',
+          _id: session._id as string,
+          lineAccountId,
+          accountName: (session.name as string) || 'ไม่มีชื่อ',
+          bankCode: session.bankCode as string | undefined,
+          bankName: session.bankName as string | undefined,
+          accountNumber: session.accountNumber as string | undefined,
+          chatMid: session.chatMid as string | undefined,
+          balance: session.balance as string | undefined,
+          status: (session.status as string) || 'pending',
           isActive: true,
-          lastCheckedAt: session.lastCheckedAt,
-          consecutiveFailures: session.consecutiveFailures,
-          // Owner info
-          ownerId: session.ownerId,
+          lastCheckedAt: session.lastCheckedAt as string | undefined,
+          consecutiveFailures: session.consecutiveFailures as number | undefined,
+          ownerId,
           ownerName: owner?.name || owner?.username || 'ไม่ทราบเจ้าของ',
           ownerEmail: owner?.email,
-          lineEmail: session.lineEmail,
-          linePassword: session.linePassword,
-          // Message stats
-          messageCount: 0,
-          // Keys - full values for admin
-          hasKeys: session.hasKeys || false,
-          xLineAccess: session.xLineAccess,
-          xHmac: session.xHmac,
-          cUrlBash: session.cUrlBash,
-          userAgent: session.userAgent,
-          lineVersion: session.lineVersion,
-          hasCredentials: session.hasCredentials,
-          extractedAt: session.extractedAt,
+          lineEmail: session.lineEmail as string | undefined,
+          linePassword: session.linePassword as string | undefined,
+          messageCount: msgCountMap.get(lineAccountId) || msgCountMap.get(session._id as string) || 0,
+          hasKeys: (session.hasKeys as boolean) || false,
+          xLineAccess: session.xLineAccess as string | undefined,
+          xHmac: session.xHmac as string | undefined,
+          cUrlBash: session.cUrlBash as string | undefined,
+          userAgent: session.userAgent as string | undefined,
+          lineVersion: session.lineVersion as string | undefined,
+          hasCredentials: session.hasCredentials as boolean | undefined,
+          extractedAt: session.extractedAt as string | undefined,
         };
       });
+
+      // Fetch transaction summaries for all sessions in parallel to get totals
+      const summaryResults = await Promise.all(
+        sessionsData.map((session) =>
+          lineSessionApi.getTransactionSummary(session.lineAccountId)
+            .then((res) => res.data?.summary || { deposits: { total: 0, count: 0 }, withdrawals: { total: 0, count: 0 } })
+            .catch(() => ({ deposits: { total: 0, count: 0 }, withdrawals: { total: 0, count: 0 } }))
+        )
+      );
+
+      const totalDeposits = summaryResults.reduce((sum, s) => sum + (s.deposits?.total || 0), 0);
+      const totalWithdrawals = summaryResults.reduce((sum, s) => sum + (s.withdrawals?.total || 0), 0);
+      const totalMessages = msgStatsRes.data?.totalMessages || 0;
 
       setSessions(sessionsData);
       setStats({
         totalSessions: sessionsData.length,
         activeSessions: sessionsData.filter(s => s.status === 'active').length,
-        totalDeposits: 0,
-        totalWithdrawals: 0,
-        totalMessages: 0,
+        totalDeposits,
+        totalWithdrawals,
+        totalMessages,
         sessionsWithKeys: sessionsData.filter(s => s.hasKeys).length,
       });
     } catch (error) {
@@ -294,8 +302,9 @@ export default function AdminBankMonitorPage() {
       } else {
         toast.error('ไม่สามารถดึงข้อความได้');
       }
-    } catch (error: any) {
-      toast.error(error.response?.data?.message || 'เกิดข้อผิดพลาด');
+    } catch (error: unknown) {
+      const err = error as { response?: { data?: { message?: string } } };
+      toast.error(err.response?.data?.message || 'เกิดข้อผิดพลาด');
     } finally {
       setIsBatchFetching(false);
     }
@@ -830,7 +839,7 @@ export default function AdminBankMonitorPage() {
                   ) : (
                     <div className="space-y-2 max-h-[500px] overflow-y-auto custom-scrollbar">
                       {filteredMessages.map((msg, index) => (
-                        <div key={msg._id || index} className="p-3 sm:p-4 bg-slate-50 rounded-xl border border-slate-100">
+                        <div key={msg.id || msg.messageId || index} className="p-3 sm:p-4 bg-slate-50 rounded-xl border border-slate-100">
                           <div className="flex items-center justify-between mb-2">
                             <Badge className={cn(
                               "text-[9px] font-bold",
