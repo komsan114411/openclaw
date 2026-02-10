@@ -1099,6 +1099,124 @@ export class LineSessionController {
   // ================================
 
   /**
+   * สถิติข้อความรวม (เรียกตอนโหลดหน้า)
+   */
+  @Get('messages/stats')
+  @ApiOperation({ summary: 'Get message statistics' })
+  async getMessageStats() {
+    const perSession = await this.lineMessageModel.aggregate([
+      {
+        $group: {
+          _id: '$sessionId',
+          count: { $sum: 1 },
+          oldestDate: { $min: '$messageDate' },
+          newestDate: { $max: '$messageDate' },
+        },
+      },
+      { $sort: { count: -1 } },
+    ]);
+
+    const totalMessages = perSession.reduce((sum, s) => sum + s.count, 0);
+
+    return {
+      success: true,
+      totalMessages,
+      sessionCount: perSession.length,
+      estimatedSizeBytes: totalMessages * 500,
+      perSession,
+    };
+  }
+
+  /**
+   * Preview ก่อนลบ (เรียกอัตโนมัติเมื่อเปลี่ยนค่า)
+   */
+  @Post('messages/cleanup-preview')
+  @ApiOperation({ summary: 'Preview cleanup before deleting' })
+  async previewCleanup(
+    @Body() body: {
+      sessionIds?: string[];
+      olderThanDays?: number;
+      olderThanMonths?: number;
+    },
+  ) {
+    const { sessionIds, olderThanDays, olderThanMonths } = body;
+
+    if (!olderThanDays && !olderThanMonths) {
+      throw new BadRequestException(
+        'ต้องระบุ olderThanDays หรือ olderThanMonths อย่างน้อย 1 อย่าง',
+      );
+    }
+
+    if (olderThanDays !== undefined && (olderThanDays < 1 || olderThanDays > 3650)) {
+      throw new BadRequestException('olderThanDays ต้องอยู่ระหว่าง 1-3650');
+    }
+
+    if (olderThanMonths !== undefined && (olderThanMonths < 1 || olderThanMonths > 120)) {
+      throw new BadRequestException('olderThanMonths ต้องอยู่ระหว่าง 1-120');
+    }
+
+    // คำนวณ cutoff date
+    const cutoffDate = new Date();
+    if (olderThanDays) {
+      cutoffDate.setDate(cutoffDate.getDate() - olderThanDays);
+    } else if (olderThanMonths) {
+      cutoffDate.setMonth(cutoffDate.getMonth() - olderThanMonths);
+    }
+
+    // Build scope query (session filter)
+    const scopeQuery: Record<string, unknown> = {};
+    if (sessionIds && sessionIds.length > 0) {
+      scopeQuery.sessionId = { $in: sessionIds };
+    }
+
+    // Count total in scope
+    const totalMessages = await this.lineMessageModel.countDocuments(scopeQuery);
+
+    // Count messages to delete
+    const deleteQuery = { ...scopeQuery, messageDate: { $lt: cutoffDate } };
+    const messagesToDelete = await this.lineMessageModel.countDocuments(deleteQuery);
+
+    // Get date range of messages in scope
+    const dateRange = await this.lineMessageModel.aggregate([
+      { $match: scopeQuery },
+      {
+        $group: {
+          _id: null,
+          oldestDate: { $min: '$messageDate' },
+          newestDate: { $max: '$messageDate' },
+        },
+      },
+    ]);
+
+    // Per-session breakdown
+    const perSessionCounts = await this.lineMessageModel.aggregate([
+      { $match: scopeQuery },
+      {
+        $group: {
+          _id: '$sessionId',
+          total: { $sum: 1 },
+          toDelete: {
+            $sum: { $cond: [{ $lt: ['$messageDate', cutoffDate] }, 1, 0] },
+          },
+        },
+      },
+      { $sort: { total: -1 } },
+    ]);
+
+    return {
+      success: true,
+      totalMessages,
+      messagesToDelete,
+      messagesRemaining: totalMessages - messagesToDelete,
+      estimatedSizeBytes: messagesToDelete * 500,
+      cutoffDate: cutoffDate.toISOString(),
+      oldestMessageDate: dateRange[0]?.oldestDate || null,
+      newestMessageDate: dateRange[0]?.newestDate || null,
+      perSessionCounts,
+    };
+  }
+
+  /**
    * ลบข้อความเก่าออกจากระบบ (Admin only)
    * - เลือกบัญชี หรือ ลบทุกบัญชี
    * - กำหนดช่วงเวลา: เก่ากว่า X วัน หรือ X เดือน
@@ -1152,11 +1270,19 @@ export class LineSessionController {
 
     const result = await this.lineMessageModel.deleteMany(query);
 
-    this.logger.log(`[deleteOldMessages] Deleted ${result.deletedCount} messages`);
+    // Count remaining messages
+    const remainingQuery: Record<string, unknown> = {};
+    if (sessionIds && sessionIds.length > 0) {
+      remainingQuery.sessionId = { $in: sessionIds };
+    }
+    const messagesRemaining = await this.lineMessageModel.countDocuments(remainingQuery);
+
+    this.logger.log(`[deleteOldMessages] Deleted ${result.deletedCount} messages, ${messagesRemaining} remaining`);
 
     return {
       success: true,
       deletedCount: result.deletedCount,
+      messagesRemaining,
       cutoffDate: cutoffDate.toISOString(),
       message: `ลบข้อความเก่าก่อนวันที่ ${cutoffDate.toLocaleDateString('th-TH')} จำนวน ${result.deletedCount} ข้อความ`,
     };

@@ -861,6 +861,17 @@ export const lineSessionApi = {
     olderThanDays?: number;
     olderThanMonths?: number;
   }) => api.delete('/admin/line-session/messages/cleanup', { data }),
+
+  // Get message statistics
+  getMessageStats: () =>
+    api.get('/admin/line-session/messages/stats'),
+
+  // Preview cleanup before deleting
+  previewCleanup: (data: {
+    sessionIds?: string[];
+    olderThanDays?: number;
+    olderThanMonths?: number;
+  }) => api.post('/admin/line-session/messages/cleanup-preview', data),
 };
 
 // LINE Session User API (User-facing endpoints)

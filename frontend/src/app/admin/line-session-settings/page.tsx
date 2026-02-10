@@ -26,6 +26,8 @@ import {
   Pause,
   RotateCcw,
   Trash2,
+  Database,
+  BarChart3,
 } from 'lucide-react';
 
 interface LineSessionSettings {
@@ -78,6 +80,33 @@ interface SessionInfo {
   status?: string;
 }
 
+interface MessageStats {
+  totalMessages: number;
+  sessionCount: number;
+  estimatedSizeBytes: number;
+  perSession: Array<{
+    _id: string;
+    count: number;
+    oldestDate: string;
+    newestDate: string;
+  }>;
+}
+
+interface CleanupPreview {
+  totalMessages: number;
+  messagesToDelete: number;
+  messagesRemaining: number;
+  estimatedSizeBytes: number;
+  cutoffDate: string;
+  oldestMessageDate: string | null;
+  newestMessageDate: string | null;
+  perSessionCounts: Array<{
+    _id: string;
+    total: number;
+    toDelete: number;
+  }>;
+}
+
 export default function LineSessionSettingsPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
@@ -99,7 +128,13 @@ export default function LineSessionSettingsPage() {
   const [selectAllSessions, setSelectAllSessions] = useState(true);
   const [isDeleting, setIsDeleting] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-  const [deleteResult, setDeleteResult] = useState<{ deletedCount: number; message: string } | null>(null);
+  const [deleteResult, setDeleteResult] = useState<{ deletedCount: number; messagesRemaining: number; message: string } | null>(null);
+
+  // Message stats & preview states
+  const [messageStats, setMessageStats] = useState<MessageStats | null>(null);
+  const [isLoadingStats, setIsLoadingStats] = useState(false);
+  const [preview, setPreview] = useState<CleanupPreview | null>(null);
+  const [isLoadingPreview, setIsLoadingPreview] = useState(false);
 
   const [settings, setSettings] = useState<LineSessionSettings>({
     lineSessionHealthCheckEnabled: true,
@@ -269,6 +304,46 @@ export default function LineSessionSettingsPage() {
     }
   }, []);
 
+  // Fetch message stats (called on page load)
+  const fetchMessageStats = useCallback(async () => {
+    setIsLoadingStats(true);
+    try {
+      const res = await lineSessionApi.getMessageStats();
+      if (res.data.success) {
+        setMessageStats(res.data);
+      }
+    } catch {
+      console.error('Failed to fetch message stats');
+    } finally {
+      setIsLoadingStats(false);
+    }
+  }, []);
+
+  // Fetch cleanup preview
+  const fetchPreview = useCallback(async () => {
+    const data: { sessionIds?: string[]; olderThanDays?: number; olderThanMonths?: number } = {};
+    if (cleanupUnit === 'days') {
+      data.olderThanDays = cleanupValue;
+    } else {
+      data.olderThanMonths = cleanupValue;
+    }
+    if (!selectAllSessions && selectedSessionIds.length > 0) {
+      data.sessionIds = selectedSessionIds;
+    }
+
+    setIsLoadingPreview(true);
+    try {
+      const res = await lineSessionApi.previewCleanup(data);
+      if (res.data.success) {
+        setPreview(res.data);
+      }
+    } catch {
+      console.error('Failed to fetch cleanup preview');
+    } finally {
+      setIsLoadingPreview(false);
+    }
+  }, [cleanupUnit, cleanupValue, selectAllSessions, selectedSessionIds]);
+
   // Compute cutoff date for preview
   const getCutoffDate = useCallback(() => {
     const d = new Date();
@@ -317,9 +392,13 @@ export default function LineSessionSettingsPage() {
       if (res.data.success) {
         setDeleteResult({
           deletedCount: res.data.deletedCount,
+          messagesRemaining: res.data.messagesRemaining,
           message: res.data.message,
         });
         toast.success(res.data.message);
+        // Refresh stats and preview after delete
+        fetchMessageStats();
+        fetchPreview();
       }
     } catch {
       toast.error('ไม่สามารถลบข้อความได้');
@@ -335,7 +414,8 @@ export default function LineSessionSettingsPage() {
     fetchHealthStatuses();
     fetchAutoFetchStatus();
     fetchSessions();
-  }, [fetchRuntimeConfig, fetchHealthStatuses, fetchAutoFetchStatus, fetchSessions]);
+    fetchMessageStats();
+  }, [fetchRuntimeConfig, fetchHealthStatuses, fetchAutoFetchStatus, fetchSessions, fetchMessageStats]);
 
   // Auto refresh health statuses every 30 seconds
   useEffect(() => {
@@ -367,6 +447,30 @@ export default function LineSessionSettingsPage() {
 
     return () => clearInterval(timer);
   }, [autoFetchStatus?.isRunning, autoFetchStatus?.lastFetchTime, autoFetchStatus?.config.intervalSeconds]);
+
+  // Format bytes to human-readable
+  const formatBytes = (bytes: number): string => {
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+    return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
+  };
+
+  // Get per-session message count from stats
+  const getSessionMessageCount = (sessionId: string): number | null => {
+    if (!messageStats) return null;
+    const found = messageStats.perSession.find((p) => p._id === sessionId);
+    return found ? found.count : 0;
+  };
+
+  // Auto-fetch preview with debounce when cleanup params change
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (cleanupValue > 0 && (selectAllSessions || selectedSessionIds.length > 0)) {
+        fetchPreview();
+      }
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [cleanupUnit, cleanupValue, selectAllSessions, selectedSessionIds, fetchPreview]);
 
   const handleSave = async () => {
     setIsSaving(true);
@@ -977,6 +1081,49 @@ export default function LineSessionSettingsPage() {
             </div>
           </div>
 
+          {/* Message Stats Summary */}
+          <div className="grid grid-cols-3 gap-4 mb-6">
+            <div className="p-3 bg-white dark:bg-slate-800 rounded-lg">
+              <div className="flex items-center gap-2 mb-1">
+                <Database className="w-4 h-4 text-blue-500" />
+                <p className="text-xs text-slate-500 dark:text-slate-400">ข้อความทั้งหมด</p>
+              </div>
+              <p className="text-lg font-bold text-blue-600">
+                {isLoadingStats ? (
+                  <Loader2 className="w-4 h-4 animate-spin inline" />
+                ) : (
+                  (messageStats?.totalMessages ?? 0).toLocaleString()
+                )}
+              </p>
+            </div>
+            <div className="p-3 bg-white dark:bg-slate-800 rounded-lg">
+              <div className="flex items-center gap-2 mb-1">
+                <BarChart3 className="w-4 h-4 text-violet-500" />
+                <p className="text-xs text-slate-500 dark:text-slate-400">จำนวน Session</p>
+              </div>
+              <p className="text-lg font-bold text-violet-600">
+                {isLoadingStats ? (
+                  <Loader2 className="w-4 h-4 animate-spin inline" />
+                ) : (
+                  messageStats?.sessionCount ?? 0
+                )}
+              </p>
+            </div>
+            <div className="p-3 bg-white dark:bg-slate-800 rounded-lg">
+              <div className="flex items-center gap-2 mb-1">
+                <Database className="w-4 h-4 text-amber-500" />
+                <p className="text-xs text-slate-500 dark:text-slate-400">พื้นที่โดยประมาณ</p>
+              </div>
+              <p className="text-lg font-bold text-amber-600">
+                {isLoadingStats ? (
+                  <Loader2 className="w-4 h-4 animate-spin inline" />
+                ) : (
+                  formatBytes(messageStats?.estimatedSizeBytes ?? 0)
+                )}
+              </p>
+            </div>
+          </div>
+
           <div className="space-y-4">
             {/* Time unit selection */}
             <div className="p-4 bg-white dark:bg-slate-800 rounded-xl">
@@ -1041,35 +1188,43 @@ export default function LineSessionSettingsPage() {
                 </span>
               </label>
               <div className="space-y-2 max-h-48 overflow-y-auto">
-                {sessions.map((session) => (
-                  <label
-                    key={session._id}
-                    className="flex items-center gap-2 p-2 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700/50 cursor-pointer"
-                  >
-                    <input
-                      type="checkbox"
-                      checked={selectAllSessions || selectedSessionIds.includes(session._id)}
-                      onChange={() => toggleSession(session._id)}
-                      disabled={selectAllSessions}
-                      className="rounded text-red-600 focus:ring-red-500"
-                    />
-                    <span className="text-sm text-slate-700 dark:text-slate-300">
-                      {session.name}
-                      {session.bankName && (
-                        <span className="text-slate-400 ml-1">({session.bankName})</span>
-                      )}
-                    </span>
-                    {session.status && (
-                      <span className={`ml-auto text-xs px-2 py-0.5 rounded ${
-                        session.status === 'active'
-                          ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400'
-                          : 'bg-slate-100 text-slate-500 dark:bg-slate-700 dark:text-slate-400'
-                      }`}>
-                        {session.status}
+                {sessions.map((session) => {
+                  const msgCount = getSessionMessageCount(session._id);
+                  return (
+                    <label
+                      key={session._id}
+                      className="flex items-center gap-2 p-2 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700/50 cursor-pointer"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={selectAllSessions || selectedSessionIds.includes(session._id)}
+                        onChange={() => toggleSession(session._id)}
+                        disabled={selectAllSessions}
+                        className="rounded text-red-600 focus:ring-red-500"
+                      />
+                      <span className="text-sm text-slate-700 dark:text-slate-300 flex-1 min-w-0">
+                        <span className="truncate">{session.name}</span>
+                        {session.bankName && (
+                          <span className="text-slate-400 ml-1">({session.bankName})</span>
+                        )}
                       </span>
-                    )}
-                  </label>
-                ))}
+                      {msgCount !== null && (
+                        <span className="text-xs text-slate-500 dark:text-slate-400 tabular-nums">
+                          {msgCount.toLocaleString()} ข้อความ
+                        </span>
+                      )}
+                      {session.status && (
+                        <span className={`text-xs px-2 py-0.5 rounded ${
+                          session.status === 'active'
+                            ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400'
+                            : 'bg-slate-100 text-slate-500 dark:bg-slate-700 dark:text-slate-400'
+                        }`}>
+                          {session.status}
+                        </span>
+                      )}
+                    </label>
+                  );
+                })}
                 {sessions.length === 0 && (
                   <p className="text-sm text-slate-500 text-center py-2">
                     ไม่พบบัญชี
@@ -1078,27 +1233,91 @@ export default function LineSessionSettingsPage() {
               </div>
             </div>
 
-            {/* Preview */}
+            {/* Preview with live data */}
             <div className="p-4 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-xl">
               <div className="flex gap-3">
                 <AlertTriangle className="w-5 h-5 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />
-                <div>
-                  <p className="font-medium text-amber-800 dark:text-amber-200">
-                    จะลบข้อความก่อนวันที่{' '}
-                    {getCutoffDate().toLocaleDateString('th-TH', {
-                      year: 'numeric',
-                      month: 'long',
-                      day: 'numeric',
-                    })}
-                  </p>
-                  <p className="text-sm text-amber-700 dark:text-amber-300 mt-1">
-                    จาก{' '}
-                    {selectAllSessions
-                      ? `ทุกบัญชี (${sessions.length} บัญชี)`
-                      : selectedSessionIds.length > 0
-                        ? `${selectedSessionIds.length} บัญชีที่เลือก`
-                        : 'ยังไม่ได้เลือกบัญชี'}
-                  </p>
+                <div className="flex-1">
+                  {isLoadingPreview ? (
+                    <div className="flex items-center gap-2">
+                      <Loader2 className="w-4 h-4 animate-spin text-amber-600" />
+                      <span className="text-sm text-amber-700 dark:text-amber-300">กำลังคำนวณ...</span>
+                    </div>
+                  ) : preview ? (
+                    <div className="space-y-2">
+                      <p className="font-medium text-amber-800 dark:text-amber-200">
+                        จะลบ {preview.messagesToDelete.toLocaleString()} ข้อความ จากทั้งหมด {preview.totalMessages.toLocaleString()} ข้อความ
+                      </p>
+                      <p className="text-sm text-amber-700 dark:text-amber-300">
+                        หลังลบจะเหลือ {preview.messagesRemaining.toLocaleString()} ข้อความ
+                        {preview.estimatedSizeBytes > 0 && (
+                          <> &middot; ประมาณ {formatBytes(preview.estimatedSizeBytes)} ที่จะเพิ่มพื้นที่</>
+                        )}
+                      </p>
+
+                      {/* Date explanation */}
+                      <div className="text-sm text-amber-700 dark:text-amber-300 space-y-1">
+                        <p>
+                          ลบข้อความตั้งแต่{' '}
+                          {preview.oldestMessageDate ? (
+                            <strong>
+                              {new Date(preview.oldestMessageDate).toLocaleDateString('th-TH', {
+                                year: 'numeric',
+                                month: 'long',
+                                day: 'numeric',
+                              })}
+                            </strong>
+                          ) : (
+                            'ข้อมูลเก่าสุด'
+                          )}{' '}
+                          ถึง <strong>ก่อนวันที่{' '}
+                          {new Date(preview.cutoffDate).toLocaleDateString('th-TH', {
+                            year: 'numeric',
+                            month: 'long',
+                            day: 'numeric',
+                          })}</strong>
+                        </p>
+                        <p className="text-xs text-amber-600 dark:text-amber-400">
+                          (ข้อความวันที่{' '}
+                          {new Date(preview.cutoffDate).toLocaleDateString('th-TH', {
+                            year: 'numeric',
+                            month: 'long',
+                            day: 'numeric',
+                          })}{' '}
+                          เป็นต้นไปจะไม่ถูกลบ)
+                        </p>
+                      </div>
+
+                      {/* Progress bar: delete vs keep ratio */}
+                      {preview.totalMessages > 0 && (
+                        <div className="mt-3">
+                          <div className="flex justify-between text-xs text-amber-600 dark:text-amber-400 mb-1">
+                            <span>ลบ {Math.round((preview.messagesToDelete / preview.totalMessages) * 100)}%</span>
+                            <span>เก็บ {Math.round((preview.messagesRemaining / preview.totalMessages) * 100)}%</span>
+                          </div>
+                          <div className="w-full h-3 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden flex">
+                            <div
+                              className="h-full bg-red-400 dark:bg-red-500 transition-all duration-500"
+                              style={{ width: `${(preview.messagesToDelete / preview.totalMessages) * 100}%` }}
+                            />
+                            <div
+                              className="h-full bg-slate-300 dark:bg-slate-600"
+                              style={{ width: `${(preview.messagesRemaining / preview.totalMessages) * 100}%` }}
+                            />
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <p className="font-medium text-amber-800 dark:text-amber-200">
+                      จะลบข้อความก่อนวันที่{' '}
+                      {getCutoffDate().toLocaleDateString('th-TH', {
+                        year: 'numeric',
+                        month: 'long',
+                        day: 'numeric',
+                      })}
+                    </p>
+                  )}
                 </div>
               </div>
             </div>
@@ -1113,7 +1332,7 @@ export default function LineSessionSettingsPage() {
                       ลบสำเร็จ
                     </p>
                     <p className="text-sm text-emerald-700 dark:text-emerald-300 mt-1">
-                      {deleteResult.message} (จำนวน {deleteResult.deletedCount.toLocaleString()} ข้อความ)
+                      ลบไปแล้ว {deleteResult.deletedCount.toLocaleString()} ข้อความ &middot; เหลือ {deleteResult.messagesRemaining.toLocaleString()} ข้อความ
                     </p>
                   </div>
                 </div>
@@ -1146,23 +1365,49 @@ export default function LineSessionSettingsPage() {
                     ยืนยันการลบข้อความ
                   </h3>
                 </div>
+
+                {/* Summary table */}
+                {preview && (
+                  <div className="mb-4 p-3 bg-slate-50 dark:bg-slate-700/50 rounded-lg space-y-2">
+                    <div className="flex justify-between text-sm">
+                      <span className="text-slate-500 dark:text-slate-400">จำนวนที่จะลบ</span>
+                      <span className="font-bold text-red-600">{preview.messagesToDelete.toLocaleString()} ข้อความ</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-slate-500 dark:text-slate-400">จำนวนที่จะเหลือ</span>
+                      <span className="font-bold text-emerald-600">{preview.messagesRemaining.toLocaleString()} ข้อความ</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-slate-500 dark:text-slate-400">พื้นที่ที่จะเพิ่ม</span>
+                      <span className="font-bold text-blue-600">{formatBytes(preview.estimatedSizeBytes)}</span>
+                    </div>
+                  </div>
+                )}
+
                 <p className="text-sm text-slate-600 dark:text-slate-300 mb-2">
-                  คุณกำลังจะลบข้อความก่อนวันที่{' '}
-                  <strong>
-                    {getCutoffDate().toLocaleDateString('th-TH', {
-                      year: 'numeric',
-                      month: 'long',
-                      day: 'numeric',
-                    })}
-                  </strong>
+                  ลบข้อความตั้งแต่เริ่มต้น ถึง <strong>ก่อนวันที่{' '}
+                  {getCutoffDate().toLocaleDateString('th-TH', {
+                    year: 'numeric',
+                    month: 'long',
+                    day: 'numeric',
+                  })}</strong>
                 </p>
-                <p className="text-sm text-slate-600 dark:text-slate-300 mb-4">
+                <p className="text-sm text-slate-600 dark:text-slate-300 mb-2">
                   จาก{' '}
                   <strong>
                     {selectAllSessions
                       ? `ทุกบัญชี (${sessions.length} บัญชี)`
                       : `${selectedSessionIds.length} บัญชีที่เลือก`}
                   </strong>
+                </p>
+                <p className="text-xs text-slate-500 dark:text-slate-400 mb-4">
+                  (ข้อความวันที่{' '}
+                  {getCutoffDate().toLocaleDateString('th-TH', {
+                    year: 'numeric',
+                    month: 'long',
+                    day: 'numeric',
+                  })}{' '}
+                  เป็นต้นไปจะไม่ถูกลบ)
                 </p>
                 <p className="text-sm text-red-600 dark:text-red-400 font-medium mb-6">
                   การดำเนินการนี้ไม่สามารถย้อนกลับได้
