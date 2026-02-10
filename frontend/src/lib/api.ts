@@ -854,6 +854,13 @@ export const lineSessionApi = {
   // Fetch all messages from all accounts (batch)
   fetchAllMessages: () =>
     api.post('/admin/line-session/batch/messages/fetch-all'),
+
+  // Delete old messages (admin cleanup)
+  deleteOldMessages: (data: {
+    sessionIds?: string[];
+    olderThanDays?: number;
+    olderThanMonths?: number;
+  }) => api.delete('/admin/line-session/messages/cleanup', { data }),
 };
 
 // LINE Session User API (User-facing endpoints)

@@ -5,7 +5,7 @@ import DashboardLayout from '@/components/layout/DashboardLayout';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Input, Switch } from '@/components/ui/Input';
-import { systemSettingsApi } from '@/lib/api';
+import { systemSettingsApi, lineSessionApi } from '@/lib/api';
 import api from '@/lib/api';
 import toast from 'react-hot-toast';
 import {
@@ -25,6 +25,7 @@ import {
   MessageSquare,
   Pause,
   RotateCcw,
+  Trash2,
 } from 'lucide-react';
 
 interface LineSessionSettings {
@@ -70,6 +71,13 @@ interface AutoFetchStatus {
   };
 }
 
+interface SessionInfo {
+  _id: string;
+  name: string;
+  bankName?: string;
+  status?: string;
+}
+
 export default function LineSessionSettingsPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
@@ -82,6 +90,16 @@ export default function LineSessionSettingsPage() {
   const [isUpdatingAutoFetch, setIsUpdatingAutoFetch] = useState(false);
   const [autoFetchInterval, setAutoFetchInterval] = useState(60);
   const [countdown, setCountdown] = useState<number>(0);
+
+  // Message cleanup states
+  const [cleanupUnit, setCleanupUnit] = useState<'days' | 'months'>('days');
+  const [cleanupValue, setCleanupValue] = useState(30);
+  const [sessions, setSessions] = useState<SessionInfo[]>([]);
+  const [selectedSessionIds, setSelectedSessionIds] = useState<string[]>([]);
+  const [selectAllSessions, setSelectAllSessions] = useState(true);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deleteResult, setDeleteResult] = useState<{ deletedCount: number; message: string } | null>(null);
 
   const [settings, setSettings] = useState<LineSessionSettings>({
     lineSessionHealthCheckEnabled: true,
@@ -239,12 +257,85 @@ export default function LineSessionSettingsPage() {
     }
   };
 
+  // Fetch sessions for cleanup section
+  const fetchSessions = useCallback(async () => {
+    try {
+      const res = await lineSessionApi.getAll();
+      if (res.data.success) {
+        setSessions(res.data.sessions || []);
+      }
+    } catch {
+      console.error('Failed to fetch sessions');
+    }
+  }, []);
+
+  // Compute cutoff date for preview
+  const getCutoffDate = useCallback(() => {
+    const d = new Date();
+    if (cleanupUnit === 'days') {
+      d.setDate(d.getDate() - cleanupValue);
+    } else {
+      d.setMonth(d.getMonth() - cleanupValue);
+    }
+    return d;
+  }, [cleanupUnit, cleanupValue]);
+
+  // Handle session selection toggle
+  const toggleSession = (id: string) => {
+    setSelectedSessionIds((prev) =>
+      prev.includes(id) ? prev.filter((s) => s !== id) : [...prev, id],
+    );
+    setSelectAllSessions(false);
+  };
+
+  // Handle select all toggle
+  const toggleSelectAll = () => {
+    if (selectAllSessions) {
+      setSelectAllSessions(false);
+      setSelectedSessionIds([]);
+    } else {
+      setSelectAllSessions(true);
+      setSelectedSessionIds([]);
+    }
+  };
+
+  // Execute delete
+  const handleDeleteMessages = async () => {
+    setIsDeleting(true);
+    setDeleteResult(null);
+    try {
+      const data: { sessionIds?: string[]; olderThanDays?: number; olderThanMonths?: number } = {};
+      if (cleanupUnit === 'days') {
+        data.olderThanDays = cleanupValue;
+      } else {
+        data.olderThanMonths = cleanupValue;
+      }
+      if (!selectAllSessions && selectedSessionIds.length > 0) {
+        data.sessionIds = selectedSessionIds;
+      }
+      const res = await lineSessionApi.deleteOldMessages(data);
+      if (res.data.success) {
+        setDeleteResult({
+          deletedCount: res.data.deletedCount,
+          message: res.data.message,
+        });
+        toast.success(res.data.message);
+      }
+    } catch {
+      toast.error('ไม่สามารถลบข้อความได้');
+    } finally {
+      setIsDeleting(false);
+      setShowDeleteConfirm(false);
+    }
+  };
+
   useEffect(() => {
     fetchSettings();
     fetchRuntimeConfig();
     fetchHealthStatuses();
     fetchAutoFetchStatus();
-  }, [fetchRuntimeConfig, fetchHealthStatuses, fetchAutoFetchStatus]);
+    fetchSessions();
+  }, [fetchRuntimeConfig, fetchHealthStatuses, fetchAutoFetchStatus, fetchSessions]);
 
   // Auto refresh health statuses every 30 seconds
   useEffect(() => {
@@ -868,6 +959,244 @@ export default function LineSessionSettingsPage() {
               </div>
             </div>
           </div>
+        </Card>
+
+        {/* Message Cleanup Section */}
+        <Card className="p-6 bg-gradient-to-br from-red-50 to-orange-50 dark:from-red-900/20 dark:to-orange-900/20 border-red-200 dark:border-red-800">
+          <div className="flex items-center gap-3 mb-6">
+            <div className="p-2 bg-red-100 dark:bg-red-900/50 rounded-lg">
+              <Trash2 className="w-5 h-5 text-red-600 dark:text-red-400" />
+            </div>
+            <div>
+              <h2 className="text-lg font-semibold text-slate-900 dark:text-white">
+                ลบข้อความเก่า
+              </h2>
+              <p className="text-sm text-slate-500 dark:text-slate-400">
+                ลบข้อความ (line_messages) ที่เก่าเกินไปเพื่อจัดการพื้นที่เก็บข้อมูล
+              </p>
+            </div>
+          </div>
+
+          <div className="space-y-4">
+            {/* Time unit selection */}
+            <div className="p-4 bg-white dark:bg-slate-800 rounded-xl">
+              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-3">
+                <Clock className="w-4 h-4 inline mr-2" />
+                กำหนดช่วงเวลา
+              </label>
+              <div className="flex gap-4 mb-3">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="cleanupUnit"
+                    value="days"
+                    checked={cleanupUnit === 'days'}
+                    onChange={() => setCleanupUnit('days')}
+                    className="text-red-600 focus:ring-red-500"
+                  />
+                  <span className="text-sm text-slate-700 dark:text-slate-300">วัน</span>
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="cleanupUnit"
+                    value="months"
+                    checked={cleanupUnit === 'months'}
+                    onChange={() => setCleanupUnit('months')}
+                    className="text-red-600 focus:ring-red-500"
+                  />
+                  <span className="text-sm text-slate-700 dark:text-slate-300">เดือน</span>
+                </label>
+              </div>
+              <div className="flex gap-2 items-center">
+                <span className="text-sm text-slate-600 dark:text-slate-400">ลบข้อความเก่ากว่า</span>
+                <Input
+                  type="number"
+                  min={1}
+                  max={cleanupUnit === 'days' ? 3650 : 120}
+                  value={cleanupValue}
+                  onChange={(e) => setCleanupValue(parseInt(e.target.value) || 1)}
+                  className="w-24"
+                />
+                <span className="text-sm text-slate-600 dark:text-slate-400">
+                  {cleanupUnit === 'days' ? 'วัน' : 'เดือน'}ย้อนหลัง
+                </span>
+              </div>
+            </div>
+
+            {/* Session selection */}
+            <div className="p-4 bg-white dark:bg-slate-800 rounded-xl">
+              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-3">
+                เลือกบัญชี
+              </label>
+              <label className="flex items-center gap-2 mb-3 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={selectAllSessions}
+                  onChange={toggleSelectAll}
+                  className="rounded text-red-600 focus:ring-red-500"
+                />
+                <span className="text-sm font-medium text-slate-700 dark:text-slate-300">
+                  เลือกทั้งหมด ({sessions.length} บัญชี)
+                </span>
+              </label>
+              <div className="space-y-2 max-h-48 overflow-y-auto">
+                {sessions.map((session) => (
+                  <label
+                    key={session._id}
+                    className="flex items-center gap-2 p-2 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700/50 cursor-pointer"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={selectAllSessions || selectedSessionIds.includes(session._id)}
+                      onChange={() => toggleSession(session._id)}
+                      disabled={selectAllSessions}
+                      className="rounded text-red-600 focus:ring-red-500"
+                    />
+                    <span className="text-sm text-slate-700 dark:text-slate-300">
+                      {session.name}
+                      {session.bankName && (
+                        <span className="text-slate-400 ml-1">({session.bankName})</span>
+                      )}
+                    </span>
+                    {session.status && (
+                      <span className={`ml-auto text-xs px-2 py-0.5 rounded ${
+                        session.status === 'active'
+                          ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400'
+                          : 'bg-slate-100 text-slate-500 dark:bg-slate-700 dark:text-slate-400'
+                      }`}>
+                        {session.status}
+                      </span>
+                    )}
+                  </label>
+                ))}
+                {sessions.length === 0 && (
+                  <p className="text-sm text-slate-500 text-center py-2">
+                    ไม่พบบัญชี
+                  </p>
+                )}
+              </div>
+            </div>
+
+            {/* Preview */}
+            <div className="p-4 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-xl">
+              <div className="flex gap-3">
+                <AlertTriangle className="w-5 h-5 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />
+                <div>
+                  <p className="font-medium text-amber-800 dark:text-amber-200">
+                    จะลบข้อความก่อนวันที่{' '}
+                    {getCutoffDate().toLocaleDateString('th-TH', {
+                      year: 'numeric',
+                      month: 'long',
+                      day: 'numeric',
+                    })}
+                  </p>
+                  <p className="text-sm text-amber-700 dark:text-amber-300 mt-1">
+                    จาก{' '}
+                    {selectAllSessions
+                      ? `ทุกบัญชี (${sessions.length} บัญชี)`
+                      : selectedSessionIds.length > 0
+                        ? `${selectedSessionIds.length} บัญชีที่เลือก`
+                        : 'ยังไม่ได้เลือกบัญชี'}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Delete Result */}
+            {deleteResult && (
+              <div className="p-4 bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 rounded-xl">
+                <div className="flex gap-3">
+                  <CheckCircle className="w-5 h-5 text-emerald-600 dark:text-emerald-400 flex-shrink-0 mt-0.5" />
+                  <div>
+                    <p className="font-medium text-emerald-800 dark:text-emerald-200">
+                      ลบสำเร็จ
+                    </p>
+                    <p className="text-sm text-emerald-700 dark:text-emerald-300 mt-1">
+                      {deleteResult.message} (จำนวน {deleteResult.deletedCount.toLocaleString()} ข้อความ)
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Delete Button */}
+            <div className="flex justify-end">
+              <Button
+                variant="danger"
+                onClick={() => setShowDeleteConfirm(true)}
+                disabled={isDeleting || (!selectAllSessions && selectedSessionIds.length === 0)}
+                className="gap-2"
+              >
+                <Trash2 className="w-4 h-4" />
+                ลบข้อความเก่า
+              </Button>
+            </div>
+          </div>
+
+          {/* Confirm Modal */}
+          {showDeleteConfirm && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+              <div className="bg-white dark:bg-slate-800 rounded-2xl p-6 max-w-md w-full mx-4 shadow-2xl">
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="p-2 bg-red-100 dark:bg-red-900/50 rounded-lg">
+                    <AlertTriangle className="w-6 h-6 text-red-600 dark:text-red-400" />
+                  </div>
+                  <h3 className="text-lg font-bold text-slate-900 dark:text-white">
+                    ยืนยันการลบข้อความ
+                  </h3>
+                </div>
+                <p className="text-sm text-slate-600 dark:text-slate-300 mb-2">
+                  คุณกำลังจะลบข้อความก่อนวันที่{' '}
+                  <strong>
+                    {getCutoffDate().toLocaleDateString('th-TH', {
+                      year: 'numeric',
+                      month: 'long',
+                      day: 'numeric',
+                    })}
+                  </strong>
+                </p>
+                <p className="text-sm text-slate-600 dark:text-slate-300 mb-4">
+                  จาก{' '}
+                  <strong>
+                    {selectAllSessions
+                      ? `ทุกบัญชี (${sessions.length} บัญชี)`
+                      : `${selectedSessionIds.length} บัญชีที่เลือก`}
+                  </strong>
+                </p>
+                <p className="text-sm text-red-600 dark:text-red-400 font-medium mb-6">
+                  การดำเนินการนี้ไม่สามารถย้อนกลับได้
+                </p>
+                <div className="flex gap-3 justify-end">
+                  <Button
+                    variant="outline"
+                    onClick={() => setShowDeleteConfirm(false)}
+                    disabled={isDeleting}
+                  >
+                    ยกเลิก
+                  </Button>
+                  <Button
+                    variant="danger"
+                    onClick={handleDeleteMessages}
+                    disabled={isDeleting}
+                    className="gap-2"
+                  >
+                    {isDeleting ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        กำลังลบ...
+                      </>
+                    ) : (
+                      <>
+                        <Trash2 className="w-4 h-4" />
+                        ยืนยันลบ
+                      </>
+                    )}
+                  </Button>
+                </div>
+              </div>
+            </div>
+          )}
         </Card>
 
         {/* Info Card */}

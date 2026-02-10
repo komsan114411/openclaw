@@ -39,6 +39,7 @@ import { Model } from 'mongoose';
 import { ConfigService } from '@nestjs/config';
 import { BankList, BankListDocument, DEFAULT_BANKS } from './schemas/bank-list.schema';
 import { LineSession, LineSessionDocument } from './schemas/line-session.schema';
+import { LineMessage, LineMessageDocument } from './schemas/line-message.schema';
 import { decryptPassword } from './utils/credential.util';
 
 @ApiTags('LINE Session')
@@ -67,6 +68,8 @@ export class LineSessionController {
     private bankListModel: Model<BankListDocument>,
     @InjectModel(LineSession.name)
     private lineSessionModel: Model<LineSessionDocument>,
+    @InjectModel(LineMessage.name)
+    private lineMessageModel: Model<LineMessageDocument>,
   ) {
     // Initialize default banks on startup
     this.initializeDefaultBanks();
@@ -1088,6 +1091,74 @@ export class LineSessionController {
     return {
       success: true,
       summary,
+    };
+  }
+
+  // ================================
+  // MESSAGE CLEANUP
+  // ================================
+
+  /**
+   * ลบข้อความเก่าออกจากระบบ (Admin only)
+   * - เลือกบัญชี หรือ ลบทุกบัญชี
+   * - กำหนดช่วงเวลา: เก่ากว่า X วัน หรือ X เดือน
+   */
+  @Delete('messages/cleanup')
+  @ApiOperation({ summary: 'Delete old messages (admin only)' })
+  async deleteOldMessages(
+    @Body() body: {
+      sessionIds?: string[];
+      olderThanDays?: number;
+      olderThanMonths?: number;
+    },
+  ) {
+    const { sessionIds, olderThanDays, olderThanMonths } = body;
+
+    // Validate: ต้องส่ง olderThanDays หรือ olderThanMonths อย่างน้อย 1 อย่าง
+    if (!olderThanDays && !olderThanMonths) {
+      throw new BadRequestException(
+        'ต้องระบุ olderThanDays หรือ olderThanMonths อย่างน้อย 1 อย่าง',
+      );
+    }
+
+    if (olderThanDays !== undefined && (olderThanDays < 1 || olderThanDays > 3650)) {
+      throw new BadRequestException('olderThanDays ต้องอยู่ระหว่าง 1-3650');
+    }
+
+    if (olderThanMonths !== undefined && (olderThanMonths < 1 || olderThanMonths > 120)) {
+      throw new BadRequestException('olderThanMonths ต้องอยู่ระหว่าง 1-120');
+    }
+
+    // คำนวณ cutoff date
+    const cutoffDate = new Date();
+    if (olderThanDays) {
+      cutoffDate.setDate(cutoffDate.getDate() - olderThanDays);
+    } else if (olderThanMonths) {
+      cutoffDate.setMonth(cutoffDate.getMonth() - olderThanMonths);
+    }
+
+    // Build query
+    const query: Record<string, unknown> = {
+      messageDate: { $lt: cutoffDate },
+    };
+
+    if (sessionIds && sessionIds.length > 0) {
+      query.sessionId = { $in: sessionIds };
+    }
+
+    this.logger.log(
+      `[deleteOldMessages] Deleting messages before ${cutoffDate.toISOString()}, sessions: ${sessionIds ? sessionIds.join(', ') : 'ALL'}`,
+    );
+
+    const result = await this.lineMessageModel.deleteMany(query);
+
+    this.logger.log(`[deleteOldMessages] Deleted ${result.deletedCount} messages`);
+
+    return {
+      success: true,
+      deletedCount: result.deletedCount,
+      cutoffDate: cutoffDate.toISOString(),
+      message: `ลบข้อความเก่าก่อนวันที่ ${cutoffDate.toLocaleDateString('th-TH')} จำนวน ${result.deletedCount} ข้อความ`,
     };
   }
 
