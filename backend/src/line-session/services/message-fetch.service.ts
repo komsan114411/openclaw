@@ -1012,6 +1012,19 @@ export class MessageFetchService implements OnModuleInit, OnModuleDestroy {
       {
         $match: {
           transactionType: { $in: ['deposit', 'withdraw'] },
+          amount: { $exists: true, $nin: [null, ''] },
+        },
+      },
+      {
+        $addFields: {
+          numericAmount: {
+            $convert: {
+              input: '$amount',
+              to: 'double',
+              onError: 0,
+              onNull: 0,
+            },
+          },
         },
       },
       {
@@ -1020,7 +1033,7 @@ export class MessageFetchService implements OnModuleInit, OnModuleDestroy {
             lineAccountId: '$lineAccountId',
             transactionType: '$transactionType',
           },
-          total: { $sum: { $toDouble: '$amount' } },
+          total: { $sum: '$numericAmount' },
           count: { $sum: 1 },
         },
       },

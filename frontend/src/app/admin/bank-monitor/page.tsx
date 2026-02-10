@@ -210,8 +210,12 @@ export default function AdminBankMonitorPage() {
 
       // Fetch batch transaction summary (single query instead of N individual calls)
       const batchSummaryRes = await lineSessionApi.getBatchSummary()
-        .catch(() => ({ data: { totalDeposits: { total: 0, count: 0 }, totalWithdrawals: { total: 0, count: 0 } } }));
+        .catch((err) => {
+          console.error('[Bank Monitor] getBatchSummary failed:', err?.response?.status, err?.response?.data || err?.message);
+          return { data: { totalDeposits: { total: 0, count: 0 }, totalWithdrawals: { total: 0, count: 0 } } };
+        });
 
+      console.log('[Bank Monitor] batchSummary response:', batchSummaryRes.data);
       const totalDeposits = batchSummaryRes.data?.totalDeposits?.total || 0;
       const totalWithdrawals = batchSummaryRes.data?.totalWithdrawals?.total || 0;
       const totalMessages = msgStatsRes.data?.totalMessages || 0;
