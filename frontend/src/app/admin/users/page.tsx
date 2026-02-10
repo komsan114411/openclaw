@@ -235,7 +235,7 @@ export default function UsersPage() {
     <DashboardLayout requiredRole="admin">
       <div className="section-gap animate-fade pb-20">
 
-        <div className="page-header relative z-10 flex-col lg:flex-row items-start lg:items-center">
+        <div className="page-header relative z-10 flex flex-col lg:flex-row items-start lg:items-center gap-4">
           <div className="space-y-1 sm:space-y-2 text-left">
             <p className="text-slate-500 font-medium text-xs sm:text-sm">จัดการระบบ</p>
             <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-white tracking-tight">
@@ -247,7 +247,7 @@ export default function UsersPage() {
           </div>
           <Button
             variant="primary"
-            className="h-11 sm:h-12 px-5 sm:px-6 rounded-full font-semibold text-xs shadow-lg shadow-[#06C755]/20 mt-4 lg:mt-0"
+            className="w-full sm:w-auto h-11 sm:h-12 px-5 sm:px-6 rounded-full font-semibold text-xs shadow-lg shadow-[#06C755]/20 mt-4 lg:mt-0"
             onClick={() => setShowCreateModal(true)}
           >
             + สร้างผู้ใช้ใหม่
@@ -262,7 +262,7 @@ export default function UsersPage() {
         </div>
 
         {/* User Growth Chart */}
-        <Card variant="glass" className="p-4 sm:p-6 lg:p-8 mt-6">
+        <Card variant="glass" className="p-3 sm:p-6 lg:p-8 mt-6">
           <div className="flex items-center justify-between mb-6">
             <div>
               <h3 className="text-lg sm:text-xl font-bold text-white">การเติบโตผู้ใช้</h3>
@@ -394,11 +394,11 @@ export default function UsersPage() {
               <table className="w-full text-left border-collapse">
                 <thead>
                   <tr className="border-b border-white/5 bg-white/[0.02]">
-                    <th className="px-6 sm:px-8 py-5 sm:py-6 text-[9px] sm:text-[10px] font-semibold text-slate-400">ผู้ใช้งาน</th>
-                    <th className="px-6 sm:px-8 py-5 sm:py-6 text-[9px] sm:text-[10px] font-semibold text-slate-400">อีเมล</th>
-                    <th className="px-6 sm:px-8 py-5 sm:py-6 text-[9px] sm:text-[10px] font-semibold text-slate-400">ระดับสิทธิ์</th>
-                    <th className="px-6 sm:px-8 py-5 sm:py-6 text-[9px] sm:text-[10px] font-semibold text-slate-400">สถานะ</th>
-                    <th className="px-6 sm:px-8 py-5 sm:py-6 text-[9px] sm:text-[10px] font-semibold text-slate-400 text-right">การจัดการ</th>
+                    <th className="px-4 lg:px-6 xl:px-8 py-4 lg:py-5 text-[10px] font-semibold text-slate-400">ผู้ใช้งาน</th>
+                    <th className="px-4 lg:px-6 xl:px-8 py-4 lg:py-5 text-[10px] font-semibold text-slate-400">อีเมล</th>
+                    <th className="px-4 lg:px-6 xl:px-8 py-4 lg:py-5 text-[10px] font-semibold text-slate-400">ระดับสิทธิ์</th>
+                    <th className="px-4 lg:px-6 xl:px-8 py-4 lg:py-5 text-[10px] font-semibold text-slate-400">สถานะ</th>
+                    <th className="px-4 lg:px-6 xl:px-8 py-4 lg:py-5 text-[10px] font-semibold text-slate-400 text-right">การจัดการ</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-white/[0.02]">
@@ -425,31 +425,33 @@ export default function UsersPage() {
                         animate={{ opacity: 1 }}
                         className="group hover:bg-white/[0.01] transition-all duration-300"
                       >
-                        <td className="px-10 py-8">
-                          <div className="flex items-center gap-6">
+                        <td className="px-4 lg:px-6 xl:px-8 py-4 lg:py-6">
+                          <div className="flex items-center gap-4 lg:gap-6">
                             <div className={cn(
-                              "w-16 h-16 rounded-2xl flex items-center justify-center font-black text-xl shadow-inner group-hover:scale-110 group-hover:text-emerald-400 transition-all duration-500 bg-slate-900 border border-white/5",
+                              "w-12 h-12 lg:w-16 lg:h-16 rounded-xl lg:rounded-2xl flex items-center justify-center font-black text-lg lg:text-xl shadow-inner group-hover:scale-110 group-hover:text-emerald-400 transition-all duration-500 bg-slate-900 border border-white/5 shrink-0",
                               user.role === 'admin' ? "text-violet-400" : "text-emerald-400"
                             )}>
                               {user.username[0].toUpperCase()}
                             </div>
-                            <div>
-                              <p className="font-black text-white leading-none mb-1.5 group-hover:text-emerald-400 transition-colors uppercase tracking-tight text-lg">{user.username}</p>
-                              <p className="text-[10px] text-slate-600 font-bold tracking-widest uppercase opacity-70">{user.fullName || 'ไม่ระบุชื่อ'}</p>
+                            <div className="min-w-0">
+                              <p className="font-black text-white leading-none mb-1.5 group-hover:text-emerald-400 transition-colors uppercase tracking-tight text-base lg:text-lg truncate">{user.username}</p>
+                              <p className="text-[10px] text-slate-600 font-bold tracking-widest uppercase opacity-70 truncate">{user.fullName || 'ไม่ระบุชื่อ'}</p>
                             </div>
                           </div>
                         </td>
-                        <p className="font-mono text-xs font-black text-slate-500 lowercase mb-1">{user.email || 'no-email@system.com'}</p>
-                        <p className="text-[9px] font-black text-white/20 uppercase tracking-[0.2em]">การเชื่อมต่อระบบ: สมบูรณ์</p>
-                        <td className="px-10 py-8">
+                        <td className="px-4 lg:px-6 xl:px-8 py-4 lg:py-6">
+                          <p className="font-mono text-xs font-black text-slate-500 lowercase mb-1 truncate">{user.email || 'no-email@system.com'}</p>
+                          <p className="text-[9px] font-black text-white/20 uppercase tracking-[0.2em]">การเชื่อมต่อระบบ: สมบูรณ์</p>
+                        </td>
+                        <td className="px-4 lg:px-6 xl:px-8 py-4 lg:py-6">
                           <Badge
                             variant={user.role === 'admin' ? 'purple' : 'emerald'}
-                            className="font-black uppercase tracking-[0.2em] px-4 py-1.5 rounded-xl text-[9px] shadow-lg"
+                            className="font-black uppercase tracking-[0.2em] px-3 lg:px-4 py-1.5 rounded-xl text-[9px] shadow-lg"
                           >
                             {user.role === 'admin' ? 'ผู้ดูแลระบบ' : 'ผู้ใช้ทั่วไป'}
                           </Badge>
                         </td>
-                        <td className="px-10 py-8">
+                        <td className="px-4 lg:px-6 xl:px-8 py-4 lg:py-6">
                           <div className="flex flex-col gap-2">
                             <div className="flex items-center gap-2.5">
                               <div className={cn("w-2 h-2 rounded-full shadow-[0_0_10px_rgba(16,185,129,0.5)]", user.isActive ? "bg-emerald-500 animate-pulse" : "bg-white/10")} />
@@ -464,8 +466,8 @@ export default function UsersPage() {
                             )}
                           </div>
                         </td>
-                        <td className="px-10 py-8 text-right">
-                          <div className="flex gap-2.5 justify-end lg:opacity-0 group-hover:opacity-100 transition-all duration-300 lg:translate-x-4 group-hover:translate-x-0">
+                        <td className="px-4 lg:px-6 xl:px-8 py-4 lg:py-6 text-right">
+                          <div className="flex gap-2 lg:gap-2.5 justify-end lg:opacity-0 group-hover:opacity-100 transition-all duration-300 lg:translate-x-4 group-hover:translate-x-0">
                             <IconButton
                               variant="ghost"
                               size="md"
@@ -525,28 +527,28 @@ export default function UsersPage() {
               </div>
             ) : (
               users.map((user) => (
-                <Card key={user._id} variant="glass" className="p-8 relative overflow-hidden group rounded-[2.5rem]">
-                  <div className="flex items-center gap-4 mb-6">
+                <Card key={user._id} variant="glass" className="p-4 sm:p-6 md:p-8 relative overflow-hidden group rounded-2xl sm:rounded-[2.5rem]">
+                  <div className="flex items-center gap-3 sm:gap-4 mb-4 sm:mb-6">
                     <div className={cn(
-                      "w-16 h-16 rounded-2xl flex items-center justify-center font-black text-xl shadow-inner bg-slate-900 border border-white/5",
+                      "w-12 h-12 sm:w-16 sm:h-16 rounded-xl sm:rounded-2xl flex items-center justify-center font-black text-lg sm:text-xl shadow-inner bg-slate-900 border border-white/5 shrink-0",
                       user.role === 'admin' ? "text-violet-400" : "text-emerald-400"
                     )}>
                       {user.username[0].toUpperCase()}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <h3 className="font-black text-white truncate uppercase tracking-tight text-lg leading-none mb-1">{user.username}</h3>
+                      <h3 className="font-black text-white truncate uppercase tracking-tight text-base sm:text-lg leading-none mb-1">{user.username}</h3>
                       <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest truncate leading-none">{user.fullName || 'ไม่ระบุชื่อ'}</p>
                     </div>
                     <Badge
                       variant={user.role === 'admin' ? 'purple' : 'emerald'}
-                      className="font-black uppercase tracking-widest text-[8px] px-3 py-1 shadow-lg"
+                      className="font-black uppercase tracking-widest text-[8px] px-2 sm:px-3 py-1 shadow-lg shrink-0"
                     >
                       {user.role === 'admin' ? 'ผู้ดูแลระบบ' : 'ผู้ใช้ทั่วไป'}
                     </Badge>
                   </div>
 
-                  <div className="space-y-4 mb-8">
-                    <div className="flex justify-between items-center bg-white/[0.02] p-4 rounded-2xl border border-white/5">
+                  <div className="space-y-3 sm:space-y-4 mb-6 sm:mb-8">
+                    <div className="flex justify-between items-center bg-white/[0.02] p-3 sm:p-4 rounded-xl sm:rounded-2xl border border-white/5">
                       <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest">สถานะการเชื่อมต่อ</span>
                       <div className="flex items-center gap-2">
                         <div className={cn("w-1.5 h-1.5 rounded-full", user.isActive ? "bg-emerald-500" : "bg-white/10")} />
@@ -558,11 +560,11 @@ export default function UsersPage() {
                     <p className="text-[10px] font-mono text-slate-600 truncate px-2 text-center">{user.email || '—'}</p>
                   </div>
 
-                  <div className="grid grid-cols-4 gap-2 bg-white/[0.02] p-2 rounded-2xl border border-white/5">
-                    <IconButton variant="ghost" size="sm" onClick={() => handleBlockToggle(user)} className={cn("flex-1 h-12 rounded-xl transition-colors", user.isBlocked ? "text-emerald-400 bg-white/5" : "text-amber-400 bg-white/5")}><svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" /></svg></IconButton>
-                    <IconButton variant="ghost" size="sm" onClick={() => openGrantModal(user)} className="flex-1 h-12 rounded-xl text-violet-400 bg-white/5 hover:bg-violet-500 hover:text-white"><svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg></IconButton>
-                    <IconButton variant="ghost" size="sm" onClick={() => openEditModal(user)} className="flex-1 h-12 rounded-xl text-blue-400 bg-white/5 hover:bg-blue-500 hover:text-white"><svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg></IconButton>
-                    <IconButton variant="ghost" size="sm" onClick={() => { setSelectedUser(user); setShowDeleteConfirm(true); }} className="flex-1 h-12 rounded-xl text-rose-400 bg-white/5 hover:bg-rose-500 hover:text-white"><svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg></IconButton>
+                  <div className="grid grid-cols-4 gap-1.5 sm:gap-2 bg-white/[0.02] p-1.5 sm:p-2 rounded-xl sm:rounded-2xl border border-white/5">
+                    <IconButton variant="ghost" size="sm" onClick={() => handleBlockToggle(user)} className={cn("flex-1 h-10 sm:h-12 rounded-lg sm:rounded-xl transition-colors", user.isBlocked ? "text-emerald-400 bg-white/5" : "text-amber-400 bg-white/5")}><svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" /></svg></IconButton>
+                    <IconButton variant="ghost" size="sm" onClick={() => openGrantModal(user)} className="flex-1 h-10 sm:h-12 rounded-lg sm:rounded-xl text-violet-400 bg-white/5 hover:bg-violet-500 hover:text-white"><svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg></IconButton>
+                    <IconButton variant="ghost" size="sm" onClick={() => openEditModal(user)} className="flex-1 h-10 sm:h-12 rounded-lg sm:rounded-xl text-blue-400 bg-white/5 hover:bg-blue-500 hover:text-white"><svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg></IconButton>
+                    <IconButton variant="ghost" size="sm" onClick={() => { setSelectedUser(user); setShowDeleteConfirm(true); }} className="flex-1 h-10 sm:h-12 rounded-lg sm:rounded-xl text-rose-400 bg-white/5 hover:bg-rose-500 hover:text-white"><svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg></IconButton>
                   </div>
                 </Card>
               ))
@@ -702,8 +704,8 @@ export default function UsersPage() {
         subtitle={`เพิ่มโควต้าให้กับผู้ใช้: ${selectedUser?.username}`}
         size="md"
       >
-        <div className="space-y-10 pt-2 pb-2">
-          <div className="p-8 sm:p-10 bg-slate-950 rounded-[2.5rem] border border-white/5 relative overflow-hidden group">
+        <div className="space-y-6 sm:space-y-10 pt-2 pb-2">
+          <div className="p-4 sm:p-8 md:p-10 bg-slate-950 rounded-2xl sm:rounded-[2.5rem] border border-white/5 relative overflow-hidden group">
             <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/[0.05] blur-[80px] rounded-full group-hover:bg-emerald-500/[0.05] transition-colors duration-1000" />
 
             <div className="relative z-10 space-y-8">

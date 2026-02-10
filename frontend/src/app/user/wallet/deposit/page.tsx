@@ -166,22 +166,22 @@ export default function DepositPage() {
 
   return (
     <DashboardLayout>
-      <div className="p-4 sm:p-6 lg:p-8 max-w-4xl mx-auto">
-        <div className="mb-8">
-          <Link href="/user/wallet" className="text-slate-400 hover:text-white text-sm mb-2 inline-block">
+      <div className="p-3 sm:p-4 md:p-6 lg:p-8 max-w-4xl mx-auto">
+        <div className="mb-4 sm:mb-6 md:mb-8">
+          <Link href="/user/wallet" className="text-slate-400 hover:text-white text-xs sm:text-sm mb-2 inline-block">
             ← กลับ
           </Link>
-          <h1 className="text-2xl sm:text-3xl font-black text-white">
+          <h1 className="text-xl sm:text-2xl md:text-3xl font-black text-white">
             เติมเงิน <span className="text-[#06C755]">(Deposit)</span>
           </h1>
-          <p className="text-slate-400 mt-2">เลือกวิธีเติมเงินที่ต้องการ</p>
+          <p className="text-slate-400 mt-1 sm:mt-2 text-xs sm:text-sm">เลือกวิธีเติมเงินที่ต้องการ</p>
         </div>
 
         {/* Deposit Method Tabs */}
-        <div className="flex gap-2 mb-6">
+        <div className="flex gap-2 mb-4 sm:mb-6">
           <button
             onClick={() => setDepositMethod('bank')}
-            className={`px-6 py-3 rounded-xl font-semibold transition-all ${
+            className={`flex-1 sm:flex-none px-4 sm:px-6 py-2.5 sm:py-3 rounded-xl font-semibold text-xs sm:text-sm transition-all min-h-[44px] ${
               depositMethod === 'bank'
                 ? 'bg-[#06C755] text-white'
                 : 'bg-white/5 text-slate-400 hover:bg-white/10'
@@ -192,7 +192,7 @@ export default function DepositPage() {
           {usdtSettings?.enabled && (
             <button
               onClick={() => setDepositMethod('usdt')}
-              className={`px-6 py-3 rounded-xl font-semibold transition-all ${
+              className={`flex-1 sm:flex-none px-4 sm:px-6 py-2.5 sm:py-3 rounded-xl font-semibold text-xs sm:text-sm transition-all min-h-[44px] ${
                 depositMethod === 'usdt'
                   ? 'bg-[#06C755] text-white'
                   : 'bg-white/5 text-slate-400 hover:bg-white/10'
@@ -207,33 +207,33 @@ export default function DepositPage() {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Bank Account Info */}
             <Card className="border border-white/10" variant="glass">
-              <div className="p-6">
-                <h3 className="text-lg font-bold text-white mb-4">ข้อมูลบัญชีรับโอน</h3>
+              <div className="p-3 sm:p-4 md:p-6">
+                <h3 className="text-base sm:text-lg font-bold text-white mb-3 sm:mb-4">ข้อมูลบัญชีรับโอน</h3>
                 {isLoading ? (
-                  <p className="text-slate-400">กำลังโหลด...</p>
+                  <p className="text-slate-400 text-sm">กำลังโหลด...</p>
                 ) : bankAccounts.length > 0 ? (
-                  <div className="space-y-4">
+                  <div className="space-y-3 sm:space-y-4">
                     {bankAccounts.map((bank, idx) => (
-                      <div key={idx} className="p-4 bg-white/[0.02] rounded-xl border border-white/5">
-                        <p className="text-sm text-slate-400">ธนาคาร</p>
-                        <p className="text-lg font-bold text-white">{bank.bankName}</p>
-                        <p className="text-sm text-slate-400 mt-2">เลขบัญชี</p>
-                        <p className="text-lg font-mono text-[#06C755]">{bank.accountNumber}</p>
-                        <p className="text-sm text-slate-400 mt-2">ชื่อบัญชี</p>
-                        <p className="text-white">{bank.accountName}</p>
+                      <div key={idx} className="p-3 sm:p-4 bg-white/[0.02] rounded-xl border border-white/5">
+                        <p className="text-xs sm:text-sm text-slate-400">ธนาคาร</p>
+                        <p className="text-base sm:text-lg font-bold text-white">{bank.bankName}</p>
+                        <p className="text-xs sm:text-sm text-slate-400 mt-2">เลขบัญชี</p>
+                        <p className="text-base sm:text-lg font-mono text-[#06C755] break-all">{bank.accountNumber}</p>
+                        <p className="text-xs sm:text-sm text-slate-400 mt-2">ชื่อบัญชี</p>
+                        <p className="text-white text-sm sm:text-base">{bank.accountName}</p>
                       </div>
                     ))}
                   </div>
                 ) : (
-                  <p className="text-slate-400">ไม่พบข้อมูลบัญชี กรุณาติดต่อแอดมิน</p>
+                  <p className="text-slate-400 text-sm">ไม่พบข้อมูลบัญชี กรุณาติดต่อแอดมิน</p>
                 )}
               </div>
             </Card>
 
             {/* Upload Slip */}
             <Card className="border border-white/10" variant="glass">
-              <div className="p-6">
-                <h3 className="text-lg font-bold text-white mb-4">อัปโหลดสลิป</h3>
+              <div className="p-3 sm:p-4 md:p-6">
+                <h3 className="text-base sm:text-lg font-bold text-white mb-3 sm:mb-4">อัปโหลดสลิป</h3>
 
                 <input
                   type="file"
@@ -246,38 +246,38 @@ export default function DepositPage() {
                 {!previewUrl ? (
                   <div
                     onClick={() => fileInputRef.current?.click()}
-                    className="border-2 border-dashed border-white/20 rounded-xl p-8 text-center cursor-pointer hover:border-[#06C755]/50 transition-colors"
+                    className="border-2 border-dashed border-white/20 rounded-xl p-6 sm:p-8 text-center cursor-pointer hover:border-[#06C755]/50 transition-colors min-h-[120px] flex flex-col items-center justify-center"
                   >
-                    <div className="text-4xl mb-4">📤</div>
-                    <p className="text-white font-semibold mb-2">คลิกเพื่อเลือกรูปสลิป</p>
-                    <p className="text-sm text-slate-400">PNG, JPG ขนาดไม่เกิน 5MB</p>
+                    <div className="text-3xl sm:text-4xl mb-3 sm:mb-4">📤</div>
+                    <p className="text-white font-semibold mb-1 sm:mb-2 text-sm sm:text-base">คลิกเพื่อเลือกรูปสลิป</p>
+                    <p className="text-xs sm:text-sm text-slate-400">PNG, JPG ขนาดไม่เกิน 5MB</p>
                   </div>
                 ) : (
-                  <div className="space-y-4">
+                  <div className="space-y-3 sm:space-y-4">
                     <div className="relative rounded-xl overflow-hidden">
-                      <img src={previewUrl} alt="Slip" className="w-full max-h-64 object-contain bg-black/20" />
+                      <img src={previewUrl} alt="Slip" className="w-full max-h-48 sm:max-h-64 object-contain bg-black/20" />
                       <button
                         onClick={clearFile}
-                        className="absolute top-2 right-2 w-8 h-8 bg-red-500 rounded-full flex items-center justify-center text-white hover:bg-red-600"
+                        className="absolute top-2 right-2 w-8 h-8 bg-red-500 rounded-full flex items-center justify-center text-white hover:bg-red-600 min-h-[44px] min-w-[44px]"
                       >
                         ✕
                       </button>
                     </div>
-                    <p className="text-sm text-slate-400 text-center">{selectedFile?.name}</p>
+                    <p className="text-xs sm:text-sm text-slate-400 text-center truncate">{selectedFile?.name}</p>
                   </div>
                 )}
 
-                <div className="mt-6 space-y-3">
+                <div className="mt-4 sm:mt-6 space-y-2 sm:space-y-3">
                   <Button
                     variant="primary"
-                    className="w-full h-12 bg-[#06C755] hover:bg-[#05a347]"
+                    className="w-full h-11 sm:h-12 bg-[#06C755] hover:bg-[#05a347] text-sm sm:text-base"
                     onClick={handleSubmit}
                     disabled={!selectedFile || isSubmitting}
                   >
                     {isSubmitting ? 'กำลังส่ง...' : '💰 ส่งสลิปเติมเงิน'}
                   </Button>
                   <Link href="/user/wallet" className="block">
-                    <Button variant="outline" className="w-full h-12 border-white/20">
+                    <Button variant="outline" className="w-full h-11 sm:h-12 border-white/20 text-sm sm:text-base">
                       ยกเลิก
                     </Button>
                   </Link>
@@ -289,28 +289,28 @@ export default function DepositPage() {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* USDT Wallet Info */}
             <Card className="border border-white/10" variant="glass">
-              <div className="p-6">
-                <h3 className="text-lg font-bold text-white mb-4">
+              <div className="p-3 sm:p-4 md:p-6">
+                <h3 className="text-base sm:text-lg font-bold text-white mb-3 sm:mb-4">
                   💎 ข้อมูลกระเป๋า USDT ({usdtSettings?.network})
                 </h3>
 
                 {usdtSettings?.qrCodeUrl && (
-                  <div className="flex justify-center mb-4">
-                    <div className="p-4 bg-white rounded-xl">
-                      <img src={usdtSettings.qrCodeUrl} alt="QR Code" className="w-48 h-48 object-contain" />
+                  <div className="flex justify-center mb-3 sm:mb-4">
+                    <div className="p-3 sm:p-4 bg-white rounded-xl">
+                      <img src={usdtSettings.qrCodeUrl} alt="QR Code" className="w-36 h-36 sm:w-48 sm:h-48 object-contain max-w-full" />
                     </div>
                   </div>
                 )}
 
-                <div className="p-4 bg-white/[0.02] rounded-xl border border-white/5">
-                  <p className="text-sm text-slate-400 mb-2">Wallet Address ({usdtSettings?.network})</p>
-                  <div className="flex items-center gap-2">
-                    <p className="text-sm font-mono text-[#06C755] break-all flex-1">
+                <div className="p-3 sm:p-4 bg-white/[0.02] rounded-xl border border-white/5">
+                  <p className="text-xs sm:text-sm text-slate-400 mb-2">Wallet Address ({usdtSettings?.network})</p>
+                  <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+                    <p className="text-xs sm:text-sm font-mono text-[#06C755] break-all flex-1">
                       {usdtSettings?.walletAddress}
                     </p>
                     <button
                       onClick={() => copyToClipboard(usdtSettings?.walletAddress || '')}
-                      className="px-3 py-1 bg-white/10 rounded-lg text-white text-sm hover:bg-white/20 transition-colors"
+                      className="px-3 py-2 bg-white/10 rounded-lg text-white text-xs sm:text-sm hover:bg-white/20 transition-colors min-h-[44px] flex-shrink-0 text-center"
                     >
                       📋 คัดลอก
                     </button>
@@ -318,12 +318,12 @@ export default function DepositPage() {
                 </div>
 
                 {usdtRate && (
-                  <div className="mt-4 p-4 bg-blue-500/10 rounded-xl border border-blue-500/20">
-                    <p className="text-sm text-blue-400">อัตราแลกเปลี่ยนปัจจุบัน</p>
-                    <p className="text-2xl font-bold text-white mt-1">
+                  <div className="mt-3 sm:mt-4 p-3 sm:p-4 bg-blue-500/10 rounded-xl border border-blue-500/20">
+                    <p className="text-xs sm:text-sm text-blue-400">อัตราแลกเปลี่ยนปัจจุบัน</p>
+                    <p className="text-lg sm:text-2xl font-bold text-white mt-1">
                       1 USDT = {usdtRate.rate.toLocaleString()} บาท
                     </p>
-                    <p className="text-xs text-slate-400 mt-1">ข้อมูลจาก {usdtRate.source}</p>
+                    <p className="text-[10px] sm:text-xs text-slate-400 mt-1">ข้อมูลจาก {usdtRate.source}</p>
                   </div>
                 )}
               </div>
@@ -331,52 +331,52 @@ export default function DepositPage() {
 
             {/* USDT Transaction Form */}
             <Card className="border border-white/10" variant="glass">
-              <div className="p-6">
-                <h3 className="text-lg font-bold text-white mb-4">กรอกข้อมูลการโอน</h3>
+              <div className="p-3 sm:p-4 md:p-6">
+                <h3 className="text-base sm:text-lg font-bold text-white mb-3 sm:mb-4">กรอกข้อมูลการโอน</h3>
 
-                <div className="space-y-4">
+                <div className="space-y-3 sm:space-y-4">
                   <div>
-                    <label className="block text-sm text-slate-400 mb-2">จำนวน USDT ที่โอน</label>
+                    <label className="block text-xs sm:text-sm text-slate-400 mb-1.5 sm:mb-2">จำนวน USDT ที่โอน</label>
                     <input
                       type="number"
                       value={usdtAmount}
                       onChange={(e) => setUsdtAmount(e.target.value)}
                       placeholder="เช่น 100"
-                      className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:border-[#06C755]"
+                      className="w-full px-3 sm:px-4 py-2.5 sm:py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:border-[#06C755] text-sm sm:text-base min-h-[44px]"
                     />
                     {calculatedCredits !== null && (
-                      <p className="text-sm text-[#06C755] mt-2">
+                      <p className="text-xs sm:text-sm text-[#06C755] mt-1.5 sm:mt-2">
                         ≈ {calculatedCredits.toLocaleString()} เครดิต
                       </p>
                     )}
                   </div>
 
                   <div>
-                    <label className="block text-sm text-slate-400 mb-2">Transaction Hash (TxID)</label>
+                    <label className="block text-xs sm:text-sm text-slate-400 mb-1.5 sm:mb-2">Transaction Hash (TxID)</label>
                     <input
                       type="text"
                       value={txHash}
                       onChange={(e) => setTxHash(e.target.value)}
                       placeholder="กรอก Transaction Hash หลังโอนเสร็จ"
-                      className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:border-[#06C755] font-mono text-sm"
+                      className="w-full px-3 sm:px-4 py-2.5 sm:py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:border-[#06C755] font-mono text-xs sm:text-sm min-h-[44px]"
                     />
-                    <p className="text-xs text-slate-500 mt-1">
+                    <p className="text-[10px] sm:text-xs text-slate-500 mt-1">
                       คัดลอก Transaction Hash จากกระเป๋าหรือ Exchange ที่คุณใช้โอน
                     </p>
                   </div>
                 </div>
 
-                <div className="mt-6 space-y-3">
+                <div className="mt-4 sm:mt-6 space-y-2 sm:space-y-3">
                   <Button
                     variant="primary"
-                    className="w-full h-12 bg-[#06C755] hover:bg-[#05a347]"
+                    className="w-full h-11 sm:h-12 bg-[#06C755] hover:bg-[#05a347] text-sm sm:text-base"
                     onClick={handleUsdtSubmit}
                     disabled={!txHash.trim() || !usdtAmount || isSubmitting}
                   >
                     {isSubmitting ? 'กำลังส่ง...' : '💎 ส่งข้อมูล USDT'}
                   </Button>
                   <Link href="/user/wallet" className="block">
-                    <Button variant="outline" className="w-full h-12 border-white/20">
+                    <Button variant="outline" className="w-full h-11 sm:h-12 border-white/20 text-sm sm:text-base">
                       ยกเลิก
                     </Button>
                   </Link>
@@ -386,12 +386,12 @@ export default function DepositPage() {
           </div>
         )}
 
-        <Card className="mt-6 border border-yellow-500/20 bg-yellow-500/5" variant="glass">
-          <div className="p-4 flex items-start gap-3">
-            <AlertTriangle className="w-6 h-6 text-amber-400 flex-shrink-0" />
-            <div>
-              <p className="font-semibold text-yellow-400">หมายเหตุ</p>
-              <ul className="text-sm text-slate-300 mt-2 space-y-1">
+        <Card className="mt-4 sm:mt-6 border border-yellow-500/20 bg-yellow-500/5" variant="glass">
+          <div className="p-3 sm:p-4 flex items-start gap-2 sm:gap-3">
+            <AlertTriangle className="w-5 h-5 sm:w-6 sm:h-6 text-amber-400 flex-shrink-0 mt-0.5" />
+            <div className="min-w-0">
+              <p className="font-semibold text-yellow-400 text-sm sm:text-base">หมายเหตุ</p>
+              <ul className="text-xs sm:text-sm text-slate-300 mt-1.5 sm:mt-2 space-y-1">
                 {depositMethod === 'bank' ? (
                   <>
                     <li>• โอนเงินก่อน แล้วจึงอัปโหลดสลิป</li>

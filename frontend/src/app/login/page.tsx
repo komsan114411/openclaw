@@ -275,39 +275,39 @@ export default function LoginPage() {
   const loginDisabled = accessStatus && accessStatus.allowLogin === false;
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden bg-slate-950">
+    <div className="min-h-screen flex items-center justify-center px-3 py-4 sm:p-4 relative overflow-hidden bg-slate-950">
       <div className="absolute inset-0">
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_50%_at_50%_-20%,rgba(6,199,85,0.15),transparent)]" />
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_60%_40%_at_100%_100%,rgba(6,199,85,0.1),transparent)]" />
-        <div className="absolute top-0 left-1/4 w-[600px] h-[600px] bg-[#06C755]/5 blur-[150px] rounded-full pointer-events-none" />
-        <div className="absolute bottom-0 right-1/4 w-[400px] h-[400px] bg-[#06C755]/5 blur-[120px] rounded-full pointer-events-none" />
+        <div className="absolute top-0 left-1/4 w-[300px] h-[300px] sm:w-[600px] sm:h-[600px] bg-[#06C755]/5 blur-[150px] rounded-full pointer-events-none" />
+        <div className="absolute bottom-0 right-1/4 w-[200px] h-[200px] sm:w-[400px] sm:h-[400px] bg-[#06C755]/5 blur-[120px] rounded-full pointer-events-none" />
       </div>
       <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.02)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.02)_1px,transparent_1px)] bg-[size:64px_64px]" />
 
       <div className="relative w-full max-w-md">
         <div className="absolute -inset-1 bg-gradient-to-r from-[#06C755]/20 to-emerald-500/20 rounded-[2.5rem] blur-xl opacity-50" />
-        <Card className="relative border-white/10 shadow-2xl bg-slate-900/90 backdrop-blur-2xl rounded-[2rem] p-6 sm:p-8 overflow-hidden">
+        <Card className="relative border-white/10 shadow-2xl bg-slate-900/90 backdrop-blur-2xl rounded-2xl sm:rounded-[2rem] p-4 sm:p-6 md:p-8 overflow-hidden">
           <div className="absolute top-0 left-1/2 -translate-x-1/2 w-3/4 h-px bg-gradient-to-r from-transparent via-[#06C755]/50 to-transparent" />
 
-          <div className="text-center mb-8">
+          <div className="text-center mb-5 sm:mb-8">
             <div className="relative inline-block">
               <div className="absolute -inset-2 bg-[#06C755]/20 rounded-full blur-xl" />
               {siteBranding.siteLogoBase64 ? (
-                <div className="relative w-20 h-20 rounded-2xl overflow-hidden shadow-xl shadow-[#06C755]/30 transform hover:scale-105 transition-all duration-300">
+                <div className="relative w-16 h-16 sm:w-20 sm:h-20 rounded-2xl overflow-hidden shadow-xl shadow-[#06C755]/30 transform hover:scale-105 transition-all duration-300">
                   <img src={siteBranding.siteLogoBase64} alt="Logo" className="w-full h-full object-contain" />
                 </div>
               ) : (
-                <div className="relative w-20 h-20 rounded-2xl bg-gradient-to-br from-[#06C755] to-emerald-600 flex items-center justify-center shadow-xl shadow-[#06C755]/30 transform hover:scale-105 transition-all duration-300">
-                  <svg className="w-10 h-10 text-white" viewBox="0 0 24 24" fill="currentColor">
+                <div className="relative w-16 h-16 sm:w-20 sm:h-20 rounded-2xl bg-gradient-to-br from-[#06C755] to-emerald-600 flex items-center justify-center shadow-xl shadow-[#06C755]/30 transform hover:scale-105 transition-all duration-300">
+                  <svg className="w-8 h-8 sm:w-10 sm:h-10 text-white" viewBox="0 0 24 24" fill="currentColor">
                     <path d="M12 2C6.48 2 2 6.48 2 12C2 17.52 6.48 22 12 22C17.52 22 22 17.52 22 12C22 6.48 17.52 2 12 2ZM16.59 7.58L10 14.17L7.41 11.59L6 13L10 17L18 9L16.59 7.58Z" />
                   </svg>
                 </div>
               )}
             </div>
-            <h1 className="text-2xl sm:text-3xl font-bold text-white mt-6 tracking-tight">
+            <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-white mt-4 sm:mt-6 tracking-tight">
               {siteBranding.siteName || (<>dooslip<span className="text-[#06C755]">.com</span></>)}
             </h1>
-            <p className="text-slate-400 mt-2 text-sm">เข้าสู่ระบบเพื่อจัดการบัญชี LINE OA ของคุณ</p>
+            <p className="text-slate-400 mt-1.5 sm:mt-2 text-xs sm:text-sm">เข้าสู่ระบบเพื่อจัดการบัญชี LINE OA ของคุณ</p>
           </div>
 
           {/* Session kicked by admin (403 error) */}
@@ -401,7 +401,7 @@ export default function LoginPage() {
                 <input type={showPassword ? 'text' : 'password'} placeholder="••••••••" maxLength={MAX_PASSWORD_LENGTH} disabled={isLocked || isSubmitting || isLoading} autoComplete="current-password" aria-label="รหัสผ่าน"
                   className="w-full h-12 pl-12 pr-12 bg-white/5 border border-white/10 rounded-xl text-white placeholder:text-slate-500 focus:border-[#06C755] focus:ring-2 focus:ring-[#06C755]/20 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                   {...register('password', { required: 'กรุณากรอกรหัสผ่าน', maxLength: { value: MAX_PASSWORD_LENGTH, message: 'รหัสผ่านยาวเกินไป' } })} />
-                <button type="button" onClick={() => setShowPassword((v) => !v)} className="absolute inset-y-0 right-0 pr-4 flex items-center text-slate-400 hover:text-white transition-colors" aria-label={showPassword ? 'ซ่อนรหัสผ่าน' : 'แสดงรหัสผ่าน'} tabIndex={-1}>
+                <button type="button" onClick={() => setShowPassword((v) => !v)} className="absolute inset-y-0 right-0 pr-3 sm:pr-4 flex items-center text-slate-400 hover:text-white transition-colors min-w-[44px] min-h-[44px] justify-center" aria-label={showPassword ? 'ซ่อนรหัสผ่าน' : 'แสดงรหัสผ่าน'} tabIndex={-1}>
                   {showPassword ? <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" /></svg> : <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>}
                 </button>
               </div>
@@ -410,7 +410,7 @@ export default function LoginPage() {
             </div>
 
 
-            <Button type="submit" fullWidth size="lg" className="h-14 rounded-xl font-bold text-sm shadow-lg shadow-[#06C755]/20 hover:shadow-[#06C755]/30 transition-all bg-gradient-to-r from-[#06C755] to-emerald-600 hover:from-[#05a347] hover:to-emerald-700 border-none disabled:opacity-50 disabled:cursor-not-allowed" disabled={isLocked || isSubmitting || isLoading} isLoading={isSubmitting || isLoading} loadingText="กำลังเข้าสู่ระบบ...">
+            <Button type="submit" fullWidth size="lg" className="h-12 sm:h-14 rounded-xl font-bold text-xs sm:text-sm shadow-lg shadow-[#06C755]/20 hover:shadow-[#06C755]/30 transition-all bg-gradient-to-r from-[#06C755] to-emerald-600 hover:from-[#05a347] hover:to-emerald-700 border-none disabled:opacity-50 disabled:cursor-not-allowed" disabled={isLocked || isSubmitting || isLoading} isLoading={isSubmitting || isLoading} loadingText="กำลังเข้าสู่ระบบ...">
               <span className="flex items-center justify-center gap-2">
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1" /></svg>
                 เข้าสู่ระบบ
@@ -418,10 +418,10 @@ export default function LoginPage() {
             </Button>
           </form>
 
-          <div className="mt-8 pt-6 border-t border-white/5 text-center">
-            <p className="text-slate-500 text-sm mb-4">ยังไม่มีบัญชี?</p>
+          <div className="mt-5 sm:mt-8 pt-4 sm:pt-6 border-t border-white/5 text-center">
+            <p className="text-slate-500 text-xs sm:text-sm mb-3 sm:mb-4">ยังไม่มีบัญชี?</p>
             <Link href="/register">
-              <Button variant="ghost" fullWidth className="h-12 rounded-xl text-white hover:bg-white/5 font-medium border border-white/10 hover:border-[#06C755]/30 transition-all">
+              <Button variant="ghost" fullWidth className="h-11 sm:h-12 rounded-xl text-white hover:bg-white/5 font-medium border border-white/10 hover:border-[#06C755]/30 transition-all text-sm">
                 <span className="flex items-center justify-center gap-2">
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" /></svg>
                   สมัครสมาชิกใหม่

@@ -81,12 +81,12 @@ export default function UserHistoryPage() {
         <DashboardLayout>
             <div className="section-gap animate-fade pb-10 max-w-7xl mx-auto px-4 sm:px-6">
                 {/* Header */}
-                <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
+                <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6 sm:mb-8">
                     <div>
-                        <h1 className="text-3xl font-black text-white tracking-tight">
+                        <h1 className="text-xl sm:text-2xl md:text-3xl font-black text-white tracking-tight">
                             ประวัติการ<span className="text-[#06C755]">ทำรายการ</span>
                         </h1>
-                        <p className="text-slate-400 mt-1">ตรวจสอบรายการธุรกรรมและการใช้งานแพ็คเกจย้อนหลัง</p>
+                        <p className="text-slate-400 mt-1 text-xs sm:text-sm">ตรวจสอบรายการธุรกรรมและการใช้งานแพ็คเกจย้อนหลัง</p>
                     </div>
                     <Button
                         variant="outline"
@@ -110,13 +110,13 @@ export default function UserHistoryPage() {
                             className="bg-transparent border-none focus:ring-0 w-full text-white placeholder-slate-500 font-semibold"
                         />
                     </Card>
-                    <div className="flex gap-2 p-1 bg-white/5 rounded-2xl border border-white/10">
+                    <div className="flex gap-1 sm:gap-2 p-1 bg-white/5 rounded-xl sm:rounded-2xl border border-white/10">
                         {(['all', 'deposit', 'purchase'] as const).map((f) => (
                             <button
                                 key={f}
                                 onClick={() => setFilter(f)}
                                 className={cn(
-                                    "flex-1 py-2 rounded-xl text-xs font-bold transition-all uppercase tracking-wider",
+                                    "flex-1 py-2 rounded-lg sm:rounded-xl text-[10px] sm:text-xs font-bold transition-all uppercase tracking-wider min-h-[40px]",
                                     filter === f ? "bg-[#06C755] text-white shadow-lg shadow-[#06C755]/20" : "text-slate-500 hover:text-white"
                                 )}
                             >

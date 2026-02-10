@@ -269,7 +269,7 @@ export function AnnouncementBanner() {
                         imageLoaded[currentBanner._id] ? 'opacity-100' : 'opacity-0'
                       }`}
                       style={{
-                        maxHeight: 'clamp(120px, 28vh, 280px)',
+                        maxHeight: 'clamp(100px, 25vh, 280px)',
                         objectFit: 'contain',
                         objectPosition: 'center',
                       }}
@@ -286,19 +286,19 @@ export function AnnouncementBanner() {
                   color: currentBanner.textColor || '#FFFFFF',
                 }}
               >
-                <div className="max-w-7xl mx-auto px-4 py-3">
-                  <div className="flex items-center justify-between gap-3">
+                <div className="max-w-7xl mx-auto px-3 sm:px-4 py-2.5 sm:py-3">
+                  <div className="flex items-start sm:items-center justify-between gap-2 sm:gap-3">
                     {/* ข้อความ */}
-                    <div className="flex items-center gap-3 flex-1 min-w-0">
-                      <div className="flex-shrink-0 w-9 h-9 rounded-full bg-white/15 flex items-center justify-center">
-                        <Bell className="w-4 h-4" />
+                    <div className="flex items-start sm:items-center gap-2 sm:gap-3 flex-1 min-w-0">
+                      <div className="flex-shrink-0 w-7 h-7 sm:w-9 sm:h-9 rounded-full bg-white/15 flex items-center justify-center mt-0.5 sm:mt-0">
+                        <Bell className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className="font-bold text-sm sm:text-base leading-tight truncate">
+                        <p className="font-bold text-xs sm:text-sm md:text-base leading-tight line-clamp-2 sm:truncate">
                           {currentBanner.title}
                         </p>
                         {currentBanner.message && (
-                          <p className="text-xs sm:text-sm opacity-85 leading-tight truncate mt-0.5">
+                          <p className="text-[10px] sm:text-xs md:text-sm opacity-85 leading-tight line-clamp-2 sm:truncate mt-0.5">
                             {currentBanner.message}
                           </p>
                         )}
@@ -306,14 +306,14 @@ export function AnnouncementBanner() {
                     </div>
 
                     {/* ปุ่ม */}
-                    <div className="flex items-center gap-2 flex-shrink-0">
+                    <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0">
                       {currentBanner.linkUrl && (
                         <button
                           onClick={() => openLink(currentBanner.linkUrl!)}
-                          className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 bg-white/20 hover:bg-white/30 rounded-lg text-xs sm:text-sm font-medium transition-colors"
+                          className="flex items-center gap-1 sm:gap-1.5 px-2 sm:px-3 py-1.5 bg-white/20 hover:bg-white/30 active:bg-white/40 rounded-lg text-[10px] sm:text-xs md:text-sm font-medium transition-colors min-h-[36px] sm:min-h-0"
                         >
-                          {currentBanner.linkText || 'ดูเพิ่มเติม'}
-                          <ExternalLink className="w-3.5 h-3.5" />
+                          <span className="hidden xs:inline">{currentBanner.linkText || 'ดูเพิ่มเติม'}</span>
+                          <ExternalLink className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
                         </button>
                       )}
 
@@ -330,7 +330,7 @@ export function AnnouncementBanner() {
                           )}
                           <button
                             onClick={() => dismiss(currentBanner, false)}
-                            className="p-1.5 bg-white/10 hover:bg-white/20 rounded-lg transition-colors"
+                            className="p-1.5 sm:p-1.5 bg-white/10 hover:bg-white/20 active:bg-white/30 rounded-lg transition-colors min-w-[36px] min-h-[36px] sm:min-w-0 sm:min-h-0 flex items-center justify-center"
                             aria-label="ปิด"
                           >
                             <X className="w-4 h-4" />
@@ -340,26 +340,37 @@ export function AnnouncementBanner() {
                     </div>
                   </div>
 
+                  {/* Mobile: 7-day dismiss option as inline text */}
+                  {currentBanner.allowDismiss && currentBanner.allowDismissFor7Days && (
+                    <button
+                      onClick={() => dismiss(currentBanner, true)}
+                      className="sm:hidden flex items-center gap-1 mx-auto mt-1.5 px-2 py-1 bg-white/10 hover:bg-white/20 active:bg-white/30 rounded-lg text-[10px] font-medium transition-colors"
+                    >
+                      <Clock className="w-3 h-3" />
+                      ไม่แสดงอีก 7 วัน
+                    </button>
+                  )}
+
                   {/* Navigation dots */}
                   {banners.length > 1 && (
-                    <div className="flex items-center justify-center gap-2 mt-2.5">
+                    <div className="flex items-center justify-center gap-2 sm:gap-2 mt-2 sm:mt-2.5">
                       <button
                         onClick={goPrev}
-                        className="p-1 bg-white/10 hover:bg-white/20 rounded-full transition-colors"
+                        className="p-1.5 sm:p-1 bg-white/10 hover:bg-white/20 active:bg-white/30 rounded-full transition-colors min-w-[32px] min-h-[32px] sm:min-w-0 sm:min-h-0 flex items-center justify-center"
                         aria-label="ก่อนหน้า"
                       >
                         <ChevronLeft className="w-3.5 h-3.5" />
                       </button>
 
-                      <div className="flex items-center gap-1.5">
+                      <div className="flex items-center gap-1.5 sm:gap-1.5">
                         {banners.map((_, i) => (
                           <button
                             key={i}
                             onClick={() => setCurrentBannerIndex(i)}
-                            className={`h-1.5 rounded-full transition-all duration-300 ${
+                            className={`rounded-full transition-all duration-300 min-h-[8px] ${
                               i === currentBannerIndex
-                                ? 'bg-white w-5'
-                                : 'bg-white/40 hover:bg-white/60 w-1.5'
+                                ? 'bg-white w-5 h-2 sm:h-1.5'
+                                : 'bg-white/40 hover:bg-white/60 w-2 h-2 sm:w-1.5 sm:h-1.5'
                             }`}
                             aria-label={`ประกาศที่ ${i + 1}`}
                           />
@@ -368,7 +379,7 @@ export function AnnouncementBanner() {
 
                       <button
                         onClick={goNext}
-                        className="p-1 bg-white/10 hover:bg-white/20 rounded-full transition-colors"
+                        className="p-1.5 sm:p-1 bg-white/10 hover:bg-white/20 active:bg-white/30 rounded-full transition-colors min-w-[32px] min-h-[32px] sm:min-w-0 sm:min-h-0 flex items-center justify-center"
                         aria-label="ถัดไป"
                       >
                         <ChevronRight className="w-3.5 h-3.5" />
@@ -389,7 +400,7 @@ export function AnnouncementBanner() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[10000] flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm"
+            className="fixed inset-0 z-[10000] flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/75 backdrop-blur-sm"
             onClick={() => popup.allowDismiss && dismiss(popup, false)}
           >
             <motion.div
@@ -397,7 +408,7 @@ export function AnnouncementBanner() {
               animate={{ scale: 1, opacity: 1, y: 0 }}
               exit={{ scale: 0.95, opacity: 0 }}
               transition={{ type: 'spring', damping: 25, stiffness: 350 }}
-              className="relative w-full max-w-md bg-white rounded-2xl overflow-hidden shadow-2xl"
+              className="relative w-full max-w-md bg-white rounded-t-2xl sm:rounded-2xl overflow-hidden shadow-2xl max-h-[90vh] sm:max-h-[85vh] overflow-y-auto"
               onClick={e => e.stopPropagation()}
             >
               {/* รูปภาพ Popup - แสดงเต็มไม่ตัดขอบ */}
@@ -431,13 +442,13 @@ export function AnnouncementBanner() {
               )}
 
               {/* Content */}
-              <div className="p-5 space-y-4">
+              <div className="p-4 sm:p-5 space-y-3 sm:space-y-4">
                 <div>
-                  <h3 className="text-lg font-bold text-slate-800 leading-tight">
+                  <h3 className="text-base sm:text-lg font-bold text-slate-800 leading-tight">
                     {popup.title}
                   </h3>
                   {popup.message && (
-                    <p className="mt-2 text-slate-600 text-sm leading-relaxed">
+                    <p className="mt-1.5 sm:mt-2 text-slate-600 text-xs sm:text-sm leading-relaxed break-words">
                       {popup.message}
                     </p>
                   )}
@@ -459,7 +470,7 @@ export function AnnouncementBanner() {
                   {popup.linkUrl && (
                     <button
                       onClick={() => openLink(popup.linkUrl!)}
-                      className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white rounded-xl font-semibold text-sm transition-all shadow-lg shadow-emerald-500/20"
+                      className="w-full flex items-center justify-center gap-2 px-4 py-3 min-h-[44px] bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 active:from-emerald-700 active:to-teal-700 text-white rounded-xl font-semibold text-sm transition-all shadow-lg shadow-emerald-500/20"
                     >
                       {popup.linkText || 'ดูเพิ่มเติม'}
                       <ExternalLink className="w-4 h-4" />
@@ -471,7 +482,7 @@ export function AnnouncementBanner() {
                       {popup.allowDismissFor7Days && (
                         <button
                           onClick={() => dismiss(popup, true)}
-                          className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl text-sm font-medium transition-colors"
+                          className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2.5 min-h-[44px] bg-slate-100 hover:bg-slate-200 active:bg-slate-300 text-slate-600 rounded-xl text-xs sm:text-sm font-medium transition-colors"
                         >
                           <Clock className="w-4 h-4" />
                           ปิด 7 วัน
@@ -479,7 +490,7 @@ export function AnnouncementBanner() {
                       )}
                       <button
                         onClick={() => dismiss(popup, false)}
-                        className="flex-1 flex items-center justify-center px-3 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl text-sm font-medium transition-colors"
+                        className="flex-1 flex items-center justify-center px-3 py-2.5 min-h-[44px] bg-slate-100 hover:bg-slate-200 active:bg-slate-300 text-slate-600 rounded-xl text-xs sm:text-sm font-medium transition-colors"
                       >
                         ปิด
                       </button>
@@ -492,7 +503,7 @@ export function AnnouncementBanner() {
               {popup.allowDismiss && (
                 <button
                   onClick={() => dismiss(popup, false)}
-                  className="absolute top-3 right-3 p-2 bg-black/5 hover:bg-black/10 rounded-full text-slate-500 hover:text-slate-700 transition-colors"
+                  className="absolute top-2 right-2 sm:top-3 sm:right-3 p-2 min-w-[40px] min-h-[40px] bg-black/5 hover:bg-black/10 active:bg-black/20 rounded-full text-slate-500 hover:text-slate-700 transition-colors flex items-center justify-center"
                   aria-label="ปิด"
                 >
                   <X className="w-5 h-5" />

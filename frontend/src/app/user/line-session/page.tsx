@@ -975,24 +975,24 @@ export default function LineSessionPage() {
 
   return (
     <DashboardLayout>
-      <div className="space-y-6">
+      <div className="p-3 sm:p-4 lg:p-6 space-y-4 sm:space-y-6">
         {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
           <div>
-            <h1 className="text-2xl font-bold text-slate-900 dark:text-white flex items-center gap-3">
-              <div className="p-2 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-xl text-white">
-                <Key className="w-6 h-6" />
+            <h1 className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white flex items-center gap-2 sm:gap-3">
+              <div className="p-1.5 sm:p-2 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-lg sm:rounded-xl text-white">
+                <Key className="w-5 h-5 sm:w-6 sm:h-6" />
               </div>
               LINE Session
             </h1>
-            <p className="text-slate-500 dark:text-slate-400 mt-1">
+            <p className="text-slate-500 dark:text-slate-400 mt-1 text-xs sm:text-sm">
               จัดการ LINE Login และดึง Keys อัตโนมัติ
             </p>
           </div>
           <Button
             variant="primary"
             onClick={() => setShowCreateModal(true)}
-            className="gap-2"
+            className="gap-2 w-full sm:w-auto min-h-[44px]"
           >
             <Plus className="w-4 h-4" />
             เพิ่ม LINE Login
@@ -1000,19 +1000,19 @@ export default function LineSessionPage() {
         </div>
 
         {lineSessions.length === 0 ? (
-          <Card className="p-8">
+          <Card className="p-4 sm:p-6 md:p-8">
             <EmptyState
-              icon={<Key className="w-12 h-12" />}
+              icon={<Key className="w-10 h-10 sm:w-12 sm:h-12" />}
               title="ยังไม่มี LINE Login"
               description="กดปุ่ม 'เพิ่ม LINE Login' เพื่อเริ่มต้นใช้งาน"
             />
           </Card>
         ) : (
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
             {/* Session Selection */}
-            <Card className="p-4">
-              <h2 className="text-lg font-semibold text-slate-900 dark:text-white mb-4 flex items-center gap-2">
-                <Smartphone className="w-5 h-5 text-emerald-500" />
+            <Card className="p-3 sm:p-4">
+              <h2 className="text-base sm:text-lg font-semibold text-slate-900 dark:text-white mb-3 sm:mb-4 flex items-center gap-2">
+                <Smartphone className="w-4 h-4 sm:w-5 sm:h-5 text-emerald-500" />
                 LINE Login ของคุณ
               </h2>
               <div className="space-y-2">
@@ -1054,7 +1054,7 @@ export default function LineSessionPage() {
                           setSessionToDelete(session);
                           setShowDeleteModal(true);
                         }}
-                        className="opacity-0 group-hover:opacity-100 p-1.5 text-red-500 hover:bg-red-500/10 rounded-lg transition-all"
+                        className="opacity-100 sm:opacity-0 group-hover:opacity-100 p-1.5 text-red-500 hover:bg-red-500/10 rounded-lg transition-all min-w-[36px] min-h-[36px] flex items-center justify-center"
                         title="ลบ"
                       >
                         <Trash2 className="w-4 h-4" />
@@ -1066,21 +1066,21 @@ export default function LineSessionPage() {
             </Card>
 
             {/* Setup & Status */}
-            <Card className="lg:col-span-2 p-6">
+            <Card className="lg:col-span-2 p-3 sm:p-4 md:p-6">
               {!selectedSession ? (
-                <div className="flex flex-col items-center justify-center py-12 text-slate-400">
-                  <Key className="w-16 h-16 mb-4 opacity-30" />
-                  <p>เลือก LINE Login เพื่อเริ่มต้น</p>
+                <div className="flex flex-col items-center justify-center py-8 sm:py-12 text-slate-400">
+                  <Key className="w-12 h-12 sm:w-16 sm:h-16 mb-3 sm:mb-4 opacity-30" />
+                  <p className="text-sm sm:text-base">เลือก LINE Login เพื่อเริ่มต้น</p>
                 </div>
               ) : (
                 <div className="space-y-6">
                   {/* Session Info */}
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <h3 className="text-lg font-semibold text-slate-900 dark:text-white">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                    <div className="min-w-0">
+                      <h3 className="text-base sm:text-lg font-semibold text-slate-900 dark:text-white truncate">
                         {selectedSession.name}
                       </h3>
-                      <p className="text-sm text-slate-500">
+                      <p className="text-xs sm:text-sm text-slate-500 truncate">
                         {credentialsStatus?.email || 'ยังไม่ได้ตั้งค่า'}
                       </p>
                     </div>
@@ -1093,15 +1093,15 @@ export default function LineSessionPage() {
 
                   {/* Current Keys Status */}
                   {sessionStatus?.hasKeys && (
-                    <div className="p-4 bg-emerald-50 dark:bg-emerald-900/20 rounded-xl border border-emerald-200 dark:border-emerald-800">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                          <CheckCircle2 className="w-5 h-5 text-emerald-500" />
-                          <div>
-                            <p className="font-medium text-emerald-800 dark:text-emerald-200">
+                    <div className="p-3 sm:p-4 bg-emerald-50 dark:bg-emerald-900/20 rounded-xl border border-emerald-200 dark:border-emerald-800">
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 sm:gap-3">
+                        <div className="flex items-center gap-2 sm:gap-3">
+                          <CheckCircle2 className="w-4 h-4 sm:w-5 sm:h-5 text-emerald-500 flex-shrink-0" />
+                          <div className="min-w-0">
+                            <p className="font-medium text-emerald-800 dark:text-emerald-200 text-sm sm:text-base">
                               มี Keys แล้ว
                             </p>
-                            <p className="text-xs text-emerald-600 dark:text-emerald-400">
+                            <p className="text-[10px] sm:text-xs text-emerald-600 dark:text-emerald-400">
                               ธนาคาร: {sessionStatus.bankName || '-'}
                             </p>
                           </div>
@@ -1111,7 +1111,7 @@ export default function LineSessionPage() {
                           size="sm"
                           onClick={handleViewKeys}
                           disabled={isLoadingKeys}
-                          className="gap-2"
+                          className="gap-2 w-full sm:w-auto min-h-[40px]"
                         >
                           {isLoadingKeys ? <Loader2 className="w-4 h-4 animate-spin" /> : <Eye className="w-4 h-4" />}
                           ดู Keys
@@ -1251,29 +1251,29 @@ export default function LineSessionPage() {
                       </div>
 
                       {loginStatus.pin && (
-                        <div className="p-4 bg-white dark:bg-slate-800 rounded-lg text-center">
+                        <div className="p-3 sm:p-4 bg-white dark:bg-slate-800 rounded-lg text-center">
                           <div className="flex items-center justify-center gap-2 mb-2">
-                            <Smartphone className="w-5 h-5 text-emerald-500" />
-                            <p className="text-sm text-slate-600 dark:text-slate-300">
+                            <Smartphone className="w-4 h-4 sm:w-5 sm:h-5 text-emerald-500" />
+                            <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-300">
                               ยืนยัน PIN บนมือถือ
                             </p>
                           </div>
-                          <p className="text-4xl font-bold tracking-[0.5em] text-emerald-600 dark:text-emerald-400">
+                          <p className="text-3xl sm:text-4xl font-bold tracking-[0.3em] sm:tracking-[0.5em] text-emerald-600 dark:text-emerald-400">
                             {loginStatus.pin}
                           </p>
-                          <p className="text-xs text-slate-400 dark:text-slate-500 mt-2">
+                          <p className="text-[10px] sm:text-xs text-slate-400 dark:text-slate-500 mt-2">
                             เปิดแอป LINE บนมือถือแล้วกดยืนยันตัวเลขนี้
                           </p>
                         </div>
                       )}
 
-                      <div className="flex items-center gap-2 mt-3">
+                      <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 mt-3">
                         {loginStatus.pin && (
                           <Button
                             variant="ghost"
                             size="sm"
                             onClick={handleRetryWrongPin}
-                            className="text-amber-600 hover:text-amber-700 hover:bg-amber-50 dark:hover:bg-amber-900/20"
+                            className="text-amber-600 hover:text-amber-700 hover:bg-amber-50 dark:hover:bg-amber-900/20 min-h-[40px] text-xs sm:text-sm"
                           >
                             <RefreshCw className="w-3.5 h-3.5 mr-1" />
                             PIN ผิด? ขอ PIN ใหม่
@@ -1283,7 +1283,7 @@ export default function LineSessionPage() {
                           variant="ghost"
                           size="sm"
                           onClick={handleCancelLogin}
-                          className="text-red-500 hover:text-red-600"
+                          className="text-red-500 hover:text-red-600 min-h-[40px] text-xs sm:text-sm"
                         >
                           ยกเลิก
                         </Button>
@@ -1411,7 +1411,7 @@ export default function LineSessionPage() {
                     <div className="border-t pt-6 mt-6">
                       {/* Auto-fetch status banner */}
                       {autoFetchConfig && (
-                        <div className={`mb-4 p-3 rounded-lg text-sm flex items-center justify-between ${
+                        <div className={`mb-4 p-2 sm:p-3 rounded-lg text-xs sm:text-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-1 sm:gap-2 ${
                           autoFetchConfig.enabled && autoFetchConfig.isRunning
                             ? 'bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800'
                             : 'bg-slate-100 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700'
@@ -1440,10 +1440,10 @@ export default function LineSessionPage() {
                         </div>
                       )}
 
-                      <div className="flex items-center justify-between mb-4">
-                        <div>
-                          <h4 className="font-medium text-slate-900 dark:text-white flex items-center gap-2">
-                            <History className="w-5 h-5 text-emerald-500" />
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 sm:gap-4 mb-4">
+                        <div className="min-w-0">
+                          <h4 className="font-medium text-slate-900 dark:text-white flex items-center gap-2 text-sm sm:text-base">
+                            <History className="w-4 h-4 sm:w-5 sm:h-5 text-emerald-500 flex-shrink-0" />
                             รายการธุรกรรม
                             {showTransactions && autoFetchConfig?.enabled && (
                               <span className="text-xs font-normal text-slate-500 ml-2">
@@ -1493,8 +1493,8 @@ export default function LineSessionPage() {
 
                       {/* Transaction Summary */}
                       {transactionSummary && (
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
-                          <div className="p-3 bg-emerald-50 dark:bg-emerald-900/20 rounded-lg">
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-2 sm:gap-3 mb-4">
+                          <div className="p-2 sm:p-3 bg-emerald-50 dark:bg-emerald-900/20 rounded-lg">
                             <div className="flex items-center gap-2 mb-1">
                               <ArrowDownCircle className="w-4 h-4 text-emerald-500" />
                               <span className="text-xs text-emerald-600 dark:text-emerald-400">เงินเข้า</span>
@@ -1559,41 +1559,43 @@ export default function LineSessionPage() {
                                     fetchTransactions(selectedSession._id, false, 1, searchQuery, filterType);
                                   }
                                 }}
-                                className="w-full pl-10 pr-4 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                                className="w-full pl-10 pr-4 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent min-h-[40px]"
                               />
                             </div>
-                            <select
-                              value={filterType}
-                              onChange={(e) => {
-                                setFilterType(e.target.value);
-                                setCurrentPage(1);
-                                if (selectedSession) {
-                                  fetchTransactions(selectedSession._id, false, 1, searchQuery, e.target.value);
-                                }
-                              }}
-                              className="px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
-                            >
-                              <option value="">ทั้งหมด</option>
-                              <option value="deposit">เงินเข้า</option>
-                              <option value="withdraw">เงินออก</option>
-                              <option value="transfer">โอน</option>
-                              <option value="payment">ชำระเงิน/บัตรเดบิต</option>
-                              <option value="fee">ค่าธรรมเนียม</option>
-                              <option value="interest">ดอกเบี้ย</option>
-                              <option value="bill">ชำระบิล/สินเชื่อ</option>
-                              <option value="unknown">อื่นๆ</option>
-                            </select>
-                            <button
-                              onClick={() => {
-                                setCurrentPage(1);
-                                if (selectedSession) {
-                                  fetchTransactions(selectedSession._id, false, 1, searchQuery, filterType);
-                                }
-                              }}
-                              className="px-4 py-2 rounded-lg bg-emerald-500 text-white text-sm font-medium hover:bg-emerald-600 transition-colors"
-                            >
-                              ค้นหา
-                            </button>
+                            <div className="flex gap-2">
+                              <select
+                                value={filterType}
+                                onChange={(e) => {
+                                  setFilterType(e.target.value);
+                                  setCurrentPage(1);
+                                  if (selectedSession) {
+                                    fetchTransactions(selectedSession._id, false, 1, searchQuery, e.target.value);
+                                  }
+                                }}
+                                className="flex-1 sm:flex-none px-2 sm:px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent min-h-[40px]"
+                              >
+                                <option value="">ทั้งหมด</option>
+                                <option value="deposit">เงินเข้า</option>
+                                <option value="withdraw">เงินออก</option>
+                                <option value="transfer">โอน</option>
+                                <option value="payment">ชำระเงิน/บัตรเดบิต</option>
+                                <option value="fee">ค่าธรรมเนียม</option>
+                                <option value="interest">ดอกเบี้ย</option>
+                                <option value="bill">ชำระบิล/สินเชื่อ</option>
+                                <option value="unknown">อื่นๆ</option>
+                              </select>
+                              <button
+                                onClick={() => {
+                                  setCurrentPage(1);
+                                  if (selectedSession) {
+                                    fetchTransactions(selectedSession._id, false, 1, searchQuery, filterType);
+                                  }
+                                }}
+                                className="px-3 sm:px-4 py-2 rounded-lg bg-emerald-500 text-white text-xs sm:text-sm font-medium hover:bg-emerald-600 transition-colors min-h-[40px] flex-shrink-0"
+                              >
+                                ค้นหา
+                              </button>
+                            </div>
                           </div>
 
                           {/* Result Count */}
@@ -1659,9 +1661,9 @@ export default function LineSessionPage() {
                                     }`}
                                   >
                                     {/* Header: Type + Amount */}
-                                    <div className="flex items-center justify-between mb-3">
-                                      <div className="flex items-center gap-3">
-                                        <div className={`p-2 rounded-full ${
+                                    <div className="flex items-start sm:items-center justify-between mb-2 sm:mb-3 gap-2">
+                                      <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+                                        <div className={`p-1.5 sm:p-2 rounded-full flex-shrink-0 ${
                                           txType === 'deposit'
                                             ? 'bg-emerald-100 dark:bg-emerald-900/30'
                                             : txType === 'withdraw'
@@ -1679,25 +1681,25 @@ export default function LineSessionPage() {
                                             : 'bg-slate-100 dark:bg-slate-800'
                                         }`}>
                                           {txType === 'deposit' ? (
-                                            <ArrowDownCircle className="w-5 h-5 text-emerald-500" />
+                                            <ArrowDownCircle className="w-4 h-4 sm:w-5 sm:h-5 text-emerald-500" />
                                           ) : txType === 'withdraw' ? (
-                                            <ArrowUpCircle className="w-5 h-5 text-red-500" />
+                                            <ArrowUpCircle className="w-4 h-4 sm:w-5 sm:h-5 text-red-500" />
                                           ) : txType === 'transfer' ? (
-                                            <ArrowUpCircle className="w-5 h-5 text-blue-500" />
+                                            <ArrowUpCircle className="w-4 h-4 sm:w-5 sm:h-5 text-blue-500" />
                                           ) : txType === 'payment' ? (
-                                            <CreditCard className="w-5 h-5 text-orange-500" />
+                                            <CreditCard className="w-4 h-4 sm:w-5 sm:h-5 text-orange-500" />
                                           ) : txType === 'fee' ? (
-                                            <Receipt className="w-5 h-5 text-slate-500" />
+                                            <Receipt className="w-4 h-4 sm:w-5 sm:h-5 text-slate-500" />
                                           ) : txType === 'interest' ? (
-                                            <Percent className="w-5 h-5 text-cyan-500" />
+                                            <Percent className="w-4 h-4 sm:w-5 sm:h-5 text-cyan-500" />
                                           ) : txType === 'bill' ? (
-                                            <FileText className="w-5 h-5 text-purple-500" />
+                                            <FileText className="w-4 h-4 sm:w-5 sm:h-5 text-purple-500" />
                                           ) : (
-                                            <HelpCircle className="w-5 h-5 text-slate-500" />
+                                            <HelpCircle className="w-4 h-4 sm:w-5 sm:h-5 text-slate-500" />
                                           )}
                                         </div>
-                                        <div>
-                                          <p className="font-semibold text-slate-900 dark:text-white">
+                                        <div className="min-w-0">
+                                          <p className="font-semibold text-slate-900 dark:text-white text-sm sm:text-base">
                                             {txType === 'deposit' ? 'เงินเข้า' :
                                              txType === 'withdraw' ? 'เงินออก' :
                                              txType === 'transfer' ? 'โอน' :
@@ -1707,15 +1709,15 @@ export default function LineSessionPage() {
                                              txType === 'bill' ? 'ชำระบิล' : 'อื่นๆ'}
                                           </p>
                                           {tx.messageDate && (
-                                            <p className="text-xs text-slate-500">
+                                            <p className="text-[10px] sm:text-xs text-slate-500">
                                               {new Date(tx.messageDate).toLocaleString('th-TH')}
                                             </p>
                                           )}
                                         </div>
                                       </div>
-                                      <div className="text-right">
+                                      <div className="text-right flex-shrink-0">
                                         {displayAmount && (
-                                          <p className={`text-xl font-bold ${
+                                          <p className={`text-base sm:text-xl font-bold ${
                                             txType === 'deposit'
                                               ? 'text-emerald-600 dark:text-emerald-400'
                                               : txType === 'withdraw'
@@ -1745,7 +1747,7 @@ export default function LineSessionPage() {
 
                                     {/* Account Details: From → To */}
                                     {(fromAccount || toAccount) && (
-                                      <div className="flex items-center gap-2 p-3 bg-white/50 dark:bg-slate-800/50 rounded-lg mb-3">
+                                      <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-1 sm:gap-2 p-2 sm:p-3 bg-white/50 dark:bg-slate-800/50 rounded-lg mb-2 sm:mb-3">
                                         {fromAccount && (
                                           <div className="flex-1">
                                             <p className="text-xs text-slate-500 mb-0.5">จากบัญชี</p>
@@ -1786,7 +1788,7 @@ export default function LineSessionPage() {
 
                           {/* Pagination */}
                           {totalPages > 1 && (
-                            <div className="flex items-center justify-center gap-2 mt-4 pt-4 border-t border-slate-200 dark:border-slate-700">
+                            <div className="flex flex-wrap items-center justify-center gap-1.5 sm:gap-2 mt-4 pt-4 border-t border-slate-200 dark:border-slate-700">
                               <button
                                 onClick={() => {
                                   if (selectedSession && currentPage > 1) {
@@ -1884,13 +1886,14 @@ export default function LineSessionPage() {
               ตั้งชื่อเพื่อให้จำได้ว่าใช้สำหรับอะไร
             </p>
           </div>
-          <div className="flex gap-3 justify-end">
+          <div className="flex flex-col-reverse sm:flex-row gap-2 sm:gap-3 sm:justify-end">
             <Button
               variant="secondary"
               onClick={() => {
                 setShowCreateModal(false);
                 setNewSessionName('');
               }}
+              className="w-full sm:w-auto min-h-[44px]"
             >
               ยกเลิก
             </Button>
@@ -1932,13 +1935,14 @@ export default function LineSessionPage() {
           <p className="text-sm text-red-500">
             การดำเนินการนี้จะลบ Keys และข้อมูล Login ทั้งหมดที่เกี่ยวข้อง
           </p>
-          <div className="flex gap-3 justify-end">
+          <div className="flex flex-col-reverse sm:flex-row gap-2 sm:gap-3 sm:justify-end">
             <Button
               variant="secondary"
               onClick={() => {
                 setShowDeleteModal(false);
                 setSessionToDelete(null);
               }}
+              className="w-full sm:w-auto min-h-[44px]"
             >
               ยกเลิก
             </Button>

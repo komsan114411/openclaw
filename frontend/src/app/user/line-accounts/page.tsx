@@ -1041,9 +1041,9 @@ export default function UserLineAccountsPage() {
         subtitle="กรอกข้อมูลจาก LINE Messaging API Console"
         size="lg"
       >
-        <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-5 gap-4 sm:gap-6">
           {/* Left Column - Form (3/5 width on desktop) */}
-          <form onSubmit={handleSubmit} className="lg:col-span-3 space-y-5">
+          <form onSubmit={handleSubmit} className="lg:col-span-3 space-y-4 sm:space-y-5">
             {/* LINE Developers Guide */}
             <div className="bg-blue-500/10 border border-blue-500/20 rounded-2xl p-4">
               <div className="flex items-start gap-3">
@@ -1369,18 +1369,18 @@ export default function UserLineAccountsPage() {
               </div>
             </div>
 
-            <div className="pt-4 flex gap-4">
-              <Button type="button" variant="ghost" className="flex-1 h-14 rounded-2xl font-bold text-sm border border-white/5 text-slate-500 hover:text-white" onClick={() => setShowModal(false)}>
+            <div className="pt-3 sm:pt-4 flex flex-col sm:flex-row gap-2 sm:gap-4">
+              <Button type="button" variant="ghost" className="flex-1 h-11 sm:h-14 rounded-xl sm:rounded-2xl font-bold text-xs sm:text-sm border border-white/5 text-slate-500 hover:text-white min-h-[44px]" onClick={() => setShowModal(false)}>
                 ยกเลิก
               </Button>
-              <Button type="submit" variant="primary" className="flex-1 h-14 rounded-2xl font-bold text-sm shadow-lg shadow-emerald-500/20">
+              <Button type="submit" variant="primary" className="flex-1 h-11 sm:h-14 rounded-xl sm:rounded-2xl font-bold text-xs sm:text-sm shadow-lg shadow-emerald-500/20 min-h-[44px]">
                 {editAccount ? 'บันทึกการเปลี่ยนแปลง' : 'เพิ่มบัญชี'}
               </Button>
             </div>
           </form>
 
-          {/* Right Column - Preview (2/5 width on desktop) */}
-          <div className="lg:col-span-2">
+          {/* Right Column - Preview (2/5 width on desktop, hidden on mobile) */}
+          <div className="hidden lg:block lg:col-span-2">
             <div className="sticky top-4 space-y-4">
               {/* Preview Header */}
               <div className="flex items-center gap-3 mb-3">
@@ -1540,19 +1540,19 @@ export default function UserLineAccountsPage() {
         subtitle="ปรับแต่งการตอบกลับอัตโนมัติและการตรวจสอบสลิป"
         size="lg"
         footer={
-          <div className="flex gap-4 w-full">
-            <Button variant="ghost" className="flex-1 h-14 rounded-2xl font-bold text-sm text-slate-500 hover:text-white" onClick={() => setShowSettingsModal(false)}>
+          <div className="flex flex-col sm:flex-row gap-2 sm:gap-4 w-full">
+            <Button variant="ghost" className="flex-1 h-11 sm:h-14 rounded-xl sm:rounded-2xl font-bold text-xs sm:text-sm text-slate-500 hover:text-white min-h-[44px]" onClick={() => setShowSettingsModal(false)}>
               ยกเลิก
             </Button>
-            <Button variant="primary" className="flex-[1.5] h-14 rounded-2xl font-bold text-sm shadow-lg shadow-emerald-500/20" onClick={handleSaveSettings}>
+            <Button variant="primary" className="flex-1 sm:flex-[1.5] h-11 sm:h-14 rounded-xl sm:rounded-2xl font-bold text-xs sm:text-sm shadow-lg shadow-emerald-500/20 min-h-[44px]" onClick={handleSaveSettings}>
               บันทึกการตั้งค่า
             </Button>
           </div>
         }
       >
-        <div className="space-y-6 pb-2">
+        <div className="space-y-4 sm:space-y-6 pb-2">
           {/* Tab Navigation — 2 tabs */}
-          <div className="flex gap-1 bg-white/[0.03] rounded-2xl p-1.5 border border-white/5">
+          <div className="flex gap-1 bg-white/[0.03] rounded-xl sm:rounded-2xl p-1 sm:p-1.5 border border-white/5">
             {([
               { id: 'core' as const, name: 'ระบบหลัก', icon: Zap },
               { id: 'ai' as const, name: 'ตั้งค่า AI', icon: Brain },
@@ -2012,7 +2012,7 @@ export default function UserLineAccountsPage() {
                                   <p className="text-[10px] text-slate-500 mt-1">เมื่อลูกค้าถาม &quot;ขอทางเข้า&quot; หรือ &quot;ลิงก์เล่น&quot; AI จะส่งลิงก์เหล่านี้ให้อัตโนมัติ</p>
                                 </div>
                                 {settingsData.gameLinks.map((link, idx) => (
-                                  <div key={idx} className="flex items-center gap-2">
+                                  <div key={idx} className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
                                     <Input
                                       value={link.name}
                                       onChange={(e) => {
@@ -2021,28 +2021,30 @@ export default function UserLineAccountsPage() {
                                         setSettingsData({ ...settingsData, gameLinks: updated });
                                       }}
                                       placeholder="เช่น PG Slot"
-                                      className="bg-white/5 border-white/10 text-white h-10 rounded-lg text-sm flex-1"
+                                      className="bg-white/5 border-white/10 text-white h-10 rounded-lg text-sm w-full sm:flex-1"
                                     />
-                                    <Input
-                                      value={link.url}
-                                      onChange={(e) => {
-                                        const updated = [...settingsData.gameLinks];
-                                        updated[idx] = { ...updated[idx], url: e.target.value };
-                                        setSettingsData({ ...settingsData, gameLinks: updated });
-                                      }}
-                                      placeholder="https://example.com/play"
-                                      className="bg-white/5 border-white/10 text-white h-10 rounded-lg text-sm flex-[2]"
-                                    />
-                                    <button
-                                      type="button"
-                                      onClick={() => {
-                                        const updated = settingsData.gameLinks.filter((_, i) => i !== idx);
-                                        setSettingsData({ ...settingsData, gameLinks: updated });
-                                      }}
-                                      className="text-rose-400/60 hover:text-rose-400 transition-colors p-1 flex-shrink-0"
-                                    >
-                                      <Trash2 size={14} />
-                                    </button>
+                                    <div className="flex items-center gap-2">
+                                      <Input
+                                        value={link.url}
+                                        onChange={(e) => {
+                                          const updated = [...settingsData.gameLinks];
+                                          updated[idx] = { ...updated[idx], url: e.target.value };
+                                          setSettingsData({ ...settingsData, gameLinks: updated });
+                                        }}
+                                        placeholder="https://example.com/play"
+                                        className="bg-white/5 border-white/10 text-white h-10 rounded-lg text-sm flex-1 sm:flex-[2]"
+                                      />
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          const updated = settingsData.gameLinks.filter((_, i) => i !== idx);
+                                          setSettingsData({ ...settingsData, gameLinks: updated });
+                                        }}
+                                        className="text-rose-400/60 hover:text-rose-400 transition-colors p-2 flex-shrink-0 min-w-[36px] min-h-[36px] flex items-center justify-center"
+                                      >
+                                        <Trash2 size={14} />
+                                      </button>
+                                    </div>
                                   </div>
                                 ))}
                                 {settingsData.gameLinks.length === 0 && (
@@ -2094,14 +2096,14 @@ export default function UserLineAccountsPage() {
                           transition={{ duration: 0.2 }}
                           className="overflow-hidden"
                         >
-                          <div className="bg-white/[0.02] p-5 rounded-2xl border border-white/5 space-y-6">
+                          <div className="bg-white/[0.02] p-3 sm:p-5 rounded-xl sm:rounded-2xl border border-white/5 space-y-4 sm:space-y-6">
                             {/* AI Model */}
                             <div className="space-y-2">
                               <label className="text-xs font-semibold text-white/50 ml-1">AI Model</label>
                               <select
                                 value={settingsData.aiModel}
                                 onChange={(e) => setSettingsData({ ...settingsData, aiModel: e.target.value })}
-                                className="w-full h-12 px-4 bg-slate-950/50 border border-white/10 rounded-xl text-white text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/50"
+                                className="w-full h-11 sm:h-12 px-3 sm:px-4 bg-slate-950/50 border border-white/10 rounded-xl text-white text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/50 min-h-[44px]"
                               >
                                 <option value="">ใช้ค่าเริ่มต้นของระบบ</option>
                                 {allowedAiModels.map((model) => (

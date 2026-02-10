@@ -75,10 +75,10 @@ export function FloatingContactButton() {
   const iconSrc = settings.iconBase64 || settings.iconUrl;
   const hasCustomIcon = !!iconSrc;
 
-  // Responsive sizing
-  const buttonSize = isMobile ? Math.min(settings.size, 52) : settings.size;
-  const bottomPosition = isMobile ? 20 : settings.bottom;
-  const rightPosition = isMobile ? 16 : settings.right;
+  // Responsive sizing - ensure button doesn't overlap content on small screens
+  const buttonSize = isMobile ? Math.min(settings.size, 48) : settings.size;
+  const bottomPosition = isMobile ? 16 : settings.bottom;
+  const rightPosition = isMobile ? 12 : settings.right;
 
   const handleClick = () => {
     if (settings.url) {
@@ -115,9 +115,9 @@ export function FloatingContactButton() {
             initial={{ opacity: 0, x: 10, scale: 0.9 }}
             animate={{ opacity: 1, x: 0, scale: 1 }}
             exit={{ opacity: 0, x: 10, scale: 0.9 }}
-            className="absolute right-full mr-3 top-1/2 -translate-y-1/2 whitespace-nowrap pointer-events-none"
+            className="absolute right-full mr-3 top-1/2 -translate-y-1/2 max-w-[200px] sm:max-w-none sm:whitespace-nowrap pointer-events-none"
           >
-            <div className="bg-gray-900/95 backdrop-blur-sm text-white text-sm px-4 py-2.5 rounded-xl shadow-xl border border-white/10">
+            <div className="bg-gray-900/95 backdrop-blur-sm text-white text-xs sm:text-sm px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl shadow-xl border border-white/10">
               {settings.tooltip}
               <div className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-1/2 rotate-45 w-2.5 h-2.5 bg-gray-900/95 border-r border-t border-white/10" />
             </div>
@@ -150,7 +150,7 @@ export function FloatingContactButton() {
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
         onTouchStart={handleMobileTouch}
-        className="relative rounded-full shadow-2xl flex items-center justify-center cursor-pointer transition-all duration-300 hover:shadow-3xl active:scale-95 focus:outline-none focus:ring-4 focus:ring-white/30"
+        className="relative rounded-full shadow-2xl flex items-center justify-center cursor-pointer transition-all duration-300 hover:shadow-3xl active:scale-95 focus:outline-none focus:ring-4 focus:ring-white/30 touch-manipulation"
         style={{
           width: `${buttonSize}px`,
           height: `${buttonSize}px`,

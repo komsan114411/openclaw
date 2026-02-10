@@ -113,21 +113,21 @@ export default function DashboardLayout({ children, requiredRole }: DashboardLay
       <div className="fixed top-0 right-0 w-[600px] h-[600px] bg-gradient-to-br from-emerald-500/5 to-transparent rounded-full blur-[150px] -z-10 pointer-events-none" />
 
       {/* Mobile Glass Header */}
-      <div className="md:hidden fixed top-0 inset-x-0 h-16 glass-navbar z-30 flex items-center px-4 justify-between">
+      <div className="md:hidden fixed top-0 inset-x-0 h-14 sm:h-16 glass-navbar z-30 flex items-center px-3 sm:px-4 justify-between">
         <motion.button
           whileTap={{ scale: 0.9 }}
           onClick={() => setIsSidebarOpen(true)}
-          className="p-2 min-h-[44px] min-w-[44px] bg-white/5 rounded-xl border border-white/10 shadow-lg text-white flex items-center justify-center hover:bg-white/10 transition-all"
+          className="p-2 min-h-[44px] min-w-[44px] bg-white/5 rounded-xl border border-white/10 shadow-lg text-white flex items-center justify-center hover:bg-white/10 transition-all active:bg-white/15"
         >
           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M4 6h16M4 12h16M4 18h16" />
           </svg>
         </motion.button>
         <div className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-lg bg-emerald-500 flex items-center justify-center shadow-lg shadow-emerald-500/20">
-            <span className="text-white text-xs font-black">L</span>
+          <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-emerald-500 flex items-center justify-center shadow-lg shadow-emerald-500/20">
+            <span className="text-white text-[10px] sm:text-xs font-black">L</span>
           </div>
-          <span className="text-xs font-black tracking-widest text-emerald-400 uppercase">Line OA</span>
+          <span className="text-[10px] sm:text-xs font-black tracking-widest text-emerald-400 uppercase">Line OA</span>
         </div>
       </div>
 
@@ -136,9 +136,9 @@ export default function DashboardLayout({ children, requiredRole }: DashboardLay
       {/* Main content - independently scrollable */}
       <main className="flex-1 overflow-y-auto overflow-x-hidden relative z-10 w-full bg-[#0A0F0D]">
         {/* Mobile Header Spacer */}
-        <div className="md:hidden h-16" />
+        <div className="md:hidden h-14 sm:h-16" />
 
-        <div className="container-responsive w-full animate-fade pb-10">
+        <div className="container-responsive w-full animate-fade px-2 sm:px-4 md:px-6 pb-6 sm:pb-10">
           {children}
         </div>
       </main>

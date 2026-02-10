@@ -335,8 +335,8 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
     if (items.length === 0) return null;
 
     return (
-      <div className="space-y-1.5 mb-8">
-        <h3 className="px-5 text-[10px] sm:text-[11px] font-black uppercase tracking-[0.2em] text-emerald-400/40 mb-3">
+      <div className="space-y-1 sm:space-y-1.5 mb-5 sm:mb-8">
+        <h3 className="px-3 sm:px-5 text-[9px] sm:text-[10px] md:text-[11px] font-black uppercase tracking-[0.2em] text-emerald-400/40 mb-2 sm:mb-3">
           {title}
         </h3>
         {items.map((item) => {
@@ -347,7 +347,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
               href={item.href}
               onClick={() => window.innerWidth < 768 && onClose()}
               className={clsx(
-                'group flex items-center gap-3 px-4 py-3 min-h-[44px] rounded-xl transition-all duration-300 relative overflow-hidden',
+                'group flex items-center gap-2.5 sm:gap-3 px-3 sm:px-4 py-2.5 sm:py-3 min-h-[44px] rounded-xl transition-all duration-300 relative overflow-hidden',
                 isActive
                   ? 'sidebar-link-active text-white bg-gradient-to-r from-emerald-500/20 to-teal-500/10 border border-white/5 shadow-lg shadow-emerald-900/20'
                   : 'text-slate-400 hover:text-white hover:bg-white/5 hover:translate-x-1'
@@ -360,7 +360,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
                 {item.icon}
               </span>
               <span className={clsx(
-                "font-medium text-sm tracking-wide transition-all duration-300",
+                "font-medium text-xs sm:text-sm tracking-wide transition-all duration-300 truncate",
                 isActive ? "text-white font-bold" : "group-hover:text-white"
               )}>{item.name}</span>
               {item.badge && (
@@ -379,30 +379,30 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
   };
 
   const sidebarContent = (
-    <div className="flex flex-col h-full bg-[#0A0F0D] text-white w-[280px] xs:w-[300px] sm:w-72 max-w-[85vw] relative overflow-hidden shadow-2xl border-r border-emerald-500/10">
+    <div className="flex flex-col h-full bg-[#0A0F0D] text-white w-[260px] xs:w-[280px] sm:w-72 max-w-[85vw] relative overflow-hidden shadow-2xl border-r border-emerald-500/10">
       {/* Dynamic Background Effects */}
       <div className="absolute top-[-10%] left-[-20%] w-[140%] h-[40%] bg-emerald-500/10 blur-[120px] rounded-full pointer-events-none" />
       <div className="absolute bottom-[-10%] right-[-20%] w-[100%] h-[30%] bg-teal-500/5 blur-[100px] rounded-full pointer-events-none" />
 
       {/* Logo */}
-      <div className="p-8 pb-4 relative">
-        <div className="flex items-center gap-3">
+      <div className="p-4 sm:p-6 md:p-8 pb-3 sm:pb-4 relative">
+        <div className="flex items-center gap-2.5 sm:gap-3">
           {siteBranding.siteLogoBase64 ? (
-            <div className="w-11 h-11 rounded-xl overflow-hidden flex-shrink-0 shadow-lg shadow-emerald-500/20">
+            <div className="w-9 h-9 sm:w-11 sm:h-11 rounded-xl overflow-hidden flex-shrink-0 shadow-lg shadow-emerald-500/20">
               <img src={siteBranding.siteLogoBase64} alt="Logo" className="w-full h-full object-contain" />
             </div>
           ) : (
-            <div className="p-2.5 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 shadow-lg shadow-emerald-500/20">
-              <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div className="p-2 sm:p-2.5 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 shadow-lg shadow-emerald-500/20">
+              <svg className="w-5 h-5 sm:w-6 sm:h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
               </svg>
             </div>
           )}
-          <div>
-            <h1 className="text-lg font-bold tracking-tight">
+          <div className="min-w-0">
+            <h1 className="text-base sm:text-lg font-bold tracking-tight truncate">
               {siteBranding.siteName || (<>dooslip<span className="text-emerald-500">.com</span></>)}
             </h1>
-            <p className="text-[10px] text-emerald-400/60 font-medium tracking-widest uppercase">
+            <p className="text-[9px] sm:text-[10px] text-emerald-400/60 font-medium tracking-widest uppercase truncate">
               {siteBranding.siteTagline || 'ระบบจัดการสลิป'}
             </p>
           </div>
@@ -410,7 +410,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
       </div>
 
       {/* Role Indicator Badge - Prominent visual feedback */}
-      <div className="px-6 pb-6 relative">
+      <div className="px-3 sm:px-4 md:px-6 pb-4 sm:pb-6 relative">
         <div className={clsx(
           "w-full py-3 px-4 rounded-xl border backdrop-blur-sm flex items-center justify-center gap-2 transition-all duration-300",
           isAdmin
@@ -472,23 +472,23 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
       </div>
 
       {/* Navigation - Renders ONLY the appropriate menu based on role */}
-      <nav className="flex-1 px-4 overflow-y-auto no-scrollbar relative">
+      <nav className="flex-1 px-2 sm:px-3 md:px-4 overflow-y-auto no-scrollbar relative">
         {renderGroup('management', 'การจัดการ')}
         {renderGroup('system', 'ระบบ')}
         {renderGroup('logs', 'ข้อมูล & บันทึก')}
       </nav>
 
       {/* User Info Section */}
-      <div className="p-6 relative z-10 border-t border-white/5 bg-white/[0.01]">
-        <div className="p-4 rounded-[1.5rem] bg-white/[0.03] border border-white/[0.05] backdrop-blur-md shadow-xl group hover:border-emerald-500/20 transition-all duration-500">
-          <div className="flex items-center gap-3 mb-4">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center border border-white/10 shadow-lg group-hover:shadow-emerald-500/20 transition-all duration-500 group-hover:scale-110">
-              <span className="text-white font-bold text-lg drop-shadow-md">
+      <div className="p-3 sm:p-4 md:p-6 relative z-10 border-t border-white/5 bg-white/[0.01]">
+        <div className="p-3 sm:p-4 rounded-xl sm:rounded-[1.5rem] bg-white/[0.03] border border-white/[0.05] backdrop-blur-md shadow-xl group hover:border-emerald-500/20 transition-all duration-500">
+          <div className="flex items-center gap-2.5 sm:gap-3 mb-3 sm:mb-4">
+            <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center border border-white/10 shadow-lg group-hover:shadow-emerald-500/20 transition-all duration-500 group-hover:scale-110 flex-shrink-0">
+              <span className="text-white font-bold text-base sm:text-lg drop-shadow-md">
                 {user?.username?.[0]?.toUpperCase() || 'U'}
               </span>
             </div>
             <div className="min-w-0 flex-1">
-              <p className="font-bold text-sm truncate text-white group-hover:text-emerald-400 transition-colors">{user?.username}</p>
+              <p className="font-bold text-xs sm:text-sm truncate text-white group-hover:text-emerald-400 transition-colors">{user?.username}</p>
               <div className="flex items-center gap-1.5 mt-0.5">
                 <div className={clsx(
                   "w-1.5 h-1.5 rounded-full animate-pulse shadow-[0_0_5px]",
@@ -500,25 +500,25 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
               </div>
             </div>
           </div>
-          <div className="flex gap-2">
+          <div className="flex gap-1.5 sm:gap-2">
             <Link
               href="/change-password"
               onClick={() => window.innerWidth < 768 && onClose()}
-              className="flex-1 flex items-center justify-center gap-2 px-4 py-3 min-h-[44px] text-xs font-bold rounded-xl bg-white/5 text-slate-400 hover:bg-emerald-500/10 hover:text-emerald-400 hover:border-emerald-500/20 transition-all duration-300 border border-transparent"
+              className="flex-1 flex items-center justify-center gap-1.5 sm:gap-2 px-2 sm:px-4 py-3 min-h-[44px] text-[10px] sm:text-xs font-bold rounded-xl bg-white/5 text-slate-400 hover:bg-emerald-500/10 hover:text-emerald-400 hover:border-emerald-500/20 active:bg-emerald-500/20 transition-all duration-300 border border-transparent"
             >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-3.5 h-3.5 sm:w-4 sm:h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
               </svg>
-              เปลี่ยนรหัสผ่าน
+              <span className="truncate">เปลี่ยนรหัสผ่าน</span>
             </Link>
             <button
               onClick={() => logout()}
-              className="flex-1 flex items-center justify-center gap-2 px-4 py-3 min-h-[44px] text-xs font-bold rounded-xl bg-white/5 text-slate-400 hover:bg-rose-500/10 hover:text-rose-400 hover:border-rose-500/20 transition-all duration-300 border border-transparent"
+              className="flex-1 flex items-center justify-center gap-1.5 sm:gap-2 px-2 sm:px-4 py-3 min-h-[44px] text-[10px] sm:text-xs font-bold rounded-xl bg-white/5 text-slate-400 hover:bg-rose-500/10 hover:text-rose-400 hover:border-rose-500/20 active:bg-rose-500/20 transition-all duration-300 border border-transparent"
             >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-3.5 h-3.5 sm:w-4 sm:h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
               </svg>
-              ออกจากระบบ
+              <span className="truncate">ออกจากระบบ</span>
             </button>
           </div>
         </div>

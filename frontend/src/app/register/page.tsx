@@ -155,29 +155,29 @@ export default function RegisterPage() {
   const registrationDisabled = accessStatus && accessStatus.allowRegistration === false;
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 bg-slate-950 relative overflow-hidden font-sans">
+    <div className="min-h-screen flex items-center justify-center px-3 py-4 sm:p-4 bg-slate-950 relative overflow-hidden font-sans">
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_20%,rgba(16,185,129,0.1),transparent_55%),radial-gradient(circle_at_80%_60%,rgba(59,130,246,0.1),transparent_55%)]" />
-      <div className="absolute top-0 right-0 w-[600px] h-[600px] bg-emerald-500/5 blur-[120px] -z-10 pointer-events-none animate-pulse duration-[10s]" />
+      <div className="absolute top-0 right-0 w-[300px] h-[300px] sm:w-[600px] sm:h-[600px] bg-emerald-500/5 blur-[120px] -z-10 pointer-events-none animate-pulse duration-[10s]" />
 
       <div className="relative w-full max-w-md">
-        <Card className="border-none shadow-2xl shadow-emerald-900/20 bg-white/10 backdrop-blur-2xl rounded-[3rem] p-8 md:p-10 border-white/10">
-          <div className="text-center mb-10">
+        <Card className="border-none shadow-2xl shadow-emerald-900/20 bg-white/10 backdrop-blur-2xl rounded-2xl sm:rounded-[2rem] md:rounded-[3rem] p-4 sm:p-6 md:p-8 lg:p-10 border-white/10">
+          <div className="text-center mb-6 sm:mb-8 md:mb-10">
             {siteBranding.siteLogoBase64 ? (
-              <div className="w-20 h-20 rounded-[2rem] overflow-hidden mx-auto mb-6 shadow-xl shadow-emerald-500/30 hover:scale-110 transition-transform duration-500">
+              <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl sm:rounded-[2rem] overflow-hidden mx-auto mb-4 sm:mb-6 shadow-xl shadow-emerald-500/30 hover:scale-110 transition-transform duration-500">
                 <img src={siteBranding.siteLogoBase64} alt="Logo" className="w-full h-full object-contain" />
               </div>
             ) : (
-              <div className="w-20 h-20 rounded-[2rem] bg-gradient-to-br from-emerald-400 to-teal-600 flex items-center justify-center mx-auto mb-6 shadow-xl shadow-emerald-500/30 group hover:scale-110 transition-transform duration-500">
-                <svg className="w-10 h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl sm:rounded-[2rem] bg-gradient-to-br from-emerald-400 to-teal-600 flex items-center justify-center mx-auto mb-4 sm:mb-6 shadow-xl shadow-emerald-500/30 group hover:scale-110 transition-transform duration-500">
+                <svg className="w-8 h-8 sm:w-10 sm:h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 11c0 2.21-1.79 4-4 4s-4-1.79-4-4 1.79-4 4-4 4 1.79 4 4zm8 10H4a6 6 0 0112 0v0z" />
                 </svg>
               </div>
             )}
-            <h1 className="text-3xl font-black text-white tracking-tight uppercase">สมัครสมาชิก</h1>
+            <h1 className="text-2xl sm:text-3xl font-black text-white tracking-tight uppercase">สมัครสมาชิก</h1>
             {siteBranding.siteName && (
-              <p className="text-emerald-400 mt-2 font-bold text-sm">{siteBranding.siteName}</p>
+              <p className="text-emerald-400 mt-1.5 sm:mt-2 font-bold text-xs sm:text-sm">{siteBranding.siteName}</p>
             )}
-            <p className="text-slate-400 mt-2 font-bold text-sm tracking-wide">สร้างบัญชีเพื่อเริ่มใช้งานระบบอัตโนมัติ</p>
+            <p className="text-slate-400 mt-1.5 sm:mt-2 font-bold text-xs sm:text-sm tracking-wide">สร้างบัญชีเพื่อเริ่มใช้งานระบบอัตโนมัติ</p>
           </div>
 
           {/* Registration Disabled by Admin */}
@@ -219,7 +219,7 @@ export default function RegisterPage() {
             </div>
           )}
 
-          <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+          <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 sm:space-y-6">
             <div className="space-y-2">
               <Input
                 label="ชื่อผู้ใช้"
@@ -288,7 +288,7 @@ export default function RegisterPage() {
               type="submit"
               fullWidth
               size="lg"
-              className="h-14 rounded-2xl font-black uppercase tracking-widest text-xs shadow-emerald-500/20 shadow-2xl hover:scale-[1.02] transition-transform bg-gradient-to-r from-emerald-500 to-teal-600 border-none disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
+              className="h-12 sm:h-14 rounded-2xl font-black uppercase tracking-widest text-xs shadow-emerald-500/20 shadow-2xl hover:scale-[1.02] transition-transform bg-gradient-to-r from-emerald-500 to-teal-600 border-none disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
               isLoading={isSubmitting || isLoading}
               loadingText="กำลังสร้างบัญชี..."
               disabled={registrationDisabled || isSubmitting || isLoading}
@@ -297,10 +297,10 @@ export default function RegisterPage() {
             </Button>
           </form>
 
-          <div className="mt-10 pt-8 border-t border-white/5 text-center">
+          <div className="mt-6 sm:mt-10 pt-5 sm:pt-8 border-t border-white/5 text-center">
             <p className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-3">มีบัญชีอยู่แล้ว?</p>
             <Link href="/login">
-              <Button variant="ghost" fullWidth className="h-12 rounded-2xl text-white hover:bg-white/5 font-bold border border-white/10">
+              <Button variant="ghost" fullWidth className="h-11 sm:h-12 rounded-2xl text-white hover:bg-white/5 font-bold border border-white/10 text-sm">
                 เข้าสู่ระบบ
               </Button>
             </Link>

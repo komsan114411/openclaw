@@ -664,7 +664,7 @@ export default function SettingsPage() {
     <DashboardLayout requiredRole="admin">
       <div className="section-gap animate-fade pb-8 md:pb-12">
 
-        <div className="page-header relative z-10 flex-col lg:flex-row items-start lg:items-center">
+        <div className="page-header relative z-10 flex flex-col lg:flex-row items-start lg:items-center gap-4">
           <div className="space-y-1 sm:space-y-2 text-left">
             <p className="text-slate-500 font-medium text-xs sm:text-sm">จัดการระบบ</p>
             <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-white tracking-tight">
@@ -674,7 +674,7 @@ export default function SettingsPage() {
               จัดการการตั้งค่าหลักของระบบ
             </p>
           </div>
-          <Badge variant="emerald" className="px-4 py-1.5 font-semibold text-xs rounded-full mt-4 lg:mt-0">
+          <Badge variant="emerald" className="px-4 py-1.5 font-semibold text-xs rounded-full mt-2 lg:mt-0">
             ปรอดักชัน
           </Badge>
         </div>
@@ -1127,7 +1127,7 @@ export default function SettingsPage() {
                       </div>
 
                       {/* API Key Input - Show only if selected or has key */}
-                      <div className="mt-4 flex gap-3">
+                      <div className="mt-4 flex flex-col sm:flex-row gap-2 sm:gap-3">
                         <Input
                           type="password"
                           placeholder="ใส่ Thunder API Key..."
@@ -1207,7 +1207,7 @@ export default function SettingsPage() {
                       </div>
 
                       {/* API Key Input */}
-                      <div className="mt-4 flex gap-3">
+                      <div className="mt-4 flex flex-col sm:flex-row gap-2 sm:gap-3">
                         <Input
                           type="password"
                           placeholder="ใส่ SlipMate API Key..."
@@ -1287,7 +1287,7 @@ export default function SettingsPage() {
                       </div>
 
                       {/* API Key Input */}
-                      <div className="mt-4 flex gap-3">
+                      <div className="mt-4 flex flex-col sm:flex-row gap-2 sm:gap-3">
                         <Input
                           type="password"
                           placeholder="ใส่ Slip2Go API Key..."
@@ -1950,7 +1950,7 @@ export default function SettingsPage() {
                             </div>
 
                             {/* Stats Grid */}
-                            <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-4">
+                            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2 sm:gap-3 mb-4">
                               <div className="text-center p-3 bg-blue-500/10 rounded-xl">
                                 <p className="text-xl font-black text-blue-400">{rateLimitTestResult.requestsSent}</p>
                                 <p className="text-[10px] text-slate-500">ส่งทั้งหมด</p>
@@ -2152,12 +2152,12 @@ export default function SettingsPage() {
               >
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
                   {/* Bank Gateways */}
-                  <Card variant="glass" className="p-8 sm:p-10 rounded-[2.5rem] sm:rounded-[3rem] flex flex-col h-full">
-                    <div className="flex items-center justify-between mb-10">
-                      <div className="flex items-center gap-6">
-                        <div className="w-14 h-14 bg-indigo-500/10 rounded-2xl flex items-center justify-center text-2xl">🏦</div>
+                  <Card variant="glass" className="p-4 sm:p-6 md:p-8 lg:p-10 rounded-2xl sm:rounded-[2.5rem] lg:rounded-[3rem] flex flex-col h-full">
+                    <div className="flex items-center justify-between mb-6 sm:mb-10">
+                      <div className="flex items-center gap-3 sm:gap-6">
+                        <div className="w-10 h-10 sm:w-14 sm:h-14 bg-indigo-500/10 rounded-xl sm:rounded-2xl flex items-center justify-center text-xl sm:text-2xl shrink-0">🏦</div>
                         <div>
-                          <h2 className="text-2xl font-black uppercase tracking-tight text-white">บัญชีธนาคาร</h2>
+                          <h2 className="text-lg sm:text-2xl font-black uppercase tracking-tight text-white">บัญชีธนาคาร</h2>
                           <p className="text-slate-500 font-bold text-[10px] uppercase tracking-widest">บัญชีสำหรับรับชำระเงิน</p>
                         </div>
                       </div>
@@ -2181,9 +2181,9 @@ export default function SettingsPage() {
                             const title = bank?.nameTh || bank?.name || account.bankName;
                             const subtitle = bank?.shortName || bankCode || '';
                             return (
-                              <div key={index} className="group p-6 bg-white/[0.02] hover:bg-white/[0.04] rounded-[2rem] border border-white/5 transition-all flex items-center justify-between">
-                                <div className="flex items-center gap-5">
-                                  <div className="w-12 h-12 bg-white rounded-xl flex items-center justify-center overflow-hidden border border-white/10 shadow-sm">
+                              <div key={index} className="group p-3 sm:p-4 md:p-6 bg-white/[0.02] hover:bg-white/[0.04] rounded-xl sm:rounded-[2rem] border border-white/5 transition-all flex items-center justify-between gap-2">
+                                <div className="flex items-center gap-3 sm:gap-5 min-w-0">
+                                  <div className="w-10 h-10 sm:w-12 sm:h-12 bg-white rounded-lg sm:rounded-xl flex items-center justify-center overflow-hidden border border-white/10 shadow-sm shrink-0">
                                     {logo ? (
                                       <img src={logo as string} alt={subtitle || title} className="w-8 h-8 object-contain" />
                                     ) : (
@@ -2192,11 +2192,11 @@ export default function SettingsPage() {
                                       </span>
                                     )}
                                   </div>
-                                  <div>
-                                    <p className="font-black text-white leading-none mb-1 uppercase tracking-tight">
+                                  <div className="min-w-0">
+                                    <p className="font-black text-white leading-none mb-1 uppercase tracking-tight text-sm sm:text-base truncate">
                                       {title}{subtitle ? <span className="text-slate-500 font-bold"> • {subtitle}</span> : null}
                                     </p>
-                                    <p className="text-[10px] text-slate-500 font-black tracking-widest uppercase">{account.accountNumber} • {account.accountName}</p>
+                                    <p className="text-[10px] text-slate-500 font-black tracking-widest uppercase truncate">{account.accountNumber} • {account.accountName}</p>
                                   </div>
                                 </div>
                                 <button
@@ -2218,12 +2218,12 @@ export default function SettingsPage() {
                   </Card>
 
                   {/* Digital Asset Gateways (USDT) */}
-                  <Card className="p-10 bg-slate-900 border border-white/5 shadow-2xl rounded-[3rem]">
-                    <div className="flex items-center justify-between mb-10">
-                      <div className="flex items-center gap-6">
-                        <div className="w-14 h-14 bg-emerald-400/10 rounded-2xl flex items-center justify-center text-2xl shadow-inner shadow-emerald-400/5">💎</div>
+                  <Card className="p-4 sm:p-6 md:p-8 lg:p-10 bg-slate-900 border border-white/5 shadow-2xl rounded-2xl sm:rounded-[3rem]">
+                    <div className="flex items-center justify-between mb-6 sm:mb-10">
+                      <div className="flex items-center gap-3 sm:gap-6">
+                        <div className="w-10 h-10 sm:w-14 sm:h-14 bg-emerald-400/10 rounded-xl sm:rounded-2xl flex items-center justify-center text-xl sm:text-2xl shadow-inner shadow-emerald-400/5 shrink-0">💎</div>
                         <div>
-                          <h2 className="text-2xl font-black text-white uppercase tracking-tight">USDT</h2>
+                          <h2 className="text-xl sm:text-2xl font-black text-white uppercase tracking-tight">USDT</h2>
                           <p className="text-slate-500 font-bold text-[10px] uppercase tracking-widest">กระเป๋าเงินคริปโต</p>
                         </div>
                       </div>
@@ -2257,9 +2257,9 @@ export default function SettingsPage() {
                       {/* QR Code Upload */}
                       <div className="space-y-3">
                         <label className="text-xs font-black uppercase tracking-widest text-slate-400">รูป QR Code กระเป๋า</label>
-                        <div className="flex items-start gap-6">
+                        <div className="flex flex-col sm:flex-row items-center sm:items-start gap-4 sm:gap-6">
                           {/* QR Preview */}
-                          <div className="w-32 h-32 bg-white/5 border-2 border-dashed border-white/10 rounded-2xl flex items-center justify-center overflow-hidden flex-shrink-0">
+                          <div className="w-24 h-24 sm:w-32 sm:h-32 bg-white/5 border-2 border-dashed border-white/10 rounded-2xl flex items-center justify-center overflow-hidden flex-shrink-0">
                             {usdtSettings.usdtQrImage ? (
                               <img src={usdtSettings.usdtQrImage} alt="USDT QR" className="w-full h-full object-contain" />
                             ) : (
@@ -2333,11 +2333,11 @@ export default function SettingsPage() {
                         {/* Etherscan */}
                         <div className="space-y-3">
                           <div className="flex items-center gap-2">
-                            <label className="text-xs font-black uppercase tracking-widest text-slate-400">
+                            <label className="text-[10px] sm:text-xs font-black uppercase tracking-widest text-slate-400">
                               Etherscan API Key (สำหรับ ERC20)
                             </label>
                           </div>
-                          <div className="flex gap-3">
+                          <div className="flex flex-col sm:flex-row gap-3">
                             <div className="flex-1">
                               <Input
                                 variant="glass"
@@ -2372,11 +2372,11 @@ export default function SettingsPage() {
                         {/* BSCScan */}
                         <div className="space-y-3">
                           <div className="flex items-center gap-2">
-                            <label className="text-xs font-black uppercase tracking-widest text-slate-400">
+                            <label className="text-[10px] sm:text-xs font-black uppercase tracking-widest text-slate-400">
                               BSCScan API Key (สำหรับ BEP20)
                             </label>
                           </div>
-                          <div className="flex gap-3">
+                          <div className="flex flex-col sm:flex-row gap-3">
                             <div className="flex-1">
                               <Input
                                 variant="glass"
@@ -2417,12 +2417,12 @@ export default function SettingsPage() {
                         </div>
                       </div>
 
-                      <div className="pt-10 border-t border-white/5">
+                      <div className="pt-6 sm:pt-10 border-t border-white/5">
                         <Button
                           fullWidth
                           variant="primary"
                           size="lg"
-                          className="h-16 rounded-2xl font-black tracking-widest uppercase"
+                          className="h-12 sm:h-16 rounded-xl sm:rounded-2xl font-black tracking-widest uppercase text-xs sm:text-sm"
                           onClick={() => handleUpdate('usdt', usdtSettings)}
                           isLoading={isSaving === 'usdt'}
                         >
@@ -2434,18 +2434,18 @@ export default function SettingsPage() {
                 </div>
 
                 {/* System Contacts */}
-                <Card variant="glass" className="p-8 sm:p-10 rounded-[2.5rem] sm:rounded-[3rem] border border-white/5">
-                  <h3 className="text-[10px] font-black text-slate-600 uppercase tracking-[0.3em] mb-10 text-center">
+                <Card variant="glass" className="p-4 sm:p-8 md:p-10 rounded-2xl sm:rounded-[2.5rem] md:rounded-[3rem] border border-white/5">
+                  <h3 className="text-[10px] font-black text-slate-600 uppercase tracking-[0.3em] mb-6 sm:mb-10 text-center">
                     <span className="px-4">ช่องทางติดต่อ</span>
                   </h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 sm:gap-10">
                     <div className="space-y-1 text-center md:text-left">
                       <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">LINE แอดมิน</p>
-                      <p className="text-3xl font-black text-emerald-400">@{settings?.contactAdminLine || 'ไม่ระบุ'}</p>
+                      <p className="text-xl sm:text-3xl font-black text-emerald-400 break-all">@{settings?.contactAdminLine || 'ไม่ระบุ'}</p>
                     </div>
                     <div className="space-y-1 text-center md:text-right">
                       <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">อีเมลติดต่อ</p>
-                      <p className="text-xl sm:text-2xl font-black text-white font-mono uppercase tracking-tight">{settings?.contactAdminEmail || 'ไม่ระบุ'}</p>
+                      <p className="text-base sm:text-xl md:text-2xl font-black text-white font-mono uppercase tracking-tight break-all">{settings?.contactAdminEmail || 'ไม่ระบุ'}</p>
                     </div>
                   </div>
                 </Card>
@@ -2460,26 +2460,26 @@ export default function SettingsPage() {
                 exit={{ opacity: 0, y: -10 }}
                 className="space-y-10"
               >
-                <Card variant="glass" className="p-8 sm:p-10 rounded-[2.5rem] sm:rounded-[3rem]">
-                  <div className="flex items-center gap-6 mb-10">
-                    <div className="w-14 h-14 bg-amber-500/10 rounded-2xl flex items-center justify-center text-2xl">🔐</div>
+                <Card variant="glass" className="p-4 sm:p-8 md:p-10 rounded-2xl sm:rounded-[2.5rem] md:rounded-[3rem]">
+                  <div className="flex items-center gap-3 sm:gap-6 mb-6 sm:mb-10">
+                    <div className="w-10 h-10 sm:w-14 sm:h-14 bg-amber-500/10 rounded-xl sm:rounded-2xl flex items-center justify-center text-xl sm:text-2xl shrink-0">🔐</div>
                     <div>
-                      <h2 className="text-2xl font-black uppercase tracking-tight text-white">การควบคุมการเข้าถึง</h2>
+                      <h2 className="text-lg sm:text-2xl font-black uppercase tracking-tight text-white">การควบคุมการเข้าถึง</h2>
                       <p className="text-slate-500 font-bold text-[10px] uppercase tracking-widest">เปิด/ปิด ระบบลงทะเบียน และเข้าสู่ระบบ</p>
                     </div>
                   </div>
 
                   <div className="space-y-8">
                     {/* Registration Control */}
-                    <div className="p-6 rounded-2xl bg-white/[0.02] border border-white/5">
-                      <div className="flex items-center justify-between mb-4">
-                        <div className="flex items-center gap-4">
-                          <div className="w-12 h-12 bg-emerald-500/10 rounded-xl flex items-center justify-center">
-                            <span className="text-xl">📝</span>
+                    <div className="p-4 sm:p-6 rounded-xl sm:rounded-2xl bg-white/[0.02] border border-white/5">
+                      <div className="flex items-center justify-between mb-4 gap-3">
+                        <div className="flex items-center gap-3 sm:gap-4 min-w-0">
+                          <div className="w-10 h-10 sm:w-12 sm:h-12 bg-emerald-500/10 rounded-lg sm:rounded-xl flex items-center justify-center shrink-0">
+                            <span className="text-lg sm:text-xl">📝</span>
                           </div>
-                          <div>
-                            <h3 className="text-lg font-bold text-white">อนุญาตให้สมัครสมาชิก</h3>
-                            <p className="text-xs text-slate-500">เปิดหรือปิดการรับสมาชิกใหม่</p>
+                          <div className="min-w-0">
+                            <h3 className="text-sm sm:text-lg font-bold text-white">อนุญาตให้สมัครสมาชิก</h3>
+                            <p className="text-[10px] sm:text-xs text-slate-500">เปิดหรือปิดการรับสมาชิกใหม่</p>
                           </div>
                         </div>
                         <Switch
@@ -2509,15 +2509,15 @@ export default function SettingsPage() {
                     </div>
 
                     {/* Login Control */}
-                    <div className="p-6 rounded-2xl bg-white/[0.02] border border-white/5">
-                      <div className="flex items-center justify-between mb-4">
-                        <div className="flex items-center gap-4">
-                          <div className="w-12 h-12 bg-blue-500/10 rounded-xl flex items-center justify-center">
-                            <span className="text-xl">🔑</span>
+                    <div className="p-4 sm:p-6 rounded-xl sm:rounded-2xl bg-white/[0.02] border border-white/5">
+                      <div className="flex items-center justify-between mb-4 gap-3">
+                        <div className="flex items-center gap-3 sm:gap-4 min-w-0">
+                          <div className="w-10 h-10 sm:w-12 sm:h-12 bg-blue-500/10 rounded-lg sm:rounded-xl flex items-center justify-center shrink-0">
+                            <span className="text-lg sm:text-xl">🔑</span>
                           </div>
-                          <div>
-                            <h3 className="text-lg font-bold text-white">อนุญาตให้เข้าสู่ระบบ</h3>
-                            <p className="text-xs text-slate-500">เปิดหรือปิดการเข้าสู่ระบบของผู้ใช้</p>
+                          <div className="min-w-0">
+                            <h3 className="text-sm sm:text-lg font-bold text-white">อนุญาตให้เข้าสู่ระบบ</h3>
+                            <p className="text-[10px] sm:text-xs text-slate-500">เปิดหรือปิดการเข้าสู่ระบบของผู้ใช้</p>
                           </div>
                         </div>
                         <Switch
@@ -2584,11 +2584,11 @@ export default function SettingsPage() {
                     </div>
                   </div>
 
-                  <div className="mt-10 pt-8 border-t border-white/5 flex justify-end">
+                  <div className="mt-6 sm:mt-10 pt-6 sm:pt-8 border-t border-white/5 flex justify-end">
                     <Button
                       variant="primary"
                       size="lg"
-                      className="px-10 h-16 rounded-2xl shadow-emerald-500/20 font-black tracking-widest uppercase text-[11px]"
+                      className="w-full sm:w-auto px-6 sm:px-10 h-12 sm:h-16 rounded-xl sm:rounded-2xl shadow-emerald-500/20 font-black tracking-widest uppercase text-[11px]"
                       onClick={() => handleUpdate('access', accessControlSettings)}
                       isLoading={isSaving === 'access'}
                     >
@@ -2719,11 +2719,11 @@ export default function SettingsPage() {
                   </div>
 
                   {/* Save Button */}
-                  <div className="flex justify-end mt-8 gap-4">
+                  <div className="flex flex-col-reverse sm:flex-row justify-end mt-6 sm:mt-8 gap-3 sm:gap-4">
                     <Button
                       variant="ghost"
                       size="lg"
-                      className="px-8 h-16 rounded-2xl text-rose-400 hover:text-rose-300"
+                      className="w-full sm:w-auto px-6 sm:px-8 h-12 sm:h-16 rounded-xl sm:rounded-2xl text-rose-400 hover:text-rose-300"
                       onClick={() => setSiteBrandingSettings({
                         siteLogoBase64: '',
                         siteName: '',
@@ -2735,7 +2735,7 @@ export default function SettingsPage() {
                     <Button
                       variant="primary"
                       size="lg"
-                      className="px-10 h-16 rounded-2xl shadow-emerald-500/20 font-black tracking-widest uppercase text-[11px]"
+                      className="w-full sm:w-auto px-6 sm:px-10 h-12 sm:h-16 rounded-xl sm:rounded-2xl shadow-emerald-500/20 font-black tracking-widest uppercase text-[11px]"
                       onClick={() => handleUpdate('site-branding', siteBrandingSettings)}
                       isLoading={isSaving === 'site-branding'}
                     >
@@ -2930,7 +2930,7 @@ export default function SettingsPage() {
                   {/* Colors Section */}
                   <div className="mt-10 pt-8 border-t border-white/5">
                     <h3 className="text-lg font-black text-white uppercase tracking-tight mb-6">🎨 สีสลิป</h3>
-                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
                       <div>
                         <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-2">
                           สีสำเร็จ
@@ -2943,7 +2943,7 @@ export default function SettingsPage() {
                               ...slipBrandingSettings,
                               slipSuccessColor: e.target.value
                             })}
-                            className="w-14 h-14 rounded-xl border-2 border-white/10 cursor-pointer"
+                            className="w-12 h-12 sm:w-14 sm:h-14 rounded-xl border-2 border-white/10 cursor-pointer shrink-0"
                           />
                           <Input
                             value={slipBrandingSettings.slipSuccessColor}
@@ -2967,7 +2967,7 @@ export default function SettingsPage() {
                               ...slipBrandingSettings,
                               slipDuplicateColor: e.target.value
                             })}
-                            className="w-14 h-14 rounded-xl border-2 border-white/10 cursor-pointer"
+                            className="w-12 h-12 sm:w-14 sm:h-14 rounded-xl border-2 border-white/10 cursor-pointer shrink-0"
                           />
                           <Input
                             value={slipBrandingSettings.slipDuplicateColor}
@@ -2991,7 +2991,7 @@ export default function SettingsPage() {
                               ...slipBrandingSettings,
                               slipErrorColor: e.target.value
                             })}
-                            className="w-14 h-14 rounded-xl border-2 border-white/10 cursor-pointer"
+                            className="w-12 h-12 sm:w-14 sm:h-14 rounded-xl border-2 border-white/10 cursor-pointer shrink-0"
                           />
                           <Input
                             value={slipBrandingSettings.slipErrorColor}
@@ -3015,7 +3015,7 @@ export default function SettingsPage() {
                               ...slipBrandingSettings,
                               slipAmountColor: e.target.value
                             })}
-                            className="w-14 h-14 rounded-xl border-2 border-white/10 cursor-pointer"
+                            className="w-12 h-12 sm:w-14 sm:h-14 rounded-xl border-2 border-white/10 cursor-pointer shrink-0"
                           />
                           <Input
                             value={slipBrandingSettings.slipAmountColor}
@@ -3061,10 +3061,10 @@ export default function SettingsPage() {
                   </div>
 
                   {/* Save Button */}
-                  <div className="mt-10 pt-8 border-t border-white/5 flex justify-between items-center">
+                  <div className="mt-6 sm:mt-10 pt-6 sm:pt-8 border-t border-white/5 flex flex-col-reverse sm:flex-row justify-between items-stretch sm:items-center gap-3">
                     <Button
                       variant="ghost"
-                      className="text-slate-400 hover:text-white"
+                      className="text-slate-400 hover:text-white text-sm"
                       onClick={() => setSlipBrandingSettings({
                         slipBrandName: '',
                         slipVerificationText: '',
@@ -3085,7 +3085,7 @@ export default function SettingsPage() {
                     <Button
                       variant="primary"
                       size="lg"
-                      className="px-10 h-16 rounded-2xl shadow-emerald-500/20 font-black tracking-widest uppercase text-[11px]"
+                      className="w-full sm:w-auto px-6 sm:px-10 h-12 sm:h-16 rounded-xl sm:rounded-2xl shadow-emerald-500/20 font-black tracking-widest uppercase text-[11px]"
                       onClick={() => handleUpdate('branding', slipBrandingSettings)}
                       isLoading={isSaving === 'branding'}
                     >
@@ -3258,7 +3258,7 @@ export default function SettingsPage() {
                                   ...floatingContactSettings,
                                   floatingContactBgColor: e.target.value
                                 })}
-                                className="w-14 h-14 rounded-xl border-2 border-white/10 cursor-pointer"
+                                className="w-12 h-12 sm:w-14 sm:h-14 rounded-xl border-2 border-white/10 cursor-pointer shrink-0"
                               />
                               <Input
                                 value={floatingContactSettings.floatingContactBgColor}
@@ -3345,11 +3345,11 @@ export default function SettingsPage() {
                     )}
 
                     {/* Save Button */}
-                    <div className="mt-10 pt-8 border-t border-white/5 flex justify-end">
+                    <div className="mt-6 sm:mt-10 pt-6 sm:pt-8 border-t border-white/5 flex justify-end">
                       <Button
                         variant="primary"
                         size="lg"
-                        className="px-10 h-16 rounded-2xl shadow-emerald-500/20 font-black tracking-widest uppercase text-[11px]"
+                        className="w-full sm:w-auto px-6 sm:px-10 h-12 sm:h-16 rounded-xl sm:rounded-2xl shadow-emerald-500/20 font-black tracking-widest uppercase text-[11px]"
                         onClick={() => handleUpdate('floatingContact', floatingContactSettings)}
                         isLoading={isSaving === 'floatingContact'}
                       >

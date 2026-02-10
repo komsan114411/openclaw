@@ -553,7 +553,7 @@ export default function AdminBankMonitorPage() {
           <select
             value={filterOwner}
             onChange={(e) => setFilterOwner(e.target.value)}
-            className="px-4 py-3 bg-slate-800/50 border border-slate-700/50 rounded-xl text-white focus:outline-none focus:border-violet-500/50 min-w-[180px]"
+            className="w-full sm:w-auto px-4 py-3 bg-slate-800/50 border border-slate-700/50 rounded-xl text-white focus:outline-none focus:border-violet-500/50 sm:min-w-[180px]"
           >
             <option value="">เจ้าของทั้งหมด</option>
             {owners.map((owner) => (
@@ -905,7 +905,7 @@ export default function AdminBankMonitorPage() {
                         fetchDetailMessages(selectedSession.lineAccountId, 1, newType, false, detailStartDate, detailEndDate);
                       }
                     }}
-                    className="px-4 py-2.5 bg-slate-800/50 border border-slate-700/50 rounded-xl text-sm text-white focus:outline-none focus:border-emerald-500/50 min-w-[160px]"
+                    className="w-full sm:w-auto px-4 py-2.5 bg-slate-800/50 border border-slate-700/50 rounded-xl text-sm text-white focus:outline-none focus:border-emerald-500/50 sm:min-w-[160px]"
                   >
                     <option value="">ทั้งหมด</option>
                     <option value="deposit">เงินเข้า</option>
