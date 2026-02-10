@@ -26,6 +26,7 @@ import {
   CheckCircle,
   XCircle,
   AlertCircle,
+  ChevronLeft,
   ChevronRight,
   Filter,
   User,
@@ -113,6 +114,14 @@ export default function AdminBankMonitorPage() {
   const [summary, setSummary] = useState<TransactionSummary | null>(null);
   const [isLoadingDetail, setIsLoadingDetail] = useState(false);
   const [isFetching, setIsFetching] = useState(false);
+
+  // Detail pagination/filter/search
+  const [detailCurrentPage, setDetailCurrentPage] = useState(1);
+  const [detailTotalPages, setDetailTotalPages] = useState(0);
+  const [detailTotal, setDetailTotal] = useState(0);
+  const [detailFilterType, setDetailFilterType] = useState<string>('');
+  const [detailSearchQuery, setDetailSearchQuery] = useState('');
+  const DETAIL_ITEMS_PER_PAGE = 50;
 
   // Keys modal
   const [showKeysModal, setShowKeysModal] = useState(false);
@@ -216,21 +225,41 @@ export default function AdminBankMonitorPage() {
     fetchData();
   }, [fetchData]);
 
+  const fetchDetailMessages = async (lineAccountId: string, page: number, type: string) => {
+    try {
+      const offset = (page - 1) * DETAIL_ITEMS_PER_PAGE;
+      const params: { limit: number; offset: number; type?: string } = {
+        limit: DETAIL_ITEMS_PER_PAGE,
+        offset,
+      };
+      if (type) params.type = type;
+
+      const [messagesRes, summaryRes] = await Promise.all([
+        lineSessionApi.getMessages(lineAccountId, params),
+        lineSessionApi.getTransactionSummary(lineAccountId),
+      ]);
+
+      const total = messagesRes.data?.total || 0;
+      setMessages(messagesRes.data?.messages || []);
+      setDetailTotal(total);
+      setDetailTotalPages(Math.ceil(total / DETAIL_ITEMS_PER_PAGE));
+      setDetailCurrentPage(page);
+      setSummary(summaryRes.data || null);
+    } catch (error) {
+      toast.error('Failed to load transaction details');
+    }
+  };
+
   const openDetailModal = async (session: BankSession) => {
     setSelectedSession(session);
     setShowDetailModal(true);
     setIsLoadingDetail(true);
+    setDetailFilterType('');
+    setDetailSearchQuery('');
+    setDetailCurrentPage(1);
 
     try {
-      const [messagesRes, summaryRes] = await Promise.all([
-        lineSessionApi.getMessages(session.lineAccountId, { limit: 50 }),
-        lineSessionApi.getTransactionSummary(session.lineAccountId),
-      ]);
-
-      setMessages(messagesRes.data?.messages || []);
-      setSummary(summaryRes.data || null);
-    } catch (error) {
-      toast.error('Failed to load transaction details');
+      await fetchDetailMessages(session.lineAccountId, 1, '');
     } finally {
       setIsLoadingDetail(false);
     }
@@ -243,15 +272,11 @@ export default function AdminBankMonitorPage() {
       const res = await lineSessionApi.fetchMessages(selectedSession.lineAccountId);
       toast.success(`ดึงได้ ${res.data.newMessages || 0} ข้อความใหม่`);
 
-      // Reload messages
-      const [messagesRes, summaryRes] = await Promise.all([
-        lineSessionApi.getMessages(selectedSession.lineAccountId, { limit: 50 }),
-        lineSessionApi.getTransactionSummary(selectedSession.lineAccountId),
-      ]);
-      setMessages(messagesRes.data?.messages || []);
-      setSummary(summaryRes.data || null);
-    } catch (error: any) {
-      toast.error(error.response?.data?.message || 'ไม่สามารถดึงข้อความได้');
+      // Reload messages with current filter
+      await fetchDetailMessages(selectedSession.lineAccountId, 1, detailFilterType);
+    } catch (error: unknown) {
+      const err = error as { response?: { data?: { message?: string } } };
+      toast.error(err.response?.data?.message || 'ไม่สามารถดึงข้อความได้');
     } finally {
       setIsFetching(false);
     }
@@ -288,6 +313,19 @@ export default function AdminBankMonitorPage() {
     const matchesOwner = !filterOwner || session.ownerId === filterOwner;
     return matchesSearch && matchesBank && matchesOwner;
   });
+
+  // Client-side search within current page
+  const filteredMessages = detailSearchQuery.trim()
+    ? messages.filter((msg) => {
+        const query = detailSearchQuery.toLowerCase();
+        return (
+          msg.text?.toLowerCase().includes(query) ||
+          msg.amount?.toLowerCase().includes(query) ||
+          msg.transactionType?.toLowerCase().includes(query) ||
+          msg.balance?.toLowerCase().includes(query)
+        );
+      })
+    : messages;
 
   const getStatusBadge = (status?: string) => {
     switch (status) {
@@ -731,7 +769,7 @@ export default function AdminBankMonitorPage() {
                 <div className="flex items-center justify-between p-4 bg-slate-50 rounded-xl">
                   <div>
                     <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Messages</p>
-                    <p className="text-sm text-slate-600">{messages.length} messages loaded</p>
+                    <p className="text-sm text-slate-600">{detailTotal} messages total</p>
                   </div>
                   <Button
                     variant="secondary"
@@ -743,17 +781,66 @@ export default function AdminBankMonitorPage() {
                   </Button>
                 </div>
 
+                {/* Search + Filter Bar */}
+                <div className="flex flex-col sm:flex-row gap-3">
+                  <div className="relative flex-1">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                    <input
+                      type="text"
+                      placeholder="ค้นหาข้อความ, จำนวนเงิน..."
+                      value={detailSearchQuery}
+                      onChange={(e) => setDetailSearchQuery(e.target.value)}
+                      className="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm text-slate-700 placeholder-slate-400 focus:outline-none focus:border-emerald-500"
+                    />
+                  </div>
+                  <select
+                    value={detailFilterType}
+                    onChange={(e) => {
+                      const newType = e.target.value;
+                      setDetailFilterType(newType);
+                      setDetailSearchQuery('');
+                      if (selectedSession) {
+                        fetchDetailMessages(selectedSession.lineAccountId, 1, newType);
+                      }
+                    }}
+                    className="px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm text-slate-700 focus:outline-none focus:border-emerald-500 min-w-[160px]"
+                  >
+                    <option value="">ทั้งหมด</option>
+                    <option value="deposit">เงินเข้า</option>
+                    <option value="withdraw">เงินออก</option>
+                    <option value="transfer">โอน</option>
+                    <option value="payment">ชำระเงิน</option>
+                    <option value="fee">ค่าธรรมเนียม</option>
+                    <option value="interest">ดอกเบี้ย</option>
+                    <option value="bill">ชำระบิล</option>
+                    <option value="unknown">อื่นๆ</option>
+                  </select>
+                </div>
+
+                {/* Info bar */}
+                {detailTotal > 0 && (
+                  <div className="flex items-center justify-between px-2">
+                    <p className="text-xs text-slate-500">
+                      แสดง {((detailCurrentPage - 1) * DETAIL_ITEMS_PER_PAGE) + 1}-{Math.min(detailCurrentPage * DETAIL_ITEMS_PER_PAGE, detailTotal)} จาก {detailTotal} รายการ
+                      {detailFilterType && <span className="ml-1 text-emerald-600">({detailFilterType})</span>}
+                      {detailSearchQuery.trim() && <span className="ml-1 text-blue-600">ค้นหา: &quot;{detailSearchQuery}&quot; ({filteredMessages.length} ผลลัพธ์)</span>}
+                    </p>
+                  </div>
+                )}
+
                 {/* Messages List */}
                 <div className="space-y-3">
                   <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-2">Recent Transactions</p>
-                  {messages.length === 0 ? (
+                  {filteredMessages.length === 0 ? (
                     <div className="p-8 bg-slate-50 rounded-[2rem] text-center">
                       <Wallet className="w-12 h-12 text-slate-300 mx-auto mb-3" />
-                      <p className="text-sm text-slate-500">No transactions yet</p>
+                      <p className="text-sm text-slate-500">
+                        {detailSearchQuery.trim() ? 'ไม่พบรายการที่ค้นหา' : 'No transactions yet'}
+                      </p>
                     </div>
                   ) : (
-                    <div className="space-y-2 max-h-[300px] overflow-y-auto custom-scrollbar">
-                      {messages.map((msg, index) => (
+                    <div className="space-y-2 max-h-[500px] overflow-y-auto custom-scrollbar">
+                      {filteredMessages.map((msg, index) => (
                         <div key={msg._id || index} className="p-4 bg-slate-50 rounded-xl border border-slate-100">
                           <div className="flex items-center justify-between mb-2">
                             <Badge className={cn(
@@ -761,6 +848,10 @@ export default function AdminBankMonitorPage() {
                               msg.transactionType === 'deposit' && "bg-emerald-100 text-emerald-700",
                               msg.transactionType === 'withdraw' && "bg-rose-100 text-rose-700",
                               msg.transactionType === 'transfer' && "bg-blue-100 text-blue-700",
+                              msg.transactionType === 'payment' && "bg-violet-100 text-violet-700",
+                              msg.transactionType === 'fee' && "bg-amber-100 text-amber-700",
+                              msg.transactionType === 'interest' && "bg-cyan-100 text-cyan-700",
+                              msg.transactionType === 'bill' && "bg-orange-100 text-orange-700",
                               msg.transactionType === 'unknown' && "bg-slate-100 text-slate-600"
                             )}>
                               {msg.transactionType || 'unknown'}
@@ -792,6 +883,76 @@ export default function AdminBankMonitorPage() {
                     </div>
                   )}
                 </div>
+
+                {/* Pagination Controls */}
+                {detailTotalPages > 1 && (
+                  <div className="flex items-center justify-center gap-2 pt-2">
+                    <button
+                      onClick={() => {
+                        if (selectedSession && detailCurrentPage > 1) {
+                          fetchDetailMessages(selectedSession.lineAccountId, detailCurrentPage - 1, detailFilterType);
+                        }
+                      }}
+                      disabled={detailCurrentPage <= 1}
+                      className={cn(
+                        "w-9 h-9 rounded-lg flex items-center justify-center transition-colors",
+                        detailCurrentPage <= 1
+                          ? "text-slate-300 cursor-not-allowed"
+                          : "text-slate-600 hover:bg-slate-100"
+                      )}
+                    >
+                      <ChevronLeft className="w-4 h-4" />
+                    </button>
+
+                    {(() => {
+                      const pages: number[] = [];
+                      let start = Math.max(1, detailCurrentPage - 2);
+                      let end = Math.min(detailTotalPages, detailCurrentPage + 2);
+                      if (detailCurrentPage <= 2) end = Math.min(detailTotalPages, 5);
+                      if (detailCurrentPage >= detailTotalPages - 1) start = Math.max(1, detailTotalPages - 4);
+                      for (let i = start; i <= end; i++) pages.push(i);
+                      return pages.map((page) => (
+                        <button
+                          key={page}
+                          onClick={() => {
+                            if (selectedSession && page !== detailCurrentPage) {
+                              fetchDetailMessages(selectedSession.lineAccountId, page, detailFilterType);
+                            }
+                          }}
+                          className={cn(
+                            "w-9 h-9 rounded-lg text-sm font-bold transition-colors",
+                            page === detailCurrentPage
+                              ? "bg-emerald-500 text-white"
+                              : "text-slate-600 hover:bg-slate-100"
+                          )}
+                        >
+                          {page}
+                        </button>
+                      ));
+                    })()}
+
+                    <button
+                      onClick={() => {
+                        if (selectedSession && detailCurrentPage < detailTotalPages) {
+                          fetchDetailMessages(selectedSession.lineAccountId, detailCurrentPage + 1, detailFilterType);
+                        }
+                      }}
+                      disabled={detailCurrentPage >= detailTotalPages}
+                      className={cn(
+                        "w-9 h-9 rounded-lg flex items-center justify-center transition-colors",
+                        detailCurrentPage >= detailTotalPages
+                          ? "text-slate-300 cursor-not-allowed"
+                          : "text-slate-600 hover:bg-slate-100"
+                      )}
+                    >
+                      <ChevronRight className="w-4 h-4" />
+                    </button>
+
+                    <span className="text-xs text-slate-400 ml-2">
+                      หน้า {detailCurrentPage} / {detailTotalPages}
+                    </span>
+                  </div>
+                )}
               </>
             )}
 
