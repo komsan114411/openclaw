@@ -1099,6 +1099,19 @@ export class LineSessionController {
   // ================================
 
   /**
+   * Get batch transaction summary across all sessions
+   */
+  @Get('batch/messages/summary')
+  @ApiOperation({ summary: 'Get batch transaction summary' })
+  async getBatchTransactionSummary() {
+    const result = await this.messageFetchService.getBatchTransactionSummary();
+    return {
+      success: true,
+      ...result,
+    };
+  }
+
+  /**
    * สถิติข้อความรวม (เรียกตอนโหลดหน้า)
    */
   @Get('messages/stats')

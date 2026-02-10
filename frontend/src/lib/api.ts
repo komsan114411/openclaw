@@ -866,6 +866,10 @@ export const lineSessionApi = {
   getMessageStats: () =>
     api.get('/admin/line-session/messages/stats'),
 
+  // Get batch transaction summary
+  getBatchSummary: () =>
+    api.get('/admin/line-session/batch/messages/summary'),
+
   // Preview cleanup before deleting
   previewCleanup: (data: {
     sessionIds?: string[];

@@ -118,3 +118,4 @@ LineMessageSchema.index({ lineAccountId: 1, messageDate: -1 });
 LineMessageSchema.index({ bankCode: 1, messageDate: -1 });
 LineMessageSchema.index({ transactionType: 1 });
 LineMessageSchema.index({ text: 'text', originalMsg: 'text' }, { default_language: 'none' });
+LineMessageSchema.index({ lineAccountId: 1, transactionType: 1 });

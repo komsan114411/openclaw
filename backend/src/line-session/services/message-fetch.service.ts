@@ -997,6 +997,81 @@ export class MessageFetchService implements OnModuleInit, OnModuleDestroy {
   }
 
   /**
+   * Get batch transaction summary across all sessions
+   */
+  async getBatchTransactionSummary(): Promise<{
+    totalDeposits: { total: number; count: number };
+    totalWithdrawals: { total: number; count: number };
+    perSession: Array<{
+      lineAccountId: string;
+      deposits: { total: number; count: number };
+      withdrawals: { total: number; count: number };
+    }>;
+  }> {
+    const results = await this.lineMessageModel.aggregate([
+      {
+        $match: {
+          transactionType: { $in: ['deposit', 'withdraw'] },
+        },
+      },
+      {
+        $group: {
+          _id: {
+            lineAccountId: '$lineAccountId',
+            transactionType: '$transactionType',
+          },
+          total: { $sum: { $toDouble: '$amount' } },
+          count: { $sum: 1 },
+        },
+      },
+    ]);
+
+    // Build per-session map
+    const sessionMap = new Map<string, { deposits: { total: number; count: number }; withdrawals: { total: number; count: number } }>();
+
+    for (const row of results) {
+      const lid = row._id.lineAccountId;
+      if (!sessionMap.has(lid)) {
+        sessionMap.set(lid, {
+          deposits: { total: 0, count: 0 },
+          withdrawals: { total: 0, count: 0 },
+        });
+      }
+      const entry = sessionMap.get(lid)!;
+      if (row._id.transactionType === 'deposit') {
+        entry.deposits = { total: row.total, count: row.count };
+      } else if (row._id.transactionType === 'withdraw') {
+        entry.withdrawals = { total: row.total, count: row.count };
+      }
+    }
+
+    // Calculate totals
+    let totalDepositAmount = 0;
+    let totalDepositCount = 0;
+    let totalWithdrawAmount = 0;
+    let totalWithdrawCount = 0;
+    const perSession: Array<{
+      lineAccountId: string;
+      deposits: { total: number; count: number };
+      withdrawals: { total: number; count: number };
+    }> = [];
+
+    for (const [lineAccountId, data] of sessionMap) {
+      totalDepositAmount += data.deposits.total;
+      totalDepositCount += data.deposits.count;
+      totalWithdrawAmount += data.withdrawals.total;
+      totalWithdrawCount += data.withdrawals.count;
+      perSession.push({ lineAccountId, ...data });
+    }
+
+    return {
+      totalDeposits: { total: totalDepositAmount, count: totalDepositCount },
+      totalWithdrawals: { total: totalWithdrawAmount, count: totalWithdrawCount },
+      perSession,
+    };
+  }
+
+  /**
    * Build headers for LINE API
    */
   private buildHeaders(session: LineSessionDocument) {

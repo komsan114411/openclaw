@@ -113,6 +113,9 @@ export default function AdminBankMonitorPage() {
   const [detailTotal, setDetailTotal] = useState(0);
   const [detailFilterType, setDetailFilterType] = useState<string>('');
   const [detailSearchQuery, setDetailSearchQuery] = useState('');
+  const [isDetailPageLoading, setIsDetailPageLoading] = useState(false);
+  const [detailStartDate, setDetailStartDate] = useState('');
+  const [detailEndDate, setDetailEndDate] = useState('');
   const DETAIL_ITEMS_PER_PAGE = 50;
 
   // Keys modal
@@ -129,6 +132,11 @@ export default function AdminBankMonitorPage() {
     totalMessages: 0,
     sessionsWithKeys: 0,
   });
+  const [lastUpdatedAt, setLastUpdatedAt] = useState<Date | null>(null);
+
+  // Auto-refresh
+  const [autoRefresh, setAutoRefresh] = useState(false);
+  const AUTO_REFRESH_INTERVAL = 60000; // 60 seconds
 
   // Batch fetch state
   const [isBatchFetching, setIsBatchFetching] = useState(false);
@@ -200,17 +208,12 @@ export default function AdminBankMonitorPage() {
         };
       });
 
-      // Fetch transaction summaries for all sessions in parallel to get totals
-      const summaryResults = await Promise.all(
-        sessionsData.map((session) =>
-          lineSessionApi.getTransactionSummary(session.lineAccountId)
-            .then((res) => res.data?.summary || { deposits: { total: 0, count: 0 }, withdrawals: { total: 0, count: 0 } })
-            .catch(() => ({ deposits: { total: 0, count: 0 }, withdrawals: { total: 0, count: 0 } }))
-        )
-      );
+      // Fetch batch transaction summary (single query instead of N individual calls)
+      const batchSummaryRes = await lineSessionApi.getBatchSummary()
+        .catch(() => ({ data: { totalDeposits: { total: 0, count: 0 }, totalWithdrawals: { total: 0, count: 0 } } }));
 
-      const totalDeposits = summaryResults.reduce((sum, s) => sum + (s.deposits?.total || 0), 0);
-      const totalWithdrawals = summaryResults.reduce((sum, s) => sum + (s.withdrawals?.total || 0), 0);
+      const totalDeposits = batchSummaryRes.data?.totalDeposits?.total || 0;
+      const totalWithdrawals = batchSummaryRes.data?.totalWithdrawals?.total || 0;
       const totalMessages = msgStatsRes.data?.totalMessages || 0;
 
       setSessions(sessionsData);
@@ -222,8 +225,9 @@ export default function AdminBankMonitorPage() {
         totalMessages,
         sessionsWithKeys: sessionsData.filter(s => s.hasKeys).length,
       });
+      setLastUpdatedAt(new Date());
     } catch (error) {
-      toast.error('Failed to load bank sessions');
+      toast.error('ไม่สามารถโหลดข้อมูลได้');
     } finally {
       setIsLoading(false);
     }
@@ -233,28 +237,51 @@ export default function AdminBankMonitorPage() {
     fetchData();
   }, [fetchData]);
 
-  const fetchDetailMessages = async (lineAccountId: string, page: number, type: string) => {
+  // Auto-refresh timer
+  useEffect(() => {
+    if (!autoRefresh) return;
+    const interval = setInterval(() => {
+      fetchData();
+    }, AUTO_REFRESH_INTERVAL);
+    return () => clearInterval(interval);
+  }, [autoRefresh, fetchData]);
+
+  const fetchDetailMessages = async (lineAccountId: string, page: number, type: string, skipSummary = false, startDate?: string, endDate?: string) => {
     try {
+      setIsDetailPageLoading(true);
       const offset = (page - 1) * DETAIL_ITEMS_PER_PAGE;
-      const params: { limit: number; offset: number; type?: string } = {
+      const params: { limit: number; offset: number; type?: string; startDate?: string; endDate?: string } = {
         limit: DETAIL_ITEMS_PER_PAGE,
         offset,
       };
       if (type) params.type = type;
+      if (startDate) params.startDate = startDate;
+      if (endDate) params.endDate = endDate;
 
-      const [messagesRes, summaryRes] = await Promise.all([
-        lineSessionApi.getMessages(lineAccountId, params),
-        lineSessionApi.getTransactionSummary(lineAccountId),
-      ]);
+      if (skipSummary) {
+        const messagesRes = await lineSessionApi.getMessages(lineAccountId, params);
+        const total = messagesRes.data?.total || 0;
+        setMessages(messagesRes.data?.messages || []);
+        setDetailTotal(total);
+        setDetailTotalPages(Math.ceil(total / DETAIL_ITEMS_PER_PAGE));
+        setDetailCurrentPage(page);
+      } else {
+        const [messagesRes, summaryRes] = await Promise.all([
+          lineSessionApi.getMessages(lineAccountId, params),
+          lineSessionApi.getTransactionSummary(lineAccountId, startDate, endDate),
+        ]);
 
-      const total = messagesRes.data?.total || 0;
-      setMessages(messagesRes.data?.messages || []);
-      setDetailTotal(total);
-      setDetailTotalPages(Math.ceil(total / DETAIL_ITEMS_PER_PAGE));
-      setDetailCurrentPage(page);
-      setSummary(summaryRes.data?.summary || null);
+        const total = messagesRes.data?.total || 0;
+        setMessages(messagesRes.data?.messages || []);
+        setDetailTotal(total);
+        setDetailTotalPages(Math.ceil(total / DETAIL_ITEMS_PER_PAGE));
+        setDetailCurrentPage(page);
+        setSummary(summaryRes.data?.summary || null);
+      }
     } catch (error) {
-      toast.error('Failed to load transaction details');
+      toast.error('ไม่สามารถโหลดรายการธุรกรรม');
+    } finally {
+      setIsDetailPageLoading(false);
     }
   };
 
@@ -265,6 +292,8 @@ export default function AdminBankMonitorPage() {
     setDetailFilterType('');
     setDetailSearchQuery('');
     setDetailCurrentPage(1);
+    setDetailStartDate('');
+    setDetailEndDate('');
 
     try {
       await fetchDetailMessages(session.lineAccountId, 1, '');
@@ -281,7 +310,7 @@ export default function AdminBankMonitorPage() {
       toast.success(`ดึงได้ ${res.data.newMessages || 0} ข้อความใหม่`);
 
       // Reload messages with current filter
-      await fetchDetailMessages(selectedSession.lineAccountId, 1, detailFilterType);
+      await fetchDetailMessages(selectedSession.lineAccountId, 1, detailFilterType, false, detailStartDate, detailEndDate);
     } catch (error: unknown) {
       const err = error as { response?: { data?: { message?: string } } };
       toast.error(err.response?.data?.message || 'ไม่สามารถดึงข้อความได้');
@@ -388,11 +417,16 @@ export default function AdminBankMonitorPage() {
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
             <h1 className="text-2xl md:text-3xl font-black text-white tracking-tight">
-              Bank Monitor
+              ตรวจสอบธนาคาร
             </h1>
             <p className="text-slate-400 text-sm mt-1">
-              Monitor bank transactions from LINE sessions ({stats.sessionsWithKeys}/{stats.totalSessions} มี Keys)
+              ตรวจสอบธุรกรรมธนาคารจาก LINE sessions ({stats.sessionsWithKeys}/{stats.totalSessions} มี Keys)
             </p>
+            {lastUpdatedAt && (
+              <p className="text-slate-500 text-xs mt-0.5">
+                อัปเดตล่าสุด: {lastUpdatedAt.toLocaleString('th-TH')}
+              </p>
+            )}
           </div>
           <div className="flex items-center gap-2 sm:gap-3">
             <Button
@@ -403,11 +437,11 @@ export default function AdminBankMonitorPage() {
             >
               {isBatchFetching ? (
                 <>
-                  <Loader2 className="w-4 h-4 mr-1 sm:mr-2 animate-spin" /> <span className="hidden sm:inline">Fetching...</span><span className="sm:hidden">...</span>
+                  <Loader2 className="w-4 h-4 mr-1 sm:mr-2 animate-spin" /> <span className="hidden sm:inline">กำลังดึง...</span><span className="sm:hidden">...</span>
                 </>
               ) : (
                 <>
-                  <Download className="w-4 h-4 mr-1 sm:mr-2" /> <span className="hidden sm:inline">Fetch All</span><span className="sm:hidden">Fetch</span> ({stats.sessionsWithKeys})
+                  <Download className="w-4 h-4 mr-1 sm:mr-2" /> <span className="hidden sm:inline">ดึงทั้งหมด</span><span className="sm:hidden">ดึง</span> ({stats.sessionsWithKeys})
                 </>
               )}
             </Button>
@@ -416,52 +450,88 @@ export default function AdminBankMonitorPage() {
               onClick={fetchData}
               className="h-10 sm:h-12 rounded-xl font-bold text-xs sm:text-sm"
             >
-              <RefreshCw className="w-4 h-4 mr-1 sm:mr-2" /> <span className="hidden sm:inline">Refresh</span>
+              <RefreshCw className="w-4 h-4 mr-1 sm:mr-2" /> <span className="hidden sm:inline">รีเฟรช</span>
             </Button>
+            <button
+              onClick={() => setAutoRefresh(!autoRefresh)}
+              className={cn(
+                "h-10 sm:h-12 px-3 rounded-xl font-bold text-xs sm:text-sm border transition-colors flex items-center gap-1.5",
+                autoRefresh
+                  ? "bg-emerald-500/20 border-emerald-500/30 text-emerald-400"
+                  : "bg-slate-800/50 border-slate-700/50 text-slate-400 hover:text-white"
+              )}
+              title={autoRefresh ? 'ปิดรีเฟรชอัตโนมัติ' : 'เปิดรีเฟรชอัตโนมัติ (ทุก 60 วินาที)'}
+            >
+              <Clock className="w-4 h-4" />
+              <span className="hidden sm:inline">{autoRefresh ? 'อัตโนมัติ' : 'อัตโนมัติ'}</span>
+            </button>
           </div>
         </div>
 
         {/* Stats Cards */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
-          <div className="p-4 md:p-6 bg-slate-800/50 rounded-2xl border border-slate-700/50">
-            <div className="flex items-center gap-2 md:gap-3 mb-3">
-              <div className="w-8 h-8 md:w-10 md:h-10 rounded-xl bg-blue-500/20 flex items-center justify-center shrink-0">
-                <Building2 className="w-4 h-4 md:w-5 md:h-5 text-blue-400" />
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 md:gap-4">
+          <div className="p-4 md:p-5 bg-slate-800/50 rounded-2xl border border-slate-700/50">
+            <div className="flex items-center gap-2 mb-2">
+              <div className="w-8 h-8 rounded-xl bg-blue-500/20 flex items-center justify-center shrink-0">
+                <Building2 className="w-4 h-4 text-blue-400" />
               </div>
-              <span className="text-[9px] md:text-[10px] font-bold text-slate-400 uppercase tracking-widest leading-tight">Sessions</span>
+              <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest leading-tight">Sessions</span>
             </div>
-            <p className="text-xl md:text-2xl font-black text-white">{stats.totalSessions}</p>
+            <p className="text-xl font-black text-white">{stats.totalSessions}</p>
           </div>
-          <div className="p-4 md:p-6 bg-slate-800/50 rounded-2xl border border-slate-700/50">
-            <div className="flex items-center gap-2 md:gap-3 mb-3">
-              <div className="w-8 h-8 md:w-10 md:h-10 rounded-xl bg-emerald-500/20 flex items-center justify-center shrink-0">
-                <Activity className="w-4 h-4 md:w-5 md:h-5 text-emerald-400" />
+          <div className="p-4 md:p-5 bg-slate-800/50 rounded-2xl border border-slate-700/50">
+            <div className="flex items-center gap-2 mb-2">
+              <div className="w-8 h-8 rounded-xl bg-emerald-500/20 flex items-center justify-center shrink-0">
+                <Activity className="w-4 h-4 text-emerald-400" />
               </div>
-              <span className="text-[9px] md:text-[10px] font-bold text-slate-400 uppercase tracking-widest leading-tight">Active</span>
+              <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest leading-tight">ใช้งาน</span>
             </div>
-            <p className="text-xl md:text-2xl font-black text-emerald-400">{stats.activeSessions}</p>
+            <p className="text-xl font-black text-emerald-400">{stats.activeSessions}</p>
           </div>
-          <div className="p-4 md:p-6 bg-slate-800/50 rounded-2xl border border-slate-700/50">
-            <div className="flex items-center gap-2 md:gap-3 mb-3">
-              <div className="w-8 h-8 md:w-10 md:h-10 rounded-xl bg-green-500/20 flex items-center justify-center shrink-0">
-                <TrendingUp className="w-4 h-4 md:w-5 md:h-5 text-green-400" />
+          <div className="p-4 md:p-5 bg-slate-800/50 rounded-2xl border border-slate-700/50">
+            <div className="flex items-center gap-2 mb-2">
+              <div className="w-8 h-8 rounded-xl bg-green-500/20 flex items-center justify-center shrink-0">
+                <TrendingUp className="w-4 h-4 text-green-400" />
               </div>
-              <span className="text-[9px] md:text-[10px] font-bold text-slate-400 uppercase tracking-widest leading-tight">เงินเข้า</span>
+              <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest leading-tight">เงินเข้า</span>
             </div>
-            <p className="text-base md:text-xl font-black text-green-400">
+            <p className="text-sm md:text-base font-black text-green-400">
               {stats.totalDeposits.toLocaleString('th-TH', { style: 'currency', currency: 'THB' })}
             </p>
           </div>
-          <div className="p-4 md:p-6 bg-slate-800/50 rounded-2xl border border-slate-700/50">
-            <div className="flex items-center gap-2 md:gap-3 mb-3">
-              <div className="w-8 h-8 md:w-10 md:h-10 rounded-xl bg-rose-500/20 flex items-center justify-center shrink-0">
-                <TrendingDown className="w-4 h-4 md:w-5 md:h-5 text-rose-400" />
+          <div className="p-4 md:p-5 bg-slate-800/50 rounded-2xl border border-slate-700/50">
+            <div className="flex items-center gap-2 mb-2">
+              <div className="w-8 h-8 rounded-xl bg-rose-500/20 flex items-center justify-center shrink-0">
+                <TrendingDown className="w-4 h-4 text-rose-400" />
               </div>
-              <span className="text-[9px] md:text-[10px] font-bold text-slate-400 uppercase tracking-widest leading-tight">เงินออก</span>
+              <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest leading-tight">เงินออก</span>
             </div>
-            <p className="text-base md:text-xl font-black text-rose-400">
+            <p className="text-sm md:text-base font-black text-rose-400">
               {stats.totalWithdrawals.toLocaleString('th-TH', { style: 'currency', currency: 'THB' })}
             </p>
+          </div>
+          <div className="p-4 md:p-5 bg-slate-800/50 rounded-2xl border border-slate-700/50">
+            <div className="flex items-center gap-2 mb-2">
+              <div className="w-8 h-8 rounded-xl bg-amber-500/20 flex items-center justify-center shrink-0">
+                <Wallet className="w-4 h-4 text-amber-400" />
+              </div>
+              <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest leading-tight">คงเหลือสุทธิ</span>
+            </div>
+            <p className={cn(
+              "text-sm md:text-base font-black",
+              (stats.totalDeposits - stats.totalWithdrawals) >= 0 ? "text-amber-400" : "text-rose-400"
+            )}>
+              {(stats.totalDeposits - stats.totalWithdrawals).toLocaleString('th-TH', { style: 'currency', currency: 'THB' })}
+            </p>
+          </div>
+          <div className="p-4 md:p-5 bg-slate-800/50 rounded-2xl border border-slate-700/50">
+            <div className="flex items-center gap-2 mb-2">
+              <div className="w-8 h-8 rounded-xl bg-violet-500/20 flex items-center justify-center shrink-0">
+                <Mail className="w-4 h-4 text-violet-400" />
+              </div>
+              <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest leading-tight">ข้อความ</span>
+            </div>
+            <p className="text-xl font-black text-violet-400">{stats.totalMessages.toLocaleString()}</p>
           </div>
         </div>
 
@@ -509,9 +579,9 @@ export default function AdminBankMonitorPage() {
         {filteredSessions.length === 0 ? (
           <div className="p-12 bg-slate-800/30 rounded-2xl border border-slate-700/30 text-center">
             <Building2 className="w-16 h-16 text-slate-600 mx-auto mb-4" />
-            <h3 className="text-lg font-bold text-slate-400 mb-2">No Bank Sessions Found</h3>
+            <h3 className="text-lg font-bold text-slate-400 mb-2">ไม่พบ Bank Sessions</h3>
             <p className="text-sm text-slate-500">
-              Configure bank monitoring in LINE Account settings to start tracking transactions.
+              ตั้งค่า Bank Monitor ใน LINE Account เพื่อเริ่มติดตามธุรกรรม
             </p>
           </div>
         ) : (
@@ -630,21 +700,20 @@ export default function AdminBankMonitorPage() {
                       </Button>
                     )}
                     <div className="text-right">
-                      {session.balance ? (
-                        <>
-                          <p className="text-[9px] sm:text-[10px] font-bold text-slate-500 uppercase tracking-widest">Balance</p>
+                      {session.balance && (
+                        <div className="mb-1">
+                          <p className="text-[9px] sm:text-[10px] font-bold text-slate-500 uppercase tracking-widest">ยอดคงเหลือ</p>
                           <p className="text-lg sm:text-xl font-black text-emerald-400">
                             {Number(session.balance).toLocaleString()} <span className="text-xs">THB</span>
                           </p>
-                        </>
-                      ) : (
-                        <>
-                          <p className="text-[9px] sm:text-[10px] font-bold text-slate-500 uppercase tracking-widest">ข้อความ</p>
-                          <p className="text-lg sm:text-xl font-black text-blue-400">
-                            {session.messageCount || 0}
-                          </p>
-                        </>
+                        </div>
                       )}
+                      <div>
+                        <p className="text-[9px] sm:text-[10px] font-bold text-slate-500 uppercase tracking-widest">ข้อความ</p>
+                        <p className={cn("font-black", session.balance ? "text-sm text-blue-400" : "text-lg sm:text-xl text-blue-400")}>
+                          {session.messageCount || 0}
+                        </p>
+                      </div>
                     </div>
                     <ChevronRight className="w-5 h-5 text-slate-500 group-hover:text-emerald-400 group-hover:translate-x-1 transition-all hidden sm:block" />
                   </div>
@@ -701,22 +770,22 @@ export default function AdminBankMonitorPage() {
                       <p className="text-[9px] sm:text-[10px] font-black text-white/70 uppercase tracking-widest">
                         {selectedSession.bankName || selectedSession.bankCode}
                       </p>
-                      <p className="text-white font-bold truncate">{selectedSession.accountNumber || 'No Account'}</p>
+                      <p className="text-white font-bold truncate">{selectedSession.accountNumber || 'ไม่มีเลขบัญชี'}</p>
                     </div>
                   </div>
                   {getStatusBadge(selectedSession.status)}
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                   <div className="bg-white/10 rounded-xl p-3 sm:p-4">
-                    <p className="text-[9px] font-bold text-white/60 uppercase tracking-widest mb-1">Current Balance</p>
+                    <p className="text-[9px] font-bold text-white/60 uppercase tracking-widest mb-1">ยอดคงเหลือปัจจุบัน</p>
                     <p className="text-xl sm:text-2xl font-black text-white">
-                      {selectedSession.balance ? `${Number(selectedSession.balance).toLocaleString()} THB` : 'N/A'}
+                      {selectedSession.balance ? `${Number(selectedSession.balance).toLocaleString()} THB` : 'ไม่มีข้อมูล'}
                     </p>
                   </div>
                   <div className="bg-white/10 rounded-xl p-3 sm:p-4">
                     <p className="text-[9px] font-bold text-white/60 uppercase tracking-widest mb-1">Chat MID</p>
                     <p className="text-xs sm:text-sm font-mono text-white/80 truncate">
-                      {selectedSession.chatMid || 'Not configured'}
+                      {selectedSession.chatMid || 'ยังไม่ตั้งค่า'}
                     </p>
                   </div>
                 </div>
@@ -731,33 +800,66 @@ export default function AdminBankMonitorPage() {
             ) : (
               <>
                 {summary && (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-                    <div className="p-4 sm:p-6 bg-emerald-50 rounded-2xl sm:rounded-[2rem] border border-emerald-200">
-                      <div className="flex items-center gap-3 mb-3 sm:mb-4">
-                        <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-emerald-100 flex items-center justify-center shrink-0">
-                          <TrendingUp className="w-4 h-4 sm:w-5 sm:h-5 text-emerald-600" />
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
+                    <div className="p-4 sm:p-5 bg-emerald-50 rounded-2xl border border-emerald-200">
+                      <div className="flex items-center gap-3 mb-3">
+                        <div className="w-9 h-9 rounded-xl bg-emerald-100 flex items-center justify-center shrink-0">
+                          <TrendingUp className="w-4 h-4 text-emerald-600" />
                         </div>
                         <div>
                           <p className="text-[9px] font-bold text-emerald-500 uppercase tracking-widest">เงินเข้า</p>
-                          <p className="text-sm sm:text-lg font-black text-emerald-700">{summary.deposits?.count || 0} รายการ</p>
+                          <p className="text-sm font-black text-emerald-700">{summary.deposits?.count || 0} รายการ</p>
                         </div>
                       </div>
-                      <p className="text-xl sm:text-2xl font-black text-emerald-600">
+                      <p className="text-lg sm:text-xl font-black text-emerald-600">
                         {Number(summary.deposits?.total || 0).toLocaleString('th-TH', { style: 'currency', currency: 'THB' })}
                       </p>
                     </div>
-                    <div className="p-4 sm:p-6 bg-rose-50 rounded-2xl sm:rounded-[2rem] border border-rose-200">
-                      <div className="flex items-center gap-3 mb-3 sm:mb-4">
-                        <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-rose-100 flex items-center justify-center shrink-0">
-                          <TrendingDown className="w-4 h-4 sm:w-5 sm:h-5 text-rose-600" />
+                    <div className="p-4 sm:p-5 bg-rose-50 rounded-2xl border border-rose-200">
+                      <div className="flex items-center gap-3 mb-3">
+                        <div className="w-9 h-9 rounded-xl bg-rose-100 flex items-center justify-center shrink-0">
+                          <TrendingDown className="w-4 h-4 text-rose-600" />
                         </div>
                         <div>
                           <p className="text-[9px] font-bold text-rose-500 uppercase tracking-widest">เงินออก</p>
-                          <p className="text-sm sm:text-lg font-black text-rose-700">{summary.withdrawals?.count || 0} รายการ</p>
+                          <p className="text-sm font-black text-rose-700">{summary.withdrawals?.count || 0} รายการ</p>
                         </div>
                       </div>
-                      <p className="text-xl sm:text-2xl font-black text-rose-600">
+                      <p className="text-lg sm:text-xl font-black text-rose-600">
                         {Number(summary.withdrawals?.total || 0).toLocaleString('th-TH', { style: 'currency', currency: 'THB' })}
+                      </p>
+                    </div>
+                    <div className={cn(
+                      "p-4 sm:p-5 rounded-2xl border",
+                      (summary.deposits?.total || 0) - (summary.withdrawals?.total || 0) >= 0
+                        ? "bg-amber-50 border-amber-200"
+                        : "bg-red-50 border-red-200"
+                    )}>
+                      <div className="flex items-center gap-3 mb-3">
+                        <div className={cn(
+                          "w-9 h-9 rounded-xl flex items-center justify-center shrink-0",
+                          (summary.deposits?.total || 0) - (summary.withdrawals?.total || 0) >= 0
+                            ? "bg-amber-100" : "bg-red-100"
+                        )}>
+                          <Wallet className={cn(
+                            "w-4 h-4",
+                            (summary.deposits?.total || 0) - (summary.withdrawals?.total || 0) >= 0
+                              ? "text-amber-600" : "text-red-600"
+                          )} />
+                        </div>
+                        <div>
+                          <p className="text-[9px] font-bold text-amber-500 uppercase tracking-widest">คงเหลือสุทธิ</p>
+                          <p className="text-sm font-black text-slate-700">
+                            {(summary.deposits?.count || 0) + (summary.withdrawals?.count || 0)} รายการรวม
+                          </p>
+                        </div>
+                      </div>
+                      <p className={cn(
+                        "text-lg sm:text-xl font-black",
+                        (summary.deposits?.total || 0) - (summary.withdrawals?.total || 0) >= 0
+                          ? "text-amber-600" : "text-red-600"
+                      )}>
+                        {((summary.deposits?.total || 0) - (summary.withdrawals?.total || 0)).toLocaleString('th-TH', { style: 'currency', currency: 'THB' })}
                       </p>
                     </div>
                   </div>
@@ -798,7 +900,7 @@ export default function AdminBankMonitorPage() {
                       setDetailFilterType(newType);
                       setDetailSearchQuery('');
                       if (selectedSession) {
-                        fetchDetailMessages(selectedSession.lineAccountId, 1, newType);
+                        fetchDetailMessages(selectedSession.lineAccountId, 1, newType, false, detailStartDate, detailEndDate);
                       }
                     }}
                     className="px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm text-slate-700 focus:outline-none focus:border-emerald-500 min-w-[160px]"
@@ -815,12 +917,75 @@ export default function AdminBankMonitorPage() {
                   </select>
                 </div>
 
+                {/* Date Range Filter */}
+                <div className="flex flex-col sm:flex-row items-end gap-3">
+                  <div className="flex-1 w-full sm:w-auto">
+                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1 block">วันที่เริ่มต้น</label>
+                    <input
+                      type="date"
+                      value={detailStartDate}
+                      onChange={(e) => setDetailStartDate(e.target.value)}
+                      className="w-full px-3 py-2.5 bg-white border border-slate-200 rounded-xl text-sm text-slate-700 focus:outline-none focus:border-emerald-500"
+                    />
+                  </div>
+                  <div className="flex-1 w-full sm:w-auto">
+                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1 block">วันที่สิ้นสุด</label>
+                    <input
+                      type="date"
+                      value={detailEndDate}
+                      onChange={(e) => setDetailEndDate(e.target.value)}
+                      className="w-full px-3 py-2.5 bg-white border border-slate-200 rounded-xl text-sm text-slate-700 focus:outline-none focus:border-emerald-500"
+                    />
+                  </div>
+                  <div className="flex gap-2 w-full sm:w-auto">
+                    <button
+                      onClick={() => {
+                        if (selectedSession) {
+                          fetchDetailMessages(selectedSession.lineAccountId, 1, detailFilterType, false, detailStartDate, detailEndDate);
+                        }
+                      }}
+                      disabled={!detailStartDate && !detailEndDate}
+                      className={cn(
+                        "flex-1 sm:flex-none px-4 py-2.5 rounded-xl text-sm font-bold transition-colors",
+                        detailStartDate || detailEndDate
+                          ? "bg-emerald-500 text-white hover:bg-emerald-600"
+                          : "bg-slate-100 text-slate-400 cursor-not-allowed"
+                      )}
+                    >
+                      กรอง
+                    </button>
+                    {(detailStartDate || detailEndDate) && (
+                      <button
+                        onClick={() => {
+                          setDetailStartDate('');
+                          setDetailEndDate('');
+                          if (selectedSession) {
+                            fetchDetailMessages(selectedSession.lineAccountId, 1, detailFilterType);
+                          }
+                        }}
+                        className="px-3 py-2.5 rounded-xl text-sm font-bold bg-slate-100 text-slate-600 hover:bg-slate-200 transition-colors"
+                      >
+                        ล้าง
+                      </button>
+                    )}
+                  </div>
+                </div>
+
                 {/* Info bar */}
                 {detailTotal > 0 && (
                   <div className="px-2">
                     <p className="text-[11px] sm:text-xs text-slate-500">
                       แสดง {((detailCurrentPage - 1) * DETAIL_ITEMS_PER_PAGE) + 1}-{Math.min(detailCurrentPage * DETAIL_ITEMS_PER_PAGE, detailTotal)} จาก {detailTotal} รายการ
-                      {detailFilterType && <span className="ml-1 text-emerald-600">({detailFilterType})</span>}
+                      {detailFilterType && (
+                        <span className="ml-1 text-emerald-600">
+                          ({{ deposit: 'เงินเข้า', withdraw: 'เงินออก', transfer: 'โอน', payment: 'ชำระเงิน', fee: 'ค่าธรรมเนียม', interest: 'ดอกเบี้ย', bill: 'ชำระบิล', unknown: 'อื่นๆ' }[detailFilterType] || detailFilterType})
+                        </span>
+                      )}
+                      {(detailStartDate || detailEndDate) && (
+                        <span className="ml-1 text-violet-600">
+                          ช่วงวันที่: {detailStartDate || '...'} ถึง {detailEndDate || '...'}
+                        </span>
+                      )}
                       {detailSearchQuery.trim() && <span className="ml-1 text-blue-600">ค้นหา: &quot;{detailSearchQuery}&quot; ({filteredMessages.length} ผลลัพธ์)</span>}
                     </p>
                   </div>
@@ -828,16 +993,21 @@ export default function AdminBankMonitorPage() {
 
                 {/* Messages List */}
                 <div className="space-y-3">
-                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-2">Recent Transactions</p>
+                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-2">รายการธุรกรรมล่าสุด</p>
                   {filteredMessages.length === 0 ? (
                     <div className="p-8 bg-slate-50 rounded-[2rem] text-center">
                       <Wallet className="w-12 h-12 text-slate-300 mx-auto mb-3" />
                       <p className="text-sm text-slate-500">
-                        {detailSearchQuery.trim() ? 'ไม่พบรายการที่ค้นหา' : 'No transactions yet'}
+                        {detailSearchQuery.trim() ? 'ไม่พบรายการที่ค้นหา' : 'ยังไม่มีรายการธุรกรรม'}
                       </p>
                     </div>
                   ) : (
-                    <div className="space-y-2 max-h-[500px] overflow-y-auto custom-scrollbar">
+                    <div className="relative space-y-2 max-h-[500px] overflow-y-auto custom-scrollbar">
+                      {isDetailPageLoading && (
+                        <div className="absolute inset-0 bg-white/60 flex items-center justify-center z-10 rounded-xl">
+                          <Loader2 className="w-6 h-6 text-emerald-500 animate-spin" />
+                        </div>
+                      )}
                       {filteredMessages.map((msg, index) => (
                         <div key={msg.id || msg.messageId || index} className="p-3 sm:p-4 bg-slate-50 rounded-xl border border-slate-100">
                           <div className="flex items-center justify-between mb-2">
@@ -852,7 +1022,7 @@ export default function AdminBankMonitorPage() {
                               msg.transactionType === 'bill' && "bg-orange-100 text-orange-700",
                               msg.transactionType === 'unknown' && "bg-slate-100 text-slate-600"
                             )}>
-                              {msg.transactionType || 'unknown'}
+                              {{ deposit: 'เงินเข้า', withdraw: 'เงินออก', transfer: 'โอน', payment: 'ชำระเงิน', fee: 'ค่าธรรมเนียม', interest: 'ดอกเบี้ย', bill: 'ชำระบิล', unknown: 'อื่นๆ' }[msg.transactionType] || msg.transactionType || 'อื่นๆ'}
                             </Badge>
                             <span className="text-[9px] text-slate-400 shrink-0 ml-2">
                               {msg.messageDate ? new Date(msg.messageDate).toLocaleString('th-TH') : '-'}
@@ -860,7 +1030,7 @@ export default function AdminBankMonitorPage() {
                           </div>
                           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
                             <p className="text-xs text-slate-600 truncate">
-                              {msg.text?.substring(0, 80) || 'No text'}
+                              {msg.text?.substring(0, 80) || 'ไม่มีข้อความ'}
                             </p>
                             {msg.amount && (
                               <p className={cn(
@@ -888,7 +1058,7 @@ export default function AdminBankMonitorPage() {
                     <button
                       onClick={() => {
                         if (selectedSession && detailCurrentPage > 1) {
-                          fetchDetailMessages(selectedSession.lineAccountId, detailCurrentPage - 1, detailFilterType);
+                          fetchDetailMessages(selectedSession.lineAccountId, detailCurrentPage - 1, detailFilterType, true, detailStartDate, detailEndDate);
                         }
                       }}
                       disabled={detailCurrentPage <= 1}
@@ -914,7 +1084,7 @@ export default function AdminBankMonitorPage() {
                           key={page}
                           onClick={() => {
                             if (selectedSession && page !== detailCurrentPage) {
-                              fetchDetailMessages(selectedSession.lineAccountId, page, detailFilterType);
+                              fetchDetailMessages(selectedSession.lineAccountId, page, detailFilterType, true, detailStartDate, detailEndDate);
                             }
                           }}
                           className={cn(
@@ -932,7 +1102,7 @@ export default function AdminBankMonitorPage() {
                     <button
                       onClick={() => {
                         if (selectedSession && detailCurrentPage < detailTotalPages) {
-                          fetchDetailMessages(selectedSession.lineAccountId, detailCurrentPage + 1, detailFilterType);
+                          fetchDetailMessages(selectedSession.lineAccountId, detailCurrentPage + 1, detailFilterType, true, detailStartDate, detailEndDate);
                         }
                       }}
                       disabled={detailCurrentPage >= detailTotalPages}
@@ -961,7 +1131,7 @@ export default function AdminBankMonitorPage() {
                 className="flex-1 h-12 rounded-xl font-bold"
                 onClick={() => setShowDetailModal(false)}
               >
-                Close
+                ปิด
               </Button>
             </div>
           </div>
