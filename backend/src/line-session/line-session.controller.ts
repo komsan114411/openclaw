@@ -1109,8 +1109,8 @@ export class LineSessionController {
         $group: {
           _id: '$sessionId',
           count: { $sum: 1 },
-          oldestDate: { $min: '$messageDate' },
-          newestDate: { $max: '$messageDate' },
+          oldestDate: { $min: '$createdAt' },
+          newestDate: { $max: '$createdAt' },
         },
       },
       { $sort: { count: -1 } },
@@ -1172,8 +1172,8 @@ export class LineSessionController {
     // Count total in scope
     const totalMessages = await this.lineMessageModel.countDocuments(scopeQuery);
 
-    // Count messages to delete
-    const deleteQuery = { ...scopeQuery, messageDate: { $lt: cutoffDate } };
+    // Count messages to delete (ใช้ createdAt เพราะ messageDate อาจเป็น null สำหรับบาง parser)
+    const deleteQuery = { ...scopeQuery, createdAt: { $lt: cutoffDate } };
     const messagesToDelete = await this.lineMessageModel.countDocuments(deleteQuery);
 
     // Get date range of messages in scope
@@ -1182,8 +1182,8 @@ export class LineSessionController {
       {
         $group: {
           _id: null,
-          oldestDate: { $min: '$messageDate' },
-          newestDate: { $max: '$messageDate' },
+          oldestDate: { $min: '$createdAt' },
+          newestDate: { $max: '$createdAt' },
         },
       },
     ]);
@@ -1196,7 +1196,7 @@ export class LineSessionController {
           _id: '$sessionId',
           total: { $sum: 1 },
           toDelete: {
-            $sum: { $cond: [{ $lt: ['$messageDate', cutoffDate] }, 1, 0] },
+            $sum: { $cond: [{ $lt: ['$createdAt', cutoffDate] }, 1, 0] },
           },
         },
       },
@@ -1255,9 +1255,9 @@ export class LineSessionController {
       cutoffDate.setMonth(cutoffDate.getMonth() - olderThanMonths);
     }
 
-    // Build query
+    // Build query (ใช้ createdAt เพราะ messageDate อาจเป็น null สำหรับบาง parser)
     const query: Record<string, unknown> = {
-      messageDate: { $lt: cutoffDate },
+      createdAt: { $lt: cutoffDate },
     };
 
     if (sessionIds && sessionIds.length > 0) {
