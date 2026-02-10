@@ -129,6 +129,7 @@ export default function AdminBankMonitorPage() {
     activeSessions: 0,
     totalDeposits: 0,
     totalWithdrawals: 0,
+    latestBalance: 0,
     totalMessages: 0,
     sessionsWithKeys: 0,
   });
@@ -218,6 +219,7 @@ export default function AdminBankMonitorPage() {
       console.log('[Bank Monitor] batchSummary response:', batchSummaryRes.data);
       const totalDeposits = batchSummaryRes.data?.totalDeposits?.total || 0;
       const totalWithdrawals = batchSummaryRes.data?.totalWithdrawals?.total || 0;
+      const latestBalance = batchSummaryRes.data?.latestBalance?.total || 0;
       const totalMessages = msgStatsRes.data?.totalMessages || 0;
 
       setSessions(sessionsData);
@@ -226,6 +228,7 @@ export default function AdminBankMonitorPage() {
         activeSessions: sessionsData.filter(s => s.status === 'active').length,
         totalDeposits,
         totalWithdrawals,
+        latestBalance,
         totalMessages,
         sessionsWithKeys: sessionsData.filter(s => s.hasKeys).length,
       });
@@ -517,13 +520,10 @@ export default function AdminBankMonitorPage() {
               <div className="w-8 h-8 rounded-xl bg-amber-500/20 flex items-center justify-center shrink-0">
                 <Wallet className="w-4 h-4 text-amber-400" />
               </div>
-              <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest leading-tight">คงเหลือสุทธิ</span>
+              <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest leading-tight">ยอดคงเหลือล่าสุด</span>
             </div>
-            <p className={cn(
-              "text-sm md:text-base font-black",
-              (stats.totalDeposits - stats.totalWithdrawals) >= 0 ? "text-amber-400" : "text-rose-400"
-            )}>
-              {(stats.totalDeposits - stats.totalWithdrawals).toLocaleString('th-TH', { style: 'currency', currency: 'THB' })}
+            <p className="text-sm md:text-base font-black text-amber-400">
+              {stats.latestBalance.toLocaleString('th-TH', { style: 'currency', currency: 'THB' })}
             </p>
           </div>
           <div className="p-4 md:p-5 bg-slate-800/50 rounded-2xl border border-slate-700/50">

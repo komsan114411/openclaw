@@ -1002,6 +1002,7 @@ export class MessageFetchService implements OnModuleInit, OnModuleDestroy {
   async getBatchTransactionSummary(): Promise<{
     totalDeposits: { total: number; count: number };
     totalWithdrawals: { total: number; count: number };
+    latestBalance: { total: number; perSession: Array<{ lineAccountId: string; balance: number; updatedAt: string }> };
     perSession: Array<{
       lineAccountId: string;
       deposits: { total: number; count: number };
@@ -1077,9 +1078,38 @@ export class MessageFetchService implements OnModuleInit, OnModuleDestroy {
       perSession.push({ lineAccountId, ...data });
     }
 
+    // Get latest balance per session (from most recent message with balance)
+    const latestBalances = await this.lineMessageModel.aggregate([
+      {
+        $match: {
+          balance: { $exists: true, $nin: [null, ''] },
+        },
+      },
+      { $sort: { createdAt: -1 } },
+      {
+        $group: {
+          _id: '$lineAccountId',
+          balance: { $first: { $convert: { input: '$balance', to: 'double', onError: 0, onNull: 0 } } },
+          updatedAt: { $first: '$createdAt' },
+        },
+      },
+    ]);
+
+    let totalBalance = 0;
+    const balancePerSession: Array<{ lineAccountId: string; balance: number; updatedAt: string }> = [];
+    for (const row of latestBalances) {
+      totalBalance += row.balance;
+      balancePerSession.push({
+        lineAccountId: row._id,
+        balance: row.balance,
+        updatedAt: row.updatedAt?.toISOString?.() || String(row.updatedAt),
+      });
+    }
+
     return {
       totalDeposits: { total: totalDepositAmount, count: totalDepositCount },
       totalWithdrawals: { total: totalWithdrawAmount, count: totalWithdrawCount },
+      latestBalance: { total: totalBalance, perSession: balancePerSession },
       perSession,
     };
   }
