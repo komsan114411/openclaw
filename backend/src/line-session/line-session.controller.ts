@@ -124,7 +124,7 @@ export class LineSessionController {
     return {
       success: true,
       sessions: sessions.map((session) => ({
-        _id: session._id,
+        _id: session._id.toString(),
         name: session.name,
         ownerId: session.ownerId,
         lineAccountId: session.lineAccountId,
@@ -1104,19 +1104,34 @@ export class LineSessionController {
   @Get('messages/stats')
   @ApiOperation({ summary: 'Get message statistics' })
   async getMessageStats() {
+    // Group by sessionId AND lineAccountId for robust matching
     const perSession = await this.lineMessageModel.aggregate([
       {
         $group: {
-          _id: '$sessionId',
+          _id: {
+            sessionId: '$sessionId',
+            lineAccountId: '$lineAccountId',
+          },
           count: { $sum: 1 },
           oldestDate: { $min: '$createdAt' },
           newestDate: { $max: '$createdAt' },
         },
       },
       { $sort: { count: -1 } },
+      {
+        $project: {
+          _id: '$_id.sessionId',
+          lineAccountId: '$_id.lineAccountId',
+          count: 1,
+          oldestDate: 1,
+          newestDate: 1,
+        },
+      },
     ]);
 
     const totalMessages = perSession.reduce((sum, s) => sum + s.count, 0);
+
+    this.logger.log(`[getMessageStats] Total: ${totalMessages}, Sessions: ${perSession.length}, Sample IDs: ${perSession.slice(0, 3).map((s) => `sid=${s._id}, laid=${s.lineAccountId}`).join('; ')}`);
 
     return {
       success: true,
@@ -1163,14 +1178,20 @@ export class LineSessionController {
       cutoffDate.setMonth(cutoffDate.getMonth() - olderThanMonths);
     }
 
-    // Build scope query (session filter)
+    // Build scope query (session filter) — match by sessionId OR lineAccountId
     const scopeQuery: Record<string, unknown> = {};
     if (sessionIds && sessionIds.length > 0) {
-      scopeQuery.sessionId = { $in: sessionIds };
+      const ids = sessionIds.map((id) => String(id));
+      scopeQuery.$or = [
+        { sessionId: { $in: ids } },
+        { lineAccountId: { $in: ids } },
+      ];
+      this.logger.log(`[previewCleanup] Filter IDs: ${ids.join(', ')}`);
     }
 
     // Count total in scope
     const totalMessages = await this.lineMessageModel.countDocuments(scopeQuery);
+    this.logger.log(`[previewCleanup] Total in scope: ${totalMessages}, cutoff: ${cutoffDate.toISOString()}`);
 
     // Count messages to delete (ใช้ createdAt เพราะ messageDate อาจเป็น null สำหรับบาง parser)
     const deleteQuery = { ...scopeQuery, createdAt: { $lt: cutoffDate } };
@@ -1255,13 +1276,17 @@ export class LineSessionController {
       cutoffDate.setMonth(cutoffDate.getMonth() - olderThanMonths);
     }
 
-    // Build query (ใช้ createdAt เพราะ messageDate อาจเป็น null สำหรับบาง parser)
+    // Build query — match by sessionId OR lineAccountId (ใช้ createdAt เพราะ messageDate อาจเป็น null สำหรับบาง parser)
     const query: Record<string, unknown> = {
       createdAt: { $lt: cutoffDate },
     };
 
     if (sessionIds && sessionIds.length > 0) {
-      query.sessionId = { $in: sessionIds };
+      const ids = sessionIds.map((id) => String(id));
+      query.$or = [
+        { sessionId: { $in: ids } },
+        { lineAccountId: { $in: ids } },
+      ];
     }
 
     this.logger.log(
@@ -1270,10 +1295,14 @@ export class LineSessionController {
 
     const result = await this.lineMessageModel.deleteMany(query);
 
-    // Count remaining messages
+    // Count remaining messages — same $or filter
     const remainingQuery: Record<string, unknown> = {};
     if (sessionIds && sessionIds.length > 0) {
-      remainingQuery.sessionId = { $in: sessionIds };
+      const ids = sessionIds.map((id) => String(id));
+      remainingQuery.$or = [
+        { sessionId: { $in: ids } },
+        { lineAccountId: { $in: ids } },
+      ];
     }
     const messagesRemaining = await this.lineMessageModel.countDocuments(remainingQuery);
 

@@ -86,6 +86,7 @@ interface MessageStats {
   estimatedSizeBytes: number;
   perSession: Array<{
     _id: string;
+    lineAccountId: string;
     count: number;
     oldestDate: string;
     newestDate: string;
@@ -455,10 +456,12 @@ export default function LineSessionSettingsPage() {
     return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
   };
 
-  // Get per-session message count from stats
+  // Get per-session message count from stats — match by sessionId or lineAccountId
   const getSessionMessageCount = (sessionId: string): number | null => {
     if (!messageStats) return null;
-    const found = messageStats.perSession.find((p) => p._id === sessionId);
+    const found = messageStats.perSession.find(
+      (p) => p._id === sessionId || p.lineAccountId === sessionId,
+    );
     return found ? found.count : 0;
   };
 
