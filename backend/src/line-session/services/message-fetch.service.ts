@@ -763,19 +763,33 @@ export class MessageFetchService implements OnModuleInit, OnModuleDestroy {
     // [FIX] Use session._id as lineAccountId fallback if session.lineAccountId is undefined
     const lineAccountId = session.lineAccountId || session._id.toString();
 
-    // [FIX] Use LINE timestamp (createdTime) as primary messageDate
-    // LINE API returns createdTime as Unix timestamp in milliseconds
+    // Determine messageDate — priority: LINE timestamp > parsed from text > now
+    // LINE createdTime = epoch milliseconds (UTC), always accurate
+    // parsed.messageDate = from Thai text (UTC+7 aware), may lack time
+    // new Date() = server time, last resort
     let messageDate: Date;
+    let dateSource: string;
+
     if (msg.createdTime) {
       const ts = Number(msg.createdTime);
       const candidate = new Date(ts > 1e12 ? ts : ts * 1000);
-      // Validate: must be a real date (not NaN) and within reasonable range (2020-2030)
-      messageDate = (!isNaN(candidate.getTime()) && candidate.getFullYear() >= 2020 && candidate.getFullYear() <= 2030)
-        ? candidate
-        : (parsed.messageDate || new Date());
+      if (!isNaN(candidate.getTime()) && candidate.getFullYear() >= 2020 && candidate.getFullYear() <= 2035) {
+        messageDate = candidate;
+        dateSource = 'LINE-createdTime';
+      } else {
+        messageDate = parsed.messageDate || new Date();
+        dateSource = parsed.messageDate ? 'parsed-text(LINE-invalid)' : 'now(LINE-invalid)';
+        this.logger.warn(`[processMessage] Invalid LINE createdTime: ${msg.createdTime} → ${candidate.toISOString()}`);
+      }
+    } else if (parsed.messageDate) {
+      messageDate = parsed.messageDate;
+      dateSource = 'parsed-text';
     } else {
-      messageDate = parsed.messageDate || new Date();
+      messageDate = new Date();
+      dateSource = 'now(no-source)';
     }
+
+    this.logger.debug(`[processMessage] msg=${messageId} dateSource=${dateSource} messageDate=${messageDate.toISOString()} createdTime=${msg.createdTime || 'N/A'}`);
 
     await this.lineMessageModel.create({
       sessionId: session._id.toString(),
@@ -920,9 +934,39 @@ export class MessageFetchService implements OnModuleInit, OnModuleDestroy {
   private parseThaiTime(text: string): { hours: number; minutes: number } | undefined {
     const timeMatch = text.match(/(?:เวลา\s*)?(\d{1,2})[:\.](\d{2})\s*(?:น\.|นาฬิกา)?/);
     if (timeMatch) {
-      return { hours: parseInt(timeMatch[1]), minutes: parseInt(timeMatch[2]) };
+      const hours = parseInt(timeMatch[1]);
+      const minutes = parseInt(timeMatch[2]);
+      if (hours >= 0 && hours <= 23 && minutes >= 0 && minutes <= 59) {
+        return { hours, minutes };
+      }
     }
     return undefined;
+  }
+
+  /**
+   * Parse Thai date + time combined, returning Date in Asia/Bangkok (UTC+7)
+   * เวลาในข้อความธนาคารเป็นเวลาไทย (UTC+7) เสมอ
+   */
+  private parseThaiDateTime(text: string): Date | undefined {
+    const date = this.parseThaiDate(text);
+    if (!date) return undefined;
+
+    const time = this.parseThaiTime(text);
+    const year = date.getFullYear();
+    const month = date.getMonth();
+    const day = date.getDate();
+    const hours = time?.hours ?? 0;
+    const minutes = time?.minutes ?? 0;
+
+    // สร้าง Date ใน timezone ไทย (+07:00)
+    // Thai bank messages always show Thai local time
+    const pad = (n: number) => n.toString().padStart(2, '0');
+    const isoString = `${year}-${pad(month + 1)}-${pad(day)}T${pad(hours)}:${pad(minutes)}:00+07:00`;
+    const result = new Date(isoString);
+
+    // Validate result
+    if (isNaN(result.getTime())) return undefined;
+    return result;
   }
 
   /**
@@ -1012,7 +1056,7 @@ export class MessageFetchService implements OnModuleInit, OnModuleDestroy {
 
     result.amount = this.extractAmount(text);
     result.balance = this.extractBalance(text);
-    result.messageDate = this.parseThaiDate(text);
+    result.messageDate = this.parseThaiDateTime(text);
 
     return result;
   }
@@ -1055,7 +1099,7 @@ export class MessageFetchService implements OnModuleInit, OnModuleDestroy {
 
     result.amount = this.extractAmount(text);
     result.balance = this.extractBalance(text);
-    result.messageDate = this.parseThaiDate(text);
+    result.messageDate = this.parseThaiDateTime(text);
 
     return result;
   }
@@ -1093,7 +1137,7 @@ export class MessageFetchService implements OnModuleInit, OnModuleDestroy {
 
     result.amount = this.extractAmount(text);
     result.balance = this.extractBalance(text);
-    result.messageDate = this.parseThaiDate(text);
+    result.messageDate = this.parseThaiDateTime(text);
 
     return result;
   }
@@ -1131,7 +1175,7 @@ export class MessageFetchService implements OnModuleInit, OnModuleDestroy {
 
     result.amount = this.extractAmount(text);
     result.balance = this.extractBalance(text);
-    result.messageDate = this.parseThaiDate(text);
+    result.messageDate = this.parseThaiDateTime(text);
 
     return result;
   }

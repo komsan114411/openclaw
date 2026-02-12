@@ -500,6 +500,14 @@ export default function AdminBankMonitorPage() {
     }
   };
 
+  // Format date in Thai timezone (Asia/Bangkok) — ensures correct time regardless of browser timezone
+  const formatThaiDate = (dateStr: string | Date | undefined | null): string => {
+    if (!dateStr) return '-';
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime())) return '-';
+    return d.toLocaleString('th-TH', { timeZone: 'Asia/Bangkok' });
+  };
+
   // Copy to clipboard helper
   const copyToClipboard = (text: string, label: string) => {
     navigator.clipboard.writeText(text);
@@ -536,7 +544,7 @@ export default function AdminBankMonitorPage() {
             </p>
             {lastUpdatedAt && (
               <p className="text-slate-500 text-xs mt-0.5">
-                อัปเดตล่าสุด: {lastUpdatedAt.toLocaleString('th-TH')}
+                อัปเดตล่าสุด: {formatThaiDate(lastUpdatedAt)}
               </p>
             )}
           </div>
@@ -790,7 +798,7 @@ export default function AdminBankMonitorPage() {
                         {session.lastCheckedAt && (
                           <span className="flex items-center gap-1">
                             <Clock className="w-3 h-3" />
-                            {new Date(session.lastCheckedAt).toLocaleString('th-TH')}
+                            {formatThaiDate(session.lastCheckedAt)}
                           </span>
                         )}
                       </div>
@@ -1147,7 +1155,7 @@ export default function AdminBankMonitorPage() {
                               {{ deposit: 'เงินเข้า', withdraw: 'เงินออก', transfer: 'โอน', payment: 'ชำระเงิน', fee: 'ค่าธรรมเนียม', interest: 'ดอกเบี้ย', bill: 'ชำระบิล', unknown: 'อื่นๆ' }[msg.transactionType] || msg.transactionType || 'อื่นๆ'}
                             </Badge>
                             <span className="text-[9px] text-slate-400 shrink-0 ml-2">
-                              {msg.messageDate ? new Date(msg.messageDate).toLocaleString('th-TH') : '-'}
+                              {formatThaiDate(msg.messageDate)}
                             </span>
                           </div>
                           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
@@ -1450,7 +1458,7 @@ export default function AdminBankMonitorPage() {
                 <div>
                   <span className="text-slate-500">ดึง Keys เมื่อ:</span>
                   <p className="text-slate-300">
-                    {keysSession.extractedAt ? new Date(keysSession.extractedAt).toLocaleString('th-TH') : '-'}
+                    {formatThaiDate(keysSession.extractedAt)}
                   </p>
                 </div>
                 <div>
@@ -1544,7 +1552,7 @@ export default function AdminBankMonitorPage() {
                       {alert.text || 'ไม่มีข้อความ'}
                     </p>
                     <p className="text-[10px] text-slate-500">
-                      {alert.createdAt ? new Date(alert.createdAt).toLocaleString('th-TH') : '-'}
+                      {formatThaiDate(alert.messageDate || alert.createdAt)}
                     </p>
                   </div>
                 ))}
