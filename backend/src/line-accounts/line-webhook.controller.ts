@@ -410,6 +410,7 @@ export class LineWebhookController {
 
   /**
    * Build LINE Flex Message for angpao result (all statuses).
+   * Structure: colored header → amount (big) → info rows → footer reminder
    */
   private buildAngpaoFlexMessage(result: {
     success: boolean;
@@ -419,111 +420,191 @@ export class LineWebhookController {
     message: string;
     voucherHash: string;
   }): Record<string, unknown> {
-    // Helper: create a label-value row
+    // Determine header per status
+    let icon: string;
+    let title: string;
+    let subtitle: string;
+    let headerBg: string;
+
+    switch (result.status) {
+      case 'success':
+        icon = '🧧'; title = 'รับอังเปาสำเร็จ!';
+        subtitle = 'เงินเข้า TrueMoney Wallet แล้ว';
+        headerBg = '#1DB446';
+        break;
+      case 'already_redeemed':
+        icon = '🔴'; title = 'อังเปานี้ถูกใช้งานไปแล้ว';
+        subtitle = 'ซองนี้ถูกเปิดใช้งานไปแล้ว';
+        headerBg = '#D32F2F';
+        break;
+      case 'expired':
+        icon = '⌛'; title = 'อังเปาหมดอายุ';
+        subtitle = 'ไม่สามารถรับอังเปานี้ได้แล้ว';
+        headerBg = '#E65100';
+        break;
+      case 'out_of_stock':
+        icon = '📭'; title = 'อังเปาถูกรับหมดแล้ว';
+        subtitle = 'ซองนี้ถูกรับครบจำนวนแล้ว';
+        headerBg = '#E65100';
+        break;
+      case 'not_found':
+        icon = '🔍'; title = 'ไม่พบอังเปานี้';
+        subtitle = 'กรุณาตรวจสอบลิงก์อีกครั้ง';
+        headerBg = '#616161';
+        break;
+      case 'own_voucher':
+        icon = '🚫'; title = 'รับอังเปาตัวเองไม่ได้';
+        subtitle = 'ไม่สามารถรับอังเปาที่ตัวเองสร้าง';
+        headerBg = '#D32F2F';
+        break;
+      case 'invalid_phone':
+        icon = '📱'; title = 'เบอร์โทรศัพท์ไม่ถูกต้อง';
+        subtitle = 'กรุณาตรวจสอบการตั้งค่าเบอร์รับอังเปา';
+        headerBg = '#D32F2F';
+        break;
+      case 'rate_limited':
+        icon = '⏳'; title = 'กรุณารอสักครู่';
+        subtitle = result.message;
+        headerBg = '#F57F17';
+        break;
+      default:
+        icon = '❌'; title = 'เกิดข้อผิดพลาด';
+        subtitle = result.message;
+        headerBg = '#D32F2F';
+        break;
+    }
+
+    // === HEADER section (colored background) ===
+    const header = {
+      type: 'box',
+      layout: 'vertical',
+      contents: [
+        {
+          type: 'text',
+          text: icon,
+          size: '3xl',
+          align: 'center',
+        },
+        {
+          type: 'text',
+          text: title,
+          weight: 'bold',
+          size: 'lg',
+          color: '#FFFFFF',
+          align: 'center',
+          margin: 'md',
+          wrap: true,
+        },
+        {
+          type: 'text',
+          text: subtitle,
+          size: 'xs',
+          color: '#FFFFFFCC',
+          align: 'center',
+          margin: 'sm',
+          wrap: true,
+        },
+      ],
+      backgroundColor: headerBg,
+      paddingAll: '20px',
+    };
+
+    // === BODY section (info rows) ===
+    const bodyRows: Record<string, unknown>[] = [];
+
+    // Amount — big display if available
+    if (result.amount) {
+      bodyRows.push({
+        type: 'box',
+        layout: 'vertical',
+        contents: [
+          {
+            type: 'text',
+            text: 'มูลค่าอังเปา',
+            size: 'xs',
+            color: '#AAAAAA',
+            align: 'center',
+          },
+          {
+            type: 'text',
+            text: `฿${result.amount.toFixed(2)}`,
+            size: 'xxl',
+            weight: 'bold',
+            color: result.success ? '#1DB446' : '#333333',
+            align: 'center',
+            margin: 'sm',
+          },
+        ],
+        margin: 'lg',
+      });
+
+      bodyRows.push({ type: 'separator', margin: 'lg' });
+    }
+
+    // Info rows (label: value)
     const infoRow = (label: string, value: string) => ({
       type: 'box',
       layout: 'horizontal',
       contents: [
-        { type: 'text', text: label, size: 'sm', color: '#8C8C8C', flex: 2 },
-        { type: 'text', text: value || '-', size: 'sm', color: '#333333', flex: 3, wrap: true },
+        { type: 'text', text: label, size: 'sm', color: '#AAAAAA', flex: 2 },
+        { type: 'text', text: value || '-', size: 'sm', color: '#333333', flex: 3, wrap: true, align: 'end' as const },
       ],
     });
 
-    // Determine header text + color per status
-    let headerText: string;
-    let headerColor: string;
-    let statusLabel: string;
-
-    switch (result.status) {
-      case 'success':
-        headerText = '🧧 รับอังเปาสำเร็จ!';
-        headerColor = '#00C851';
-        statusLabel = 'สำเร็จ — เงินเข้า Wallet แล้ว';
-        break;
-      case 'already_redeemed':
-        headerText = '🔴 อังเปานี้ถูกใช้งานไปแล้ว';
-        headerColor = '#E53935';
-        statusLabel = 'ซองนี้ถูกเปิดใช้งานไปแล้ว';
-        break;
-      case 'expired':
-        headerText = '⌛ อังเปานี้หมดอายุแล้ว';
-        headerColor = '#FB8C00';
-        statusLabel = 'หมดอายุ — ไม่สามารถรับได้';
-        break;
-      case 'out_of_stock':
-        headerText = '📭 อังเปานี้ถูกรับหมดแล้ว';
-        headerColor = '#FB8C00';
-        statusLabel = 'ซองถูกรับครบจำนวนแล้ว';
-        break;
-      case 'not_found':
-        headerText = '🔍 ไม่พบอังเปานี้';
-        headerColor = '#757575';
-        statusLabel = 'ไม่พบข้อมูลซอง — ตรวจสอบลิงก์อีกครั้ง';
-        break;
-      case 'own_voucher':
-        headerText = '🚫 รับอังเปาตัวเองไม่ได้';
-        headerColor = '#E53935';
-        statusLabel = 'ไม่สามารถรับอังเปาที่ตัวเองสร้าง';
-        break;
-      case 'invalid_phone':
-        headerText = '📱 เบอร์โทรศัพท์ไม่ถูกต้อง';
-        headerColor = '#E53935';
-        statusLabel = 'กรุณาตรวจสอบการตั้งค่าเบอร์รับอังเปา';
-        break;
-      case 'rate_limited':
-        headerText = '⏳ กรุณารอสักครู่';
-        headerColor = '#FFA000';
-        statusLabel = result.message;
-        break;
-      default:
-        headerText = '❌ เกิดข้อผิดพลาด';
-        headerColor = '#E53935';
-        statusLabel = result.message;
-        break;
-    }
-
-    // Build info rows
-    const rows: Record<string, unknown>[] = [];
-    if (result.amount) {
-      rows.push(infoRow('มูลค่า', `฿${result.amount.toFixed(2)}`));
-    }
+    const detailRows: Record<string, unknown>[] = [];
     if (result.ownerName) {
-      rows.push(infoRow('จาก', result.ownerName));
+      detailRows.push(infoRow('ผู้ส่ง', result.ownerName));
     }
-    rows.push(infoRow('สถานะ', statusLabel));
+    detailRows.push(infoRow('สถานะ', result.success ? 'สำเร็จ' : title.replace(/^[^\s]+\s*/, '')));
 
-    // Build body contents
-    const bodyContents: Record<string, unknown>[] = [
-      {
-        type: 'text',
-        text: headerText,
-        weight: 'bold',
-        size: 'lg',
-        color: headerColor,
-      },
-      {
-        type: 'separator',
-        margin: 'md',
-      },
-      {
+    if (detailRows.length > 0) {
+      bodyRows.push({
         type: 'box',
         layout: 'vertical',
-        margin: 'md',
-        spacing: 'sm',
-        contents: rows,
-      },
-    ];
+        margin: 'lg',
+        spacing: 'md',
+        contents: detailRows,
+      });
+    }
+
+    // === FOOTER section (always show reminder) ===
+    const footer = {
+      type: 'box',
+      layout: 'vertical',
+      contents: [
+        { type: 'separator' },
+        {
+          type: 'text',
+          text: 'โปรดเปิดซองอังเปาเพื่อตรวจสอบอีกครั้ง',
+          size: 'xxs',
+          color: '#AAAAAA',
+          align: 'center',
+          margin: 'lg',
+          wrap: true,
+        },
+      ],
+      paddingBottom: '16px',
+    };
+
+    const altText = `${icon} ${title}`;
 
     return {
       type: 'flex',
-      altText: headerText,
+      altText,
       contents: {
         type: 'bubble',
         size: 'kilo',
+        header,
         body: {
           type: 'box',
           layout: 'vertical',
-          contents: bodyContents,
+          contents: bodyRows.length > 0 ? bodyRows : [
+            { type: 'text', text: subtitle, size: 'sm', color: '#666666', align: 'center', wrap: true, margin: 'md' },
+          ],
+        },
+        footer,
+        styles: {
+          header: { backgroundColor: headerBg },
         },
       },
     };
