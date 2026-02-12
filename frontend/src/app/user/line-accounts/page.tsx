@@ -357,6 +357,9 @@ export default function UserLineAccountsPage() {
     enableSmartAi: false,
     intentRules: {} as Record<string, { enabled: boolean; useAi: boolean; customPrompt: string; responseTemplate: string }>,
     gameLinks: [] as Array<{ name: string; url: string }>,
+    // Angpao
+    enableAngpao: false,
+    angpaoPhoneNumber: '',
   });
 
   const [activeSettingsTab, setActiveSettingsTab] = useState<'core' | 'ai'>('core');
@@ -706,6 +709,9 @@ export default function UserLineAccountsPage() {
       enableSmartAi: (s as Record<string, unknown>).enableSmartAi as boolean ?? false,
       intentRules: { ...DEFAULT_INTENT_RULES, ...((s as Record<string, unknown>).intentRules as Record<string, { enabled: boolean; useAi: boolean; customPrompt: string; responseTemplate: string }> || {}) },
       gameLinks: ((s as Record<string, unknown>).gameLinks as Array<{ name: string; url: string }>) || [],
+      // Angpao
+      enableAngpao: (s as Record<string, unknown>).enableAngpao as boolean ?? false,
+      angpaoPhoneNumber: (s as Record<string, unknown>).angpaoPhoneNumber as string || '',
     });
     setShowSettingsModal(true);
   };
@@ -717,8 +723,9 @@ export default function UserLineAccountsPage() {
       toast.success('บันทึกการตั้งค่าสำเร็จ');
       setShowSettingsModal(false);
       fetchAccounts();
-    } catch (error) {
-      toast.error('ไม่สามารถบันทึกได้');
+    } catch (error: unknown) {
+      const err = error as { response?: { data?: { message?: string } } };
+      toast.error(err.response?.data?.message || 'ไม่สามารถบันทึกได้');
     }
   };
 
@@ -1613,7 +1620,7 @@ export default function UserLineAccountsPage() {
                     </div>
                   </h3>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
                     {/* Bot Toggle */}
                     <div className={cn("p-4 sm:p-6 rounded-2xl flex flex-col items-center text-center gap-3 sm:gap-4 transition-all border-2", settingsData.enableBot ? "bg-emerald-500/10 border-emerald-500/30" : "bg-white/[0.02] border-white/5 opacity-60")}>
                       <div className={cn("w-10 h-10 sm:w-12 sm:h-12 rounded-xl flex items-center justify-center", settingsData.enableBot ? "bg-emerald-500 text-white" : "bg-slate-700 text-slate-400")}><Bot className="w-5 h-5 sm:w-6 sm:h-6" /></div>
@@ -1666,8 +1673,61 @@ export default function UserLineAccountsPage() {
                         disabled={!globalAiEnabled}
                       />
                     </div>
+
+                    {/* Angpao Toggle */}
+                    <div className={cn("p-4 sm:p-6 rounded-2xl flex flex-col items-center text-center gap-3 sm:gap-4 transition-all border-2", settingsData.enableAngpao ? "bg-rose-500/10 border-rose-500/30" : "bg-white/[0.02] border-white/5 opacity-60")}>
+                      <div className={cn("w-10 h-10 sm:w-12 sm:h-12 rounded-xl flex items-center justify-center text-xl sm:text-2xl", settingsData.enableAngpao ? "bg-rose-500 text-white shadow-lg shadow-rose-500/30" : "bg-slate-700 text-slate-400")}>🧧</div>
+                      <div className="space-y-1">
+                        <p className="font-bold text-xs uppercase tracking-widest text-white">Angpao</p>
+                        <p className="text-[10px] text-slate-400 font-medium">รับอังเปา TrueMoney</p>
+                      </div>
+                      <Switch checked={settingsData.enableAngpao} onChange={(checked) => setSettingsData({ ...settingsData, enableAngpao: checked })} />
+                    </div>
                   </div>
                 </div>
+
+                {/* Angpao Phone Settings */}
+                {settingsData.enableAngpao && (
+                  <div className="space-y-4">
+                    <h3 className="text-sm font-bold text-white flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-2xl bg-rose-500/10 flex items-center justify-center text-lg border border-rose-500/10">
+                        🧧
+                      </div>
+                      <div>
+                        <span>ตั้งค่าอังเปา</span>
+                        <p className="text-[10px] text-slate-500 font-normal mt-0.5">กรอกเบอร์ TrueMoney Wallet เพื่อรับเงินอังเปา</p>
+                      </div>
+                    </h3>
+                    <div className="bg-white/[0.02] p-5 sm:p-6 rounded-2xl border border-white/5 space-y-5">
+                      <div className="space-y-2">
+                        <label className="text-xs font-semibold text-white/50 ml-1">เบอร์โทรศัพท์ (TrueMoney Wallet)</label>
+                        <Input
+                          type="tel"
+                          placeholder="0812345678"
+                          maxLength={10}
+                          value={settingsData.angpaoPhoneNumber}
+                          onChange={(e) => {
+                            const val = e.target.value.replace(/[^0-9]/g, '').slice(0, 10);
+                            setSettingsData({ ...settingsData, angpaoPhoneNumber: val });
+                          }}
+                          className={cn(
+                            "bg-slate-950/50 border-white/10 h-12 rounded-xl text-white font-bold text-sm",
+                            settingsData.angpaoPhoneNumber && !/^0[0-9]{9}$/.test(settingsData.angpaoPhoneNumber)
+                              ? "border-red-500/50 focus:ring-red-500/50"
+                              : ""
+                          )}
+                        />
+                        {settingsData.angpaoPhoneNumber && !/^0[0-9]{9}$/.test(settingsData.angpaoPhoneNumber) && (
+                          <p className="text-xs text-red-400">เบอร์โทรศัพท์ต้องเป็น 10 หลัก เริ่มต้นด้วย 0</p>
+                        )}
+                        {settingsData.enableAngpao && !settingsData.angpaoPhoneNumber && (
+                          <p className="text-xs text-amber-400">กรุณากรอกเบอร์โทรศัพท์เพื่อเปิดใช้งานอังเปา</p>
+                        )}
+                        <p className="text-[10px] text-slate-500 ml-1">แต่ละบัญชีตั้งเบอร์แยกกันได้ เบอร์เดียวกันใช้ซ้ำในบัญชีอื่นไม่ได้</p>
+                      </div>
+                    </div>
+                  </div>
+                )}
 
                 {/* Slip Settings */}
                 <div className="space-y-4">
