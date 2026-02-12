@@ -1,6 +1,7 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
+import { Model, Connection } from 'mongoose';
+import { InjectConnection } from '@nestjs/mongoose';
 import { AngpaoHistory, AngpaoHistoryDocument } from './schemas/angpao-history.schema';
 import { RedisService } from '../redis/redis.service';
 import {
@@ -11,7 +12,7 @@ import {
 } from './types/angpao.types';
 
 @Injectable()
-export class AngpaoService {
+export class AngpaoService implements OnModuleInit {
   private readonly logger = new Logger(AngpaoService.name);
 
   // ========================================
@@ -35,8 +36,30 @@ export class AngpaoService {
   constructor(
     @InjectModel(AngpaoHistory.name)
     private angpaoHistoryModel: Model<AngpaoHistoryDocument>,
+    @InjectConnection() private connection: Connection,
     private redisService: RedisService,
   ) {}
+
+  /**
+   * On startup: drop the old unique partial index on angpaoPhoneNumber (if it exists).
+   * Phone numbers are now allowed to be shared across multiple accounts.
+   */
+  async onModuleInit(): Promise<void> {
+    try {
+      const collection = this.connection.collection('line_accounts');
+      const indexes = await collection.indexes();
+      const oldIndex = indexes.find(
+        (idx) => idx.key?.['settings.angpaoPhoneNumber'] && idx.unique,
+      );
+      if (oldIndex && oldIndex.name) {
+        await collection.dropIndex(oldIndex.name);
+        this.logger.log(`[ANGPAO] Dropped old unique index: ${oldIndex.name}`);
+      }
+    } catch (error) {
+      // Index might not exist — safe to ignore
+      this.logger.debug(`[ANGPAO] No old phone index to drop (OK)`);
+    }
+  }
 
   /**
    * Detect angpao link in text message.
@@ -398,5 +421,34 @@ export class AngpaoService {
     ]);
 
     return { items, total };
+  }
+
+  /**
+   * Get success statistics for a LINE account.
+   * Returns total successful redemptions count + total amount.
+   */
+  async getSuccessStats(lineAccountId: string): Promise<{
+    totalCount: number;
+    totalAmount: number;
+  }> {
+    const result = await this.angpaoHistoryModel.aggregate([
+      { $match: { lineAccountId, status: 'success' } },
+      {
+        $group: {
+          _id: null,
+          totalCount: { $sum: 1 },
+          totalAmount: { $sum: { $ifNull: ['$amount', 0] } },
+        },
+      },
+    ]);
+
+    if (result.length === 0) {
+      return { totalCount: 0, totalAmount: 0 };
+    }
+
+    return {
+      totalCount: result[0].totalCount,
+      totalAmount: result[0].totalAmount,
+    };
   }
 }

@@ -22,13 +22,17 @@ import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { AuthUser } from '../auth/auth.service';
 import { UserRole } from '../database/schemas/user.schema';
 import { ParseObjectIdPipe } from '../common/pipes/parse-object-id.pipe';
+import { AngpaoService } from '../angpao/angpao.service';
 
 @ApiTags('LINE Accounts')
 @ApiBearerAuth()
 @Controller('line-accounts')
 @UseGuards(SessionAuthGuard)
 export class LineAccountsController {
-  constructor(private lineAccountsService: LineAccountsService) { }
+  constructor(
+    private lineAccountsService: LineAccountsService,
+    private angpaoService: AngpaoService,
+  ) { }
 
   @Post()
   @ApiOperation({ summary: 'Create LINE account' })
@@ -306,5 +310,52 @@ export class LineAccountsController {
     return {
       ...result,
     };
+  }
+
+  // ============================================
+  // Angpao History Endpoints
+  // ============================================
+
+  @Get(':id/angpao/history')
+  @ApiOperation({ summary: 'Get angpao redemption history for a LINE account' })
+  async getAngpaoHistory(
+    @Param('id', ParseObjectIdPipe) id: string,
+    @CurrentUser() user: AuthUser,
+    @Query('page') page = 1,
+    @Query('limit') limit = 20,
+  ) {
+    // Verify ownership (non-admin can only see own accounts)
+    const account = await this.lineAccountsService.findById(id);
+    if (!account) throw new NotFoundException('ไม่พบบัญชี LINE');
+    if (user.role !== UserRole.ADMIN && account.ownerId?.toString() !== user.userId) {
+      throw new ForbiddenException('ไม่มีสิทธิ์ดูประวัติอังเปา');
+    }
+
+    const [history, stats] = await Promise.all([
+      this.angpaoService.getHistory(id, Number(page), Number(limit)),
+      this.angpaoService.getSuccessStats(id),
+    ]);
+
+    return {
+      success: true,
+      ...history,
+      stats,
+    };
+  }
+
+  @Get(':id/angpao/stats')
+  @ApiOperation({ summary: 'Get angpao success statistics for a LINE account' })
+  async getAngpaoStats(
+    @Param('id', ParseObjectIdPipe) id: string,
+    @CurrentUser() user: AuthUser,
+  ) {
+    const account = await this.lineAccountsService.findById(id);
+    if (!account) throw new NotFoundException('ไม่พบบัญชี LINE');
+    if (user.role !== UserRole.ADMIN && account.ownerId?.toString() !== user.userId) {
+      throw new ForbiddenException('ไม่มีสิทธิ์ดูสถิติอังเปา');
+    }
+
+    const stats = await this.angpaoService.getSuccessStats(id);
+    return { success: true, ...stats };
   }
 }

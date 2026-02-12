@@ -424,41 +424,16 @@ export class LineAccountsService {
     }
 
     // ========================================
-    // Angpao phone number validation + collision check
-    // Runs on TWO triggers:
-    //   1. Phone number is being set/changed
-    //   2. enableAngpao is being toggled ON (with existing phone)
-    // This prevents collision bypass when toggling enable separately.
+    // Angpao phone number validation (format only — no collision check)
+    // Phone numbers can be shared across multiple accounts.
     // ========================================
-    const angpaoPhoneChanging = 'angpaoPhoneNumber' in mergedSettings && mergedSettings.angpaoPhoneNumber;
-    const angpaoEnabling = mergedSettings.enableAngpao === true;
-    // Resolve the phone number to check: new value or existing value
-    const angpaoPhoneToCheck = angpaoPhoneChanging
-      ? String(mergedSettings.angpaoPhoneNumber).trim()
-      : (currentSettings.angpaoPhoneNumber || '');
-
-    if (angpaoPhoneChanging) {
+    if ('angpaoPhoneNumber' in mergedSettings && mergedSettings.angpaoPhoneNumber) {
+      const phone = String(mergedSettings.angpaoPhoneNumber).trim();
       // Validate Thai mobile format: 0xxxxxxxxx (10 digits)
-      if (!/^0[0-9]{9}$/.test(angpaoPhoneToCheck)) {
+      if (!/^0[0-9]{9}$/.test(phone)) {
         throw new BadRequestException('เบอร์โทรศัพท์ไม่ถูกต้อง (ต้องเป็นเบอร์ไทย 10 หลัก เช่น 0812345678)');
       }
-      mergedSettings.angpaoPhoneNumber = angpaoPhoneToCheck;
-    }
-
-    // Collision check: run when phone is changing OR angpao is being enabled
-    if ((angpaoPhoneChanging || angpaoEnabling) && angpaoPhoneToCheck) {
-      const collision = await this.lineAccountModel.findOne({
-        _id: { $ne: id },
-        'settings.angpaoPhoneNumber': angpaoPhoneToCheck,
-        'settings.enableAngpao': true,
-      });
-      if (collision) {
-        // SECURITY: Don't expose other account's name — only log it internally
-        this.logger.warn(`[updateSettings] Angpao phone collision: phone=${angpaoPhoneToCheck} already used by account=${collision._id}`);
-        throw new BadRequestException(
-          'เบอร์โทรศัพท์นี้ถูกใช้งานในบัญชีอื่นแล้ว กรุณาใช้เบอร์อื่น',
-        );
-      }
+      mergedSettings.angpaoPhoneNumber = phone;
     }
 
     // Set the merged settings
@@ -467,19 +442,7 @@ export class LineAccountsService {
     // Mark settings as modified to ensure Mongoose saves nested changes
     account.markModified('settings');
 
-    try {
-      await account.save();
-    } catch (saveError: unknown) {
-      // Catch MongoDB duplicate key error from unique partial index (angpao phone)
-      // This is the DB-level safeguard against TOCTOU race conditions
-      const mongoError = saveError as { code?: number; keyPattern?: Record<string, number> };
-      if (mongoError.code === 11000 && mongoError.keyPattern?.['settings.angpaoPhoneNumber']) {
-        throw new BadRequestException(
-          'เบอร์โทรศัพท์นี้ถูกใช้งานในบัญชีอื่นแล้ว กรุณาใช้เบอร์อื่น',
-        );
-      }
-      throw saveError;
-    }
+    await account.save();
 
     this.logger.log(`[updateSettings] Updated settings for account ${id}: slipTemplateIds=${JSON.stringify(mergedSettings.slipTemplateIds || {})}`);
 
