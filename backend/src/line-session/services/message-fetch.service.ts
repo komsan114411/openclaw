@@ -2,14 +2,13 @@ import { Injectable, Logger, OnModuleInit, OnModuleDestroy } from '@nestjs/commo
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { ConfigService } from '@nestjs/config';
-import { OnEvent } from '@nestjs/event-emitter';
+import { EventEmitter2, OnEvent } from '@nestjs/event-emitter';
 import axios from 'axios';
 import { LineSession, LineSessionDocument } from '../schemas/line-session.schema';
 import { LineMessage, LineMessageDocument } from '../schemas/line-message.schema';
 import { AccountAlert, AccountAlertDocument } from '../schemas/account-alert.schema';
 import { SystemSettings, SystemSettingsDocument } from '../../database/schemas/system-settings.schema';
 import { KeyStorageService } from './key-storage.service';
-import { EventBusService } from '../../core/events';
 
 // Bank code constants
 export const BankCodes = {
@@ -80,7 +79,7 @@ export class MessageFetchService implements OnModuleInit, OnModuleDestroy {
     private accountAlertModel: Model<AccountAlertDocument>,
     private keyStorageService: KeyStorageService,
     private configService: ConfigService,
-    private eventBusService: EventBusService,
+    private eventEmitter: EventEmitter2,
   ) {}
 
   async onModuleInit() {
@@ -213,9 +212,8 @@ export class MessageFetchService implements OnModuleInit, OnModuleDestroy {
       if (newMessagesTotal > 0) {
         this.logger.log(`[AutoFetch] Completed: ${successCount}/${sessions.length} success, ${newMessagesTotal} new messages`);
 
-        // Publish event for real-time notification
-        this.eventBusService.publish({
-          eventName: 'line-session.auto-fetch-batch-completed',
+        // Publish event for real-time notification (NestJS EventEmitter2 → WebSocket gateway)
+        this.eventEmitter.emit('line-session.auto-fetch-batch-completed', {
           occurredAt: new Date(),
           sessionsCount: sessions.length,
           successCount,
@@ -298,13 +296,12 @@ export class MessageFetchService implements OnModuleInit, OnModuleDestroy {
       if (result.success) {
         this.logger.log(`[AutoFetch] ดึงข้อความสำเร็จ: ${result.newMessages} ข้อความใหม่จากทั้งหมด ${result.messageCount}`);
 
-        // Publish event for frontend notification
-        this.eventBusService.publish({
-          eventName: 'line-session.auto-fetch-completed',
+        // Publish event for frontend notification (NestJS EventEmitter2 → WebSocket gateway)
+        this.eventEmitter.emit('line-session.messages-fetched', {
           occurredAt: new Date(),
           lineAccountId,
+          messageCount: result.messageCount,
           newMessages: result.newMessages,
-          totalMessages: result.messageCount,
         });
       } else {
         this.logger.warn(`[AutoFetch] ดึงข้อความไม่สำเร็จ: ${result.error}`);
@@ -480,9 +477,8 @@ export class MessageFetchService implements OnModuleInit, OnModuleDestroy {
         await this.updateSessionBalance(lineAccountId);
       }
 
-      // Emit success event
-      this.eventBusService.publish({
-        eventName: 'line-session.messages-fetched' as any,
+      // Emit success event (NestJS EventEmitter2 → WebSocket gateway)
+      this.eventEmitter.emit('line-session.messages-fetched', {
         occurredAt: new Date(),
         lineAccountId,
         messageCount: messages.length,
@@ -708,8 +704,7 @@ export class MessageFetchService implements OnModuleInit, OnModuleDestroy {
         await this.updateSessionBalance(lineAccountId);
       }
 
-      this.eventBusService.publish({
-        eventName: 'line-session.messages-fetched' as any,
+      this.eventEmitter.emit('line-session.messages-fetched', {
         occurredAt: new Date(),
         lineAccountId,
         messageCount: messages.length,
@@ -808,10 +803,9 @@ export class MessageFetchService implements OnModuleInit, OnModuleDestroy {
       messageDate,
     });
 
-    // Emit new message event
+    // Emit new message event (NestJS EventEmitter2 → WebSocket gateway)
     if (parsed.transactionType !== 'unknown') {
-      this.eventBusService.publish({
-        eventName: 'line-session.new-transaction' as any,
+      this.eventEmitter.emit('line-session.new-transaction', {
         occurredAt: new Date(),
         lineAccountId: lineAccountId,
         transactionType: parsed.transactionType,
@@ -834,9 +828,9 @@ export class MessageFetchService implements OnModuleInit, OnModuleDestroy {
           isRead: false,
         });
 
-        this.eventBusService.publish({
-          eventName: 'account.new-alert' as any,
-          occurredAt: new Date(),
+        this.logger.log(`[AccountAlert] Created alert: ${lineAccountId} / ${parsed.transactionType} / ${parsed.amount || 'N/A'}`);
+
+        this.eventEmitter.emit('account.new-alert', {
           lineAccountId,
           transactionType: parsed.transactionType,
           amount: parsed.amount,
