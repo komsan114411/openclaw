@@ -1,7 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
-import axios from 'axios';
 import { AngpaoHistory, AngpaoHistoryDocument } from './schemas/angpao-history.schema';
 import { RedisService } from '../redis/redis.service';
 import {
@@ -201,6 +200,7 @@ export class AngpaoService {
 
   /**
    * Call TrueWallet redeem API.
+   * Uses got-scraping to bypass Cloudflare protection (TLS fingerprint + header order).
    * SECURITY: URL is hardcoded, hash is encoded, timeout enforced.
    */
   private async callRedeemApi(
@@ -211,38 +211,40 @@ export class AngpaoService {
     const url = `${this.API_BASE}/${encodedHash}/redeem`;
 
     try {
-      const response = await axios.post<TruewalletApiResponse>(
+      // Dynamic import — got-scraping is ESM-only
+      const { gotScraping } = await (eval('import("got-scraping")') as Promise<typeof import('got-scraping')>);
+
+      const response = await gotScraping({
         url,
-        {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+          'accept': 'application/json',
+          'accept-language': 'th-TH,th;q=0.9,en;q=0.8',
+          'origin': 'https://gift.truemoney.com',
+          'referer': `https://gift.truemoney.com/campaign/?v=${encodedHash}`,
+        },
+        body: JSON.stringify({
           mobile: phoneNumber,
           voucher_hash: voucherHash,
-        },
-        {
-          timeout: this.API_TIMEOUT_MS,
-          headers: {
-            'Content-Type': 'application/json',
-            'Accept': 'application/json',
-            'Accept-Language': 'th-TH,th;q=0.9,en;q=0.8',
-            'User-Agent': 'Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36',
-            'Origin': 'https://gift.truemoney.com',
-            'Referer': `https://gift.truemoney.com/campaign/?v=${encodedHash}`,
-          },
-          // Accept all status codes — TrueWallet returns errors in body
-          validateStatus: () => true,
-          // SECURITY: Prevent redirects to arbitrary hosts
-          maxRedirects: 0,
-        },
-      );
+        }),
+        timeout: { request: this.API_TIMEOUT_MS },
+        followRedirect: false,
+        throwHttpErrors: false,
+      });
 
-      // Runtime type: response.data may be string (HTML/Cloudflare) instead of JSON object
-      const data = response.data as unknown;
-      const httpStatus = response.status;
+      const httpStatus = response.statusCode;
+      const bodyStr = response.body;
 
       // ========================================
-      // Check if response is actually JSON (not HTML/Cloudflare block)
+      // Parse response body
       // ========================================
-      if (typeof data === 'string') {
-        const bodySnippet = data.replace(/[\r\n\t]/g, ' ').slice(0, 300);
+      let data: unknown;
+      try {
+        data = JSON.parse(bodyStr);
+      } catch {
+        // Non-JSON response (Cloudflare HTML block page, etc.)
+        const bodySnippet = bodyStr.replace(/[\r\n\t]/g, ' ').slice(0, 300);
         this.logger.warn(`[ANGPAO] Non-JSON response (httpStatus=${httpStatus}): ${bodySnippet}`);
 
         if (httpStatus === 403) {
@@ -263,7 +265,7 @@ export class AngpaoService {
       }
 
       // ========================================
-      // Handle HTTP-level errors (403, 5xx) with JSON body but no status.code
+      // Handle empty/invalid JSON
       // ========================================
       if (!data || typeof data !== 'object') {
         this.logger.warn(`[ANGPAO] Empty/invalid response body (httpStatus=${httpStatus})`);
@@ -275,7 +277,6 @@ export class AngpaoService {
         };
       }
 
-      // After guards: data is a JSON object — safe to cast
       const jsonData = data as TruewalletApiResponse;
 
       // SECURITY: Sanitize statusCode for logging — prevent log injection
@@ -288,9 +289,7 @@ export class AngpaoService {
       const mapping = TRUEWALLET_STATUS_MAP[statusCode];
       if (mapping && mapping.status === 'success') {
         const rawAmount = parseFloat(jsonData?.data?.voucher?.redeemed_amount_baht || jsonData?.data?.voucher?.amount_baht || '0');
-        // SECURITY: Validate amount is a finite number — prevent NaN display
         const amount = Number.isFinite(rawAmount) && rawAmount >= 0 ? rawAmount : 0;
-        // SECURITY: Sanitize ownerName — prevent XSS when displayed in admin dashboard
         const rawOwnerName = jsonData?.data?.owner_profile?.full_name || jsonData?.data?.voucher?.member?.name || '';
         const ownerName = String(rawOwnerName).replace(/[<>"'&]/g, '').slice(0, 100);
         return {
@@ -316,7 +315,6 @@ export class AngpaoService {
       const debugBody = JSON.stringify(jsonData).slice(0, 500);
       this.logger.warn(`[ANGPAO] Unknown TrueWallet status code: ${statusCode}, httpStatus=${httpStatus}, body=${debugBody}`);
 
-      // Specific message for HTTP 403
       if (httpStatus === 403) {
         return {
           success: false,
@@ -333,8 +331,8 @@ export class AngpaoService {
         voucherHash,
       };
     } catch (error: unknown) {
-      const axiosError = error as { code?: string; message?: string };
-      if (axiosError.code === 'ECONNABORTED') {
+      const err = error as { code?: string; message?: string };
+      if (err.code === 'ETIMEDOUT' || err.code === 'ECONNABORTED') {
         this.logger.error(`[ANGPAO] API timeout after ${this.API_TIMEOUT_MS}ms`);
         return {
           success: false,
@@ -344,7 +342,7 @@ export class AngpaoService {
         };
       }
 
-      this.logger.error(`[ANGPAO] API call failed: ${axiosError.message || 'Unknown error'}`);
+      this.logger.error(`[ANGPAO] API call failed: ${err.message || 'Unknown error'}`);
       return {
         success: false,
         status: 'error',
