@@ -1084,8 +1084,8 @@ export class MessageFetchService implements OnModuleInit, OnModuleDestroy {
     else if (/ชำระบิล|bill\s*pay|สินเชื่อ|ผ่อน|งวด|ค่าน้ำ|ค่าไฟ|ค่าโทรศัพท์|ค่าเช่า/i.test(text)) {
       result.transactionType = 'bill';
     }
-    // 4) Deposit: "เงินเข้า", "ฝาก", "รับโอน", "รับเงิน"
-    else if (/เงินเข้า|ฝาก|รับโอน|รับเงิน/i.test(text)) {
+    // 4) Deposit: "เงินเข้า", "ฝาก", "รับโอน", "รับเงิน", "โอนเข้า"
+    else if (/เงินเข้า|ฝาก|รับโอน|รับเงิน|โอนเข้า/i.test(text)) {
       result.transactionType = 'deposit';
     }
     // 5) Outgoing: "เงินออก", "ถอน/โอนเงิน", "ชำระ", "จ่าย", "หักบัญชี"
@@ -1123,7 +1123,7 @@ export class MessageFetchService implements OnModuleInit, OnModuleDestroy {
       result.transactionType = 'bill';
     }
     // 4) Deposit
-    else if (/รับโอน|เงินเข้า|ฝาก|รับเงิน/i.test(text)) {
+    else if (/รับโอน|เงินเข้า|ฝาก|รับเงิน|โอนเข้า/i.test(text)) {
       result.transactionType = 'deposit';
     }
     // 5) Outgoing
@@ -1161,7 +1161,7 @@ export class MessageFetchService implements OnModuleInit, OnModuleDestroy {
       result.transactionType = 'bill';
     }
     // 4) Deposit
-    else if (/รับโอน|รับเงิน|เงินเข้า|ฝาก|deposit|receive|credit/i.test(text)) {
+    else if (/รับโอน|รับเงิน|เงินเข้า|ฝาก|โอนเข้า|deposit|receive|credit/i.test(text)) {
       result.transactionType = 'deposit';
     }
     // 5) Outgoing

@@ -195,9 +195,17 @@ export default function AdminBankMonitorPage() {
       });
 
       // Fetch alert counts
-      const alertRes = await lineSessionApi.getUnreadAlertCounts()
-        .catch(() => ({ data: { counts: {} } }));
-      setAlertCounts(alertRes.data?.counts || {});
+      try {
+        const alertRes = await lineSessionApi.getUnreadAlertCounts();
+        const counts = alertRes.data?.counts || {};
+        setAlertCounts(counts);
+        if (Object.keys(counts).length > 0) {
+          console.log('[AlertCounts] Unread alerts:', counts);
+        }
+      } catch (alertErr) {
+        console.warn('[AlertCounts] Failed to fetch:', alertErr);
+        setAlertCounts({});
+      }
 
       setBanks(banksList);
       setOwners(usersList);

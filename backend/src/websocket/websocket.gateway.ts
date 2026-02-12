@@ -135,6 +135,25 @@ export class WebsocketGateway implements OnGatewayConnection, OnGatewayDisconnec
   async handleConnection(client: Socket) {
     this.logger.log(`Client connected: ${client.id}`);
     this.websocketService.addClient(client);
+
+    // Auto-authenticate from session_id cookie (httpOnly)
+    // This allows clients to join rooms automatically without explicit 'join' message
+    const sessionId = this.getSessionIdFromCookie(client);
+    if (sessionId) {
+      try {
+        const session = await this.authService.validateSession(sessionId);
+        if (session) {
+          this.websocketService.setClientUser(client.id, session.userId, session.role);
+          client.join(`user:${session.userId}`);
+          if (session.role === 'admin') {
+            client.join('admins');
+            this.logger.log(`Client ${client.id} auto-joined admins room via cookie (user: ${session.userId})`);
+          }
+        }
+      } catch {
+        // Cookie invalid — client can still join via 'join' event later
+      }
+    }
   }
 
   async handleDisconnect(client: Socket) {
@@ -142,21 +161,35 @@ export class WebsocketGateway implements OnGatewayConnection, OnGatewayDisconnec
     this.websocketService.removeClient(client.id);
   }
 
+  /**
+   * Extract session_id from handshake cookies (httpOnly cookie)
+   */
+  private getSessionIdFromCookie(client: Socket): string | null {
+    const cookieHeader = client.handshake?.headers?.cookie;
+    if (!cookieHeader) return null;
+    const match = cookieHeader.match(/(?:^|;\s*)session_id=([^;]*)/);
+    return match ? decodeURIComponent(match[1]) : null;
+  }
+
   @SubscribeMessage('join')
   async handleJoin(
     @ConnectedSocket() client: Socket,
     @MessageBody() data: { userId: string; role: string; sessionId?: string },
   ) {
-    // SECURITY: Require valid session for all room joins
-    if (data.sessionId) {
+    // SECURITY: Authenticate via sessionId (message body) OR session_id cookie (httpOnly)
+    // Priority: explicit sessionId > cookie
+    const sessionId = data.sessionId || this.getSessionIdFromCookie(client);
+
+    if (sessionId) {
       try {
-        const session = await this.authService.validateSession(data.sessionId);
+        const session = await this.authService.validateSession(sessionId);
         if (session) {
           // Use verified session data — never trust client-supplied userId/role
           this.websocketService.setClientUser(client.id, session.userId, session.role);
           client.join(`user:${session.userId}`);
           if (session.role === 'admin') {
             client.join('admins');
+            this.logger.log(`Client ${client.id} joined admins room (user: ${session.userId})`);
           }
           return { success: true, verified: true };
         }
@@ -166,7 +199,7 @@ export class WebsocketGateway implements OnGatewayConnection, OnGatewayDisconnec
     }
 
     // No valid session — do NOT join any rooms
-    this.logger.warn(`Client ${client.id} attempted join without valid session`);
+    this.logger.warn(`Client ${client.id} attempted join without valid session (no sessionId or cookie)`);
     return { success: false, verified: false, message: 'Valid session required' };
   }
 
