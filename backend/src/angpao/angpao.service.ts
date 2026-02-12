@@ -303,10 +303,21 @@ export class AngpaoService {
       }
 
       if (mapping) {
+        // Try to extract voucher data even for error responses (TrueWallet sometimes includes it)
+        let amount: number | undefined;
+        let ownerName: string | undefined;
+        if (jsonData?.data?.voucher) {
+          const rawAmt = parseFloat(jsonData.data.voucher.amount_baht || '0');
+          if (Number.isFinite(rawAmt) && rawAmt > 0) amount = rawAmt;
+          const rawName = jsonData.data.owner_profile?.full_name || jsonData.data.voucher.member?.name || '';
+          if (rawName) ownerName = String(rawName).replace(/[<>"'&]/g, '').slice(0, 100);
+        }
         return {
           success: false,
           status: mapping.status,
           message: mapping.message,
+          amount,
+          ownerName,
           voucherHash,
         };
       }

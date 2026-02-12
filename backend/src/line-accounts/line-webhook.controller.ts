@@ -373,8 +373,55 @@ export class LineWebhookController {
           `✅ เงินเข้า TrueMoney Wallet เรียบร้อยแล้ว`,
         ].filter(Boolean).join('\n');
       } else {
-        const emoji = result.status === 'rate_limited' ? '⏳' : '❌';
-        responseText = `${emoji} ${result.message}`;
+        // Format rich error messages per status
+        const lines: string[] = [];
+
+        switch (result.status) {
+          case 'already_redeemed':
+            lines.push('🔴 อังเปานี้ถูกรับไปแล้ว');
+            if (result.amount) lines.push(`💰 มูลค่า: ${result.amount.toFixed(2)} บาท`);
+            if (result.ownerName) lines.push(`👤 จาก: ${result.ownerName}`);
+            break;
+
+          case 'expired':
+            lines.push('⌛ อังเปานี้หมดอายุแล้ว');
+            if (result.amount) lines.push(`💰 มูลค่า: ${result.amount.toFixed(2)} บาท`);
+            if (result.ownerName) lines.push(`👤 จาก: ${result.ownerName}`);
+            break;
+
+          case 'out_of_stock':
+            lines.push('📭 อังเปานี้ถูกรับหมดแล้ว');
+            if (result.amount) lines.push(`💰 มูลค่า: ${result.amount.toFixed(2)} บาท`);
+            if (result.ownerName) lines.push(`👤 จาก: ${result.ownerName}`);
+            break;
+
+          case 'not_found':
+            lines.push('🔍 ไม่พบอังเปานี้');
+            lines.push('กรุณาตรวจสอบลิงก์อีกครั้ง');
+            break;
+
+          case 'own_voucher':
+            lines.push('🚫 ไม่สามารถรับอังเปาของตัวเองได้');
+            if (result.amount) lines.push(`💰 มูลค่า: ${result.amount.toFixed(2)} บาท`);
+            break;
+
+          case 'invalid_phone':
+            lines.push('📱 เบอร์โทรศัพท์ไม่ถูกต้อง');
+            lines.push('กรุณาตรวจสอบการตั้งค่าเบอร์รับอังเปา');
+            break;
+
+          case 'rate_limited':
+            lines.push('⏳ กรุณารอสักครู่');
+            lines.push(result.message);
+            break;
+
+          default:
+            lines.push('❌ เกิดข้อผิดพลาด');
+            lines.push(result.message);
+            break;
+        }
+
+        responseText = lines.join('\n');
       }
 
       // Send reply (prefer reply token for free, fallback to push)
