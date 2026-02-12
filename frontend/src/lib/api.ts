@@ -876,6 +876,20 @@ export const lineSessionApi = {
     olderThanDays?: number;
     olderThanMonths?: number;
   }) => api.post('/admin/line-session/messages/cleanup-preview', data),
+
+  // === Account Alerts ===
+
+  // Get unread alert counts for all accounts
+  getUnreadAlertCounts: () =>
+    api.get('/admin/line-session/batch/alerts/unread-counts'),
+
+  // Get alerts for a specific account (paginated)
+  getAlerts: (lineAccountId: string, page = 1, limit = 20) =>
+    api.get(`/admin/line-session/${lineAccountId}/alerts`, { params: { page, limit } }),
+
+  // Mark all alerts as read for a specific account
+  markAlertsRead: (lineAccountId: string) =>
+    api.put(`/admin/line-session/${lineAccountId}/alerts/mark-read`),
 };
 
 // LINE Session User API (User-facing endpoints)

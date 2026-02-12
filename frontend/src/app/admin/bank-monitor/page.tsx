@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import { lineSessionApi, usersApi } from '@/lib/api';
 import toast from 'react-hot-toast';
@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/Button';
 import { Modal } from '@/components/ui/Modal';
 import { PageLoading, Spinner } from '@/components/ui/Loading';
 import { cn } from '@/lib/utils';
+import { io, Socket } from 'socket.io-client';
 import {
   Building2,
   TrendingUp,
@@ -30,7 +31,9 @@ import {
   Loader2,
   Copy,
   Mail,
-  Terminal
+  Terminal,
+  Bell,
+  CheckCheck
 } from 'lucide-react';
 
 interface BankSession {
@@ -90,6 +93,18 @@ interface TransactionSummary {
   withdrawals: { total: number; count: number };
 }
 
+interface AccountAlertItem {
+  _id: string;
+  lineAccountId: string;
+  messageId: string;
+  transactionType: string;
+  amount: string;
+  text: string;
+  isRead: boolean;
+  messageDate: string;
+  createdAt: string;
+}
+
 export default function AdminBankMonitorPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [sessions, setSessions] = useState<BankSession[]>([]);
@@ -142,6 +157,16 @@ export default function AdminBankMonitorPage() {
   // Batch fetch state
   const [isBatchFetching, setIsBatchFetching] = useState(false);
 
+  // Alert state
+  const [alertCounts, setAlertCounts] = useState<Record<string, number>>({});
+  const [showAlertModal, setShowAlertModal] = useState(false);
+  const [alertSession, setAlertSession] = useState<BankSession | null>(null);
+  const [alerts, setAlerts] = useState<AccountAlertItem[]>([]);
+  const [alertPage, setAlertPage] = useState(1);
+  const [alertTotalPages, setAlertTotalPages] = useState(0);
+  const [isLoadingAlerts, setIsLoadingAlerts] = useState(false);
+  const socketRef = useRef<Socket | null>(null);
+
   const fetchData = useCallback(async () => {
     try {
       const [sessionsRes, banksRes, usersRes, msgStatsRes] = await Promise.all([
@@ -169,6 +194,11 @@ export default function AdminBankMonitorPage() {
         if (s.lineAccountId) msgCountMap.set(s.lineAccountId, s.count);
         msgCountMap.set(s._id, s.count);
       });
+
+      // Fetch alert counts
+      const alertRes = await lineSessionApi.getUnreadAlertCounts()
+        .catch(() => ({ data: { counts: {} } }));
+      setAlertCounts(alertRes.data?.counts || {});
 
       setBanks(banksList);
       setOwners(usersList);
@@ -252,6 +282,84 @@ export default function AdminBankMonitorPage() {
     }, AUTO_REFRESH_INTERVAL);
     return () => clearInterval(interval);
   }, [autoRefresh, fetchData]);
+
+  // WebSocket for real-time alerts
+  useEffect(() => {
+    const backendUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+    const socket = io(`${backendUrl}/ws`, {
+      withCredentials: true,
+      transports: ['websocket', 'polling'],
+      reconnectionAttempts: 5,
+      reconnectionDelay: 1000,
+    });
+
+    socketRef.current = socket;
+
+    socket.on('connect', () => {
+      socket.emit('join', { userId: 'admin', role: 'admin' });
+    });
+
+    socket.on('account:new-alert', (data: { lineAccountId: string; transactionType: string; amount?: number; text?: string }) => {
+      setAlertCounts(prev => ({
+        ...prev,
+        [data.lineAccountId]: (prev[data.lineAccountId] || 0) + 1,
+      }));
+      const typeNames: Record<string, string> = {
+        transfer: 'โอนเงิน', payment: 'ชำระเงิน', fee: 'ค่าธรรมเนียม',
+        interest: 'ดอกเบี้ย', bill: 'ชำระบิล', unknown: 'อื่นๆ',
+      };
+      toast(`พบรายการผิดปกติ: ${typeNames[data.transactionType] || data.transactionType}`, { icon: '\uD83D\uDD14' });
+    });
+
+    return () => {
+      socket.disconnect();
+      socketRef.current = null;
+    };
+  }, []);
+
+  const translateAlertType = (type: string): string => {
+    const names: Record<string, string> = {
+      transfer: 'โอนเงิน', payment: 'ชำระเงิน', fee: 'ค่าธรรมเนียม',
+      interest: 'ดอกเบี้ย', bill: 'ชำระบิล', unknown: 'อื่นๆ',
+      deposit: 'เงินเข้า', withdraw: 'เงินออก',
+    };
+    return names[type] || type;
+  };
+
+  const openAlertModal = async (session: BankSession, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setAlertSession(session);
+    setShowAlertModal(true);
+    setAlertPage(1);
+    setIsLoadingAlerts(true);
+    try {
+      const res = await lineSessionApi.getAlerts(session.lineAccountId, 1);
+      setAlerts(res.data?.alerts || []);
+      setAlertTotalPages(res.data?.totalPages || 0);
+      // Mark as read
+      await lineSessionApi.markAlertsRead(session.lineAccountId);
+      setAlertCounts(prev => ({ ...prev, [session.lineAccountId]: 0 }));
+    } catch {
+      toast.error('ไม่สามารถโหลดแจ้งเตือนได้');
+    } finally {
+      setIsLoadingAlerts(false);
+    }
+  };
+
+  const fetchAlertPage = async (page: number) => {
+    if (!alertSession) return;
+    setIsLoadingAlerts(true);
+    try {
+      const res = await lineSessionApi.getAlerts(alertSession.lineAccountId, page);
+      setAlerts(res.data?.alerts || []);
+      setAlertPage(page);
+      setAlertTotalPages(res.data?.totalPages || 0);
+    } catch {
+      toast.error('ไม่สามารถโหลดแจ้งเตือนได้');
+    } finally {
+      setIsLoadingAlerts(false);
+    }
+  };
 
   const fetchDetailMessages = async (lineAccountId: string, page: number, type: string, skipSummary = false, startDate?: string, endDate?: string) => {
     try {
@@ -690,6 +798,19 @@ export default function AdminBankMonitorPage() {
                     </div>
                   </div>
                   <div className="flex items-center justify-between sm:justify-end gap-3 sm:gap-4 pl-13 sm:pl-0">
+                    {/* Alert Badge */}
+                    {alertCounts[session.lineAccountId] > 0 && (
+                      <button
+                        onClick={(e) => openAlertModal(session, e)}
+                        className="flex items-center gap-1.5 px-2.5 py-1.5 bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 rounded-lg transition-colors"
+                        title="มีรายการผิดปกติ"
+                      >
+                        <Bell className="w-3.5 h-3.5 text-red-400 animate-pulse" />
+                        <span className="bg-red-500 text-white text-[10px] font-bold rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1">
+                          {alertCounts[session.lineAccountId]}
+                        </span>
+                      </button>
+                    )}
                     {session.hasKeys && (
                       <Button
                         variant="secondary"
@@ -1346,6 +1467,126 @@ export default function AdminBankMonitorPage() {
                 variant="ghost"
                 className="flex-1 h-12 rounded-xl font-bold"
                 onClick={() => setShowKeysModal(false)}
+              >
+                ปิด
+              </Button>
+            </div>
+          </div>
+        )}
+      </Modal>
+      {/* Alert Modal */}
+      <Modal
+        isOpen={showAlertModal}
+        onClose={() => setShowAlertModal(false)}
+        title={`การแจ้งเตือน — ${alertSession?.accountName || ''}`}
+        size="xl"
+      >
+        {alertSession && (
+          <div className="space-y-4 pt-4 max-h-[75vh] overflow-y-auto px-2 custom-scrollbar pb-6">
+            {/* Account info */}
+            <div className="p-3 bg-gradient-to-r from-red-500/10 to-orange-500/10 rounded-xl border border-red-500/20">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-lg bg-red-500/20 flex items-center justify-center shrink-0">
+                  <Bell className="w-4 h-4 text-red-400" />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-sm font-bold text-white truncate">{alertSession.accountName}</p>
+                  <p className="text-xs text-slate-400">{alertSession.bankName || alertSession.bankCode || 'ไม่ระบุธนาคาร'}</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Alerts list */}
+            {isLoadingAlerts ? (
+              <div className="flex justify-center py-8">
+                <Spinner size="lg" />
+              </div>
+            ) : alerts.length === 0 ? (
+              <div className="p-8 bg-slate-800/30 rounded-2xl text-center border border-slate-700/30">
+                <CheckCheck className="w-12 h-12 text-slate-600 mx-auto mb-3" />
+                <p className="text-sm text-slate-500">ไม่มีรายการแจ้งเตือน</p>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {alerts.map((alert) => (
+                  <div
+                    key={alert._id}
+                    className={cn(
+                      "p-3 rounded-xl border transition-colors",
+                      alert.isRead
+                        ? "bg-slate-800/30 border-slate-700/30"
+                        : "bg-slate-800/50 border-slate-700/50"
+                    )}
+                  >
+                    <div className="flex items-center justify-between mb-1.5">
+                      <Badge className={cn(
+                        "text-[9px] font-bold",
+                        alert.transactionType === 'transfer' && "bg-blue-100 text-blue-700",
+                        alert.transactionType === 'payment' && "bg-violet-100 text-violet-700",
+                        alert.transactionType === 'fee' && "bg-amber-100 text-amber-700",
+                        alert.transactionType === 'interest' && "bg-cyan-100 text-cyan-700",
+                        alert.transactionType === 'bill' && "bg-orange-100 text-orange-700",
+                        alert.transactionType === 'unknown' && "bg-slate-100 text-slate-600"
+                      )}>
+                        {translateAlertType(alert.transactionType)}
+                      </Badge>
+                      <div className="flex items-center gap-2">
+                        {alert.amount && (
+                          <span className="text-sm font-bold text-white">
+                            {Number(alert.amount).toLocaleString()} THB
+                          </span>
+                        )}
+                        {!alert.isRead && (
+                          <span className="w-2 h-2 rounded-full bg-red-500" />
+                        )}
+                      </div>
+                    </div>
+                    <p className="text-xs text-slate-400 truncate mb-1">
+                      {alert.text || 'ไม่มีข้อความ'}
+                    </p>
+                    <p className="text-[10px] text-slate-500">
+                      {alert.createdAt ? new Date(alert.createdAt).toLocaleString('th-TH') : '-'}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Pagination */}
+            {alertTotalPages > 1 && (
+              <div className="flex items-center justify-center gap-2 pt-2">
+                <button
+                  onClick={() => fetchAlertPage(alertPage - 1)}
+                  disabled={alertPage <= 1}
+                  className={cn(
+                    "w-8 h-8 rounded-lg flex items-center justify-center transition-colors",
+                    alertPage <= 1 ? "text-slate-600 cursor-not-allowed" : "text-slate-400 hover:bg-slate-700/50"
+                  )}
+                >
+                  <ChevronLeft className="w-4 h-4" />
+                </button>
+                <span className="text-xs text-slate-400">
+                  หน้า {alertPage} / {alertTotalPages}
+                </span>
+                <button
+                  onClick={() => fetchAlertPage(alertPage + 1)}
+                  disabled={alertPage >= alertTotalPages}
+                  className={cn(
+                    "w-8 h-8 rounded-lg flex items-center justify-center transition-colors",
+                    alertPage >= alertTotalPages ? "text-slate-600 cursor-not-allowed" : "text-slate-400 hover:bg-slate-700/50"
+                  )}
+                >
+                  <ChevronRight className="w-4 h-4" />
+                </button>
+              </div>
+            )}
+
+            {/* Close Button */}
+            <div className="flex gap-4 pt-4 border-t border-slate-700">
+              <Button
+                variant="ghost"
+                className="flex-1 h-12 rounded-xl font-bold"
+                onClick={() => setShowAlertModal(false)}
               >
                 ปิด
               </Button>

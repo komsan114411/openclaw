@@ -502,6 +502,24 @@ export class WebsocketGateway implements OnGatewayConnection, OnGatewayDisconnec
   }
 
   // ============================================
+  // Account Alert Events
+  // ============================================
+
+  /**
+   * Broadcast when a new account alert is created (non-deposit/withdraw transaction)
+   */
+  @OnEvent('account.new-alert')
+  handleNewAlert(payload: {
+    lineAccountId: string;
+    transactionType: string;
+    amount?: number;
+    text?: string;
+  }) {
+    this.logger.log(`[AccountAlert] New alert for ${payload.lineAccountId}: ${payload.transactionType}`);
+    this.broadcastToAdmins('account:new-alert', payload);
+  }
+
+  // ============================================
   // Auto-Slip Extraction Events
   // ============================================
 

@@ -40,6 +40,7 @@ import { ConfigService } from '@nestjs/config';
 import { BankList, BankListDocument, DEFAULT_BANKS } from './schemas/bank-list.schema';
 import { LineSession, LineSessionDocument } from './schemas/line-session.schema';
 import { LineMessage, LineMessageDocument } from './schemas/line-message.schema';
+import { AccountAlert, AccountAlertDocument } from './schemas/account-alert.schema';
 import { decryptPassword } from './utils/credential.util';
 
 @ApiTags('LINE Session')
@@ -70,6 +71,8 @@ export class LineSessionController {
     private lineSessionModel: Model<LineSessionDocument>,
     @InjectModel(LineMessage.name)
     private lineMessageModel: Model<LineMessageDocument>,
+    @InjectModel(AccountAlert.name)
+    private accountAlertModel: Model<AccountAlertDocument>,
   ) {
     // Initialize default banks on startup
     this.initializeDefaultBanks();
@@ -981,6 +984,80 @@ export class LineSessionController {
     return {
       success: true,
       ...result,
+    };
+  }
+
+  // ================================
+  // ACCOUNT ALERTS
+  // ================================
+
+  /**
+   * Get unread alert counts for all accounts (batch)
+   * IMPORTANT: Must be before :lineAccountId routes
+   */
+  @Get('batch/alerts/unread-counts')
+  @ApiOperation({ summary: 'Get unread alert counts for all accounts' })
+  async getUnreadAlertCounts() {
+    const results = await this.accountAlertModel.aggregate([
+      { $match: { isRead: false } },
+      { $group: { _id: '$lineAccountId', count: { $sum: 1 } } },
+    ]);
+
+    const counts: Record<string, number> = {};
+    for (const r of results) {
+      counts[r._id] = r.count;
+    }
+
+    return { success: true, counts };
+  }
+
+  /**
+   * Get alerts for a specific account (paginated)
+   */
+  @Get(':lineAccountId/alerts')
+  @ApiOperation({ summary: 'Get alerts for account' })
+  async getAlerts(
+    @Param('lineAccountId') lineAccountId: string,
+    @Query('page') page?: number,
+    @Query('limit') limit?: number,
+  ) {
+    const pageNum = Math.max(1, Number(page) || 1);
+    const limitNum = Math.min(100, Math.max(1, Number(limit) || 20));
+    const skip = (pageNum - 1) * limitNum;
+
+    const [alerts, total] = await Promise.all([
+      this.accountAlertModel
+        .find({ lineAccountId })
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limitNum)
+        .lean(),
+      this.accountAlertModel.countDocuments({ lineAccountId }),
+    ]);
+
+    return {
+      success: true,
+      alerts,
+      total,
+      page: pageNum,
+      totalPages: Math.ceil(total / limitNum),
+    };
+  }
+
+  /**
+   * Mark all alerts as read for a specific account
+   */
+  @Put(':lineAccountId/alerts/mark-read')
+  @ApiOperation({ summary: 'Mark all alerts as read for account' })
+  async markAlertsRead(@Param('lineAccountId') lineAccountId: string) {
+    const result = await this.accountAlertModel.updateMany(
+      { lineAccountId, isRead: false },
+      { $set: { isRead: true } },
+    );
+
+    return {
+      success: true,
+      markedCount: result.modifiedCount,
     };
   }
 

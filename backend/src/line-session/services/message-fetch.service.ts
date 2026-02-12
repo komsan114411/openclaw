@@ -6,6 +6,7 @@ import { OnEvent } from '@nestjs/event-emitter';
 import axios from 'axios';
 import { LineSession, LineSessionDocument } from '../schemas/line-session.schema';
 import { LineMessage, LineMessageDocument } from '../schemas/line-message.schema';
+import { AccountAlert, AccountAlertDocument } from '../schemas/account-alert.schema';
 import { SystemSettings, SystemSettingsDocument } from '../../database/schemas/system-settings.schema';
 import { KeyStorageService } from './key-storage.service';
 import { EventBusService } from '../../core/events';
@@ -75,6 +76,8 @@ export class MessageFetchService implements OnModuleInit, OnModuleDestroy {
     private lineMessageModel: Model<LineMessageDocument>,
     @InjectModel(SystemSettings.name)
     private systemSettingsModel: Model<SystemSettingsDocument>,
+    @InjectModel(AccountAlert.name)
+    private accountAlertModel: Model<AccountAlertDocument>,
     private keyStorageService: KeyStorageService,
     private configService: ConfigService,
     private eventBusService: EventBusService,
@@ -780,6 +783,34 @@ export class MessageFetchService implements OnModuleInit, OnModuleDestroy {
         amount: parsed.amount,
         balance: parsed.balance,
       });
+    }
+
+    // Create alert for non-deposit/withdraw transactions
+    if (!['deposit', 'withdraw'].includes(parsed.transactionType)) {
+      try {
+        const originalMsg = msg?.contentMetadata?.ALT_TEXT || '';
+        await this.accountAlertModel.create({
+          lineAccountId,
+          messageId,
+          transactionType: parsed.transactionType,
+          amount: parsed.amount ? String(parsed.amount) : '',
+          text: (text || originalMsg || '').substring(0, 200),
+          messageDate: parsed.messageDate || new Date(),
+          isRead: false,
+        });
+
+        this.eventBusService.publish({
+          eventName: 'account.new-alert' as any,
+          occurredAt: new Date(),
+          lineAccountId,
+          transactionType: parsed.transactionType,
+          amount: parsed.amount,
+          text: (text || originalMsg || '').substring(0, 100),
+        });
+      } catch (alertErr: unknown) {
+        const errMsg = alertErr instanceof Error ? alertErr.message : String(alertErr);
+        this.logger.warn(`Failed to create alert for ${lineAccountId}: ${errMsg}`);
+      }
     }
 
     return true;

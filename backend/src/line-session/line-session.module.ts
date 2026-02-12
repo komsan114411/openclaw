@@ -6,6 +6,7 @@ import { LineSession, LineSessionSchema } from './schemas/line-session.schema';
 import { LineKeyHistory, LineKeyHistorySchema } from './schemas/line-key-history.schema';
 import { BankList, BankListSchema } from './schemas/bank-list.schema';
 import { LineMessage, LineMessageSchema } from './schemas/line-message.schema';
+import { AccountAlert, AccountAlertSchema } from './schemas/account-alert.schema';
 import { LineAccount, LineAccountSchema } from '../database/schemas/line-account.schema';
 import { SystemSettings, SystemSettingsSchema } from '../database/schemas/system-settings.schema';
 
@@ -65,6 +66,7 @@ import { ConfigModule } from '@nestjs/config';
       { name: LineKeyHistory.name, schema: LineKeyHistorySchema },
       { name: BankList.name, schema: BankListSchema },
       { name: LineMessage.name, schema: LineMessageSchema },
+      { name: AccountAlert.name, schema: AccountAlertSchema },
       { name: LineAccount.name, schema: LineAccountSchema },
       { name: SystemSettings.name, schema: SystemSettingsSchema },
     ]),
