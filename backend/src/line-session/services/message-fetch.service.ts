@@ -757,7 +757,7 @@ export class MessageFetchService implements OnModuleInit, OnModuleDestroy {
 
       const messages = await this.lineMessageModel.find({
         lineAccountId,
-        transactionType: { $nin: ['deposit', 'withdraw', 'unknown'] },
+        transactionType: { $nin: ['deposit', 'withdraw', 'transfer', 'unknown'] },
         messageDate: { $gte: cutoff },
       }).lean();
 
@@ -887,8 +887,8 @@ export class MessageFetchService implements OnModuleInit, OnModuleDestroy {
       });
     }
 
-    // Create alert for non-deposit/withdraw transactions
-    if (!['deposit', 'withdraw'].includes(parsed.transactionType)) {
+    // Create alert for non-normal transactions (ใช้บัตร, ชำระสินค้า, ค่าธรรมเนียม, etc.)
+    if (!['deposit', 'withdraw', 'transfer'].includes(parsed.transactionType)) {
       try {
         const originalMsg = msg?.contentMetadata?.ALT_TEXT || '';
         await this.accountAlertModel.create({
