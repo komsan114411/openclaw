@@ -110,6 +110,9 @@ export interface LineAccountSettings {
   smartAiMaxRetries?: number;
   smartAiRetryDelayMs?: number;
   smartAiFallbackAction?: string;
+  // Angpao
+  enableAngpao?: boolean;
+  angpaoPhoneNumber?: string;
 }
 
 export interface Package {
@@ -333,6 +336,24 @@ export interface UsdtSettings {
   qrCodeUrl?: string;  // Alias for qrImage
   disabledMessage?: string;
   autoVerify?: boolean;
+}
+
+export interface AngpaoHistoryItem {
+  _id: string;
+  voucherHash: string;
+  lineAccountId: string;
+  lineUserId: string;
+  phoneNumberMasked: string;
+  amount: number;
+  status: 'success' | 'already_redeemed' | 'expired' | 'not_found'
+    | 'own_voucher' | 'invalid_phone' | 'out_of_stock' | 'rate_limited' | 'error';
+  ownerName: string;
+  createdAt: string;
+}
+
+export interface AngpaoStats {
+  totalCount: number;
+  totalAmount: number;
 }
 
 export interface UnifiedTransaction {

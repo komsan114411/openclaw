@@ -4,7 +4,7 @@ import { useEffect, useState, memo } from 'react';
 import Link from 'next/link';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import { lineAccountsApi, systemSettingsApi, banksApi } from '@/lib/api';
-import { LineAccount, SlipTemplateListItem, Bank } from '@/types';
+import { LineAccount, SlipTemplateListItem, Bank, AngpaoHistoryItem, AngpaoStats } from '@/types';
 import toast from 'react-hot-toast';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Card, EmptyState } from '@/components/ui/Card';
@@ -42,6 +42,8 @@ import {
   RotateCcw,
   SlidersHorizontal,
   Sparkles,
+  ChevronLeft,
+  ChevronRight,
 } from 'lucide-react';
 
 // Extended SlipTemplate interface for preview
@@ -320,6 +322,16 @@ export default function UserLineAccountsPage() {
   const [showSettingsModal, setShowSettingsModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [accountToDelete, setAccountToDelete] = useState<string | null>(null);
+
+  // Angpao history state
+  const [showAngpaoModal, setShowAngpaoModal] = useState(false);
+  const [angpaoAccount, setAngpaoAccount] = useState<LineAccount | null>(null);
+  const [angpaoItems, setAngpaoItems] = useState<AngpaoHistoryItem[]>([]);
+  const [angpaoStats, setAngpaoStats] = useState<AngpaoStats>({ totalCount: 0, totalAmount: 0 });
+  const [angpaoPage, setAngpaoPage] = useState(1);
+  const [angpaoTotal, setAngpaoTotal] = useState(0);
+  const [angpaoLoading, setAngpaoLoading] = useState(false);
+  const [angpaoStatusFilter, setAngpaoStatusFilter] = useState<string>('all');
 
   // Connection status tracking
   const [connectionStatus, setConnectionStatus] = useState<Record<string, ConnectionStatusInfo>>({});
@@ -690,6 +702,62 @@ export default function UserLineAccountsPage() {
     }
   };
 
+  // === Angpao History Functions ===
+  const openAngpaoModal = async (account: LineAccount) => {
+    setAngpaoAccount(account);
+    setAngpaoPage(1);
+    setAngpaoStatusFilter('all');
+    setShowAngpaoModal(true);
+    setAngpaoLoading(true);
+    try {
+      const res = await lineAccountsApi.getAngpaoHistory(account._id, 1, 20);
+      setAngpaoItems(res.data.items || []);
+      setAngpaoTotal(res.data.total || 0);
+      setAngpaoStats(res.data.stats || { totalCount: 0, totalAmount: 0 });
+    } catch {
+      toast.error('โหลดประวัติอังเปาล้มเหลว');
+    } finally {
+      setAngpaoLoading(false);
+    }
+  };
+
+  const fetchAngpaoPage = async (page: number) => {
+    if (!angpaoAccount) return;
+    setAngpaoPage(page);
+    setAngpaoLoading(true);
+    try {
+      const res = await lineAccountsApi.getAngpaoHistory(angpaoAccount._id, page, 20);
+      setAngpaoItems(res.data.items || []);
+      setAngpaoTotal(res.data.total || 0);
+    } catch {
+      toast.error('โหลดข้อมูลล้มเหลว');
+    } finally {
+      setAngpaoLoading(false);
+    }
+  };
+
+  const angpaoStatusLabel = (status: string): string => {
+    const map: Record<string, string> = {
+      success: 'สำเร็จ',
+      already_redeemed: 'รับแล้ว',
+      expired: 'หมดอายุ',
+      not_found: 'ไม่พบ',
+      own_voucher: 'ซองตัวเอง',
+      invalid_phone: 'เบอร์ผิด',
+      out_of_stock: 'หมดแล้ว',
+      rate_limited: 'ถูกจำกัด',
+      error: 'ข้อผิดพลาด',
+    };
+    return map[status] || status;
+  };
+
+  const angpaoStatusColor = (status: string): string => {
+    if (status === 'success') return 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20';
+    if (status === 'already_redeemed') return 'text-amber-400 bg-amber-500/10 border-amber-500/20';
+    if (status === 'expired') return 'text-slate-400 bg-slate-500/10 border-slate-500/20';
+    return 'text-rose-400 bg-rose-500/10 border-rose-500/20';
+  };
+
   const openSettingsModal = (account: LineAccount) => {
     setSelectedAccount(account);
     setActiveSettingsTab('core');
@@ -1017,7 +1085,7 @@ export default function UserLineAccountsPage() {
                       </div>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-2 sm:gap-3 pt-3 sm:pt-4 border-t border-white/5">
+                    <div className={cn("grid gap-2 sm:gap-3 pt-3 sm:pt-4 border-t border-white/5", account.settings?.enableAngpao ? "grid-cols-3" : "grid-cols-2")}>
                       <Button
                         variant="primary"
                         className="h-9 sm:h-10 rounded-lg sm:rounded-xl font-semibold text-xs bg-[#06C755] hover:bg-[#05B048] transition-all"
@@ -1032,6 +1100,15 @@ export default function UserLineAccountsPage() {
                       >
                         ตั้งค่า
                       </Button>
+                      {account.settings?.enableAngpao && (
+                        <Button
+                          variant="outline"
+                          className="h-9 sm:h-10 rounded-lg sm:rounded-xl font-semibold text-xs border-rose-500/20 bg-rose-500/5 hover:bg-rose-500/10 text-rose-400 transition-all"
+                          onClick={() => openAngpaoModal(account)}
+                        >
+                          🧧
+                        </Button>
+                      )}
                     </div>
                   </Card>
                 </motion.div>
@@ -2216,6 +2293,127 @@ export default function UserLineAccountsPage() {
             )}
 
           </AnimatePresence>
+        </div>
+      </Modal>
+
+      {/* Angpao History Modal */}
+      <Modal isOpen={showAngpaoModal} onClose={() => setShowAngpaoModal(false)} title={`🧧 ประวัติอังเปา: ${angpaoAccount?.accountName || ''}`} size="lg">
+        <div className="space-y-6 pt-2">
+          {/* Stats Summary */}
+          <div className="grid grid-cols-2 gap-4">
+            <div className="p-5 rounded-2xl bg-gradient-to-br from-rose-500/10 to-orange-500/10 border border-rose-500/20">
+              <p className="text-[10px] font-black text-rose-400 uppercase tracking-widest mb-1">รับสำเร็จ</p>
+              <p className="text-2xl font-black text-white">{angpaoStats.totalCount.toLocaleString()} <span className="text-sm text-white/40">ครั้ง</span></p>
+            </div>
+            <div className="p-5 rounded-2xl bg-gradient-to-br from-emerald-500/10 to-teal-500/10 border border-emerald-500/20">
+              <p className="text-[10px] font-black text-emerald-400 uppercase tracking-widest mb-1">ยอดรวม</p>
+              <p className="text-2xl font-black text-white">฿{angpaoStats.totalAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}</p>
+            </div>
+          </div>
+
+          {/* Status Filter */}
+          <div className="flex flex-wrap gap-2">
+            {[
+              { key: 'all', label: 'ทั้งหมด' },
+              { key: 'success', label: 'สำเร็จ' },
+              { key: 'already_redeemed', label: 'รับแล้ว' },
+              { key: 'expired', label: 'หมดอายุ' },
+              { key: 'error', label: 'ผิดพลาด' },
+            ].map((f) => (
+              <button
+                key={f.key}
+                onClick={() => setAngpaoStatusFilter(f.key)}
+                className={cn(
+                  "px-3 py-1.5 rounded-xl text-xs font-bold transition-all border",
+                  angpaoStatusFilter === f.key
+                    ? "bg-rose-500/20 text-rose-400 border-rose-500/30"
+                    : "bg-white/5 text-white/50 border-white/5 hover:bg-white/10"
+                )}
+              >
+                {f.label}
+              </button>
+            ))}
+          </div>
+
+          {/* History List */}
+          {angpaoLoading ? (
+            <div className="flex justify-center py-12"><Loader2 className="w-8 h-8 animate-spin text-rose-400" /></div>
+          ) : (() => {
+            const filtered = angpaoStatusFilter === 'all'
+              ? angpaoItems
+              : angpaoItems.filter(item => item.status === angpaoStatusFilter);
+            return filtered.length === 0 ? (
+              <div className="text-center py-12 text-white/30">
+                <p className="text-4xl mb-3">🧧</p>
+                <p className="text-sm font-bold">ไม่มีรายการ</p>
+              </div>
+            ) : (
+              <>
+                {/* Desktop Table */}
+                <div className="hidden sm:block">
+                  <table className="w-full">
+                    <thead>
+                      <tr className="text-[10px] font-black text-slate-500 uppercase tracking-widest">
+                        <th className="text-left py-3 px-4">วันที่</th>
+                        <th className="text-right py-3 px-4">จำนวน</th>
+                        <th className="text-center py-3 px-4">สถานะ</th>
+                        <th className="text-left py-3 px-4">ผู้ส่ง</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {filtered.map((item) => (
+                        <tr key={item._id} className="border-t border-white/5 hover:bg-white/[0.02] transition-colors">
+                          <td className="py-3 px-4 text-xs text-white/70">{new Date(item.createdAt).toLocaleString('th-TH', { dateStyle: 'short', timeStyle: 'short' })}</td>
+                          <td className="py-3 px-4 text-right text-sm font-black text-white">{item.amount ? `฿${item.amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}` : '-'}</td>
+                          <td className="py-3 px-4 text-center">
+                            <span className={cn("px-2 py-0.5 rounded-lg text-[10px] font-bold border", angpaoStatusColor(item.status))}>{angpaoStatusLabel(item.status)}</span>
+                          </td>
+                          <td className="py-3 px-4 text-xs text-white/50">{item.ownerName || '-'}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* Mobile Cards */}
+                <div className="sm:hidden space-y-3">
+                  {filtered.map((item) => (
+                    <div key={item._id} className="p-4 rounded-xl bg-white/[0.03] border border-white/5">
+                      <div className="flex justify-between items-start mb-2">
+                        <span className={cn("px-2 py-0.5 rounded-lg text-[10px] font-bold border", angpaoStatusColor(item.status))}>{angpaoStatusLabel(item.status)}</span>
+                        <span className="text-sm font-black text-white">{item.amount ? `฿${item.amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}` : '-'}</span>
+                      </div>
+                      <div className="flex justify-between text-[10px] text-white/40">
+                        <span>{item.ownerName || '-'}</span>
+                        <span>{new Date(item.createdAt).toLocaleString('th-TH', { dateStyle: 'short', timeStyle: 'short' })}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </>
+            );
+          })()}
+
+          {/* Pagination */}
+          {angpaoTotal > 20 && (
+            <div className="flex items-center justify-center gap-3 pt-2">
+              <button
+                onClick={() => fetchAngpaoPage(angpaoPage - 1)}
+                disabled={angpaoPage <= 1 || angpaoLoading}
+                className="p-2 rounded-xl bg-white/5 border border-white/5 hover:bg-white/10 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+              >
+                <ChevronLeft className="w-4 h-4 text-white" />
+              </button>
+              <span className="text-xs font-bold text-white/60">{angpaoPage} / {Math.ceil(angpaoTotal / 20)}</span>
+              <button
+                onClick={() => fetchAngpaoPage(angpaoPage + 1)}
+                disabled={angpaoPage >= Math.ceil(angpaoTotal / 20) || angpaoLoading}
+                className="p-2 rounded-xl bg-white/5 border border-white/5 hover:bg-white/10 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+              >
+                <ChevronRight className="w-4 h-4 text-white" />
+              </button>
+            </div>
+          )}
         </div>
       </Modal>
 

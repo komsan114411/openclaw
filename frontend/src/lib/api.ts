@@ -202,6 +202,10 @@ export const lineAccountsApi = {
   testConnectionWithToken: (accessToken: string) =>
     api.post('/line-accounts/test-connection', { accessToken }),
   regenerateWebhook: (id: string) => api.post(`/line-accounts/${id}/regenerate-webhook`),
+  getAngpaoHistory: (id: string, page = 1, limit = 20) =>
+    api.get(`/line-accounts/${id}/angpao/history`, { params: { page, limit } }),
+  getAngpaoStats: (id: string) =>
+    api.get(`/line-accounts/${id}/angpao/stats`),
 };
 
 // Package data types
