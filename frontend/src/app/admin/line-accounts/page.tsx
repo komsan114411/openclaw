@@ -741,7 +741,25 @@ export default function AdminLineAccountsPage() {
     if (status === 'success') return 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20';
     if (status === 'already_redeemed') return 'text-amber-400 bg-amber-500/10 border-amber-500/20';
     if (status === 'expired') return 'text-slate-400 bg-slate-500/10 border-slate-500/20';
+    if (status === 'not_found') return 'text-zinc-400 bg-zinc-500/10 border-zinc-500/20';
+    if (status === 'out_of_stock') return 'text-orange-400 bg-orange-500/10 border-orange-500/20';
+    if (status === 'rate_limited') return 'text-yellow-400 bg-yellow-500/10 border-yellow-500/20';
     return 'text-rose-400 bg-rose-500/10 border-rose-500/20';
+  };
+
+  const angpaoStatusIcon = (status: string): string => {
+    const map: Record<string, string> = {
+      success: '✓',
+      already_redeemed: '↻',
+      expired: '⏰',
+      not_found: '?',
+      own_voucher: '⊘',
+      invalid_phone: '✕',
+      out_of_stock: '∅',
+      rate_limited: '⚡',
+      error: '!',
+    };
+    return map[status] || '•';
   };
 
   const openSettingsModal = (account: ExtendedLineAccount) => {
@@ -3926,121 +3944,163 @@ export default function AdminLineAccountsPage() {
       </Modal>
 
       {/* Angpao History Modal */}
-      <Modal isOpen={showAngpaoModal} onClose={() => setShowAngpaoModal(false)} title={`🧧 ประวัติอังเปา: ${angpaoAccount?.accountName || ''}`} size="lg">
-        <div className="space-y-6 pt-2">
-          {/* Stats Summary */}
-          <div className="grid grid-cols-2 gap-4">
-            <div className="p-5 rounded-2xl bg-gradient-to-br from-rose-500/10 to-orange-500/10 border border-rose-500/20">
-              <p className="text-[10px] font-black text-rose-400 uppercase tracking-widest mb-1">รับสำเร็จ</p>
-              <p className="text-2xl font-black text-white">{angpaoStats.totalCount.toLocaleString()} <span className="text-sm text-white/40">ครั้ง</span></p>
-            </div>
-            <div className="p-5 rounded-2xl bg-gradient-to-br from-emerald-500/10 to-teal-500/10 border border-emerald-500/20">
-              <p className="text-[10px] font-black text-emerald-400 uppercase tracking-widest mb-1">ยอดรวม</p>
-              <p className="text-2xl font-black text-white">฿{angpaoStats.totalAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}</p>
+      <Modal isOpen={showAngpaoModal} onClose={() => setShowAngpaoModal(false)} title="" size="lg">
+        <div className="space-y-6 -mt-4">
+          {/* Premium Header */}
+          <div className="relative overflow-hidden rounded-[2rem] bg-gradient-to-br from-rose-600 via-red-500 to-orange-500 p-6 sm:p-8">
+            <div className="absolute top-0 right-0 w-40 h-40 bg-white/10 rounded-full blur-[50px] -mr-16 -mt-16 pointer-events-none" />
+            <div className="absolute bottom-0 left-0 w-32 h-32 bg-black/10 rounded-full blur-[40px] -ml-10 -mb-10 pointer-events-none" />
+            <div className="relative z-10">
+              <div className="flex items-center gap-4 mb-4">
+                <div className="w-14 h-14 rounded-2xl bg-white/20 backdrop-blur-sm flex items-center justify-center text-3xl shadow-lg">🧧</div>
+                <div>
+                  <h2 className="text-lg sm:text-xl font-black text-white tracking-tight">ประวัติซองอังเปา</h2>
+                  <p className="text-xs text-white/70 font-semibold">{angpaoAccount?.accountName || ''}</p>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3 sm:gap-4">
+                <div className="bg-white/15 backdrop-blur-sm rounded-2xl p-4 border border-white/10">
+                  <p className="text-[10px] font-bold text-white/60 uppercase tracking-widest mb-1">รับสำเร็จ</p>
+                  <p className="text-2xl sm:text-3xl font-black text-white leading-none">{angpaoStats.totalCount.toLocaleString()}</p>
+                  <p className="text-[10px] text-white/50 mt-0.5">รายการ</p>
+                </div>
+                <div className="bg-white/15 backdrop-blur-sm rounded-2xl p-4 border border-white/10">
+                  <p className="text-[10px] font-bold text-white/60 uppercase tracking-widest mb-1">ยอดรวม</p>
+                  <p className="text-2xl sm:text-3xl font-black text-white leading-none">฿{angpaoStats.totalAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}</p>
+                  <p className="text-[10px] text-white/50 mt-0.5">บาท</p>
+                </div>
+              </div>
             </div>
           </div>
 
-          {/* Status Filter */}
-          <div className="flex flex-wrap gap-2">
+          {/* Status Filter Pills */}
+          <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-none">
             {[
-              { key: 'all', label: 'ทั้งหมด' },
-              { key: 'success', label: 'สำเร็จ' },
-              { key: 'already_redeemed', label: 'รับแล้ว' },
-              { key: 'expired', label: 'หมดอายุ' },
-              { key: 'error', label: 'ผิดพลาด' },
+              { key: 'all', label: 'ทั้งหมด', emoji: '📋' },
+              { key: 'success', label: 'สำเร็จ', emoji: '✅' },
+              { key: 'already_redeemed', label: 'รับแล้ว', emoji: '🔄' },
+              { key: 'expired', label: 'หมดอายุ', emoji: '⏰' },
+              { key: 'error', label: 'ผิดพลาด', emoji: '❌' },
             ].map((f) => (
               <button
                 key={f.key}
                 onClick={() => setAngpaoStatusFilter(f.key)}
                 className={cn(
-                  "px-3 py-1.5 rounded-xl text-xs font-bold transition-all border",
+                  "flex items-center gap-1.5 px-4 py-2 rounded-2xl text-xs font-bold transition-all whitespace-nowrap",
                   angpaoStatusFilter === f.key
-                    ? "bg-rose-500/20 text-rose-400 border-rose-500/30"
-                    : "bg-white/5 text-white/50 border-white/5 hover:bg-white/10"
+                    ? "bg-rose-500 text-white shadow-lg shadow-rose-500/30 scale-105"
+                    : "bg-white/[0.03] text-white/40 border border-white/5 hover:bg-white/[0.06] hover:text-white/60"
                 )}
               >
-                {f.label}
+                <span className="text-sm">{f.emoji}</span> {f.label}
               </button>
             ))}
           </div>
 
           {/* History List */}
           {angpaoLoading ? (
-            <div className="flex justify-center py-12"><Loader2 className="w-8 h-8 animate-spin text-rose-400" /></div>
+            <div className="flex flex-col items-center justify-center py-16 gap-3">
+              <div className="w-12 h-12 rounded-2xl bg-rose-500/10 flex items-center justify-center">
+                <Loader2 className="w-6 h-6 animate-spin text-rose-400" />
+              </div>
+              <p className="text-xs text-white/30 font-semibold">กำลังโหลดข้อมูล...</p>
+            </div>
           ) : (() => {
             const filtered = angpaoStatusFilter === 'all'
               ? angpaoItems
               : angpaoItems.filter(item => item.status === angpaoStatusFilter);
             return filtered.length === 0 ? (
-              <div className="text-center py-12 text-white/30">
-                <p className="text-4xl mb-3">🧧</p>
-                <p className="text-sm font-bold">ไม่มีรายการ</p>
+              <div className="flex flex-col items-center justify-center py-16 gap-4">
+                <div className="w-20 h-20 rounded-[2rem] bg-gradient-to-br from-rose-500/10 to-orange-500/10 border border-white/5 flex items-center justify-center text-4xl">🧧</div>
+                <div className="text-center">
+                  <p className="text-sm font-black text-white/30">ไม่มีรายการ</p>
+                  <p className="text-[10px] text-white/20 mt-1">ยังไม่มีประวัติอังเปาที่ตรงกับตัวกรอง</p>
+                </div>
               </div>
             ) : (
-              <>
-                {/* Desktop Table */}
-                <div className="hidden sm:block">
-                  <table className="w-full">
-                    <thead>
-                      <tr className="text-[10px] font-black text-slate-500 uppercase tracking-widest">
-                        <th className="text-left py-3 px-4">วันที่</th>
-                        <th className="text-right py-3 px-4">จำนวน</th>
-                        <th className="text-center py-3 px-4">สถานะ</th>
-                        <th className="text-left py-3 px-4">ผู้ส่ง</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {filtered.map((item) => (
-                        <tr key={item._id} className="border-t border-white/5 hover:bg-white/[0.02] transition-colors">
-                          <td className="py-3 px-4 text-xs text-white/70">{new Date(item.createdAt).toLocaleString('th-TH', { dateStyle: 'short', timeStyle: 'short' })}</td>
-                          <td className="py-3 px-4 text-right text-sm font-black text-white">{item.amount ? `฿${item.amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}` : '-'}</td>
-                          <td className="py-3 px-4 text-center">
-                            <span className={cn("px-2 py-0.5 rounded-lg text-[10px] font-bold border", angpaoStatusColor(item.status))}>{angpaoStatusLabel(item.status)}</span>
-                          </td>
-                          <td className="py-3 px-4 text-xs text-white/50">{item.ownerName || '-'}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-
-                {/* Mobile Cards */}
-                <div className="sm:hidden space-y-3">
-                  {filtered.map((item) => (
-                    <div key={item._id} className="p-4 rounded-xl bg-white/[0.03] border border-white/5">
-                      <div className="flex justify-between items-start mb-2">
-                        <span className={cn("px-2 py-0.5 rounded-lg text-[10px] font-bold border", angpaoStatusColor(item.status))}>{angpaoStatusLabel(item.status)}</span>
-                        <span className="text-sm font-black text-white">{item.amount ? `฿${item.amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}` : '-'}</span>
+              <div className="space-y-2.5">
+                {filtered.map((item, idx) => (
+                  <motion.div
+                    key={item._id}
+                    initial={{ opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: idx * 0.03 }}
+                    className="group relative overflow-hidden rounded-2xl bg-white/[0.02] border border-white/5 hover:border-white/10 hover:bg-white/[0.04] transition-all duration-300"
+                  >
+                    <div className="flex items-center gap-4 p-4 sm:p-5">
+                      {/* Status Icon */}
+                      <div className={cn(
+                        "w-10 h-10 sm:w-11 sm:h-11 rounded-xl flex items-center justify-center text-sm font-black flex-shrink-0 border",
+                        angpaoStatusColor(item.status)
+                      )}>
+                        {angpaoStatusIcon(item.status)}
                       </div>
-                      <div className="flex justify-between text-[10px] text-white/40">
-                        <span>{item.ownerName || '-'}</span>
-                        <span>{new Date(item.createdAt).toLocaleString('th-TH', { dateStyle: 'short', timeStyle: 'short' })}</span>
+
+                      {/* Info */}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className={cn("px-2 py-0.5 rounded-lg text-[9px] font-black uppercase tracking-wider border", angpaoStatusColor(item.status))}>
+                            {angpaoStatusLabel(item.status)}
+                          </span>
+                          {item.ownerName && (
+                            <span className="text-[10px] text-white/30 truncate">{item.ownerName}</span>
+                          )}
+                        </div>
+                        <p className="text-[10px] text-white/30 font-mono">
+                          {new Date(item.createdAt).toLocaleString('th-TH', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                        </p>
+                      </div>
+
+                      {/* Amount */}
+                      <div className="text-right flex-shrink-0">
+                        {item.amount ? (
+                          <>
+                            <p className="text-lg sm:text-xl font-black text-white leading-none">฿{item.amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}</p>
+                            <p className="text-[9px] text-white/20 font-semibold mt-0.5">THB</p>
+                          </>
+                        ) : (
+                          <p className="text-sm text-white/20 font-bold">-</p>
+                        )}
                       </div>
                     </div>
-                  ))}
-                </div>
-              </>
+
+                    {/* Subtle accent line */}
+                    {item.status === 'success' && (
+                      <div className="absolute left-0 top-0 bottom-0 w-[3px] bg-gradient-to-b from-emerald-500 to-emerald-500/0 rounded-full" />
+                    )}
+                  </motion.div>
+                ))}
+              </div>
             );
           })()}
 
           {/* Pagination */}
           {angpaoTotal > 20 && (
-            <div className="flex items-center justify-center gap-3 pt-2">
-              <button
-                onClick={() => fetchAngpaoPage(angpaoPage - 1)}
-                disabled={angpaoPage <= 1 || angpaoLoading}
-                className="p-2 rounded-xl bg-white/5 border border-white/5 hover:bg-white/10 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
-              >
-                <ChevronLeft className="w-4 h-4 text-white" />
-              </button>
-              <span className="text-xs font-bold text-white/60">{angpaoPage} / {Math.ceil(angpaoTotal / 20)}</span>
-              <button
-                onClick={() => fetchAngpaoPage(angpaoPage + 1)}
-                disabled={angpaoPage >= Math.ceil(angpaoTotal / 20) || angpaoLoading}
-                className="p-2 rounded-xl bg-white/5 border border-white/5 hover:bg-white/10 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
-              >
-                <ChevronRight className="w-4 h-4 text-white" />
-              </button>
+            <div className="flex items-center justify-between px-2 pt-3">
+              <p className="text-[10px] text-white/30 font-semibold">
+                แสดง {((angpaoPage - 1) * 20) + 1}-{Math.min(angpaoPage * 20, angpaoTotal)} จาก {angpaoTotal} รายการ
+              </p>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => fetchAngpaoPage(angpaoPage - 1)}
+                  disabled={angpaoPage <= 1 || angpaoLoading}
+                  className="w-9 h-9 rounded-xl bg-white/[0.03] border border-white/5 hover:bg-white/[0.08] disabled:opacity-20 disabled:cursor-not-allowed transition-all flex items-center justify-center"
+                >
+                  <ChevronLeft className="w-4 h-4 text-white/70" />
+                </button>
+                <div className="px-4 py-2 rounded-xl bg-rose-500/10 border border-rose-500/20">
+                  <span className="text-xs font-black text-rose-400">{angpaoPage}</span>
+                  <span className="text-xs text-white/30 mx-1">/</span>
+                  <span className="text-xs text-white/40">{Math.ceil(angpaoTotal / 20)}</span>
+                </div>
+                <button
+                  onClick={() => fetchAngpaoPage(angpaoPage + 1)}
+                  disabled={angpaoPage >= Math.ceil(angpaoTotal / 20) || angpaoLoading}
+                  className="w-9 h-9 rounded-xl bg-white/[0.03] border border-white/5 hover:bg-white/[0.08] disabled:opacity-20 disabled:cursor-not-allowed transition-all flex items-center justify-center"
+                >
+                  <ChevronRight className="w-4 h-4 text-white/70" />
+                </button>
+              </div>
             </div>
           )}
         </div>
