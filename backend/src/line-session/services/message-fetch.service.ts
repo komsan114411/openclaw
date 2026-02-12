@@ -68,6 +68,10 @@ export class MessageFetchService implements OnModuleInit, OnModuleDestroy {
     fetchLimit: 50,
   };
 
+  // Alert check rate limit: only scan every 5 minutes per account
+  private alertCheckTimestamps: Map<string, number> = new Map();
+  private static readonly ALERT_CHECK_INTERVAL_MS = 5 * 60 * 1000;
+
   constructor(
     @InjectModel(LineSession.name)
     private lineSessionModel: Model<LineSessionDocument>,
@@ -477,6 +481,9 @@ export class MessageFetchService implements OnModuleInit, OnModuleDestroy {
         await this.updateSessionBalance(lineAccountId);
       }
 
+      // Check for messages that exist in DB but don't have alerts yet
+      await this.batchCreateMissingAlerts(lineAccountId);
+
       // Emit success event (NestJS EventEmitter2 → WebSocket gateway)
       this.eventEmitter.emit('line-session.messages-fetched', {
         occurredAt: new Date(),
@@ -704,6 +711,9 @@ export class MessageFetchService implements OnModuleInit, OnModuleDestroy {
         await this.updateSessionBalance(lineAccountId);
       }
 
+      // Check for messages that exist in DB but don't have alerts yet
+      await this.batchCreateMissingAlerts(lineAccountId);
+
       this.eventEmitter.emit('line-session.messages-fetched', {
         occurredAt: new Date(),
         lineAccountId,
@@ -727,6 +737,69 @@ export class MessageFetchService implements OnModuleInit, OnModuleDestroy {
       }
 
       return { success: false, messageCount: 0, newMessages: 0, error: error.message };
+    }
+  }
+
+  /**
+   * Batch create missing alerts for recent messages
+   * Handles messages saved before the alert system existed
+   * Rate limited: checks at most every 5 minutes per account
+   */
+  private async batchCreateMissingAlerts(lineAccountId: string): Promise<void> {
+    const now = Date.now();
+    const lastCheck = this.alertCheckTimestamps.get(lineAccountId) || 0;
+    if (now - lastCheck < MessageFetchService.ALERT_CHECK_INTERVAL_MS) return;
+    this.alertCheckTimestamps.set(lineAccountId, now);
+
+    try {
+      // Only check messages from the last 24 hours
+      const cutoff = new Date(now - 24 * 60 * 60 * 1000);
+
+      const messages = await this.lineMessageModel.find({
+        lineAccountId,
+        transactionType: { $nin: ['deposit', 'withdraw', 'unknown'] },
+        messageDate: { $gte: cutoff },
+      }).lean();
+
+      if (messages.length === 0) return;
+
+      // Bulk check which messages already have alerts
+      const messageIds = messages.map(m => m.messageId);
+      const existingAlerts = await this.accountAlertModel.find({
+        messageId: { $in: messageIds },
+      }).select('messageId').lean();
+      const alertedSet = new Set(existingAlerts.map(a => a.messageId));
+
+      let created = 0;
+      for (const msg of messages) {
+        if (alertedSet.has(msg.messageId)) continue;
+
+        await this.accountAlertModel.create({
+          lineAccountId,
+          messageId: msg.messageId,
+          transactionType: msg.transactionType,
+          amount: msg.amount || '',
+          text: (msg.text || msg.originalMsg || '').substring(0, 200),
+          messageDate: msg.messageDate || new Date(),
+          isRead: false,
+        });
+
+        this.eventEmitter.emit('account.new-alert', {
+          lineAccountId,
+          transactionType: msg.transactionType,
+          amount: msg.amount ? parseFloat(msg.amount) : undefined,
+          text: (msg.text || msg.originalMsg || '').substring(0, 100),
+        });
+
+        created++;
+      }
+
+      if (created > 0) {
+        this.logger.log(`[AlertCheck] Created ${created} missing alerts for ${lineAccountId}`);
+      }
+    } catch (error: unknown) {
+      const errMsg = error instanceof Error ? error.message : String(error);
+      this.logger.warn(`[AlertCheck] Error for ${lineAccountId}: ${errMsg}`);
     }
   }
 
