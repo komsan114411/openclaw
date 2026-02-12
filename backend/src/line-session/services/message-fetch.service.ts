@@ -748,13 +748,34 @@ export class MessageFetchService implements OnModuleInit, OnModuleDestroy {
     const existing = await this.lineMessageModel.findOne({ messageId });
     if (existing) return false;
 
-    // Parse transaction details
+    // Parse transaction details (wrapped in try/catch to prevent crashes on unexpected input)
     const text = msg?.text || msg?.contentMetadata?.ALT_TEXT || '';
-    const parsed = this.parseTransaction(text, session.bankCode);
+    let parsed: ParsedTransaction;
+    try {
+      parsed = this.parseTransaction(text, session.bankCode);
+    } catch (parseErr: unknown) {
+      const errMsg = parseErr instanceof Error ? parseErr.message : String(parseErr);
+      this.logger.warn(`[processMessage] Parser error for msg ${messageId}: ${errMsg}`);
+      parsed = { transactionType: 'unknown' };
+    }
 
     // Create message
     // [FIX] Use session._id as lineAccountId fallback if session.lineAccountId is undefined
     const lineAccountId = session.lineAccountId || session._id.toString();
+
+    // [FIX] Use LINE timestamp (createdTime) as primary messageDate
+    // LINE API returns createdTime as Unix timestamp in milliseconds
+    let messageDate: Date;
+    if (msg.createdTime) {
+      const ts = Number(msg.createdTime);
+      const candidate = new Date(ts > 1e12 ? ts : ts * 1000);
+      // Validate: must be a real date (not NaN) and within reasonable range (2020-2030)
+      messageDate = (!isNaN(candidate.getTime()) && candidate.getFullYear() >= 2020 && candidate.getFullYear() <= 2030)
+        ? candidate
+        : (parsed.messageDate || new Date());
+    } else {
+      messageDate = parsed.messageDate || new Date();
+    }
 
     await this.lineMessageModel.create({
       sessionId: session._id.toString(),
@@ -770,7 +791,7 @@ export class MessageFetchService implements OnModuleInit, OnModuleDestroy {
       transactionType: parsed.transactionType,
       amount: parsed.amount ? String(parsed.amount) : null,
       balance: parsed.balance ? String(parsed.balance) : null,
-      messageDate: parsed.messageDate || new Date(),
+      messageDate,
     });
 
     // Emit new message event
@@ -795,7 +816,7 @@ export class MessageFetchService implements OnModuleInit, OnModuleDestroy {
           transactionType: parsed.transactionType,
           amount: parsed.amount ? String(parsed.amount) : '',
           text: (text || originalMsg || '').substring(0, 200),
-          messageDate: parsed.messageDate || new Date(),
+          messageDate,
           isRead: false,
         });
 

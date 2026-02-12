@@ -156,7 +156,6 @@ export default function AdminBankMonitorPage() {
 
   // Batch fetch state
   const [isBatchFetching, setIsBatchFetching] = useState(false);
-
   // Alert state
   const [alertCounts, setAlertCounts] = useState<Record<string, number>>({});
   const [showAlertModal, setShowAlertModal] = useState(false);

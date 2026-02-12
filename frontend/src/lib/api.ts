@@ -890,6 +890,7 @@ export const lineSessionApi = {
   // Mark all alerts as read for a specific account
   markAlertsRead: (lineAccountId: string) =>
     api.put(`/admin/line-session/${lineAccountId}/alerts/mark-read`),
+
 };
 
 // LINE Session User API (User-facing endpoints)
