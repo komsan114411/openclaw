@@ -100,7 +100,8 @@ interface AccountAlertItem {
   transactionType: string;
   amount: string;
   text: string;
-  isRead: boolean;
+  isReadByAdmin: boolean;
+  isReadByUser: boolean;
   messageDate: string;
   createdAt: string;
 }
@@ -1592,7 +1593,7 @@ export default function AdminBankMonitorPage() {
                     key={alert._id}
                     className={cn(
                       "p-3 rounded-xl border transition-colors",
-                      alert.isRead
+                      alert.isReadByAdmin
                         ? "bg-slate-800/30 border-slate-700/30"
                         : "bg-slate-800/50 border-slate-700/50"
                     )}
@@ -1616,7 +1617,7 @@ export default function AdminBankMonitorPage() {
                             {Number(alert.amount).toLocaleString()} THB
                           </span>
                         )}
-                        {!alert.isRead && (
+                        {!alert.isReadByAdmin && (
                           <span className="w-2 h-2 rounded-full bg-red-500" />
                         )}
                       </div>

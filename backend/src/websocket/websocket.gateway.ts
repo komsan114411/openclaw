@@ -544,12 +544,17 @@ export class WebsocketGateway implements OnGatewayConnection, OnGatewayDisconnec
   @OnEvent('account.new-alert')
   handleNewAlert(payload: {
     lineAccountId: string;
+    ownerId?: string;
     transactionType: string;
     amount?: number;
     text?: string;
   }) {
     this.logger.log(`[AccountAlert] New alert for ${payload.lineAccountId}: ${payload.transactionType}`);
     this.broadcastToAdmins('account:new-alert', payload);
+    // Also broadcast to the specific user who owns this session
+    if (payload.ownerId) {
+      this.broadcastToUser(payload.ownerId, 'account:new-alert', payload);
+    }
   }
 
   // ============================================

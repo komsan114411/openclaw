@@ -1002,7 +1002,7 @@ export class LineSessionController {
     const totalInDb = await this.accountAlertModel.countDocuments();
 
     const results = await this.accountAlertModel.aggregate([
-      { $match: { isRead: false } },
+      { $match: { isReadByAdmin: false } },
       { $group: { _id: '$lineAccountId', count: { $sum: 1 } } },
     ]);
 
@@ -1058,8 +1058,8 @@ export class LineSessionController {
   @ApiOperation({ summary: 'Mark all alerts as read for account' })
   async markAlertsRead(@Param('lineAccountId') lineAccountId: string) {
     const result = await this.accountAlertModel.updateMany(
-      { lineAccountId, isRead: false },
-      { $set: { isRead: true } },
+      { lineAccountId, isReadByAdmin: false },
+      { $set: { isReadByAdmin: true } },
     );
 
     return {

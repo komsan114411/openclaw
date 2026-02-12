@@ -985,6 +985,16 @@ export const lineSessionUserApi = {
   // Get auto-fetch status (read-only)
   getAutoFetchStatus: () =>
     api.get('/user/line-session/settings/auto-fetch-status'),
+
+  // === Account Alerts (User) ===
+  getUnreadAlertCounts: () =>
+    api.get('/user/line-session/alerts/unread-counts'),
+
+  getAlerts: (sessionId: string, page = 1, limit = 20) =>
+    api.get(`/user/line-session/${sessionId}/alerts`, { params: { page, limit } }),
+
+  markAlertsRead: (sessionId: string) =>
+    api.put(`/user/line-session/${sessionId}/alerts/mark-read`),
 };
 
 // Rate Limit API (Admin Only)

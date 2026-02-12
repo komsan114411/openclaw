@@ -45,10 +45,22 @@ export class AccountAlert {
   text: string;
 
   /**
-   * อ่านแล้วหรือยัง
+   * เจ้าของ session (userId)
    */
-  @Prop({ default: false, index: true })
-  isRead: boolean;
+  @Prop({ required: false, index: true })
+  ownerId: string;
+
+  /**
+   * Admin อ่านแล้วหรือยัง
+   */
+  @Prop({ default: false })
+  isReadByAdmin: boolean;
+
+  /**
+   * User อ่านแล้วหรือยัง
+   */
+  @Prop({ default: false })
+  isReadByUser: boolean;
 
   /**
    * วันที่ข้อความ
@@ -59,8 +71,11 @@ export class AccountAlert {
 
 export const AccountAlertSchema = SchemaFactory.createForClass(AccountAlert);
 
-// Compound index for querying unread alerts per account
-AccountAlertSchema.index({ lineAccountId: 1, isRead: 1, createdAt: -1 });
+// Compound index for querying unread alerts per account (Admin)
+AccountAlertSchema.index({ lineAccountId: 1, isReadByAdmin: 1, createdAt: -1 });
+
+// Compound index for querying unread alerts per owner (User)
+AccountAlertSchema.index({ ownerId: 1, isReadByUser: 1, createdAt: -1 });
 
 // TTL Index: auto-delete after 90 days
 AccountAlertSchema.index({ createdAt: 1 }, { expireAfterSeconds: 90 * 24 * 60 * 60 });

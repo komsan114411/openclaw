@@ -2,6 +2,7 @@ import {
   Controller,
   Get,
   Post,
+  Put,
   Delete,
   Body,
   Param,
@@ -28,6 +29,7 @@ import { LineSession, LineSessionDocument } from './schemas/line-session.schema'
 import { LineMessage, LineMessageDocument } from './schemas/line-message.schema';
 import { LineAccount, LineAccountDocument } from '../database/schemas/line-account.schema';
 import { BankList, BankListDocument } from './schemas/bank-list.schema';
+import { AccountAlert, AccountAlertDocument } from './schemas/account-alert.schema';
 import { LineAutomationService } from './services/line-automation.service';
 
 /**
@@ -59,6 +61,8 @@ export class LineSessionUserController {
     private bankListModel: Model<BankListDocument>,
     @InjectModel(LineMessage.name)
     private lineMessageModel: Model<LineMessageDocument>,
+    @InjectModel(AccountAlert.name)
+    private accountAlertModel: Model<AccountAlertDocument>,
   ) {}
 
   /**
@@ -116,6 +120,91 @@ export class LineSessionUserController {
         bankImg: b.bankImg,
         reLoginAtMins: b.reLoginAtMins,
       })),
+    };
+  }
+
+  // ============================================
+  // Account Alerts (User) — ต้องอยู่ก่อน dynamic :sessionId routes
+  // ============================================
+
+  /**
+   * Get unread alert counts for all accounts owned by user
+   */
+  @Get('alerts/unread-counts')
+  @ApiOperation({ summary: 'Get unread alert counts for user' })
+  async getUserUnreadAlertCounts(@CurrentUser() user: AuthUser) {
+    const results = await this.accountAlertModel.aggregate([
+      { $match: { ownerId: user.userId, isReadByUser: false } },
+      { $group: { _id: '$lineAccountId', count: { $sum: 1 } } },
+    ]);
+
+    const counts: Record<string, number> = {};
+    let totalUnread = 0;
+    for (const r of results) {
+      counts[r._id] = r.count;
+      totalUnread += r.count;
+    }
+
+    return { success: true, counts, totalUnread };
+  }
+
+  /**
+   * Get alerts for a specific session (paginated)
+   */
+  @Get(':sessionId/alerts')
+  @ApiOperation({ summary: 'Get alerts for session (user)' })
+  async getUserAlerts(
+    @Param('sessionId', ParseObjectIdPipe) sessionId: string,
+    @CurrentUser() user: AuthUser,
+    @Query('page') page?: number,
+    @Query('limit') limit?: number,
+  ) {
+    const session = await this.validateSessionOwnership(sessionId, user.userId);
+    const lineAccountId = session.lineAccountId || sessionId;
+
+    const pageNum = Math.max(1, Number(page) || 1);
+    const limitNum = Math.min(100, Math.max(1, Number(limit) || 20));
+    const skip = (pageNum - 1) * limitNum;
+
+    const [alerts, total] = await Promise.all([
+      this.accountAlertModel
+        .find({ lineAccountId })
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limitNum)
+        .lean(),
+      this.accountAlertModel.countDocuments({ lineAccountId }),
+    ]);
+
+    return {
+      success: true,
+      alerts,
+      total,
+      page: pageNum,
+      totalPages: Math.ceil(total / limitNum),
+    };
+  }
+
+  /**
+   * Mark all alerts as read by user for a specific session
+   */
+  @Put(':sessionId/alerts/mark-read')
+  @ApiOperation({ summary: 'Mark all alerts as read by user' })
+  async markUserAlertsRead(
+    @Param('sessionId', ParseObjectIdPipe) sessionId: string,
+    @CurrentUser() user: AuthUser,
+  ) {
+    const session = await this.validateSessionOwnership(sessionId, user.userId);
+    const lineAccountId = session.lineAccountId || sessionId;
+
+    const result = await this.accountAlertModel.updateMany(
+      { lineAccountId, isReadByUser: false },
+      { $set: { isReadByUser: true } },
+    );
+
+    return {
+      success: true,
+      markedCount: result.modifiedCount,
     };
   }
 

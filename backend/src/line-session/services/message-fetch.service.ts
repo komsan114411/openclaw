@@ -88,8 +88,62 @@ export class MessageFetchService implements OnModuleInit, OnModuleDestroy {
 
   async onModuleInit() {
     this.logger.log('MessageFetchService initializing...');
+    await this.migrateAlertReadState();
     await this.loadSettings();
     await this.startAutoFetch();
+  }
+
+  /**
+   * One-time migration: isRead → isReadByAdmin + isReadByUser, backfill ownerId
+   */
+  private async migrateAlertReadState(): Promise<void> {
+    try {
+      // Step 1: Rename isRead → isReadByAdmin and add isReadByUser
+      const renameResult = await this.accountAlertModel.updateMany(
+        { isReadByAdmin: { $exists: false } } as any,
+        { $rename: { isRead: 'isReadByAdmin' }, $set: { isReadByUser: false } } as any,
+      );
+
+      if (renameResult.modifiedCount > 0) {
+        this.logger.log(`[Migration] Renamed isRead → isReadByAdmin for ${renameResult.modifiedCount} alerts`);
+      }
+
+      // Step 2: Backfill ownerId from line_sessions collection
+      const alertsWithoutOwner = await this.accountAlertModel.find(
+        { $or: [{ ownerId: { $exists: false } }, { ownerId: null }, { ownerId: '' }] },
+      ).select('lineAccountId').lean();
+
+      if (alertsWithoutOwner.length > 0) {
+        // Get unique lineAccountIds
+        const accountIds = [...new Set(alertsWithoutOwner.map(a => a.lineAccountId))];
+        const sessions = await this.lineSessionModel.find(
+          { _id: { $in: accountIds } },
+        ).select('ownerId').lean();
+
+        const ownerMap = new Map<string, string>();
+        for (const s of sessions) {
+          if (s.ownerId) {
+            ownerMap.set(s._id.toString(), s.ownerId);
+          }
+        }
+
+        let backfilled = 0;
+        for (const [accountId, ownerId] of ownerMap) {
+          const res = await this.accountAlertModel.updateMany(
+            { lineAccountId: accountId, $or: [{ ownerId: { $exists: false } }, { ownerId: null }, { ownerId: '' }] },
+            { $set: { ownerId } },
+          );
+          backfilled += res.modifiedCount;
+        }
+
+        if (backfilled > 0) {
+          this.logger.log(`[Migration] Backfilled ownerId for ${backfilled} alerts`);
+        }
+      }
+    } catch (error: unknown) {
+      const errMsg = error instanceof Error ? error.message : String(error);
+      this.logger.warn(`[Migration] Alert migration error (non-fatal): ${errMsg}`);
+    }
   }
 
   onModuleDestroy() {
@@ -770,22 +824,29 @@ export class MessageFetchService implements OnModuleInit, OnModuleDestroy {
       }).select('messageId').lean();
       const alertedSet = new Set(existingAlerts.map(a => a.messageId));
 
+      // Lookup ownerId for this account
+      const sessionForOwner = await this.lineSessionModel.findById(lineAccountId).select('ownerId').lean();
+      const batchOwnerId = sessionForOwner?.ownerId || '';
+
       let created = 0;
       for (const msg of messages) {
         if (alertedSet.has(msg.messageId)) continue;
 
         await this.accountAlertModel.create({
           lineAccountId,
+          ownerId: batchOwnerId,
           messageId: msg.messageId,
           transactionType: msg.transactionType,
           amount: msg.amount || '',
           text: (msg.text || msg.originalMsg || '').substring(0, 200),
           messageDate: msg.messageDate || new Date(),
-          isRead: false,
+          isReadByAdmin: false,
+          isReadByUser: false,
         });
 
         this.eventEmitter.emit('account.new-alert', {
           lineAccountId,
+          ownerId: batchOwnerId,
           transactionType: msg.transactionType,
           amount: msg.amount ? parseFloat(msg.amount) : undefined,
           text: (msg.text || msg.originalMsg || '').substring(0, 100),
@@ -891,20 +952,24 @@ export class MessageFetchService implements OnModuleInit, OnModuleDestroy {
     if (!['deposit', 'transfer'].includes(parsed.transactionType)) {
       try {
         const originalMsg = msg?.contentMetadata?.ALT_TEXT || '';
+        const alertOwnerId = session.ownerId || '';
         await this.accountAlertModel.create({
           lineAccountId,
+          ownerId: alertOwnerId,
           messageId,
           transactionType: parsed.transactionType,
           amount: parsed.amount ? String(parsed.amount) : '',
           text: (text || originalMsg || '').substring(0, 200),
           messageDate,
-          isRead: false,
+          isReadByAdmin: false,
+          isReadByUser: false,
         });
 
         this.logger.log(`[AccountAlert] Created alert: ${lineAccountId} / ${parsed.transactionType} / ${parsed.amount || 'N/A'}`);
 
         this.eventEmitter.emit('account.new-alert', {
           lineAccountId,
+          ownerId: alertOwnerId,
           transactionType: parsed.transactionType,
           amount: parsed.amount,
           text: (text || originalMsg || '').substring(0, 100),
