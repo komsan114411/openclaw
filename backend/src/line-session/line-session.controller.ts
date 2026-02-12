@@ -1004,11 +1004,15 @@ export class LineSessionController {
     ]);
 
     const counts: Record<string, number> = {};
+    let totalUnread = 0;
     for (const r of results) {
       counts[r._id] = r.count;
+      totalUnread += r.count;
     }
 
-    return { success: true, counts };
+    this.logger.log(`[AlertCounts] Unread alerts: ${totalUnread} across ${Object.keys(counts).length} accounts. Keys: ${Object.keys(counts).join(', ')}`);
+
+    return { success: true, counts, totalUnread };
   }
 
   /**

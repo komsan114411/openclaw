@@ -166,6 +166,17 @@ export default function AdminBankMonitorPage() {
   const [isLoadingAlerts, setIsLoadingAlerts] = useState(false);
   const socketRef = useRef<Socket | null>(null);
 
+  // Standalone function to refresh alert counts (lightweight, called more frequently)
+  const refreshAlertCounts = useCallback(async () => {
+    try {
+      const alertRes = await lineSessionApi.getUnreadAlertCounts();
+      const counts = alertRes.data?.counts || {};
+      setAlertCounts(counts);
+    } catch {
+      // Silently ignore — don't clear existing counts on transient errors
+    }
+  }, []);
+
   const fetchData = useCallback(async () => {
     try {
       const [sessionsRes, banksRes, usersRes, msgStatsRes] = await Promise.all([
@@ -198,10 +209,9 @@ export default function AdminBankMonitorPage() {
       try {
         const alertRes = await lineSessionApi.getUnreadAlertCounts();
         const counts = alertRes.data?.counts || {};
+        const totalUnread = alertRes.data?.totalUnread || (Object.values(counts) as number[]).reduce((s, c) => s + c, 0);
         setAlertCounts(counts);
-        if (Object.keys(counts).length > 0) {
-          console.log('[AlertCounts] Unread alerts:', counts);
-        }
+        console.log(`[AlertCounts] Total unread: ${totalUnread}, accounts: ${Object.keys(counts).length}`, counts);
       } catch (alertErr) {
         console.warn('[AlertCounts] Failed to fetch:', alertErr);
         setAlertCounts({});
@@ -245,6 +255,9 @@ export default function AdminBankMonitorPage() {
           extractedAt: session.extractedAt as string | undefined,
         };
       });
+
+      // Debug: log session lineAccountIds for alert matching
+      console.log('[AlertDebug] Session lineAccountIds:', sessionsData.map(s => ({ id: s._id, laid: s.lineAccountId })));
 
       // Fetch batch transaction summary (single query instead of N individual calls)
       const batchSummaryRes = await lineSessionApi.getBatchSummary()
@@ -290,23 +303,45 @@ export default function AdminBankMonitorPage() {
     return () => clearInterval(interval);
   }, [autoRefresh, fetchData]);
 
+  // Periodic alert count refresh (every 30 seconds — lightweight, independent of full data refresh)
+  useEffect(() => {
+    const interval = setInterval(() => {
+      refreshAlertCounts();
+    }, 30000);
+    return () => clearInterval(interval);
+  }, [refreshAlertCounts]);
+
   // WebSocket for real-time alerts
   useEffect(() => {
     const backendUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
-    const socket = io(`${backendUrl}/ws`, {
+    // Strip '/api' suffix if present for socket.io connection
+    const wsUrl = backendUrl.replace(/\/api\/?$/, '');
+    const socket = io(`${wsUrl}/ws`, {
       withCredentials: true,
       transports: ['websocket', 'polling'],
-      reconnectionAttempts: 5,
-      reconnectionDelay: 1000,
+      reconnectionAttempts: 10,
+      reconnectionDelay: 2000,
     });
 
     socketRef.current = socket;
 
     socket.on('connect', () => {
+      console.log('[WebSocket] Connected, joining admins room...');
       socket.emit('join', { userId: 'admin', role: 'admin' });
+      // Re-sync alert counts on (re)connect
+      refreshAlertCounts();
+    });
+
+    socket.on('disconnect', (reason) => {
+      console.log('[WebSocket] Disconnected:', reason);
+    });
+
+    socket.on('connect_error', (err) => {
+      console.warn('[WebSocket] Connection error:', err.message);
     });
 
     socket.on('account:new-alert', (data: { lineAccountId: string; transactionType: string; amount?: number; text?: string }) => {
+      console.log('[WebSocket] Received account:new-alert:', data);
       setAlertCounts(prev => ({
         ...prev,
         [data.lineAccountId]: (prev[data.lineAccountId] || 0) + 1,
@@ -314,6 +349,7 @@ export default function AdminBankMonitorPage() {
       const typeNames: Record<string, string> = {
         transfer: 'โอนเงิน', payment: 'ชำระเงิน', fee: 'ค่าธรรมเนียม',
         interest: 'ดอกเบี้ย', bill: 'ชำระบิล', unknown: 'อื่นๆ',
+        withdraw: 'ถอนเงิน',
       };
       toast(`พบรายการผิดปกติ: ${typeNames[data.transactionType] || data.transactionType}`, { icon: '\uD83D\uDD14' });
     });
@@ -322,7 +358,7 @@ export default function AdminBankMonitorPage() {
       socket.disconnect();
       socketRef.current = null;
     };
-  }, []);
+  }, [refreshAlertCounts]);
 
   const translateAlertType = (type: string): string => {
     const names: Record<string, string> = {
@@ -530,6 +566,10 @@ export default function AdminBankMonitorPage() {
     setShowFullKeys(false);
   };
 
+  // Compute total unread alerts
+  const totalUnreadAlerts = (Object.values(alertCounts) as number[]).reduce((sum, c) => sum + c, 0);
+  const alertAccountCount = Object.keys(alertCounts).length;
+
   if (isLoading) {
     return (
       <DashboardLayout requiredRole="admin">
@@ -544,9 +584,19 @@ export default function AdminBankMonitorPage() {
         {/* Header */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
-            <h1 className="text-2xl md:text-3xl font-black text-white tracking-tight">
-              ตรวจสอบธนาคาร
-            </h1>
+            <div className="flex items-center gap-3">
+              <h1 className="text-2xl md:text-3xl font-black text-white tracking-tight">
+                ตรวจสอบธนาคาร
+              </h1>
+              {totalUnreadAlerts > 0 && (
+                <span className="flex items-center gap-1.5 px-3 py-1 bg-red-500/20 border border-red-500/30 rounded-full animate-pulse">
+                  <Bell className="w-4 h-4 text-red-400" />
+                  <span className="text-sm font-bold text-red-400">
+                    {totalUnreadAlerts} แจ้งเตือน ({alertAccountCount} บัญชี)
+                  </span>
+                </span>
+              )}
+            </div>
             <p className="text-slate-400 text-sm mt-1">
               ตรวจสอบธุรกรรมธนาคารจาก LINE sessions ({stats.sessionsWithKeys}/{stats.totalSessions} มี Keys)
             </p>
@@ -1541,6 +1591,7 @@ export default function AdminBankMonitorPage() {
                         alert.transactionType === 'fee' && "bg-amber-100 text-amber-700",
                         alert.transactionType === 'interest' && "bg-cyan-100 text-cyan-700",
                         alert.transactionType === 'bill' && "bg-orange-100 text-orange-700",
+                        alert.transactionType === 'withdraw' && "bg-red-100 text-red-700",
                         alert.transactionType === 'unknown' && "bg-slate-100 text-slate-600"
                       )}>
                         {translateAlertType(alert.transactionType)}
