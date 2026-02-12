@@ -837,103 +837,204 @@ export class MessageFetchService implements OnModuleInit, OnModuleDestroy {
     }
   }
 
+  // ================================
+  // SHARED HELPERS
+  // ================================
+
+  /**
+   * Thai month names → 0-indexed month number
+   */
+  private static readonly THAI_MONTHS: Record<string, number> = {
+    'ม.ค.': 0, 'มกราคม': 0, 'มค': 0,
+    'ก.พ.': 1, 'กุมภาพันธ์': 1, 'กพ': 1,
+    'มี.ค.': 2, 'มีนาคม': 2, 'มีค': 2,
+    'เม.ย.': 3, 'เมษายน': 3, 'เมย': 3,
+    'พ.ค.': 4, 'พฤษภาคม': 4, 'พค': 4,
+    'มิ.ย.': 5, 'มิถุนายน': 5, 'มิย': 5,
+    'ก.ค.': 6, 'กรกฎาคม': 6, 'กค': 6,
+    'ส.ค.': 7, 'สิงหาคม': 7, 'สค': 7,
+    'ก.ย.': 8, 'กันยายน': 8, 'กย': 8,
+    'ต.ค.': 9, 'ตุลาคม': 9, 'ตค': 9,
+    'พ.ย.': 10, 'พฤศจิกายน': 10, 'พย': 10,
+    'ธ.ค.': 11, 'ธันวาคม': 11, 'ธค': 11,
+  };
+
+  /**
+   * Parse Thai date: "12 ก.พ. 2569" or "12/02/69" or "12-02-2569"
+   */
+  private parseThaiDate(text: string): Date | undefined {
+    // Pattern 1: "12 ก.พ. 2569" / "12 กุมภาพันธ์ 2569"
+    const thaiMonthNames = Object.keys(MessageFetchService.THAI_MONTHS).join('|');
+    const thaiPattern = new RegExp(`(\\d{1,2})\\s+(${thaiMonthNames})\\s*(\\d{2,4})`, 'i');
+    const thaiMatch = text.match(thaiPattern);
+    if (thaiMatch) {
+      const day = parseInt(thaiMatch[1]);
+      const month = MessageFetchService.THAI_MONTHS[thaiMatch[2]];
+      let year = parseInt(thaiMatch[3]);
+      // Convert Buddhist Era to CE (พ.ศ. → ค.ศ.)
+      if (year > 2400) year -= 543;
+      else if (year < 100) year += 2000;
+      if (month !== undefined) {
+        return new Date(year, month, day);
+      }
+    }
+
+    // Pattern 2: "12/02/69" or "12-02-2569" or "12/02/2569"
+    const numericMatch = text.match(/(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})/);
+    if (numericMatch) {
+      const day = parseInt(numericMatch[1]);
+      const month = parseInt(numericMatch[2]) - 1;
+      let year = parseInt(numericMatch[3]);
+      if (year > 2400) year -= 543;
+      else if (year < 100) year += 2000;
+      return new Date(year, month, day);
+    }
+
+    return undefined;
+  }
+
+  /**
+   * Parse Thai time: "เวลา 14:24 น." or "14:24"
+   */
+  private parseThaiTime(text: string): { hours: number; minutes: number } | undefined {
+    const timeMatch = text.match(/(?:เวลา\s*)?(\d{1,2})[:\.](\d{2})\s*(?:น\.|นาฬิกา)?/);
+    if (timeMatch) {
+      return { hours: parseInt(timeMatch[1]), minutes: parseInt(timeMatch[2]) };
+    }
+    return undefined;
+  }
+
+  /**
+   * Extract amount from text (shared across all parsers)
+   */
+  private extractAmount(text: string): number | undefined {
+    // "200.00 บาท" or "จำนวน 200.00" or "THB 200.00" or "฿200.00"
+    const patterns = [
+      /(?:จำนวน|จน\.)\s*([\d,]+\.?\d*)/i,
+      /([\d,]+\.?\d*)\s*(?:บาท|THB|Baht)/i,
+      /(?:THB|฿)\s*([\d,]+\.?\d*)/i,
+    ];
+    for (const pattern of patterns) {
+      const match = text.match(pattern);
+      if (match) {
+        const val = parseFloat(match[1].replace(/,/g, ''));
+        if (val > 0) return val;
+      }
+    }
+    return undefined;
+  }
+
+  /**
+   * Extract balance from text (shared across all parsers)
+   */
+  private extractBalance(text: string): number | undefined {
+    const match = text.match(/(?:คงเหลือ|เงินคงเหลือ|ยอดเงิน|Bal(?:ance)?)[:\s]*([\d,]+\.?\d*)/i);
+    if (match) {
+      return parseFloat(match[1].replace(/,/g, ''));
+    }
+    return undefined;
+  }
+
+  /**
+   * Classify outgoing transaction type by analyzing context:
+   *  - has destination account ("เข้าบัญชี") → transfer
+   *  - ATM keywords → withdraw
+   *  - otherwise → payment (debit card / POS / unknown spending)
+   */
+  private classifyOutgoing(text: string): 'withdraw' | 'transfer' | 'payment' {
+    // Has destination account → transfer
+    if (/เข้าบัญชี|ไปบัญชี|ไปยังบัญชี|to\s*acc/i.test(text)) {
+      return 'transfer';
+    }
+    // ATM withdrawal keywords
+    if (/ATM|ตู้\s*(?:ATM|เอทีเอ็ม|กด)|ถอนเงินสด|ถอน\s*ATM|cash\s*withdraw/i.test(text)) {
+      return 'withdraw';
+    }
+    // Debit card / POS / spending without destination → payment
+    return 'payment';
+  }
+
+  // ================================
+  // BANK-SPECIFIC PARSERS
+  // ================================
+
   /**
    * Parse SCB message
    */
   private parseSCB(text: string): ParsedTransaction {
     const result: ParsedTransaction = { transactionType: 'unknown' };
 
-    // Deposit pattern: "รับเงิน" or "เงินเข้า"
-    if (text.includes('รับเงิน') || text.includes('เงินเข้า') || text.includes('โอนเข้า')) {
-      result.transactionType = 'deposit';
-    }
-    // Withdraw pattern: "ถอนเงิน" or "เงินออก"
-    else if (text.includes('ถอนเงิน') || text.includes('เงินออก') || text.includes('โอนออก')) {
-      result.transactionType = 'withdraw';
-    }
-    // Transfer
-    else if (text.includes('โอน')) {
-      result.transactionType = 'transfer';
-    }
-    // Payment (debit card, POS)
-    else if (/บัตรเดบิต|debit|POS|EDC|ซื้อสินค้า/i.test(text)) {
-      result.transactionType = 'payment';
-    }
-    // Fee
-    else if (/ค่าธรรมเนียม|fee|ค่าบริการ|annual\s*fee|ค่ารักษา/i.test(text)) {
+    // 1) Fee (most specific — check first)
+    if (/ค่าธรรมเนียม|fee|ค่าบริการ|annual\s*fee|ค่ารักษา|ค่าใช้จ่ายประจำ/i.test(text)) {
       result.transactionType = 'fee';
     }
-    // Interest
+    // 2) Interest
     else if (/ดอกเบี้ย|interest/i.test(text)) {
       result.transactionType = 'interest';
     }
-    // Bill payment / loan
-    else if (/ชำระบิล|bill\s*pay|สินเชื่อ|ผ่อน|งวด/i.test(text)) {
+    // 3) Bill payment / loan
+    else if (/ชำระบิล|bill\s*pay|สินเชื่อ|ผ่อน|งวด|ค่าน้ำ|ค่าไฟ|ค่าโทรศัพท์|ค่าเช่า/i.test(text)) {
       result.transactionType = 'bill';
     }
-
-    // Extract amount
-    const amountMatch = text.match(/(?:จำนวน|จน\.|THB|฿)\s*([\d,]+\.?\d*)/i);
-    if (amountMatch) {
-      result.amount = parseFloat(amountMatch[1].replace(/,/g, ''));
+    // 4) Deposit: "รับเงิน", "เงินเข้า", "โอนเข้า", "ฝาก"
+    else if (/รับเงิน|เงินเข้า|โอนเข้า|ฝากเงิน|ฝาก/i.test(text)) {
+      result.transactionType = 'deposit';
+    }
+    // 5) Outgoing: "เงินออก", "ถอน", "โอน", "จ่าย", "ชำระ"
+    else if (/เงินออก|ถอน|โอน|จ่าย|ชำระ|หักบัญชี/i.test(text)) {
+      result.transactionType = this.classifyOutgoing(text);
+    }
+    // 6) Debit card / POS (fallback)
+    else if (/บัตรเดบิต|debit|POS|EDC|ซื้อสินค้า|visa|mastercard|jcb/i.test(text)) {
+      result.transactionType = 'payment';
     }
 
-    // Extract balance
-    const balanceMatch = text.match(/(?:คงเหลือ|ยอดเงิน|bal|balance)\s*([\d,]+\.?\d*)/i);
-    if (balanceMatch) {
-      result.balance = parseFloat(balanceMatch[1].replace(/,/g, ''));
-    }
-
-    // Extract date
-    const dateMatch = text.match(/(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})/);
-    if (dateMatch) {
-      const year = dateMatch[3].length === 2 ? parseInt('20' + dateMatch[3]) : parseInt(dateMatch[3]);
-      result.messageDate = new Date(year, parseInt(dateMatch[2]) - 1, parseInt(dateMatch[1]));
-    }
+    result.amount = this.extractAmount(text);
+    result.balance = this.extractBalance(text);
+    result.messageDate = this.parseThaiDate(text);
 
     return result;
   }
 
   /**
    * Parse GSB message
+   *
+   * GSB patterns:
+   *   เงินเข้า: มีการฝาก/โอนเงิน X บาท เข้าบัญชี GSBA ... คงเหลือ ...
+   *   เงินออก (โอน): มีการถอน/โอนเงิน X บาท จากบัญชี GSBA ... เข้าบัญชี KTBA ... คงเหลือ ...
+   *   เงินออก (บัตร): มีการถอน/โอนเงิน X บาท จากบัญชี GSBA ... คงเหลือ ... (ไม่มีเข้าบัญชี)
    */
   private parseGSB(text: string): ParsedTransaction {
     const result: ParsedTransaction = { transactionType: 'unknown' };
 
-    if (text.includes('ฝาก') || text.includes('รับ') || text.includes('เงินเข้า')) {
-      result.transactionType = 'deposit';
-    } else if (text.includes('ถอน') || text.includes('โอน') || text.includes('ชำระ')) {
-      result.transactionType = 'withdraw';
-    }
-    // Payment (debit card, POS)
-    else if (/บัตรเดบิต|debit|POS|EDC|ซื้อสินค้า/i.test(text)) {
-      result.transactionType = 'payment';
-    }
-    // Fee
-    else if (/ค่าธรรมเนียม|fee|ค่าบริการ|annual\s*fee|ค่ารักษา/i.test(text)) {
+    // 1) Fee
+    if (/ค่าธรรมเนียม|fee|ค่าบริการ|annual\s*fee|ค่ารักษา|ค่าใช้จ่ายประจำ/i.test(text)) {
       result.transactionType = 'fee';
     }
-    // Interest
+    // 2) Interest
     else if (/ดอกเบี้ย|interest/i.test(text)) {
       result.transactionType = 'interest';
     }
-    // Bill payment / loan
-    else if (/ชำระบิล|bill\s*pay|สินเชื่อ|ผ่อน|งวด/i.test(text)) {
+    // 3) Bill payment / loan
+    else if (/ชำระบิล|bill\s*pay|สินเชื่อ|ผ่อน|งวด|ค่าน้ำ|ค่าไฟ|ค่าโทรศัพท์|ค่าเช่า/i.test(text)) {
       result.transactionType = 'bill';
     }
-
-    // Amount patterns for GSB
-    const amountMatch = text.match(/(?:จำนวน|จน\.|บาท)\s*([\d,]+\.?\d*)/i) ||
-                        text.match(/([\d,]+\.?\d*)\s*(?:บาท|THB)/i);
-    if (amountMatch) {
-      result.amount = parseFloat(amountMatch[1].replace(/,/g, ''));
+    // 4) Deposit: "เงินเข้า", "ฝาก", "รับโอน", "รับเงิน"
+    else if (/เงินเข้า|ฝาก|รับโอน|รับเงิน/i.test(text)) {
+      result.transactionType = 'deposit';
+    }
+    // 5) Outgoing: "เงินออก", "ถอน/โอนเงิน", "ชำระ", "จ่าย", "หักบัญชี"
+    else if (/เงินออก|ถอน|โอน|ชำระ|จ่าย|หักบัญชี/i.test(text)) {
+      result.transactionType = this.classifyOutgoing(text);
+    }
+    // 6) Debit card / POS (fallback)
+    else if (/บัตรเดบิต|debit|POS|EDC|ซื้อสินค้า|visa|mastercard|jcb/i.test(text)) {
+      result.transactionType = 'payment';
     }
 
-    // Balance
-    const balanceMatch = text.match(/(?:คงเหลือ|เงินคงเหลือ)\s*([\d,]+\.?\d*)/i);
-    if (balanceMatch) {
-      result.balance = parseFloat(balanceMatch[1].replace(/,/g, ''));
-    }
+    result.amount = this.extractAmount(text);
+    result.balance = this.extractBalance(text);
+    result.messageDate = this.parseThaiDate(text);
 
     return result;
   }
@@ -944,85 +1045,72 @@ export class MessageFetchService implements OnModuleInit, OnModuleDestroy {
   private parseKBank(text: string): ParsedTransaction {
     const result: ParsedTransaction = { transactionType: 'unknown' };
 
-    if (text.includes('รับโอน') || text.includes('เงินเข้า') || text.includes('ฝาก')) {
-      result.transactionType = 'deposit';
-    } else if (text.includes('โอนเงิน') || text.includes('ถอน') || text.includes('จ่าย')) {
-      result.transactionType = 'withdraw';
-    }
-    // Payment (debit card, POS)
-    else if (/บัตรเดบิต|debit|POS|EDC|ซื้อสินค้า/i.test(text)) {
-      result.transactionType = 'payment';
-    }
-    // Fee
-    else if (/ค่าธรรมเนียม|fee|ค่าบริการ|annual\s*fee|ค่ารักษา/i.test(text)) {
+    // 1) Fee
+    if (/ค่าธรรมเนียม|fee|ค่าบริการ|annual\s*fee|ค่ารักษา|ค่าใช้จ่ายประจำ/i.test(text)) {
       result.transactionType = 'fee';
     }
-    // Interest
+    // 2) Interest
     else if (/ดอกเบี้ย|interest/i.test(text)) {
       result.transactionType = 'interest';
     }
-    // Bill payment / loan
-    else if (/ชำระบิล|bill\s*pay|สินเชื่อ|ผ่อน|งวด/i.test(text)) {
+    // 3) Bill payment / loan
+    else if (/ชำระบิล|bill\s*pay|สินเชื่อ|ผ่อน|งวด|ค่าน้ำ|ค่าไฟ|ค่าโทรศัพท์|ค่าเช่า/i.test(text)) {
       result.transactionType = 'bill';
     }
-
-    // Amount
-    const amountMatch = text.match(/([\d,]+\.?\d*)\s*(?:บาท|THB|Baht)/i);
-    if (amountMatch) {
-      result.amount = parseFloat(amountMatch[1].replace(/,/g, ''));
+    // 4) Deposit
+    else if (/รับโอน|เงินเข้า|ฝาก|รับเงิน/i.test(text)) {
+      result.transactionType = 'deposit';
+    }
+    // 5) Outgoing
+    else if (/โอนเงิน|โอน|ถอน|จ่าย|ชำระ|เงินออก|หักบัญชี/i.test(text)) {
+      result.transactionType = this.classifyOutgoing(text);
+    }
+    // 6) Debit card / POS (fallback)
+    else if (/บัตรเดบิต|debit|POS|EDC|ซื้อสินค้า|visa|mastercard|jcb/i.test(text)) {
+      result.transactionType = 'payment';
     }
 
-    // Balance
-    const balanceMatch = text.match(/(?:คงเหลือ|Bal|Balance)[:\s]*([\d,]+\.?\d*)/i);
-    if (balanceMatch) {
-      result.balance = parseFloat(balanceMatch[1].replace(/,/g, ''));
-    }
+    result.amount = this.extractAmount(text);
+    result.balance = this.extractBalance(text);
+    result.messageDate = this.parseThaiDate(text);
 
     return result;
   }
 
   /**
-   * Parse generic bank message
+   * Parse generic bank message (BBL, KTB, BAY, TTB, etc.)
    */
   private parseGeneric(text: string): ParsedTransaction {
     const result: ParsedTransaction = { transactionType: 'unknown' };
 
-    // Generic deposit keywords
-    if (/รับ|ฝาก|เข้า|deposit|receive/i.test(text)) {
-      result.transactionType = 'deposit';
-    }
-    // Generic withdraw keywords
-    else if (/โอน|ถอน|จ่าย|ออก|withdraw|transfer/i.test(text)) {
-      result.transactionType = 'withdraw';
-    }
-    // Payment (debit card, POS)
-    else if (/บัตรเดบิต|debit|POS|EDC|ซื้อสินค้า/i.test(text)) {
-      result.transactionType = 'payment';
-    }
-    // Fee
-    else if (/ค่าธรรมเนียม|fee|ค่าบริการ|annual\s*fee|ค่ารักษา/i.test(text)) {
+    // 1) Fee
+    if (/ค่าธรรมเนียม|fee|ค่าบริการ|annual\s*fee|ค่ารักษา|ค่าใช้จ่ายประจำ/i.test(text)) {
       result.transactionType = 'fee';
     }
-    // Interest
+    // 2) Interest
     else if (/ดอกเบี้ย|interest/i.test(text)) {
       result.transactionType = 'interest';
     }
-    // Bill payment / loan
-    else if (/ชำระบิล|bill\s*pay|สินเชื่อ|ผ่อน|งวด/i.test(text)) {
+    // 3) Bill payment / loan
+    else if (/ชำระบิล|bill\s*pay|สินเชื่อ|ผ่อน|งวด|ค่าน้ำ|ค่าไฟ|ค่าโทรศัพท์|ค่าเช่า/i.test(text)) {
       result.transactionType = 'bill';
     }
-
-    // Generic amount pattern
-    const amountMatch = text.match(/([\d,]+\.?\d*)\s*(?:บาท|THB|Baht)/i);
-    if (amountMatch) {
-      result.amount = parseFloat(amountMatch[1].replace(/,/g, ''));
+    // 4) Deposit
+    else if (/รับโอน|รับเงิน|เงินเข้า|ฝาก|deposit|receive|credit/i.test(text)) {
+      result.transactionType = 'deposit';
+    }
+    // 5) Outgoing
+    else if (/เงินออก|ถอน|โอน|จ่าย|ชำระ|หักบัญชี|withdraw|transfer|debit/i.test(text)) {
+      result.transactionType = this.classifyOutgoing(text);
+    }
+    // 6) Debit card / POS (fallback)
+    else if (/บัตรเดบิต|POS|EDC|ซื้อสินค้า|visa|mastercard|jcb/i.test(text)) {
+      result.transactionType = 'payment';
     }
 
-    // Generic balance pattern
-    const balanceMatch = text.match(/(?:คงเหลือ|bal|balance)[:\s]*([\d,]+\.?\d*)/i);
-    if (balanceMatch) {
-      result.balance = parseFloat(balanceMatch[1].replace(/,/g, ''));
-    }
+    result.amount = this.extractAmount(text);
+    result.balance = this.extractBalance(text);
+    result.messageDate = this.parseThaiDate(text);
 
     return result;
   }
