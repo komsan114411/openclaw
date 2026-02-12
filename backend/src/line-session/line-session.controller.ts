@@ -998,6 +998,9 @@ export class LineSessionController {
   @Get('batch/alerts/unread-counts')
   @ApiOperation({ summary: 'Get unread alert counts for all accounts' })
   async getUnreadAlertCounts() {
+    // Get total alerts count (for debugging — distinguish "no alerts" vs "all read")
+    const totalInDb = await this.accountAlertModel.countDocuments();
+
     const results = await this.accountAlertModel.aggregate([
       { $match: { isRead: false } },
       { $group: { _id: '$lineAccountId', count: { $sum: 1 } } },
@@ -1010,9 +1013,9 @@ export class LineSessionController {
       totalUnread += r.count;
     }
 
-    this.logger.log(`[AlertCounts] Unread alerts: ${totalUnread} across ${Object.keys(counts).length} accounts. Keys: ${Object.keys(counts).join(', ')}`);
+    this.logger.log(`[AlertCounts] Total in DB: ${totalInDb}, Unread: ${totalUnread}, Accounts: ${Object.keys(counts).length}. Keys: ${Object.keys(counts).join(', ')}`);
 
-    return { success: true, counts, totalUnread };
+    return { success: true, counts, totalUnread, totalInDb };
   }
 
   /**

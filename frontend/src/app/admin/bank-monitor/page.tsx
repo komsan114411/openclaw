@@ -158,6 +158,7 @@ export default function AdminBankMonitorPage() {
   const [isBatchFetching, setIsBatchFetching] = useState(false);
   // Alert state
   const [alertCounts, setAlertCounts] = useState<Record<string, number>>({});
+  const [alertApiStatus, setAlertApiStatus] = useState<'loading' | 'ok' | 'error'>('loading');
   const [showAlertModal, setShowAlertModal] = useState(false);
   const [alertSession, setAlertSession] = useState<BankSession | null>(null);
   const [alerts, setAlerts] = useState<AccountAlertItem[]>([]);
@@ -172,8 +173,10 @@ export default function AdminBankMonitorPage() {
       const alertRes = await lineSessionApi.getUnreadAlertCounts();
       const counts = alertRes.data?.counts || {};
       setAlertCounts(counts);
-    } catch {
-      // Silently ignore — don't clear existing counts on transient errors
+      setAlertApiStatus('ok');
+    } catch (err) {
+      console.error('[AlertCounts] Refresh failed:', err);
+      setAlertApiStatus('error');
     }
   }, []);
 
@@ -208,13 +211,16 @@ export default function AdminBankMonitorPage() {
       // Fetch alert counts
       try {
         const alertRes = await lineSessionApi.getUnreadAlertCounts();
+        console.log('[AlertCounts] Raw response:', alertRes.data);
         const counts = alertRes.data?.counts || {};
         const totalUnread = alertRes.data?.totalUnread || (Object.values(counts) as number[]).reduce((s, c) => s + c, 0);
         setAlertCounts(counts);
+        setAlertApiStatus('ok');
         console.log(`[AlertCounts] Total unread: ${totalUnread}, accounts: ${Object.keys(counts).length}`, counts);
       } catch (alertErr) {
-        console.warn('[AlertCounts] Failed to fetch:', alertErr);
+        console.error('[AlertCounts] Failed to fetch:', alertErr);
         setAlertCounts({});
+        setAlertApiStatus('error');
       }
 
       setBanks(banksList);
@@ -588,14 +594,22 @@ export default function AdminBankMonitorPage() {
               <h1 className="text-2xl md:text-3xl font-black text-white tracking-tight">
                 ตรวจสอบธนาคาร
               </h1>
-              {totalUnreadAlerts > 0 && (
+              {totalUnreadAlerts > 0 ? (
                 <span className="flex items-center gap-1.5 px-3 py-1 bg-red-500/20 border border-red-500/30 rounded-full animate-pulse">
                   <Bell className="w-4 h-4 text-red-400" />
                   <span className="text-sm font-bold text-red-400">
                     {totalUnreadAlerts} แจ้งเตือน ({alertAccountCount} บัญชี)
                   </span>
                 </span>
-              )}
+              ) : alertApiStatus === 'error' ? (
+                <span className="flex items-center gap-1.5 px-2 py-1 bg-amber-500/20 border border-amber-500/30 rounded-full text-xs text-amber-400">
+                  <XCircle className="w-3 h-3" /> Alert API Error
+                </span>
+              ) : alertApiStatus === 'ok' ? (
+                <span className="flex items-center gap-1.5 px-2 py-1 bg-green-500/10 border border-green-500/20 rounded-full text-xs text-green-400">
+                  <CheckCircle className="w-3 h-3" /> ไม่มีแจ้งเตือน
+                </span>
+              ) : null}
             </div>
             <p className="text-slate-400 text-sm mt-1">
               ตรวจสอบธุรกรรมธนาคารจาก LINE sessions ({stats.sessionsWithKeys}/{stats.totalSessions} มี Keys)
