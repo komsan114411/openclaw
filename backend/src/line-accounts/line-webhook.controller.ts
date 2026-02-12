@@ -363,69 +363,9 @@ export class LineWebhookController {
         lineUserId,
       });
 
-      // Format response message
-      let responseText: string;
-      if (result.success) {
-        responseText = [
-          `🧧 รับอังเปาสำเร็จ!`,
-          `💰 จำนวน: ${result.amount?.toFixed(2)} บาท`,
-          result.ownerName ? `👤 จาก: ${result.ownerName}` : '',
-          `✅ เงินเข้า TrueMoney Wallet เรียบร้อยแล้ว`,
-        ].filter(Boolean).join('\n');
-      } else {
-        // Format rich error messages per status
-        const lines: string[] = [];
-
-        switch (result.status) {
-          case 'already_redeemed':
-            lines.push('🔴 อังเปานี้ถูกรับไปแล้ว');
-            if (result.amount) lines.push(`💰 มูลค่า: ${result.amount.toFixed(2)} บาท`);
-            if (result.ownerName) lines.push(`👤 จาก: ${result.ownerName}`);
-            break;
-
-          case 'expired':
-            lines.push('⌛ อังเปานี้หมดอายุแล้ว');
-            if (result.amount) lines.push(`💰 มูลค่า: ${result.amount.toFixed(2)} บาท`);
-            if (result.ownerName) lines.push(`👤 จาก: ${result.ownerName}`);
-            break;
-
-          case 'out_of_stock':
-            lines.push('📭 อังเปานี้ถูกรับหมดแล้ว');
-            if (result.amount) lines.push(`💰 มูลค่า: ${result.amount.toFixed(2)} บาท`);
-            if (result.ownerName) lines.push(`👤 จาก: ${result.ownerName}`);
-            break;
-
-          case 'not_found':
-            lines.push('🔍 ไม่พบอังเปานี้');
-            lines.push('กรุณาตรวจสอบลิงก์อีกครั้ง');
-            break;
-
-          case 'own_voucher':
-            lines.push('🚫 ไม่สามารถรับอังเปาของตัวเองได้');
-            if (result.amount) lines.push(`💰 มูลค่า: ${result.amount.toFixed(2)} บาท`);
-            break;
-
-          case 'invalid_phone':
-            lines.push('📱 เบอร์โทรศัพท์ไม่ถูกต้อง');
-            lines.push('กรุณาตรวจสอบการตั้งค่าเบอร์รับอังเปา');
-            break;
-
-          case 'rate_limited':
-            lines.push('⏳ กรุณารอสักครู่');
-            lines.push(result.message);
-            break;
-
-          default:
-            lines.push('❌ เกิดข้อผิดพลาด');
-            lines.push(result.message);
-            break;
-        }
-
-        responseText = lines.join('\n');
-      }
-
-      // Send reply (prefer reply token for free, fallback to push)
-      const messages = [{ type: 'text' as const, text: responseText }];
+      // Build Flex Message for angpao result
+      const flexMessage = this.buildAngpaoFlexMessage(result);
+      const messages = [flexMessage];
       try {
         if (replyToken) {
           await this.lineAccountsService.sendReply(replyToken, messages, accessToken);
@@ -466,6 +406,127 @@ export class LineWebhookController {
         // Ignore — best effort
       }
     }
+  }
+
+  /**
+   * Build LINE Flex Message for angpao result (all statuses).
+   */
+  private buildAngpaoFlexMessage(result: {
+    success: boolean;
+    status: string;
+    amount?: number;
+    ownerName?: string;
+    message: string;
+    voucherHash: string;
+  }): Record<string, unknown> {
+    // Helper: create a label-value row
+    const infoRow = (label: string, value: string) => ({
+      type: 'box',
+      layout: 'horizontal',
+      contents: [
+        { type: 'text', text: label, size: 'sm', color: '#8C8C8C', flex: 2 },
+        { type: 'text', text: value || '-', size: 'sm', color: '#333333', flex: 3, wrap: true },
+      ],
+    });
+
+    // Determine header text + color per status
+    let headerText: string;
+    let headerColor: string;
+    let statusLabel: string;
+
+    switch (result.status) {
+      case 'success':
+        headerText = '🧧 รับอังเปาสำเร็จ!';
+        headerColor = '#00C851';
+        statusLabel = 'สำเร็จ — เงินเข้า Wallet แล้ว';
+        break;
+      case 'already_redeemed':
+        headerText = '🔴 อังเปานี้ถูกใช้งานไปแล้ว';
+        headerColor = '#E53935';
+        statusLabel = 'ซองนี้ถูกเปิดใช้งานไปแล้ว';
+        break;
+      case 'expired':
+        headerText = '⌛ อังเปานี้หมดอายุแล้ว';
+        headerColor = '#FB8C00';
+        statusLabel = 'หมดอายุ — ไม่สามารถรับได้';
+        break;
+      case 'out_of_stock':
+        headerText = '📭 อังเปานี้ถูกรับหมดแล้ว';
+        headerColor = '#FB8C00';
+        statusLabel = 'ซองถูกรับครบจำนวนแล้ว';
+        break;
+      case 'not_found':
+        headerText = '🔍 ไม่พบอังเปานี้';
+        headerColor = '#757575';
+        statusLabel = 'ไม่พบข้อมูลซอง — ตรวจสอบลิงก์อีกครั้ง';
+        break;
+      case 'own_voucher':
+        headerText = '🚫 รับอังเปาตัวเองไม่ได้';
+        headerColor = '#E53935';
+        statusLabel = 'ไม่สามารถรับอังเปาที่ตัวเองสร้าง';
+        break;
+      case 'invalid_phone':
+        headerText = '📱 เบอร์โทรศัพท์ไม่ถูกต้อง';
+        headerColor = '#E53935';
+        statusLabel = 'กรุณาตรวจสอบการตั้งค่าเบอร์รับอังเปา';
+        break;
+      case 'rate_limited':
+        headerText = '⏳ กรุณารอสักครู่';
+        headerColor = '#FFA000';
+        statusLabel = result.message;
+        break;
+      default:
+        headerText = '❌ เกิดข้อผิดพลาด';
+        headerColor = '#E53935';
+        statusLabel = result.message;
+        break;
+    }
+
+    // Build info rows
+    const rows: Record<string, unknown>[] = [];
+    if (result.amount) {
+      rows.push(infoRow('มูลค่า', `฿${result.amount.toFixed(2)}`));
+    }
+    if (result.ownerName) {
+      rows.push(infoRow('จาก', result.ownerName));
+    }
+    rows.push(infoRow('สถานะ', statusLabel));
+
+    // Build body contents
+    const bodyContents: Record<string, unknown>[] = [
+      {
+        type: 'text',
+        text: headerText,
+        weight: 'bold',
+        size: 'lg',
+        color: headerColor,
+      },
+      {
+        type: 'separator',
+        margin: 'md',
+      },
+      {
+        type: 'box',
+        layout: 'vertical',
+        margin: 'md',
+        spacing: 'sm',
+        contents: rows,
+      },
+    ];
+
+    return {
+      type: 'flex',
+      altText: headerText,
+      contents: {
+        type: 'bubble',
+        size: 'kilo',
+        body: {
+          type: 'box',
+          layout: 'vertical',
+          contents: bodyContents,
+        },
+      },
+    };
   }
 
   private async handleSlipVerification(account: any, event: any): Promise<void> {
