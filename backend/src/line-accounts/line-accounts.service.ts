@@ -362,6 +362,8 @@ export class LineAccountsService {
     'richMenuId', 'richMenuEnabled',
     // Quota
     'quotaAlertEnabled', 'quotaAlertThreshold',
+    // Angpao
+    'enableAngpao', 'angpaoPhoneNumber',
   ]);
 
   async updateSettings(id: string, settings: Partial<LineAccountDocument['settings']>): Promise<void> {
@@ -406,6 +408,44 @@ export class LineAccountsService {
         } else {
           mergedSettings[key] = value;
         }
+      }
+    }
+
+    // ========================================
+    // Angpao phone number validation + collision check
+    // Runs on TWO triggers:
+    //   1. Phone number is being set/changed
+    //   2. enableAngpao is being toggled ON (with existing phone)
+    // This prevents collision bypass when toggling enable separately.
+    // ========================================
+    const angpaoPhoneChanging = 'angpaoPhoneNumber' in mergedSettings && mergedSettings.angpaoPhoneNumber;
+    const angpaoEnabling = mergedSettings.enableAngpao === true;
+    // Resolve the phone number to check: new value or existing value
+    const angpaoPhoneToCheck = angpaoPhoneChanging
+      ? String(mergedSettings.angpaoPhoneNumber).trim()
+      : (currentSettings.angpaoPhoneNumber || '');
+
+    if (angpaoPhoneChanging) {
+      // Validate Thai mobile format: 0xxxxxxxxx (10 digits)
+      if (!/^0[0-9]{9}$/.test(angpaoPhoneToCheck)) {
+        throw new BadRequestException('เบอร์โทรศัพท์ไม่ถูกต้อง (ต้องเป็นเบอร์ไทย 10 หลัก เช่น 0812345678)');
+      }
+      mergedSettings.angpaoPhoneNumber = angpaoPhoneToCheck;
+    }
+
+    // Collision check: run when phone is changing OR angpao is being enabled
+    if ((angpaoPhoneChanging || angpaoEnabling) && angpaoPhoneToCheck) {
+      const collision = await this.lineAccountModel.findOne({
+        _id: { $ne: id },
+        'settings.angpaoPhoneNumber': angpaoPhoneToCheck,
+        'settings.enableAngpao': true,
+      });
+      if (collision) {
+        // SECURITY: Don't expose other account's name — only log it internally
+        this.logger.warn(`[updateSettings] Angpao phone collision: phone=${angpaoPhoneToCheck} already used by account=${collision._id}`);
+        throw new BadRequestException(
+          'เบอร์โทรศัพท์นี้ถูกใช้งานในบัญชีอื่นแล้ว กรุณาใช้เบอร์อื่น',
+        );
       }
     }
 

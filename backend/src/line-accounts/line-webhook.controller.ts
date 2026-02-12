@@ -25,6 +25,7 @@ import { ConfigurableMessagesService } from '../common/configurable-messages.ser
 import { WebsocketGateway } from '../websocket/websocket.gateway';
 import { WebhookRateLimitGuard } from '../common/guards/webhook-rate-limit.guard';
 import { SystemSettingsService } from '../system-settings/system-settings.service';
+import { AngpaoService } from '../angpao/angpao.service';
 
 @ApiTags('LINE Webhook')
 @Controller('webhook/line')
@@ -42,6 +43,7 @@ export class LineWebhookController {
     private configurableMessagesService: ConfigurableMessagesService,
     private websocketGateway: WebsocketGateway,
     private systemSettingsService: SystemSettingsService,
+    private angpaoService: AngpaoService,
   ) { }
 
   @Post(':slug')
@@ -298,6 +300,19 @@ export class LineWebhookController {
         }
       }
     } else if (message.type === 'text') {
+      // ========================================
+      // Angpao detection — BEFORE AI check
+      // ========================================
+      const angpaoEnabled = account.settings?.enableAngpao ?? false;
+      const angpaoPhone = account.settings?.angpaoPhoneNumber;
+      if (angpaoEnabled && angpaoPhone) {
+        const voucherHash = this.angpaoService.detectAngpaoLink(message.text);
+        if (voucherHash) {
+          await this.handleAngpaoRedeem(account, event, voucherHash, angpaoPhone);
+          return; // Do NOT fall through to AI
+        }
+      }
+
       // ตรวจสอบการตั้งค่า AI 2 ระดับ:
       // 1. ระดับแอดมิน (globalAiEnabled) - ปิด AI ทั้งระบบ
       // 2. ระดับบัญชี LINE (enableAi) - ปิด AI เฉพาะบัญชีนี้
@@ -319,6 +334,89 @@ export class LineWebhookController {
         if (aiDisabledMessage) {
           await safeSendReply(aiDisabledMessage);
         }
+      }
+    }
+  }
+
+  /**
+   * Handle TrueWallet Angpao redemption.
+   * Isolated from other flows — errors here never affect slip/AI.
+   */
+  private async handleAngpaoRedeem(
+    account: any,
+    event: any,
+    voucherHash: string,
+    phoneNumber: string,
+  ): Promise<void> {
+    const { source, replyToken } = event;
+    const lineUserId = source.userId;
+    const accessToken = account.accessToken;
+    const accountId = account._id.toString();
+
+    this.logger.log(`[ANGPAO] Processing angpao for account=${accountId}, user=${lineUserId}`);
+
+    try {
+      const result = await this.angpaoService.redeemAngpao({
+        voucherHash,
+        phoneNumber,
+        lineAccountId: accountId,
+        lineUserId,
+      });
+
+      // Format response message
+      let responseText: string;
+      if (result.success) {
+        responseText = [
+          `🧧 รับอังเปาสำเร็จ!`,
+          `💰 จำนวน: ${result.amount?.toFixed(2)} บาท`,
+          result.ownerName ? `👤 จาก: ${result.ownerName}` : '',
+          `✅ เงินเข้า TrueMoney Wallet เรียบร้อยแล้ว`,
+        ].filter(Boolean).join('\n');
+      } else {
+        const emoji = result.status === 'rate_limited' ? '⏳' : '❌';
+        responseText = `${emoji} ${result.message}`;
+      }
+
+      // Send reply (prefer reply token for free, fallback to push)
+      const messages = [{ type: 'text' as const, text: responseText }];
+      try {
+        if (replyToken) {
+          await this.lineAccountsService.sendReply(replyToken, messages, accessToken);
+        } else {
+          await this.lineAccountsService.sendPush(lineUserId, messages, accessToken);
+        }
+      } catch (sendError) {
+        this.logger.error(`[ANGPAO] Failed to send reply, trying push:`, sendError);
+        try {
+          await this.lineAccountsService.sendPush(lineUserId, messages, accessToken);
+        } catch (pushError) {
+          this.logger.error(`[ANGPAO] Push also failed:`, pushError);
+        }
+      }
+
+      // Broadcast to admin dashboard via WebSocket
+      this.websocketGateway.broadcastToAdmins('angpao:result', {
+        lineAccountId: accountId,
+        lineUserId,
+        result: {
+          status: result.status,
+          amount: result.amount,
+          ownerName: result.ownerName,
+          message: result.message,
+        },
+      });
+    } catch (error) {
+      this.logger.error(`[ANGPAO] Unexpected error:`, error);
+      // Send generic error — never expose internal details
+      try {
+        const errorMsg = [{ type: 'text' as const, text: '❌ เกิดข้อผิดพลาดในการรับอังเปา กรุณาลองใหม่ภายหลัง' }];
+        if (replyToken) {
+          await this.lineAccountsService.sendReply(replyToken, errorMsg, accessToken);
+        } else {
+          await this.lineAccountsService.sendPush(lineUserId, errorMsg, accessToken);
+        }
+      } catch {
+        // Ignore — best effort
       }
     }
   }

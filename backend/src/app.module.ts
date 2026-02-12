@@ -33,6 +33,7 @@ import { SecurityModule } from './utils/security.module';
 import { RateLimitModule } from './common/rate-limit.module';
 import { LineSessionModule } from './line-session/line-session.module';
 import { AutoSlipExtractionModule } from './auto-slip-extraction/auto-slip-extraction.module';
+import { AngpaoModule } from './angpao/angpao.module';
 
 @Module({
   imports: [
@@ -127,6 +128,10 @@ import { AutoSlipExtractionModule } from './auto-slip-extraction/auto-slip-extra
     // ไม่กระทบกับระบบ Slip Verification และ AI ที่มีอยู่
     // ลบได้ง่าย: ลบ folder src/auto-slip-extraction/ และลบบรรทัดนี้
     AutoSlipExtractionModule,
+
+    // TrueWallet Angpao (Standalone Module)
+    // ลบได้ง่าย: ลบ folder src/angpao/ และลบบรรทัดนี้
+    AngpaoModule,
   ],
 })
 export class AppModule { }

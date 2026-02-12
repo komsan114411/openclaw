@@ -458,6 +458,9 @@ export default function AdminLineAccountsPage() {
     smartAiMaxRetries: 2,
     smartAiRetryDelayMs: 1000,
     smartAiFallbackAction: 'fallback_message',
+    // Angpao
+    enableAngpao: false,
+    angpaoPhoneNumber: '',
   });
 
   // AI Settings from system
@@ -729,6 +732,9 @@ export default function AdminLineAccountsPage() {
       smartAiMaxRetries: (s as Record<string, unknown>).smartAiMaxRetries as number ?? 2,
       smartAiRetryDelayMs: (s as Record<string, unknown>).smartAiRetryDelayMs as number ?? 1000,
       smartAiFallbackAction: (s as Record<string, unknown>).smartAiFallbackAction as string || 'fallback_message',
+      // Angpao
+      enableAngpao: (s as Record<string, unknown>).enableAngpao as boolean ?? false,
+      angpaoPhoneNumber: (s as Record<string, unknown>).angpaoPhoneNumber as string || '',
     });
     setActiveSettingsTab('core');
     setShowSettingsModal(true);
@@ -1983,7 +1989,7 @@ export default function AdminLineAccountsPage() {
           {/* ===== TAB 1: ระบบหลัก ===== */}
           {activeSettingsTab === 'core' && (
             <motion.div key="core" initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 20 }} transition={{ duration: 0.2 }} className="space-y-8">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
                 {/* Bot Toggle */}
                 <div className={cn("p-6 rounded-2xl flex flex-col items-center text-center gap-4 transition-all border", settingsData.enableBot ? "bg-emerald-500/10 border-emerald-500/20" : "bg-white/[0.02] border-white/5 opacity-60")}>
                   <div className={cn("w-12 h-12 rounded-xl flex items-center justify-center text-2xl", settingsData.enableBot ? "bg-emerald-500 text-white shadow-lg shadow-emerald-500/30" : "bg-white/10 text-white/30")}>🤖</div>
@@ -2018,7 +2024,55 @@ export default function AdminLineAccountsPage() {
                     }
                   }} />
                 </div>
+
+                {/* Angpao Toggle */}
+                <div className={cn("p-6 rounded-2xl flex flex-col items-center text-center gap-4 transition-all border", settingsData.enableAngpao ? "bg-rose-500/10 border-rose-500/20" : "bg-white/[0.02] border-white/5 opacity-60")}>
+                  <div className={cn("w-12 h-12 rounded-xl flex items-center justify-center text-2xl", settingsData.enableAngpao ? "bg-rose-500 text-white shadow-lg shadow-rose-500/30" : "bg-white/10 text-white/30")}>🧧</div>
+                  <div className="space-y-1">
+                    <p className="font-black text-sm text-white">Angpao Bot</p>
+                    <p className="text-xs text-white/40">รับอังเปา TrueMoney อัตโนมัติจากลูกค้า</p>
+                  </div>
+                  <Switch checked={settingsData.enableAngpao} onChange={(checked) => setSettingsData({ ...settingsData, enableAngpao: checked })} />
+                </div>
               </div>
+
+              {/* Angpao Phone Number Input */}
+              {settingsData.enableAngpao && (
+                <div className="bg-rose-500/10 border border-rose-500/20 rounded-2xl p-5 space-y-4">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-rose-500/20 flex items-center justify-center text-lg">🧧</div>
+                    <div>
+                      <p className="text-sm font-bold text-rose-400">TrueMoney Wallet</p>
+                      <p className="text-xs text-white/40">กรอกเบอร์โทรศัพท์ที่ลงทะเบียน TrueMoney Wallet เพื่อรับเงินอังเปา</p>
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-xs font-semibold text-white/60">เบอร์โทรศัพท์ (TrueMoney Wallet)</label>
+                    <input
+                      type="tel"
+                      placeholder="0812345678"
+                      maxLength={10}
+                      value={settingsData.angpaoPhoneNumber}
+                      onChange={(e) => {
+                        const val = e.target.value.replace(/[^0-9]/g, '').slice(0, 10);
+                        setSettingsData({ ...settingsData, angpaoPhoneNumber: val });
+                      }}
+                      className={cn(
+                        "w-full px-4 py-3 bg-black/20 border rounded-xl text-sm text-white placeholder-white/30 focus:outline-none focus:ring-2",
+                        settingsData.angpaoPhoneNumber && !/^0[0-9]{9}$/.test(settingsData.angpaoPhoneNumber)
+                          ? "border-red-500/50 focus:ring-red-500/50"
+                          : "border-white/10 focus:ring-rose-500/50"
+                      )}
+                    />
+                    {settingsData.angpaoPhoneNumber && !/^0[0-9]{9}$/.test(settingsData.angpaoPhoneNumber) && (
+                      <p className="text-xs text-red-400">เบอร์โทรศัพท์ต้องเป็น 10 หลัก เริ่มต้นด้วย 0</p>
+                    )}
+                    {settingsData.enableAngpao && !settingsData.angpaoPhoneNumber && (
+                      <p className="text-xs text-amber-400">กรุณากรอกเบอร์โทรศัพท์เพื่อเปิดใช้งานอังเปา</p>
+                    )}
+                  </div>
+                </div>
+              )}
 
               {/* Global AI Warning */}
               {!globalAiEnabled && settingsData.enableAi && (

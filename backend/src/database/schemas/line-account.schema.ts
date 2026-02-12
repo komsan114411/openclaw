@@ -172,6 +172,17 @@ export class LineAccountSettings {
 
   @Prop({ default: 'fallback_message' })
   smartAiFallbackAction: string;
+
+  // ============================================
+  // Angpao (TrueWallet Red Envelope) Settings
+  // ============================================
+
+  @Prop({ default: false })
+  enableAngpao: boolean;
+
+  /** Thai mobile number (0xxxxxxxxx) for receiving angpao */
+  @Prop()
+  angpaoPhoneNumber: string;
 }
 
 @Schema({ _id: false })

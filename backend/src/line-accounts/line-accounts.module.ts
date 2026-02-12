@@ -11,6 +11,7 @@ import { ChatbotModule } from '../chatbot/chatbot.module';
 import { SubscriptionsModule } from '../subscriptions/subscriptions.module';
 import { SystemSettingsModule } from '../system-settings/system-settings.module';
 import { WebhookRateLimitGuard } from '../common/guards/webhook-rate-limit.guard';
+import { AngpaoModule } from '../angpao/angpao.module';
 
 @Module({
   imports: [
@@ -23,6 +24,7 @@ import { WebhookRateLimitGuard } from '../common/guards/webhook-rate-limit.guard
     ChatbotModule,
     SubscriptionsModule,
     SystemSettingsModule,
+    AngpaoModule,
   ],
   providers: [LineAccountsService, WebhookRateLimitGuard],
   controllers: [LineAccountsController, LineWebhookController],
