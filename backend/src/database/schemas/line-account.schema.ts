@@ -239,3 +239,17 @@ export class LineAccount {
 }
 
 export const LineAccountSchema = SchemaFactory.createForClass(LineAccount);
+
+// Unique partial index: prevent two active angpao accounts from sharing the same phone number.
+// Only enforced when enableAngpao=true AND angpaoPhoneNumber exists and is non-empty.
+// This is the DB-level safeguard against TOCTOU race conditions in the runtime collision check.
+LineAccountSchema.index(
+  { 'settings.angpaoPhoneNumber': 1 },
+  {
+    unique: true,
+    partialFilterExpression: {
+      'settings.enableAngpao': true,
+      'settings.angpaoPhoneNumber': { $type: 'string', $ne: '' },
+    },
+  },
+);

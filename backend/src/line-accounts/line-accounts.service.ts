@@ -455,7 +455,19 @@ export class LineAccountsService {
     // Mark settings as modified to ensure Mongoose saves nested changes
     account.markModified('settings');
 
-    await account.save();
+    try {
+      await account.save();
+    } catch (saveError: unknown) {
+      // Catch MongoDB duplicate key error from unique partial index (angpao phone)
+      // This is the DB-level safeguard against TOCTOU race conditions
+      const mongoError = saveError as { code?: number; keyPattern?: Record<string, number> };
+      if (mongoError.code === 11000 && mongoError.keyPattern?.['settings.angpaoPhoneNumber']) {
+        throw new BadRequestException(
+          'เบอร์โทรศัพท์นี้ถูกใช้งานในบัญชีอื่นแล้ว กรุณาใช้เบอร์อื่น',
+        );
+      }
+      throw saveError;
+    }
 
     this.logger.log(`[updateSettings] Updated settings for account ${id}: slipTemplateIds=${JSON.stringify(mergedSettings.slipTemplateIds || {})}`);
 
