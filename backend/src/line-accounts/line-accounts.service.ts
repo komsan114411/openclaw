@@ -345,18 +345,30 @@ export class LineAccountsService {
   }
 
   // Allowed settings fields — prevents injection of arbitrary fields into the document
+  // MUST match all fields in LineAccountSettings schema — missing = silently dropped!
   private static readonly ALLOWED_SETTINGS_FIELDS = new Set([
-    // Slip & payment
-    'slipTemplateId', 'slipTemplateIds', 'autoReplyEnabled', 'autoReplyMessage',
-    'slipVerificationEnabled', 'minDepositAmount', 'maxDepositAmount',
+    // Core toggles
+    'enableBot', 'enableAi', 'enableSlipVerification', 'webhookEnabled',
     // AI settings
-    'enableAi', 'enableSmartAi', 'aiSystemPrompt', 'aiModel', 'aiTemperature',
-    'aiFallbackMessage', 'knowledgeBase', 'intentRules', 'gameLinks',
+    'enableSmartAi', 'aiSystemPrompt', 'aiModel', 'aiTemperature',
+    'aiFallbackMessage', 'aiResponseMode', 'aiImmediateMessage', 'aiCustomResponse',
+    'knowledgeBase', 'intentRules', 'gameLinks',
     'smartAiClassifierModel', 'duplicateDetectionWindowMinutes',
     'spamThresholdMessagesPerMinute',
     // Smart AI advanced
     'smartAiConfidenceThreshold', 'smartAiMaxTokens', 'smartAiResponseDelayMs',
     'smartAiMaxRetries', 'smartAiRetryDelayMs', 'smartAiFallbackAction',
+    // Slip & payment
+    'slipTemplateId', 'slipTemplateIds', 'slipResponseMode', 'slipImmediateMessage',
+    'slipSuccessTemplate', 'slipDuplicateTemplate', 'slipErrorTemplate',
+    'autoReplyEnabled', 'autoReplyMessage', 'sendProcessingMessage',
+    // Custom messages
+    'customQuotaExceededMessage', 'customBotDisabledMessage',
+    'customSlipDisabledMessage', 'customAiDisabledMessage',
+    'customDuplicateSlipMessage', 'customSlipErrorMessage', 'customSlipSuccessMessage',
+    // Message toggles (null = use system default)
+    'sendMessageWhenBotDisabled', 'sendMessageWhenSlipDisabled',
+    'sendMessageWhenAiDisabled', 'sendMessageWhenAiQuotaExhausted',
     // Notifications & display
     'welcomeMessage', 'notifyOnDeposit', 'notifyOnWithdraw',
     'richMenuId', 'richMenuEnabled',

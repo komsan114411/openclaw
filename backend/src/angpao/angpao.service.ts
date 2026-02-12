@@ -219,7 +219,14 @@ export class AngpaoService {
         },
         {
           timeout: this.API_TIMEOUT_MS,
-          headers: { 'Content-Type': 'application/json' },
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+            'Accept-Language': 'th-TH,th;q=0.9,en;q=0.8',
+            'User-Agent': 'Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36',
+            'Origin': 'https://gift.truemoney.com',
+            'Referer': `https://gift.truemoney.com/campaign/?v=${encodedHash}`,
+          },
           // Accept all status codes — TrueWallet returns errors in body
           validateStatus: () => true,
           // SECURITY: Prevent redirects to arbitrary hosts
@@ -227,21 +234,64 @@ export class AngpaoService {
         },
       );
 
-      const data = response.data;
+      // Runtime type: response.data may be string (HTML/Cloudflare) instead of JSON object
+      const data = response.data as unknown;
+      const httpStatus = response.status;
+
+      // ========================================
+      // Check if response is actually JSON (not HTML/Cloudflare block)
+      // ========================================
+      if (typeof data === 'string') {
+        const bodySnippet = data.replace(/[\r\n\t]/g, ' ').slice(0, 300);
+        this.logger.warn(`[ANGPAO] Non-JSON response (httpStatus=${httpStatus}): ${bodySnippet}`);
+
+        if (httpStatus === 403) {
+          return {
+            success: false,
+            status: 'error',
+            message: 'ระบบ TrueMoney ปฏิเสธการเชื่อมต่อ (403) กรุณาลองใหม่ภายหลัง',
+            voucherHash,
+          };
+        }
+
+        return {
+          success: false,
+          status: 'error',
+          message: 'ระบบ TrueMoney ตอบกลับผิดปกติ กรุณาลองใหม่ภายหลัง',
+          voucherHash,
+        };
+      }
+
+      // ========================================
+      // Handle HTTP-level errors (403, 5xx) with JSON body but no status.code
+      // ========================================
+      if (!data || typeof data !== 'object') {
+        this.logger.warn(`[ANGPAO] Empty/invalid response body (httpStatus=${httpStatus})`);
+        return {
+          success: false,
+          status: 'error',
+          message: 'ระบบ TrueMoney ไม่ตอบกลับ กรุณาลองใหม่ภายหลัง',
+          voucherHash,
+        };
+      }
+
+      // After guards: data is a JSON object — safe to cast
+      const jsonData = data as TruewalletApiResponse;
+
       // SECURITY: Sanitize statusCode for logging — prevent log injection
-      const rawStatusCode = String(data?.status?.code || 'UNKNOWN');
+      const rawStatusCode = String(jsonData?.status?.code || 'UNKNOWN');
       const statusCode = rawStatusCode.replace(/[\r\n\t]/g, '').slice(0, 50);
 
-      this.logger.log(`[ANGPAO] API response: statusCode=${statusCode}, httpStatus=${response.status}`);
+      this.logger.log(`[ANGPAO] API response: statusCode=${statusCode}, httpStatus=${httpStatus}`);
 
       // Map status code to our result
       const mapping = TRUEWALLET_STATUS_MAP[statusCode];
       if (mapping && mapping.status === 'success') {
-        const rawAmount = parseFloat(data?.data?.voucher?.redeemed_amount_baht || data?.data?.voucher?.amount_baht || '0');
+        const rawAmount = parseFloat(jsonData?.data?.voucher?.redeemed_amount_baht || jsonData?.data?.voucher?.amount_baht || '0');
         // SECURITY: Validate amount is a finite number — prevent NaN display
         const amount = Number.isFinite(rawAmount) && rawAmount >= 0 ? rawAmount : 0;
         // SECURITY: Sanitize ownerName — prevent XSS when displayed in admin dashboard
-        const rawOwnerName = data?.data?.owner_profile?.full_name || data?.data?.voucher?.member?.name || '';
+        const rawOwnerName = jsonData?.data?.owner_profile?.full_name || jsonData?.data?.voucher?.member?.name || '';
         const ownerName = String(rawOwnerName).replace(/[<>"'&]/g, '').slice(0, 100);
         return {
           success: true,
@@ -262,8 +312,20 @@ export class AngpaoService {
         };
       }
 
-      // Unknown status code
-      this.logger.warn(`[ANGPAO] Unknown TrueWallet status code: ${statusCode}`);
+      // Unknown status code — log body for debugging
+      const debugBody = JSON.stringify(jsonData).slice(0, 500);
+      this.logger.warn(`[ANGPAO] Unknown TrueWallet status code: ${statusCode}, httpStatus=${httpStatus}, body=${debugBody}`);
+
+      // Specific message for HTTP 403
+      if (httpStatus === 403) {
+        return {
+          success: false,
+          status: 'error',
+          message: 'ระบบ TrueMoney ปฏิเสธการเชื่อมต่อ (403) กรุณาลองใหม่ภายหลัง',
+          voucherHash,
+        };
+      }
+
       return {
         success: false,
         status: 'error',
