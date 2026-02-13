@@ -378,11 +378,11 @@ function AdminChatContent() {
         {/* Neural Navigation Header */}
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-2">
           <div className="space-y-1 sm:space-y-2">
-            <p className="text-slate-500 font-medium text-xs sm:text-sm">จัดการระบบ</p>
+            <p className="text-slate-400 font-medium text-xs sm:text-sm">จัดการระบบ</p>
             <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-white tracking-tight">
               แชท<span className="text-[#06C755]">กับลูกค้า</span>
             </h1>
-            <p className="text-slate-500 text-xs sm:text-sm">
+            <p className="text-slate-400 text-xs sm:text-sm">
               สนทนากับลูกค้าผ่าน LINE OA
             </p>
           </div>
@@ -446,7 +446,7 @@ function AdminChatContent() {
                     <p className="text-[10px] font-semibold text-slate-400 mb-1">รายชื่อผู้ใช้</p>
                     <h3 className="text-sm font-bold text-slate-200">การสนทนาทั้งหมด</h3>
                   </div>
-                  <Badge className="bg-emerald-500/20 text-emerald-400 border-none font-semibold text-[9px] px-3 py-1 animate-pulse">ออนไลน์</Badge>
+                  <Badge className="bg-emerald-500/20 text-emerald-400 border-none font-semibold text-[10px] px-3 py-1 animate-pulse">ออนไลน์</Badge>
                 </div>
                 <div className="relative group">
                   <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-slate-300 group-focus-within:text-emerald-500 transition-colors">
@@ -458,7 +458,7 @@ function AdminChatContent() {
                     placeholder="ค้นหาผู้ใช้..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
-                    className="bg-white/5 border-white/5 rounded-2xl h-14 text-[13px] pl-12 font-medium focus:bg-white/10 shadow-inner transition-all text-white placeholder:text-slate-500"
+                    className="bg-white/5 border-white/5 rounded-2xl h-14 text-sm pl-12 font-medium focus:bg-white/10 shadow-inner transition-all text-white placeholder:text-slate-400"
                   />
                 </div>
               </div>
@@ -467,11 +467,11 @@ function AdminChatContent() {
                 {loading ? (
                   <div className="flex flex-col items-center justify-center py-24 gap-6">
                     <Spinner size="lg" className="text-emerald-500" />
-                    <p className="text-[10px] font-black text-slate-300 uppercase tracking-[0.3em] animate-pulse">กำลังโหลดรายชื่อ...</p>
+                    <p className="text-xs font-black text-slate-300 uppercase tracking-[0.3em] animate-pulse">กำลังโหลดรายชื่อ...</p>
                   </div>
                 ) : filteredUsers.length === 0 ? (
                   <div className="text-center py-24 opacity-30">
-                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">ไม่พบข้อความ</p>
+                    <p className="text-xs font-black text-slate-300 uppercase tracking-[0.2em]">ไม่พบข้อความ</p>
                   </div>
                 ) : (
                   <AnimatePresence mode="popLayout">
@@ -497,13 +497,13 @@ function AdminChatContent() {
                               {user.lineUserPicture ? (
                                 <img src={user.lineUserPicture} alt={user.lineUserName} className="w-full h-full object-cover transition-transform duration-700" />
                               ) : (
-                                <span className={cn("font-black text-base sm:text-lg", selectedUser?.lineUserId === user.lineUserId ? "text-white" : "text-slate-500")}>
+                                <span className={cn("font-black text-base sm:text-lg", selectedUser?.lineUserId === user.lineUserId ? "text-white" : "text-slate-300")}>
                                   {(user.lineUserName || '?').charAt(0)}
                                 </span>
                               )}
                             </div>
                             {user.unreadCount > 0 && (
-                              <span className="absolute -top-1 -right-1 bg-rose-500 text-white text-[8px] sm:text-[9px] font-black rounded-lg px-1.5 py-0.5 shadow-lg border border-black animate-bounce-subtle">
+                              <span className="absolute -top-1 -right-1 bg-rose-500 text-white text-[9px] sm:text-[10px] font-black rounded-lg px-1.5 py-0.5 shadow-lg border border-black animate-bounce-subtle">
                                 {user.unreadCount > 9 ? '9+' : user.unreadCount}
                               </span>
                             )}
@@ -514,14 +514,14 @@ function AdminChatContent() {
                                 {user.lineUserName}
                               </p>
                               <span className={cn(
-                                "text-[9px] font-black uppercase tracking-widest transition-colors",
-                                selectedUser?.lineUserId === user.lineUserId ? "text-[#06C755] opacity-100" : "text-slate-500 opacity-40 group-hover:opacity-70"
+                                "text-[10px] font-black uppercase tracking-widest transition-colors",
+                                selectedUser?.lineUserId === user.lineUserId ? "text-[#06C755] opacity-100" : "text-slate-400 opacity-70 group-hover:opacity-100"
                               )}>
                                 {formatLastSeen(user.lastMessageTime)}
                               </span>
                             </div>
                             <p className={cn(
-                              "text-[10px] sm:text-xs font-medium truncate transition-all",
+                              "text-xs sm:text-sm font-medium truncate transition-all",
                               selectedUser?.lineUserId === user.lineUserId ? "text-white/60" : "text-slate-400 group-hover:text-slate-300"
                             )}>
                               {user.lastMessage || 'ไม่มีข้อความใหม่'}
@@ -559,7 +559,7 @@ function AdminChatContent() {
                           {selectedUser.lineUserPicture ? (
                             <img src={selectedUser.lineUserPicture} alt={selectedUser.lineUserName} className="w-full h-full object-cover" />
                           ) : (
-                            <div className="w-full h-full bg-white/5 flex items-center justify-center font-black text-base sm:text-lg text-slate-500 italic uppercase">
+                            <div className="w-full h-full bg-white/5 flex items-center justify-center font-black text-base sm:text-lg text-slate-300 italic uppercase">
                               {selectedUser.lineUserName?.slice(0, 1)}
                             </div>
                           )}
@@ -570,10 +570,10 @@ function AdminChatContent() {
                           <h2 className="text-sm sm:text-lg lg:text-xl font-black text-white tracking-tight uppercase truncate">{selectedUser.lineUserName}</h2>
                           <div className="hidden sm:flex items-center gap-1.5 bg-[#06C755]/10 px-2 py-0.5 rounded-md border border-[#06C755]/20 flex-shrink-0">
                             <div className="w-1.5 h-1.5 rounded-full bg-[#06C755] animate-pulse" />
-                            <span className="text-[9px] font-bold text-[#06C755] uppercase tracking-wider">ONLINE</span>
+                            <span className="text-[10px] font-bold text-[#06C755] uppercase tracking-wider">ONLINE</span>
                           </div>
                         </div>
-                        <p className="text-[9px] sm:text-[10px] font-mono font-medium text-slate-500 tracking-wider uppercase truncate">ID: {selectedUser.lineUserId}</p>
+                        <p className="text-[10px] sm:text-xs font-mono font-medium text-slate-400 tracking-wider uppercase truncate">ID: {selectedUser.lineUserId}</p>
                       </div>
                     </div>
                     <div className="flex items-center gap-3">
@@ -612,7 +612,7 @@ function AdminChatContent() {
                       {loadingMessages ? (
                         <div className="flex flex-col items-center justify-center py-24 gap-4 animate-fade">
                           <Spinner size="lg" className="text-[#06C755]" />
-                          <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] animate-pulse">กำลังโหลดข้อความ...</p>
+                          <p className="text-xs font-black text-slate-300 uppercase tracking-[0.2em] animate-pulse">กำลังโหลดข้อความ...</p>
                         </div>
                       ) : messages.length === 0 ? (
                         <div className="flex flex-col items-center justify-center py-32 opacity-40">
@@ -661,8 +661,8 @@ function AdminChatContent() {
                                 )}
                                 {/* Timestamp */}
                                 <div className={cn(
-                                  "px-1 text-[10px] font-medium opacity-50",
-                                  msg.direction === 'out' ? "text-slate-400 text-right" : "text-slate-500"
+                                  "px-1 text-xs font-medium opacity-70",
+                                  msg.direction === 'out' ? "text-slate-300 text-right" : "text-slate-400"
                                 )}>
                                   {formatTime(msg.createdAt)}
                                   {msg.sentBy && msg.direction === 'out' && ` • ${msg.sentBy}`}
@@ -688,7 +688,7 @@ function AdminChatContent() {
                           }
                         }}
                         placeholder="พิมพ์ข้อความตอบกลับ..."
-                        className="flex-1 min-h-[48px] sm:min-h-[56px] max-h-32 sm:max-h-48 resize-none bg-white/[0.03] border-white/5 rounded-xl sm:rounded-2xl px-4 sm:px-6 py-3 sm:py-4 text-white font-medium text-xs sm:text-sm focus:ring-1 focus:ring-[#06C755]/50 transition-all placeholder:text-slate-500 outline-none custom-scrollbar"
+                        className="flex-1 min-h-[48px] sm:min-h-[56px] max-h-32 sm:max-h-48 resize-none bg-white/[0.03] border-white/5 rounded-xl sm:rounded-2xl px-4 sm:px-6 py-3 sm:py-4 text-white font-medium text-sm focus:ring-1 focus:ring-[#06C755]/50 transition-all placeholder:text-slate-400 outline-none custom-scrollbar"
                         rows={1}
                         disabled={sending}
                       />
@@ -703,12 +703,12 @@ function AdminChatContent() {
                         ส่ง
                       </Button>
                     </div>
-                    <div className="flex items-center justify-between mt-3 px-1.5 opacity-30">
+                    <div className="flex items-center justify-between mt-3 px-1.5 opacity-50">
                       <div className="flex items-center gap-2">
                         <div className="w-1.5 h-1.5 rounded-full bg-[#06C755] animate-pulse" />
-                        <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">เชื่อมต่อปลอดภัย</span>
+                        <span className="text-[10px] font-bold text-slate-300 uppercase tracking-widest">เชื่อมต่อปลอดภัย</span>
                       </div>
-                      <span className="text-[9px] font-mono text-slate-500 tracking-wider">ระบบ AI พร้อมใช้งาน</span>
+                      <span className="text-[10px] font-mono text-slate-400 tracking-wider">ระบบ AI พร้อมใช้งาน</span>
                     </div>
                   </div>
                 </>

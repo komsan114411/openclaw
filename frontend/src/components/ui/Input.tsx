@@ -41,7 +41,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
               error
                 ? 'border-rose-300 focus:border-rose-500 focus:ring-4 focus:ring-rose-500/10 bg-rose-50/10 text-rose-900 placeholder:text-rose-300'
                 : 'hover:border-emerald-400/50 focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10',
-              props.variant === 'glass' && 'bg-white/5 border-white/10 text-white placeholder:text-white/40 focus:border-white/20 focus:ring-white/5 hover:bg-white/10',
+              props.variant === 'glass' && 'bg-white/5 border-white/10 text-white placeholder:text-slate-400 focus:border-white/20 focus:ring-white/5 hover:bg-white/10',
               className
             )}
             {...props}
@@ -55,7 +55,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
         {error && <p className="mt-2 text-xs font-bold text-rose-500 animate-in fade-in slide-in-from-top-1 flex items-center gap-1.5 uppercase tracking-wide">
           <span className="w-1.5 h-1.5 rounded-full bg-rose-500 ring-2 ring-rose-500/20" /> {error}
         </p>}
-        {hint && !error && <p className="mt-2 text-xs text-slate-400 font-medium px-1 flex items-center gap-1">
+        {hint && !error && <p className="mt-2 text-xs text-slate-300 font-medium px-1 flex items-center gap-1">
           <span className="w-1 h-1 rounded-full bg-slate-400" /> {hint}
         </p>}
       </div>
@@ -90,7 +90,7 @@ export const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(
             error
               ? 'border-rose-500 focus:ring-4 focus:ring-rose-500/10 focus:border-rose-500 bg-rose-50/10 text-rose-900 placeholder:text-rose-300'
               : 'hover:border-emerald-400/50 focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10',
-            props.variant === 'glass' && 'bg-white/5 border-white/10 text-white placeholder:text-white/30 focus:border-white/20 focus:ring-white/5 hover:bg-white/10',
+            props.variant === 'glass' && 'bg-white/5 border-white/10 text-white placeholder:text-slate-400 focus:border-white/20 focus:ring-white/5 hover:bg-white/10',
             className
           )}
           {...props}
@@ -98,7 +98,7 @@ export const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(
         {error && <p className="mt-1.5 text-xs font-bold text-rose-500 animate-in fade-in slide-in-from-top-1 flex items-center gap-1.5 uppercase tracking-wide">
           <span className="w-1 h-1 rounded-full bg-rose-500" /> {error}
         </p>}
-        {hint && !error && <p className="mt-1.5 text-xs text-slate-400 font-medium px-1 italic">{hint}</p>}
+        {hint && !error && <p className="mt-1.5 text-xs text-slate-300 font-medium px-1 italic">{hint}</p>}
       </div>
     );
   }
@@ -153,7 +153,7 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(
         {error && <p className="mt-1.5 text-xs font-bold text-rose-500 animate-in fade-in slide-in-from-top-1 flex items-center gap-1.5 uppercase tracking-wide">
           <span className="w-1 h-1 rounded-full bg-rose-500" /> {error}
         </p>}
-        {hint && !error && <p className="mt-1.5 text-xs text-slate-400 font-medium px-1 italic">{hint}</p>}
+        {hint && !error && <p className="mt-1.5 text-xs text-slate-300 font-medium px-1 italic">{hint}</p>}
       </div>
     );
   }
@@ -179,7 +179,7 @@ export function Switch({ checked, onChange, label, description, disabled = false
       {(label || description) && (
         <div className="mr-4 flex-1">
           {label && <span className="text-sm font-bold text-slate-900 group-hover:text-emerald-600 transition-colors uppercase tracking-tight">{label}</span>}
-          {description && <p className="text-xs text-slate-500 mt-0.5 font-medium italic">{description}</p>}
+          {description && <p className="text-xs text-slate-400 mt-0.5 font-medium italic">{description}</p>}
         </div>
       )}
       <button

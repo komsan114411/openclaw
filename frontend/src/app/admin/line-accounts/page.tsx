@@ -1682,11 +1682,11 @@ export default function AdminLineAccountsPage() {
 
         <div className="page-header relative z-10">
           <div className="space-y-1 sm:space-y-2">
-            <p className="text-slate-500 font-medium text-xs sm:text-sm">จัดการระบบ</p>
+            <p className="text-slate-400 font-medium text-xs sm:text-sm">จัดการระบบ</p>
             <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-white tracking-tight">
               บัญชี <span className="text-[#06C755]">LINE OA</span>
             </h1>
-            <p className="text-slate-500 text-xs sm:text-sm">
+            <p className="text-slate-400 text-xs sm:text-sm">
               ศูนย์ควบคุมบัญชี Official Account ทั้งหมด
             </p>
           </div>
@@ -1706,7 +1706,7 @@ export default function AdminLineAccountsPage() {
               size="lg"
               variant="primary"
               leftIcon={<Plus className="w-4 h-4" />}
-              className="h-11 sm:h-12 px-5 sm:px-6 rounded-full font-semibold text-xs shadow-lg shadow-[#06C755]/20"
+              className="h-11 sm:h-12 px-5 sm:px-6 rounded-full font-semibold text-sm shadow-lg shadow-[#06C755]/20"
             >
               เพิ่มบัญชีใหม่
             </Button>
@@ -1725,8 +1725,8 @@ export default function AdminLineAccountsPage() {
             placeholder="ค้นหาชื่อบัญชี, Channel ID หรือเจ้าของ..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            leftIcon={<Search className="w-5 h-5 sm:w-6 sm:h-6 text-slate-500 group-focus-within:text-emerald-400 transition-colors" />}
-            className="bg-transparent border-none shadow-none text-sm sm:text-lg font-black uppercase tracking-tight placeholder:text-slate-600 placeholder:font-bold h-10 sm:h-14 text-white"
+            leftIcon={<Search className="w-5 h-5 sm:w-6 sm:h-6 text-slate-400 group-focus-within:text-emerald-400 transition-colors" />}
+            className="bg-transparent border-none shadow-none text-sm sm:text-lg font-black uppercase tracking-tight placeholder:text-slate-400 placeholder:font-bold h-10 sm:h-14 text-white"
           />
         </Card>
 
@@ -1735,11 +1735,11 @@ export default function AdminLineAccountsPage() {
             <table className="w-full text-left border-collapse">
               <thead>
                 <tr className="border-b border-white/[0.05] bg-white/[0.02]">
-                  <th className="px-8 py-6 text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">บัญชี / ช่องทาง</th>
-                  <th className="px-8 py-6 text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">ผู้ดูแลรับผิดชอบ</th>
-                  <th className="px-8 py-6 text-[10px] font-black uppercase tracking-[0.2em] text-slate-500 text-center">ตัวชี้วัดประสิทธิภาพ</th>
-                  <th className="px-8 py-6 text-[10px] font-black uppercase tracking-[0.2em] text-slate-500 text-center">สถานะระบบ</th>
-                  <th className="px-8 py-6 text-[10px] font-black uppercase tracking-[0.2em] text-slate-500 text-right">การจัดการ</th>
+                  <th className="px-8 py-6 text-xs font-black uppercase tracking-[0.2em] text-slate-300">บัญชี / ช่องทาง</th>
+                  <th className="px-8 py-6 text-xs font-black uppercase tracking-[0.2em] text-slate-300">ผู้ดูแลรับผิดชอบ</th>
+                  <th className="px-8 py-6 text-xs font-black uppercase tracking-[0.2em] text-slate-300 text-center">ตัวชี้วัดประสิทธิภาพ</th>
+                  <th className="px-8 py-6 text-xs font-black uppercase tracking-[0.2em] text-slate-300 text-center">สถานะระบบ</th>
+                  <th className="px-8 py-6 text-xs font-black uppercase tracking-[0.2em] text-slate-300 text-right">การจัดการ</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-white/[0.02]">
@@ -1754,7 +1754,7 @@ export default function AdminLineAccountsPage() {
                     <td colSpan={5} className="px-10 py-32 text-center">
                       <div className="flex flex-col items-center gap-6 opacity-30">
                         <div className="w-24 h-24 bg-slate-100 rounded-[2.5rem] flex items-center justify-center text-4xl">🤖</div>
-                        <p className="text-slate-500 font-black uppercase tracking-[0.3em] text-sm">ไม่พบข้อมูลบัญชี</p>
+                        <p className="text-slate-400 font-black uppercase tracking-[0.3em] text-sm">ไม่พบข้อมูลบัญชี</p>
                       </div>
                     </td>
                   </tr>

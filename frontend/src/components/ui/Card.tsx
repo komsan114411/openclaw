@@ -77,7 +77,7 @@ export function CardHeader({ title, subtitle, action, icon, className = '' }: Ca
         )}
         <div>
           <h3 className="text-lg font-bold text-white tracking-tight">{title}</h3>
-          {subtitle && <p className="text-sm text-slate-500 font-medium mt-0.5">{subtitle}</p>}
+          {subtitle && <p className="text-sm text-slate-400 font-medium mt-0.5">{subtitle}</p>}
         </div>
       </div>
       {action && <div className="animate-in fade-in slide-in-from-right-4 duration-500">{action}</div>}
@@ -214,7 +214,7 @@ export function StatCard({
               >
                 {trend.isUp !== undefined ? (trend.isUp ? '↑' : '↓') : ''} {trend.value}
               </span>
-              {trend.label && <span className="text-[10px] text-slate-500 font-medium uppercase">{trend.label}</span>}
+              {trend.label && <span className="text-xs text-slate-400 font-medium uppercase">{trend.label}</span>}
             </div>
           )}
         </div>
@@ -249,7 +249,7 @@ export function EmptyState({ icon, title, description, action, variant = 'white'
         </div>
       )}
       <h3 className="text-xl font-bold text-white tracking-tight">{title}</h3>
-      {description && <p className="text-slate-500 mt-2 max-w-sm mx-auto font-medium leading-relaxed">{description}</p>}
+      {description && <p className="text-slate-400 text-sm mt-2 max-w-sm mx-auto font-medium leading-relaxed">{description}</p>}
       {action && <div className="mt-8">{action}</div>}
     </Card>
   );

@@ -220,7 +220,7 @@ const SlipPreview = memo(({ template, senderBank, receiverBank, sampleData = DEF
           >
             {getStatusText()}
           </p>
-          <p className="text-[7px] text-white/40 font-medium">ยืนยันการทำรายการแล้ว</p>
+          <p className="text-[8px] text-white/50 font-medium">ยืนยันการทำรายการแล้ว</p>
         </div>
       </div>
 
@@ -229,7 +229,7 @@ const SlipPreview = memo(({ template, senderBank, receiverBank, sampleData = DEF
         {/* Amount Section */}
         {template.showAmount && (
           <div className="text-center py-1 border-b border-slate-100">
-            <p className="text-[7px] text-slate-400 font-medium mb-0.5">จำนวนเงิน</p>
+            <p className="text-[8px] text-slate-400 font-medium mb-0.5">จำนวนเงิน</p>
             <p
               className="text-lg font-bold transition-colors duration-200"
               style={{ color: mainColor }}
@@ -238,13 +238,13 @@ const SlipPreview = memo(({ template, senderBank, receiverBank, sampleData = DEF
             </p>
             <div className="flex items-center justify-center gap-1.5 mt-1">
               {template.showDate && (
-                <p className="text-[7px] text-slate-400">{sampleData.date}</p>
+                <p className="text-[8px] text-slate-400">{sampleData.date}</p>
               )}
               {template.showDate && template.showTime && (
                 <span className="w-0.5 h-0.5 rounded-full bg-slate-300" />
               )}
               {template.showTime && (
-                <p className="text-[7px] text-slate-400">{sampleData.time}</p>
+                <p className="text-[8px] text-slate-400">{sampleData.time}</p>
               )}
             </div>
           </div>
@@ -264,12 +264,12 @@ const SlipPreview = memo(({ template, senderBank, receiverBank, sampleData = DEF
                 </div>
               )}
               <div className="flex-1 min-w-0">
-                <p className="text-[7px] text-slate-400 font-medium">ผู้โอน</p>
+                <p className="text-[8px] text-slate-400 font-medium">ผู้โอน</p>
                 <p className="text-[9px] font-semibold text-slate-800 truncate">
                   {sampleData.sender.name}
                 </p>
                 {template.showSenderAccount && (
-                  <p className="text-[7px] text-slate-400 font-mono">
+                  <p className="text-[8px] text-slate-400 font-mono">
                     {sampleData.sender.account}
                   </p>
                 )}
@@ -303,7 +303,7 @@ const SlipPreview = memo(({ template, senderBank, receiverBank, sampleData = DEF
               )}
               <div className="flex-1 min-w-0">
                 <p
-                  className="text-[7px] font-medium transition-colors duration-200"
+                  className="text-[8px] font-medium transition-colors duration-200"
                   style={{ color: mainColor }}
                 >
                   ผู้รับ
@@ -312,7 +312,7 @@ const SlipPreview = memo(({ template, senderBank, receiverBank, sampleData = DEF
                   {sampleData.receiver.name}
                 </p>
                 {template.showReceiverAccount && (
-                  <p className="text-[7px] text-slate-400 font-mono">
+                  <p className="text-[8px] text-slate-400 font-mono">
                     {sampleData.receiver.account}
                   </p>
                 )}
@@ -325,7 +325,7 @@ const SlipPreview = memo(({ template, senderBank, receiverBank, sampleData = DEF
         {(template.showTransRef || template.showFee) && (
           <div className="pt-1.5 border-t border-dashed border-slate-200 space-y-1">
             {template.showTransRef && (
-              <div className="flex justify-between items-center text-[7px]">
+              <div className="flex justify-between items-center text-[8px]">
                 <span className="text-slate-400">เลขอ้างอิง</span>
                 <span className="text-slate-700 font-mono font-medium truncate ml-1">
                   {sampleData.transRef.slice(0, 10)}...
@@ -333,7 +333,7 @@ const SlipPreview = memo(({ template, senderBank, receiverBank, sampleData = DEF
               </div>
             )}
             {template.showFee && (
-              <div className="flex justify-between items-center text-[7px]">
+              <div className="flex justify-between items-center text-[8px]">
                 <span className="text-slate-400">ค่าธรรมเนียม</span>
                 <span className="text-emerald-600 font-medium">{sampleData.fee}</span>
               </div>
@@ -344,14 +344,14 @@ const SlipPreview = memo(({ template, senderBank, receiverBank, sampleData = DEF
         {/* Footer Text */}
         {template.footerText && (
           <div className="pt-1.5 border-t border-slate-100">
-            <p className="text-[6px] text-slate-400 text-center leading-tight">{template.footerText}</p>
+            <p className="text-[7px] text-slate-400 text-center leading-tight">{template.footerText}</p>
           </div>
         )}
       </div>
 
       {/* Bottom Branding */}
       <div className="mt-2 flex justify-center">
-        <p className="text-[6px] text-white/20 font-medium">LINE OA System</p>
+        <p className="text-[7px] text-white/30 font-medium">LINE OA System</p>
       </div>
     </div>
   );
@@ -599,7 +599,7 @@ function TemplatesContent() {
               </p>
             </div>
           </div>
-          <Badge variant="indigo" className="text-[9px] sm:text-[10px] md:text-xs px-2 sm:px-3 py-1">
+          <Badge variant="indigo" className="text-xs px-2 sm:px-3 py-1">
             🎨 {filteredTemplateCount} เทมเพลต
           </Badge>
         </div>
@@ -739,11 +739,11 @@ function TemplatesContent() {
 
                         {/* Feature Tags */}
                         <div className="flex flex-wrap gap-1">
-                          {template.showAmount && <span className="text-[7px] px-1.5 py-0.5 bg-emerald-500/10 text-emerald-400 rounded border border-emerald-500/20">จำนวนเงิน</span>}
-                          {template.showSender && <span className="text-[7px] px-1.5 py-0.5 bg-blue-500/10 text-blue-400 rounded border border-blue-500/20">ผู้โอน</span>}
-                          {template.showReceiver && <span className="text-[7px] px-1.5 py-0.5 bg-purple-500/10 text-purple-400 rounded border border-purple-500/20">ผู้รับ</span>}
-                          {template.showBankLogo && <span className="text-[7px] px-1.5 py-0.5 bg-indigo-500/10 text-indigo-400 rounded border border-indigo-500/20">โลโก้</span>}
-                          {template.showTransRef && <span className="text-[7px] px-1.5 py-0.5 bg-slate-500/10 text-slate-400 rounded border border-slate-500/20">อ้างอิง</span>}
+                          {template.showAmount && <span className="text-[8px] px-1.5 py-0.5 bg-emerald-500/10 text-emerald-400 rounded border border-emerald-500/20">จำนวนเงิน</span>}
+                          {template.showSender && <span className="text-[8px] px-1.5 py-0.5 bg-blue-500/10 text-blue-400 rounded border border-blue-500/20">ผู้โอน</span>}
+                          {template.showReceiver && <span className="text-[8px] px-1.5 py-0.5 bg-purple-500/10 text-purple-400 rounded border border-purple-500/20">ผู้รับ</span>}
+                          {template.showBankLogo && <span className="text-[8px] px-1.5 py-0.5 bg-indigo-500/10 text-indigo-400 rounded border border-indigo-500/20">โลโก้</span>}
+                          {template.showTransRef && <span className="text-[8px] px-1.5 py-0.5 bg-slate-500/10 text-slate-400 rounded border border-slate-500/20">อ้างอิง</span>}
                         </div>
 
                         {/* Action Button */}

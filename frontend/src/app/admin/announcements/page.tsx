@@ -346,7 +346,7 @@ export default function AnnouncementsPage() {
             </div>
             <div>
               <h1 className="text-2xl sm:text-3xl font-bold text-slate-800">จัดการประกาศ</h1>
-              <p className="text-slate-500 mt-0.5">สร้างและจัดการประกาศสำหรับผู้ใช้</p>
+              <p className="text-slate-600 mt-0.5 text-sm">สร้างและจัดการประกาศสำหรับผู้ใช้</p>
             </div>
           </div>
           <Button
@@ -370,7 +370,7 @@ export default function AnnouncementsPage() {
               </div>
               <div>
                 <p className="text-3xl font-bold text-emerald-700">{stats.total}</p>
-                <p className="text-sm text-emerald-600">ประกาศทั้งหมด</p>
+                <p className="text-sm text-emerald-700 font-medium">ประกาศทั้งหมด</p>
               </div>
             </div>
           </Card>
@@ -381,7 +381,7 @@ export default function AnnouncementsPage() {
               </div>
               <div>
                 <p className="text-3xl font-bold text-blue-700">{stats.active}</p>
-                <p className="text-sm text-blue-600">กำลังแสดง</p>
+                <p className="text-sm text-blue-700 font-medium">กำลังแสดง</p>
               </div>
             </div>
           </Card>
@@ -392,7 +392,7 @@ export default function AnnouncementsPage() {
               </div>
               <div>
                 <p className="text-3xl font-bold text-purple-700">{stats.views.toLocaleString()}</p>
-                <p className="text-sm text-purple-600">ยอดดูรวม</p>
+                <p className="text-sm text-purple-700 font-medium">ยอดดูรวม</p>
               </div>
             </div>
           </Card>
@@ -403,7 +403,7 @@ export default function AnnouncementsPage() {
               </div>
               <div>
                 <p className="text-3xl font-bold text-amber-700">{stats.dismisses.toLocaleString()}</p>
-                <p className="text-sm text-amber-600">ถูกปิดรวม</p>
+                <p className="text-sm text-amber-700 font-medium">ถูกปิดรวม</p>
               </div>
             </div>
           </Card>
@@ -446,10 +446,10 @@ export default function AnnouncementsPage() {
           ) : filteredAnnouncements.length === 0 ? (
             <div className="p-12 text-center">
               <div className="w-20 h-20 mx-auto rounded-full bg-slate-100 flex items-center justify-center mb-4">
-                <Bell className="w-10 h-10 text-slate-300" />
+                <Bell className="w-10 h-10 text-slate-400" />
               </div>
-              <p className="text-slate-500 text-lg font-medium">ยังไม่มีประกาศ</p>
-              <p className="text-slate-400 text-sm mt-1">คลิกปุ่ม "สร้างประกาศใหม่" เพื่อเริ่มต้น</p>
+              <p className="text-slate-600 text-lg font-medium">ยังไม่มีประกาศ</p>
+              <p className="text-slate-500 text-sm mt-1">คลิกปุ่ม "สร้างประกาศใหม่" เพื่อเริ่มต้น</p>
             </div>
           ) : (
             <div className="divide-y divide-slate-100">
@@ -495,9 +495,9 @@ export default function AnnouncementsPage() {
                           </Badge>
                         </div>
                         {announcement.message && (
-                          <p className="text-sm text-slate-500 truncate max-w-md">{announcement.message}</p>
+                          <p className="text-sm text-slate-600 truncate max-w-md">{announcement.message}</p>
                         )}
-                        <div className="flex items-center gap-4 mt-2 text-xs text-slate-400 flex-wrap">
+                        <div className="flex items-center gap-4 mt-2 text-xs text-slate-500 flex-wrap">
                           <span className="flex items-center gap-1">
                             <Eye className="w-3 h-3" />
                             {(announcement.viewCount || 0).toLocaleString()} ดู

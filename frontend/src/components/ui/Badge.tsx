@@ -60,7 +60,7 @@ export function Badge({
 
   const sizeClasses = {
     xs: 'px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider',
-    sm: 'px-2 py-0.5 text-xs font-bold leading-none',
+    sm: 'px-2 py-1 text-xs font-bold leading-none',
     md: 'px-2.5 py-1 text-sm font-bold leading-none',
     lg: 'px-3.5 py-1.5 text-base font-bold leading-none',
   };

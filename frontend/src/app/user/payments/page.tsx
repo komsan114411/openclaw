@@ -162,7 +162,7 @@ export default function UserPaymentsPage() {
     const { label, className } = config[status] || config.pending;
 
     return (
-      <span className={`px-2.5 py-1 text-[10px] font-bold rounded-lg border ${className}`}>
+      <span className={`px-2.5 py-1 text-xs font-bold rounded-lg border ${className}`}>
         {label}
       </span>
     );
@@ -226,15 +226,15 @@ export default function UserPaymentsPage() {
         {/* Stats Summary */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-6">
           <Card variant="glass" className="p-3 sm:p-4 border border-white/10 text-center">
-            <p className="text-[10px] text-slate-400 font-semibold mb-1">เติมสะสม</p>
+            <p className="text-xs text-slate-400 font-semibold mb-1">เติมสะสม</p>
             <p className="text-base sm:text-lg md:text-xl font-black text-emerald-400">฿{totalDeposits.toLocaleString()}</p>
           </Card>
           <Card variant="glass" className="p-3 sm:p-4 border border-white/10 text-center">
-            <p className="text-[10px] text-slate-400 font-semibold mb-1">ใช้ไป</p>
+            <p className="text-xs text-slate-400 font-semibold mb-1">ใช้ไป</p>
             <p className="text-base sm:text-lg md:text-xl font-black text-rose-400">฿{totalPurchases.toLocaleString()}</p>
           </Card>
           <Card variant="glass" className="p-3 sm:p-4 border border-white/10 text-center">
-            <p className="text-[10px] text-slate-400 font-semibold mb-1">รอดำเนินการ</p>
+            <p className="text-xs text-slate-400 font-semibold mb-1">รอดำเนินการ</p>
             <p className="text-base sm:text-lg md:text-xl font-black text-yellow-400">{pendingCount}</p>
           </Card>
         </div>
@@ -304,7 +304,7 @@ export default function UserPaymentsPage() {
                         <p className="text-xs sm:text-sm font-bold text-white truncate">{tx.description}</p>
                         <StatusBadge status={tx.status} />
                       </div>
-                      <p className="text-[10px] sm:text-xs text-slate-500">{formatDate(tx.createdAt)}</p>
+                      <p className="text-xs sm:text-xs text-slate-400">{formatDate(tx.createdAt)}</p>
                     </div>
 
                     {/* Amount & Actions */}
@@ -332,7 +332,7 @@ export default function UserPaymentsPage() {
 
             {/* Summary */}
             <div className="mt-4 text-center">
-              <p className="text-xs text-slate-500">
+              <p className="text-xs text-slate-400">
                 แสดง {filteredTransactions.length} รายการ
               </p>
             </div>

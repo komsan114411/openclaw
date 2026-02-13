@@ -119,7 +119,7 @@ export default function UserQuotaPage() {
             <p className="text-slate-400 font-medium text-xs sm:text-sm">
               ตรวจสอบและจัดการโควต้าของคุณ
             </p>
-            <p className="text-[10px] font-semibold text-slate-500 mt-2">อัปเดตล่าสุด: เมื่อสักครู่</p>
+            <p className="text-xs font-semibold text-slate-500 mt-2">อัปเดตล่าสุด: เมื่อสักครู่</p>
           </div>
           <div className="flex flex-wrap gap-2 sm:gap-3 w-full lg:w-auto">
             <Link href="/user/packages" className="flex-1 sm:flex-none">
@@ -160,10 +160,10 @@ export default function UserQuotaPage() {
                 <FileText className="w-5 h-5 sm:w-6 sm:h-6 text-[#06C755]" />
               </div>
               {getQuotaPercentage() < 20 && subscription && (
-                <Badge variant="error" className="text-[8px] sm:text-[9px] px-1.5 sm:px-2 py-0.5 sm:py-1">ใกล้หมด</Badge>
+                <Badge variant="error" className="text-[8px] sm:text-xs px-1.5 sm:px-2 py-0.5 sm:py-1">ใกล้หมด</Badge>
               )}
             </div>
-            <p className="text-[9px] sm:text-[10px] font-semibold text-slate-400 mb-1">โควต้าสลิป</p>
+            <p className="text-xs sm:text-sm font-semibold text-slate-400 mb-1">โควต้าสลิป</p>
             <p className="text-xl sm:text-2xl font-black text-white">{(subscription?.remainingQuota || 0).toLocaleString()}</p>
           </Card>
 
@@ -173,10 +173,10 @@ export default function UserQuotaPage() {
                 <Brain className="w-5 h-5 sm:w-6 sm:h-6 text-violet-400" />
               </div>
               {aiQuota && aiQuota.totalQuota > 0 && getAiQuotaPercentage() < 20 && (
-                <Badge variant="error" className="text-[8px] sm:text-[9px] px-1.5 sm:px-2 py-0.5 sm:py-1">ใกล้หมด</Badge>
+                <Badge variant="error" className="text-[8px] sm:text-xs px-1.5 sm:px-2 py-0.5 sm:py-1">ใกล้หมด</Badge>
               )}
             </div>
-            <p className="text-[9px] sm:text-[10px] font-semibold text-slate-400 mb-1">โควต้า AI</p>
+            <p className="text-xs sm:text-sm font-semibold text-slate-400 mb-1">โควต้า AI</p>
             <p className="text-xl sm:text-2xl font-black text-white">{(aiQuota?.remainingQuota || 0).toLocaleString()}</p>
           </Card>
 
@@ -186,7 +186,7 @@ export default function UserQuotaPage() {
                 <CheckCircle className="w-5 h-5 sm:w-6 sm:h-6 text-amber-400" />
               </div>
             </div>
-            <p className="text-[9px] sm:text-[10px] font-semibold text-slate-400 mb-1">สลิปที่ตรวจสอบ</p>
+            <p className="text-xs sm:text-sm font-semibold text-slate-400 mb-1">สลิปที่ตรวจสอบ</p>
             <p className="text-xl sm:text-2xl font-black text-white">{getTotalSlipsVerified().toLocaleString()}</p>
           </Card>
 
@@ -196,7 +196,7 @@ export default function UserQuotaPage() {
                 <MessageSquare className="w-5 h-5 sm:w-6 sm:h-6 text-blue-400" />
               </div>
             </div>
-            <p className="text-[9px] sm:text-[10px] font-semibold text-slate-400 mb-1">ข้อความทั้งหมด</p>
+            <p className="text-xs sm:text-sm font-semibold text-slate-400 mb-1">ข้อความทั้งหมด</p>
             <p className="text-xl sm:text-2xl font-black text-white">{getTotalMessages().toLocaleString()}</p>
           </Card>
 
@@ -206,7 +206,7 @@ export default function UserQuotaPage() {
                 <Clock className="w-5 h-5 sm:w-6 sm:h-6 text-indigo-400" />
               </div>
             </div>
-            <p className="text-[9px] sm:text-[10px] font-semibold text-slate-400 mb-1">วันคงเหลือ</p>
+            <p className="text-xs sm:text-sm font-semibold text-slate-400 mb-1">วันคงเหลือ</p>
             <p className={cn("text-xl sm:text-2xl font-black", isExpired ? "text-rose-500" : "text-white")}>{isExpired ? "หมดอายุแล้ว" : daysRemaining + " วัน"}</p>
           </Card>
         </div>
@@ -215,7 +215,7 @@ export default function UserQuotaPage() {
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-6 mb-4 sm:mb-6">
             <div className="space-y-1">
               <h3 className="font-black text-white text-lg sm:text-xl tracking-tight">การเติบโตผู้ใช้</h3>
-              <p className="text-[9px] sm:text-[10px] font-semibold text-slate-400">ผู้ใช้งานรายวันในช่วง 30 วันที่ผ่านมา</p>
+              <p className="text-xs sm:text-sm font-semibold text-slate-400">ผู้ใช้งานรายวันในช่วง 30 วันที่ผ่านมา</p>
             </div>
           </div>
           
@@ -238,13 +238,13 @@ export default function UserQuotaPage() {
                 <div>
                   <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-3 sm:gap-0 mb-4">
                     <div>
-                      <p className="text-[9px] sm:text-[10px] font-semibold text-slate-400 mb-1 flex items-center gap-1"><FileText className="w-3 h-3" /> โควต้าสลิปคงเหลือ</p>
+                      <p className="text-xs sm:text-sm font-semibold text-slate-400 mb-1 flex items-center gap-1"><FileText className="w-3 h-3" /> โควต้าสลิปคงเหลือ</p>
                       <p className="text-xl sm:text-2xl font-black text-white">
                         {(subscription.remainingQuota || 0).toLocaleString()}
                       </p>
                     </div>
                     <div className="text-left sm:text-right">
-                      <p className="text-[9px] sm:text-[10px] font-semibold text-slate-400 mb-1">โควต้าสลิปทั้งหมด</p>
+                      <p className="text-xs sm:text-sm font-semibold text-slate-400 mb-1">โควต้าสลิปทั้งหมด</p>
                       <p className="text-sm sm:text-base font-black text-slate-300">{(subscription.quota || 0).toLocaleString()} หน่วย</p>
                     </div>
                   </div>
@@ -262,8 +262,8 @@ export default function UserQuotaPage() {
                       </div>
                     </div>
                     <div className="flex justify-between mt-1">
-                      <span className="text-[9px] text-slate-500">0%</span>
-                      <span className={cn("text-[9px] font-bold", getQuotaPercentage() > 50 ? 'text-[#06C755]' : getQuotaPercentage() > 20 ? 'text-amber-500' : 'text-rose-500')}>
+                      <span className="text-xs text-slate-500">0%</span>
+                      <span className={cn("text-xs font-bold", getQuotaPercentage() > 50 ? 'text-[#06C755]' : getQuotaPercentage() > 20 ? 'text-amber-500' : 'text-rose-500')}>
                         {getQuotaPercentage()}%
                       </span>
                     </div>
@@ -275,13 +275,13 @@ export default function UserQuotaPage() {
                   <div className="pt-4 border-t border-white/5">
                     <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-3 sm:gap-0 mb-4">
                       <div>
-                        <p className="text-[9px] sm:text-[10px] font-semibold text-slate-400 mb-1 flex items-center gap-1"><Brain className="w-3 h-3" /> โควต้า AI คงเหลือ</p>
+                        <p className="text-xs sm:text-sm font-semibold text-slate-400 mb-1 flex items-center gap-1"><Brain className="w-3 h-3" /> โควต้า AI คงเหลือ</p>
                         <p className="text-xl sm:text-2xl font-black text-white">
                           {(aiQuota.remainingQuota || 0).toLocaleString()}
                         </p>
                       </div>
                       <div className="text-left sm:text-right">
-                        <p className="text-[9px] sm:text-[10px] font-semibold text-slate-400 mb-1">โควต้า AI ทั้งหมด</p>
+                        <p className="text-xs sm:text-sm font-semibold text-slate-400 mb-1">โควต้า AI ทั้งหมด</p>
                         <p className="text-sm sm:text-base font-black text-slate-300">{(aiQuota.totalQuota || 0).toLocaleString()} หน่วย</p>
                       </div>
                     </div>
@@ -299,8 +299,8 @@ export default function UserQuotaPage() {
                         </div>
                       </div>
                       <div className="flex justify-between mt-1">
-                        <span className="text-[9px] text-slate-500">0%</span>
-                        <span className={cn("text-[9px] font-bold", getAiQuotaPercentage() > 50 ? 'text-violet-400' : getAiQuotaPercentage() > 20 ? 'text-amber-500' : 'text-rose-500')}>
+                        <span className="text-xs text-slate-500">0%</span>
+                        <span className={cn("text-xs font-bold", getAiQuotaPercentage() > 50 ? 'text-violet-400' : getAiQuotaPercentage() > 20 ? 'text-amber-500' : 'text-rose-500')}>
                           {getAiQuotaPercentage()}%
                         </span>
                       </div>
@@ -310,7 +310,7 @@ export default function UserQuotaPage() {
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 lg:gap-6">
                   <div className="p-4 sm:p-6 lg:p-8 bg-white/[0.02] hover:bg-white/[0.04] rounded-xl sm:rounded-2xl border border-white/5 transition-all duration-500 text-center">
-                    <p className="text-[9px] sm:text-[10px] font-semibold text-slate-400 mb-2 sm:mb-3">วันที่เริ่มใช้งาน</p>
+                    <p className="text-xs sm:text-sm font-semibold text-slate-400 mb-2 sm:mb-3">วันที่เริ่มใช้งาน</p>
                     <p className="font-black text-white text-base sm:text-lg lg:text-xl">
                       {subscription.startDate
                         ? new Date(subscription.startDate).toLocaleDateString('th-TH', {
@@ -322,7 +322,7 @@ export default function UserQuotaPage() {
                     </p>
                   </div>
                   <div className="p-4 sm:p-6 lg:p-8 bg-white/[0.02] hover:bg-white/[0.04] rounded-xl sm:rounded-2xl border border-white/5 transition-all duration-500 text-center">
-                    <p className="text-[9px] sm:text-[10px] font-semibold text-slate-400 mb-2 sm:mb-3">วันหมดอายุ</p>
+                    <p className="text-xs sm:text-sm font-semibold text-slate-400 mb-2 sm:mb-3">วันหมดอายุ</p>
                     <p className="font-black text-white text-base sm:text-lg lg:text-xl">
                       {subscription.expiresAt
                         ? new Date(subscription.expiresAt).toLocaleDateString('th-TH', {
@@ -398,18 +398,18 @@ export default function UserQuotaPage() {
           <Card variant="glass" className="rounded-xl sm:rounded-2xl border border-white/5 shadow-2xl bg-white/[0.01] overflow-hidden mt-4 sm:mt-6">
             <div className="p-4 sm:p-6 lg:p-8">
               <h3 className="font-black text-white text-lg sm:text-xl tracking-tight mb-2">สถิติตามบัญชี</h3>
-              <p className="text-[9px] sm:text-[10px] font-semibold text-slate-400">การกระจายทรัพยากรแบบเรียลไทม์ใน {accounts.length} บัญชีที่ใช้งาน</p>
+              <p className="text-xs sm:text-sm font-semibold text-slate-400">การกระจายทรัพยากรแบบเรียลไทม์ใน {accounts.length} บัญชีที่ใช้งาน</p>
             </div>
 
             <div className="overflow-x-auto -mx-4 sm:mx-0">
               <table className="min-w-full">
                 <thead>
                   <tr className="bg-white/[0.02] border-y border-white/5">
-                    <th className="px-3 sm:px-4 md:px-6 lg:px-8 py-3 sm:py-4 lg:py-5 text-left text-[9px] sm:text-[10px] font-semibold text-slate-400 whitespace-nowrap">ชื่อบัญชี</th>
-                    <th className="px-3 sm:px-4 md:px-6 lg:px-8 py-3 sm:py-4 lg:py-5 text-center text-[9px] sm:text-[10px] font-semibold text-slate-400 whitespace-nowrap">ข้อความ</th>
-                    <th className="px-3 sm:px-4 md:px-6 lg:px-8 py-3 sm:py-4 lg:py-5 text-center text-[9px] sm:text-[10px] font-semibold text-slate-400 whitespace-nowrap">สลิป</th>
-                    <th className="px-3 sm:px-4 md:px-6 lg:px-8 py-3 sm:py-4 lg:py-5 text-center text-[9px] sm:text-[10px] font-semibold text-slate-400 hidden md:table-cell whitespace-nowrap">AI</th>
-                    <th className="px-3 sm:px-4 md:px-6 lg:px-8 py-3 sm:py-4 lg:py-5 text-right text-[9px] sm:text-[10px] font-semibold text-slate-400 whitespace-nowrap">สถานะ</th>
+                    <th className="px-3 sm:px-4 md:px-6 lg:px-8 py-3 sm:py-4 lg:py-5 text-left text-xs sm:text-sm font-semibold text-slate-400 whitespace-nowrap">ชื่อบัญชี</th>
+                    <th className="px-3 sm:px-4 md:px-6 lg:px-8 py-3 sm:py-4 lg:py-5 text-center text-xs sm:text-sm font-semibold text-slate-400 whitespace-nowrap">ข้อความ</th>
+                    <th className="px-3 sm:px-4 md:px-6 lg:px-8 py-3 sm:py-4 lg:py-5 text-center text-xs sm:text-sm font-semibold text-slate-400 whitespace-nowrap">สลิป</th>
+                    <th className="px-3 sm:px-4 md:px-6 lg:px-8 py-3 sm:py-4 lg:py-5 text-center text-xs sm:text-sm font-semibold text-slate-400 hidden md:table-cell whitespace-nowrap">AI</th>
+                    <th className="px-3 sm:px-4 md:px-6 lg:px-8 py-3 sm:py-4 lg:py-5 text-right text-xs sm:text-sm font-semibold text-slate-400 whitespace-nowrap">สถานะ</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-white/5">
@@ -422,7 +422,7 @@ export default function UserQuotaPage() {
                           </div>
                           <div className="min-w-0">
                             <p className="font-black text-white text-xs sm:text-sm md:text-base truncate group-hover:text-[#06C755] transition-colors">{account.accountName}</p>
-                            <p className="text-[8px] sm:text-[9px] font-mono font-semibold text-slate-500 truncate mt-0.5 sm:mt-1">{account.channelId}</p>
+                            <p className="text-[8px] sm:text-xs font-mono font-semibold text-slate-500 truncate mt-0.5 sm:mt-1">{account.channelId}</p>
                           </div>
                         </div>
                       </td>
@@ -442,7 +442,7 @@ export default function UserQuotaPage() {
                         </span>
                       </td>
                       <td className="px-3 sm:px-4 md:px-6 lg:px-8 py-4 sm:py-5 lg:py-6 text-right">
-                        <Badge variant={account.isActive ? 'success' : 'secondary'} size="sm" className="font-semibold text-[8px] sm:text-[9px] px-2 sm:px-3 py-0.5 sm:py-1 rounded-lg whitespace-nowrap">
+                        <Badge variant={account.isActive ? 'success' : 'secondary'} size="sm" className="font-semibold text-[8px] sm:text-xs px-2 sm:px-3 py-0.5 sm:py-1 rounded-lg whitespace-nowrap">
                           {account.isActive ? 'เปิด' : 'ปิด'}
                         </Badge>
                       </td>

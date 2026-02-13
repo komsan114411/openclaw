@@ -272,7 +272,7 @@ export default function LandingPage() {
                 ตรวจสอบสลิปอัตโนมัติ <br /> <span className="text-emerald-500">{brandName}</span> รวดเร็ว แม่นยำ
               </h1>
 
-              <p className="text-lg md:text-xl text-slate-400 leading-relaxed max-w-xl mb-10">
+              <p className="text-lg md:text-xl text-slate-300 leading-relaxed max-w-xl mb-10">
                 ระบบตรวจสอบสลิปธนาคารที่แม่นยำที่สุด รองรับการเชื่อมต่อกับ LINE OA และ API พร้อมระบบเติมเงินผ่าน USDT (TRC20/ERC20) เพื่อความสะดวกสูงสุด
               </p>
 
@@ -292,7 +292,7 @@ export default function LandingPage() {
                 </Button>
               </div>
 
-              <div className="mt-12 flex items-center gap-4 text-sm text-slate-500">
+              <div className="mt-12 flex items-center gap-4 text-sm text-slate-400">
                 <div className="flex -space-x-3">
                   {[1, 2, 3, 4].map((i) => (
                     <div key={i} className="w-8 h-8 rounded-full border-2 border-[#0A0F0D] bg-slate-800" />
@@ -333,8 +333,8 @@ export default function LandingPage() {
                     <CheckCircle2 className="w-6 h-6 text-emerald-500" />
                   </div>
                   <div>
-                    <div className="text-xs text-slate-400">สลิปถูกต้อง</div>
-                    <div className="text-sm font-bold">12,450.00 THB</div>
+                    <div className="text-xs text-slate-300">สลิปถูกต้อง</div>
+                    <div className="text-sm font-bold text-white">12,450.00 THB</div>
                   </div>
                 </div>
               </motion.div>
@@ -349,8 +349,8 @@ export default function LandingPage() {
                     <Zap className="w-6 h-6 text-cyan-400" />
                   </div>
                   <div>
-                    <div className="text-xs text-slate-400">ความเร็วในการจัดการ</div>
-                    <div className="text-sm font-bold">0.4 วินาที</div>
+                    <div className="text-xs text-slate-300">ความเร็วในการจัดการ</div>
+                    <div className="text-sm font-bold text-white">0.4 วินาที</div>
                   </div>
                 </div>
               </motion.div>
@@ -367,7 +367,7 @@ export default function LandingPage() {
               initial={{ opacity: 0, y: 20 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
-              className="text-accent-foreground text-sm font-bold tracking-widest uppercase mb-4"
+              className="text-emerald-400 text-sm font-bold tracking-widest uppercase mb-4"
             >
               บริการระดับพรีเมียม
             </motion.h2>
@@ -385,7 +385,7 @@ export default function LandingPage() {
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
               transition={{ delay: 0.2 }}
-              className="text-slate-400 max-w-2xl mx-auto italic"
+              className="text-slate-300 text-base max-w-2xl mx-auto italic"
             >
               เราพัฒนาเทคโนโลยีที่ล้ำหน้าเพื่อให้ธรุกิจของคุณทำงานได้รวดเร็วและปลอดภัยยิ่งขึ้น
             </motion.p>
@@ -435,8 +435,8 @@ export default function LandingPage() {
                   </motion.div>
                 </div>
 
-                <h4 className="text-xl font-bold mb-4 group-hover:text-emerald-400 transition-colors">{feature.title}</h4>
-                <p className="text-slate-500 text-sm leading-relaxed mb-6">
+                <h4 className="text-xl font-bold mb-4 text-white group-hover:text-emerald-400 transition-colors">{feature.title}</h4>
+                <p className="text-slate-300 text-sm leading-relaxed mb-6">
                   {feature.description}
                 </p>
                 <div className="pt-6 border-t border-white/5 opacity-0 group-hover:opacity-100 transition-all transform translate-y-2 group-hover:translate-y-0">
@@ -460,12 +460,12 @@ export default function LandingPage() {
               <h3 className="text-4xl md:text-5xl font-black mb-6 leading-tight text-white">
                 รองรับทุกธนาคาร <br /> <span className="text-emerald-500">ชั้นนำในไทย</span>
               </h3>
-              <p className="text-slate-400 text-lg mb-8 leading-relaxed">
+              <p className="text-slate-300 text-lg mb-8 leading-relaxed">
                 ไม่ว่าลูกค้าของคุณจะเป็นผู้ใช้ธนาคารไหน ระบบ {brandName} ของเราพร้อมตรวจสอบความถูกต้องได้ทันที แม่นยำ 100% พร้อมเชื่อมต่อ API ได้ง่ายๆ
               </p>
               <div className="flex flex-wrap gap-4">
                 {['KBANK', 'SCB', 'BBL', 'KTB', 'BAY', 'GSB'].map(bank => (
-                  <div key={bank} className="px-4 py-2 rounded-xl bg-white/5 border border-white/10 text-xs font-black text-slate-500 tracking-wider">
+                  <div key={bank} className="px-4 py-2 rounded-xl bg-white/5 border border-white/10 text-xs font-black text-slate-300 tracking-wider">
                     {bank}
                   </div>
                 ))}
@@ -500,7 +500,7 @@ export default function LandingPage() {
                 <div className="text-3xl sm:text-4xl md:text-5xl font-black text-white mb-2 group-hover:text-emerald-500 transition-colors break-words">
                   {stat.value}
                 </div>
-                <div className="text-[10px] sm:text-xs md:text-sm font-bold text-slate-500 uppercase tracking-widest px-2">
+                <div className="text-xs sm:text-sm font-bold text-slate-300 uppercase tracking-widest px-2">
                   {stat.label}
                 </div>
               </div>
@@ -555,8 +555,8 @@ export default function LandingPage() {
                       <CheckCircle2 className="w-4 h-4 text-emerald-500" />
                     </div>
                     <div>
-                      <h4 className="font-bold text-lg mb-1">{item.title}</h4>
-                      <p className="text-slate-500 text-sm">{item.desc}</p>
+                      <h4 className="font-bold text-lg mb-1 text-white">{item.title}</h4>
+                      <p className="text-slate-300 text-sm">{item.desc}</p>
                     </div>
                   </div>
                 ))}
@@ -629,14 +629,14 @@ export default function LandingPage() {
                 {siteBranding.siteName ? siteBranding.siteName : (<>dooslip<span className="text-emerald-500">.com</span></>)}
               </span>
             </Link>
-            <p className="text-slate-500 text-sm leading-relaxed mb-6">
+            <p className="text-slate-400 text-sm leading-relaxed mb-6">
               {brandName} คือผู้นำด้านระบบตรวจสอบสลิปอัตโนมัติ รองรับการชำระเงินผ่านธนาคารไทยและ USDT เพื่อประสิทธิภาพสูงสุดในธุรกิจของคุณ
             </p>
           </div>
 
           <div>
             <h5 className="font-bold mb-6">ลิงก์ที่เป็นประโยชน์</h5>
-            <ul className="space-y-4 text-sm text-slate-500">
+            <ul className="space-y-4 text-sm text-slate-400">
               <li><Link href="#" className="hover:text-emerald-400">วิธีเชิ่อมต่อ API</Link></li>
               <li><Link href="#" className="hover:text-emerald-400">คำถามที่พบบ่อย</Link></li>
               <li><Link href="#" className="hover:text-emerald-400">สถานะเซิร์ฟเวอร์</Link></li>
@@ -646,7 +646,7 @@ export default function LandingPage() {
 
           <div>
             <h5 className="font-bold mb-6">นโยบายของเรา</h5>
-            <ul className="space-y-4 text-sm text-slate-500">
+            <ul className="space-y-4 text-sm text-slate-400">
               <li><Link href="#" className="hover:text-emerald-400">ข้อตกลงการใช้งาน</Link></li>
               <li><Link href="#" className="hover:text-emerald-400">นโยบายความเป็นส่วนตัว</Link></li>
               <li><Link href="#" className="hover:text-emerald-400">นโยบายการคืนเงิน</Link></li>
@@ -656,7 +656,7 @@ export default function LandingPage() {
 
           <div>
             <h5 className="font-bold mb-6">ช่องทางการติดต่อ</h5>
-            <ul className="space-y-4 text-sm font-medium">
+            <ul className="space-y-4 text-sm font-medium text-slate-400">
               <li className="flex gap-2"><span>Email:</span> <span className="text-slate-300">support@dooslip.com</span></li>
               <li className="flex gap-2"><span>LINE:</span> <span className="text-slate-300">@dooslip</span></li>
             </ul>

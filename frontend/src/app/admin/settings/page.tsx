@@ -666,7 +666,7 @@ export default function SettingsPage() {
 
         <div className="page-header relative z-10 flex flex-col lg:flex-row items-start lg:items-center gap-4">
           <div className="space-y-1 sm:space-y-2 text-left">
-            <p className="text-slate-500 font-medium text-xs sm:text-sm">จัดการระบบ</p>
+            <p className="text-slate-400 font-medium text-xs sm:text-sm">จัดการระบบ</p>
             <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-white tracking-tight">
               ตั้งค่า<span className="text-[#06C755]">ระบบ</span>
             </h1>
@@ -721,7 +721,7 @@ export default function SettingsPage() {
                     <div className="w-14 h-14 bg-amber-500/10 rounded-2xl flex items-center justify-center text-2xl shadow-inner flex-shrink-0">⚙️</div>
                     <div>
                       <h2 className="text-xl sm:text-2xl font-black text-white uppercase tracking-tight">ควบคุมระบบ</h2>
-                      <p className="text-xs sm:text-sm text-slate-500 font-bold uppercase tracking-widest">เปิด/ปิด ฟีเจอร์หลักของระบบ</p>
+                      <p className="text-xs sm:text-sm text-slate-400 font-bold uppercase tracking-widest">เปิด/ปิด ฟีเจอร์หลักของระบบ</p>
                     </div>
                   </div>
 
@@ -761,7 +761,7 @@ export default function SettingsPage() {
                       <p className="text-sm font-bold text-white mb-4">ส่งข้อความแจ้งเมื่อปิดระบบ</p>
 
                       <div className="flex items-center justify-between py-2">
-                        <span className="text-xs text-slate-400">เมื่อปิดตรวจสอบสลิป</span>
+                        <span className="text-sm text-slate-300">เมื่อปิดตรวจสอบสลิป</span>
                         <Switch
                           checked={systemControlSettings.slipDisabledSendMessage}
                           onChange={(checked) => setSystemControlSettings({
@@ -772,7 +772,7 @@ export default function SettingsPage() {
                       </div>
 
                       <div className="flex items-center justify-between py-2">
-                        <span className="text-xs text-slate-400">เมื่อปิดบอท</span>
+                        <span className="text-sm text-slate-300">เมื่อปิดบอท</span>
                         <Switch
                           checked={systemControlSettings.botDisabledSendMessage}
                           onChange={(checked) => setSystemControlSettings({
@@ -783,7 +783,7 @@ export default function SettingsPage() {
                       </div>
 
                       <div className="flex items-center justify-between py-2">
-                        <span className="text-xs text-slate-400">เมื่อปิด AI ตอบกลับ</span>
+                        <span className="text-sm text-slate-300">เมื่อปิด AI ตอบกลับ</span>
                         <Switch
                           checked={systemControlSettings.aiDisabledSendMessage}
                           onChange={(checked) => setSystemControlSettings({
@@ -800,7 +800,7 @@ export default function SettingsPage() {
 
                       <div className="flex items-center justify-between py-2">
                         <div>
-                          <span className="text-xs text-slate-400">แสดงข้อความ &quot;กำลังตรวจสอบ...&quot;</span>
+                          <span className="text-sm text-slate-300">แสดงข้อความ &quot;กำลังตรวจสอบ...&quot;</span>
                         </div>
                         <Switch
                           checked={systemControlSettings.showSlipProcessingMessage}
@@ -812,7 +812,7 @@ export default function SettingsPage() {
                       </div>
 
                       <div className="flex items-center justify-between py-2">
-                        <span className="text-xs text-slate-400">คืนโควต้าเมื่อสลิปซ้ำ</span>
+                        <span className="text-sm text-slate-300">คืนโควต้าเมื่อสลิปซ้ำ</span>
                         <Switch
                           checked={systemControlSettings.duplicateRefundEnabled}
                           onChange={(checked) => setSystemControlSettings({
@@ -872,7 +872,7 @@ export default function SettingsPage() {
                     <div className="w-14 h-14 bg-violet-500/10 rounded-2xl flex items-center justify-center text-2xl shadow-inner flex-shrink-0">🤖</div>
                     <div>
                       <h2 className="text-xl sm:text-2xl font-black text-white uppercase tracking-tight">ระบบ AI Chatbot</h2>
-                      <p className="text-xs sm:text-sm text-slate-500 font-bold uppercase tracking-widest">ควบคุมการทำงานของ AI ทั้งระบบ</p>
+                      <p className="text-xs sm:text-sm text-slate-400 font-bold uppercase tracking-widest">ควบคุมการทำงานของ AI ทั้งระบบ</p>
                     </div>
                   </div>
 
@@ -904,11 +904,11 @@ export default function SettingsPage() {
 
                     {/* Status Badge */}
                     <div className="flex items-center gap-3">
-                      <span className="text-sm text-slate-400">สถานะ AI:</span>
+                      <span className="text-sm text-slate-300">สถานะ AI:</span>
                       <Badge
                         variant={globalAiSettings.globalAiEnabled ? "emerald" : "outline"}
                         size="sm"
-                        className="font-black uppercase tracking-widest text-[9px]"
+                        className="font-black uppercase tracking-widest text-[10px]"
                       >
                         {globalAiSettings.globalAiEnabled ? "เปิดใช้งาน" : "ปิดใช้งาน"}
                       </Badge>
@@ -916,7 +916,7 @@ export default function SettingsPage() {
 
                     {/* Allowed Models */}
                     <div>
-                      <label className="block text-sm font-bold text-slate-400 mb-3 uppercase tracking-widest">
+                      <label className="block text-sm font-bold text-slate-300 mb-3 uppercase tracking-widest">
                         AI Models ที่อนุญาต
                       </label>
                       <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
@@ -965,7 +965,7 @@ export default function SettingsPage() {
                       <div className="flex items-center justify-between py-3 border-b border-white/5">
                         <div>
                           <p className="text-xs text-slate-300">ส่งข้อความเมื่อปิด AI</p>
-                          <p className="text-[10px] text-slate-500 mt-0.5">แจ้งผู้ใช้ว่า AI ไม่พร้อมใช้งาน</p>
+                          <p className="text-[11px] text-slate-400 mt-0.5">แจ้งผู้ใช้ว่า AI ไม่พร้อมใช้งาน</p>
                         </div>
                         <Switch
                           checked={systemControlSettings.aiDisabledSendMessage}
@@ -979,7 +979,7 @@ export default function SettingsPage() {
                       <div className="flex items-center justify-between py-3">
                         <div>
                           <p className="text-xs text-slate-300">ส่งข้อความเมื่อ AI quota หมด</p>
-                          <p className="text-[10px] text-slate-500 mt-0.5">แจ้งผู้ใช้เมื่อโควต้า AI หมด</p>
+                          <p className="text-[11px] text-slate-400 mt-0.5">แจ้งผู้ใช้เมื่อโควต้า AI หมด</p>
                         </div>
                         <Switch
                           checked={systemControlSettings.aiQuotaExhaustedSendMessage}
@@ -1039,7 +1039,7 @@ export default function SettingsPage() {
                     <div className="w-14 h-14 bg-emerald-500/10 rounded-2xl flex items-center justify-center text-2xl shadow-inner flex-shrink-0">🌐</div>
                     <div>
                       <h2 className="text-xl sm:text-2xl font-black text-white uppercase tracking-tight">URL ระบบ</h2>
-                      <p className="text-xs sm:text-sm text-slate-500 font-bold uppercase tracking-widest">ตั้งค่า URL หลักของระบบ</p>
+                      <p className="text-xs sm:text-sm text-slate-400 font-bold uppercase tracking-widest">ตั้งค่า URL หลักของระบบ</p>
                     </div>
                   </div>
 
@@ -1074,7 +1074,7 @@ export default function SettingsPage() {
                     <div className="w-14 h-14 bg-purple-500/10 rounded-2xl flex items-center justify-center text-2xl shadow-inner flex-shrink-0">⚡</div>
                     <div className="flex-1">
                       <h2 className="text-xl sm:text-2xl font-black text-white uppercase tracking-tight">Slip API</h2>
-                      <p className="text-xs sm:text-sm text-slate-500 font-bold uppercase tracking-widest">ตรวจสอบสลิปโอนเงิน</p>
+                      <p className="text-xs sm:text-sm text-slate-400 font-bold uppercase tracking-widest">ตรวจสอบสลิปโอนเงิน</p>
                     </div>
                   </div>
 
@@ -1114,7 +1114,7 @@ export default function SettingsPage() {
                               <Badge variant="emerald" size="sm" className="text-[8px]">✓</Badge>
                             )}
                           </div>
-                          <p className="text-[10px] text-slate-500">thunder.in.th</p>
+                          <p className="text-[11px] text-slate-400">thunder.in.th</p>
                         </div>
 
                         {/* Status */}
@@ -1194,7 +1194,7 @@ export default function SettingsPage() {
                               <Badge variant="emerald" size="sm" className="text-[8px]">✓</Badge>
                             )}
                           </div>
-                          <p className="text-[10px] text-slate-500">slipmate.ai</p>
+                          <p className="text-[11px] text-slate-400">slipmate.ai</p>
                         </div>
 
                         {/* Status */}
@@ -1274,7 +1274,7 @@ export default function SettingsPage() {
                               <Badge variant="emerald" size="sm" className="text-[8px]">✓</Badge>
                             )}
                           </div>
-                          <p className="text-[10px] text-slate-500">slip2go.com</p>
+                          <p className="text-[11px] text-slate-400">slip2go.com</p>
                         </div>
 
                         {/* Status */}
@@ -1374,7 +1374,7 @@ export default function SettingsPage() {
                     <Button
                       variant="ghost"
                       size="sm"
-                      className="rounded-xl font-black text-[10px] text-slate-400"
+                      className="rounded-xl font-black text-xs text-slate-300"
                       onClick={fetchSlipProviderStatus}
                       isLoading={loadingProviderStatus}
                     >
@@ -1391,10 +1391,10 @@ export default function SettingsPage() {
                         <div className="w-12 h-12 bg-blue-500/10 rounded-2xl flex items-center justify-center text-xl shadow-inner">🤖</div>
                         <div>
                           <h2 className="text-lg font-black text-white uppercase tracking-tight">AI ตอบกลับ</h2>
-                          <p className="text-slate-500 font-black text-[10px] uppercase tracking-widest">ระบบ AI ตอบกลับ</p>
+                          <p className="text-slate-400 font-black text-[11px] uppercase tracking-widest">ระบบ AI ตอบกลับ</p>
                         </div>
                       </div>
-                      <Badge variant={settings?.aiApiKey ? "emerald" : "outline"} size="sm" className="font-black uppercase tracking-widest text-[9px]">
+                      <Badge variant={settings?.aiApiKey ? "emerald" : "outline"} size="sm" className="font-black uppercase tracking-widest text-[10px]">
                         {settings?.aiApiKey ? "เชื่อมต่อแล้ว" : "ยังไม่เชื่อมต่อ"}
                       </Badge>
                     </div>
@@ -1448,7 +1448,7 @@ export default function SettingsPage() {
                     <div className="w-14 h-14 bg-amber-500/10 rounded-2xl flex items-center justify-center text-2xl shadow-inner flex-shrink-0">🧾</div>
                     <div>
                       <h2 className="text-xl sm:text-2xl font-black text-white uppercase tracking-tight">ตัวอย่างสลิป</h2>
-                      <p className="text-xs sm:text-sm text-slate-500 font-bold uppercase tracking-widest">ตั้งค่าข้อมูลตัวอย่างสำหรับแสดงผลสลิป</p>
+                      <p className="text-xs sm:text-sm text-slate-400 font-bold uppercase tracking-widest">ตั้งค่าข้อมูลตัวอย่างสำหรับแสดงผลสลิป</p>
                     </div>
                   </div>
 
@@ -1508,7 +1508,7 @@ export default function SettingsPage() {
                                 )}
                                 <div className="flex-1 min-w-0">
                                   <p className="text-xs font-semibold text-emerald-400 truncate">{bank?.nameTh || bank?.name || 'ไม่พบธนาคาร'}</p>
-                                  <p className="text-[10px] text-slate-400">รหัส: {previewSettings.previewSenderBankCode}</p>
+                                  <p className="text-[11px] text-slate-400">รหัส: {previewSettings.previewSenderBankCode}</p>
                                 </div>
                               </>
                             );
@@ -1561,7 +1561,7 @@ export default function SettingsPage() {
                                 )}
                                 <div className="flex-1 min-w-0">
                                   <p className="text-xs font-semibold text-blue-400 truncate">{bank?.nameTh || bank?.name || 'ไม่พบธนาคาร'}</p>
-                                  <p className="text-[10px] text-slate-400">รหัส: {previewSettings.previewReceiverBankCode}</p>
+                                  <p className="text-[11px] text-slate-400">รหัส: {previewSettings.previewReceiverBankCode}</p>
                                 </div>
                               </>
                             );
@@ -1640,7 +1640,7 @@ export default function SettingsPage() {
                     <div className="w-14 h-14 bg-rose-500/10 rounded-2xl flex items-center justify-center text-2xl shadow-inner flex-shrink-0">🛡️</div>
                     <div className="flex-1">
                       <h2 className="text-xl sm:text-2xl font-black text-white uppercase tracking-tight">Rate Limiter</h2>
-                      <p className="text-xs sm:text-sm text-slate-500 font-bold uppercase tracking-widest">ป้องกัน DDoS Attack สำหรับ Webhook</p>
+                      <p className="text-xs sm:text-sm text-slate-400 font-bold uppercase tracking-widest">ป้องกัน DDoS Attack สำหรับ Webhook</p>
                     </div>
                     <Switch
                       checked={rateLimitSettings.webhookRateLimitEnabled}
@@ -1724,19 +1724,19 @@ export default function SettingsPage() {
                       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 pt-6 border-t border-white/5">
                         <div className="text-center p-4 bg-emerald-500/10 rounded-2xl">
                           <p className="text-2xl font-black text-emerald-400">{rateLimitSettings.webhookRateLimitPerAccountPerSecond}</p>
-                          <p className="text-[10px] text-slate-500 font-bold uppercase">req/s per account</p>
+                          <p className="text-[11px] text-slate-400 font-bold uppercase">req/s per account</p>
                         </div>
                         <div className="text-center p-4 bg-emerald-500/10 rounded-2xl">
                           <p className="text-2xl font-black text-emerald-400">{rateLimitSettings.webhookRateLimitPerAccountPerMinute}</p>
-                          <p className="text-[10px] text-slate-500 font-bold uppercase">req/m per account</p>
+                          <p className="text-[11px] text-slate-400 font-bold uppercase">req/m per account</p>
                         </div>
                         <div className="text-center p-4 bg-blue-500/10 rounded-2xl">
                           <p className="text-2xl font-black text-blue-400">{rateLimitSettings.webhookRateLimitGlobalPerSecond}</p>
-                          <p className="text-[10px] text-slate-500 font-bold uppercase">req/s global</p>
+                          <p className="text-[11px] text-slate-400 font-bold uppercase">req/s global</p>
                         </div>
                         <div className="text-center p-4 bg-blue-500/10 rounded-2xl">
                           <p className="text-2xl font-black text-blue-400">{rateLimitSettings.webhookRateLimitGlobalPerMinute}</p>
-                          <p className="text-[10px] text-slate-500 font-bold uppercase">req/m global</p>
+                          <p className="text-[11px] text-slate-400 font-bold uppercase">req/m global</p>
                         </div>
                       </div>
 
@@ -1767,7 +1767,7 @@ export default function SettingsPage() {
                               <span className="text-white font-bold">{rateLimitSettings.webhookRateLimitGlobalPerSecond}</span>
                             </div>
                           </div>
-                          <p className="text-[10px] text-slate-500 mt-2">
+                          <p className="text-[11px] text-slate-400 mt-2">
                             หากยิง {rateLimitSettings.webhookRateLimitPerAccountPerSecond + 1}+ req/s จะถูกบล็อก
                           </p>
                         </div>
@@ -1791,7 +1791,7 @@ export default function SettingsPage() {
                               )}>
                                 🎯 Webhook จริง
                               </p>
-                              <p className="text-[10px] text-slate-500">ยิง HTTP request ไปที่ webhook endpoint จริง</p>
+                              <p className="text-[11px] text-slate-400">ยิง HTTP request ไปที่ webhook endpoint จริง</p>
                             </button>
                             <button
                               onClick={() => setRateLimitTestMode('simulation')}
@@ -1808,7 +1808,7 @@ export default function SettingsPage() {
                               )}>
                                 🖥️ จำลอง (Redis)
                               </p>
-                              <p className="text-[10px] text-slate-500">ทดสอบผ่าน Redis rate limiter โดยตรง</p>
+                              <p className="text-[11px] text-slate-400">ทดสอบผ่าน Redis rate limiter โดยตรง</p>
                             </button>
                           </div>
                         </div>
@@ -1861,7 +1861,7 @@ export default function SettingsPage() {
                                 )}>
                                   {preset.icon} {preset.label}
                                 </p>
-                                <p className="text-[10px] text-slate-500">{preset.desc}</p>
+                                <p className="text-[11px] text-slate-400">{preset.desc}</p>
                               </button>
                             ))}
                           </div>
@@ -1938,7 +1938,7 @@ export default function SettingsPage() {
                                         ? 'มี Error - ตรวจสอบ Webhook URL'
                                         : 'ไม่มี request ถูกบล็อก (ยังไม่เกิน limit)'}
                                   </p>
-                                  <p className="text-[10px] text-slate-500">
+                                  <p className="text-[11px] text-slate-400">
                                     โหมด: {rateLimitTestResult.mode === 'real_webhook' ? 'Webhook จริง' : 'จำลอง'}
                                     {rateLimitTestResult.targetAccount && ` | Account: ${rateLimitTestResult.targetAccount.name}`}
                                   </p>
@@ -1953,25 +1953,25 @@ export default function SettingsPage() {
                             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2 sm:gap-3 mb-4">
                               <div className="text-center p-3 bg-blue-500/10 rounded-xl">
                                 <p className="text-xl font-black text-blue-400">{rateLimitTestResult.requestsSent}</p>
-                                <p className="text-[10px] text-slate-500">ส่งทั้งหมด</p>
+                                <p className="text-[11px] text-slate-400">ส่งทั้งหมด</p>
                               </div>
                               <div className="text-center p-3 bg-emerald-500/10 rounded-xl">
                                 <p className="text-xl font-black text-emerald-400">{rateLimitTestResult.requestsAllowed}</p>
-                                <p className="text-[10px] text-slate-500">ผ่าน</p>
+                                <p className="text-[11px] text-slate-400">ผ่าน</p>
                               </div>
                               <div className="text-center p-3 bg-rose-500/10 rounded-xl">
                                 <p className="text-xl font-black text-rose-400">{rateLimitTestResult.requestsBlocked}</p>
-                                <p className="text-[10px] text-slate-500">ถูกบล็อก</p>
+                                <p className="text-[11px] text-slate-400">ถูกบล็อก</p>
                               </div>
                               {rateLimitTestResult.requestsError !== undefined && (
                                 <div className="text-center p-3 bg-orange-500/10 rounded-xl">
                                   <p className="text-xl font-black text-orange-400">{rateLimitTestResult.requestsError}</p>
-                                  <p className="text-[10px] text-slate-500">Error</p>
+                                  <p className="text-[11px] text-slate-400">Error</p>
                                 </div>
                               )}
                               <div className="text-center p-3 bg-amber-500/10 rounded-xl">
                                 <p className="text-xl font-black text-amber-400">{rateLimitTestResult.blockRate?.toFixed(1)}%</p>
-                                <p className="text-[10px] text-slate-500">อัตราบล็อก</p>
+                                <p className="text-[11px] text-slate-400">อัตราบล็อก</p>
                               </div>
                             </div>
 
@@ -2056,19 +2056,19 @@ export default function SettingsPage() {
                             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                               <div className="text-center p-3 bg-slate-500/10 rounded-xl">
                                 <p className="text-xl font-black text-slate-300">{rateLimitStats.totalRequests || 0}</p>
-                                <p className="text-[10px] text-slate-500">Total Requests</p>
+                                <p className="text-[11px] text-slate-400">Total Requests</p>
                               </div>
                               <div className="text-center p-3 bg-rose-500/10 rounded-xl">
                                 <p className="text-xl font-black text-rose-400">{rateLimitStats.blockedRequests || 0}</p>
-                                <p className="text-[10px] text-slate-500">Blocked</p>
+                                <p className="text-[11px] text-slate-400">Blocked</p>
                               </div>
                               <div className="text-center p-3 bg-amber-500/10 rounded-xl">
                                 <p className="text-xl font-black text-amber-400">{(rateLimitStats.blockRate || 0).toFixed(1)}%</p>
-                                <p className="text-[10px] text-slate-500">Block Rate</p>
+                                <p className="text-[11px] text-slate-400">Block Rate</p>
                               </div>
                               <div className="text-center p-3 bg-purple-500/10 rounded-xl">
                                 <p className="text-xl font-black text-purple-400">{rateLimitStats.blockedByIp || 0}</p>
-                                <p className="text-[10px] text-slate-500">By IP</p>
+                                <p className="text-[11px] text-slate-400">By IP</p>
                               </div>
                             </div>
                           </div>
@@ -2196,7 +2196,7 @@ export default function SettingsPage() {
                                     <p className="font-black text-white leading-none mb-1 uppercase tracking-tight text-sm sm:text-base truncate">
                                       {title}{subtitle ? <span className="text-slate-500 font-bold"> • {subtitle}</span> : null}
                                     </p>
-                                    <p className="text-[10px] text-slate-500 font-black tracking-widest uppercase truncate">{account.accountNumber} • {account.accountName}</p>
+                                    <p className="text-[11px] text-slate-400 font-black tracking-widest uppercase truncate">{account.accountNumber} • {account.accountName}</p>
                                   </div>
                                 </div>
                                 <button
@@ -2303,7 +2303,7 @@ export default function SettingsPage() {
                                 ลบรูป
                               </button>
                             )}
-                            <p className="text-[10px] text-slate-500">รองรับ PNG, JPEG ขนาดไม่เกิน 2MB</p>
+                            <p className="text-[11px] text-slate-400">รองรับ PNG, JPEG ขนาดไม่เกิน 2MB</p>
                           </div>
                         </div>
                       </div>
@@ -2312,7 +2312,7 @@ export default function SettingsPage() {
                       <div className="flex items-center justify-between py-4 px-5 bg-white/5 rounded-2xl">
                         <div>
                           <p className="text-sm font-bold text-white">ตรวจสอบอัตโนมัติ</p>
-                          <p className="text-[10px] text-slate-500">ตรวจสอบ TxHash บน Blockchain อัตโนมัติ</p>
+                          <p className="text-[11px] text-slate-400">ตรวจสอบ TxHash บน Blockchain อัตโนมัติ</p>
                         </div>
                         <Switch
                           checked={usdtSettings.usdtAutoVerify}
@@ -2613,7 +2613,7 @@ export default function SettingsPage() {
                     <div className="w-14 h-14 bg-emerald-500/10 rounded-2xl flex items-center justify-center text-2xl shadow-inner flex-shrink-0">🌐</div>
                     <div>
                       <h2 className="text-xl sm:text-2xl font-black text-white uppercase tracking-tight">โลโก้เว็บไซต์</h2>
-                      <p className="text-xs sm:text-sm text-slate-500 font-bold uppercase tracking-widest">โลโก้และชื่อที่แสดงบน Sidebar, Login</p>
+                      <p className="text-xs sm:text-sm text-slate-400 font-bold uppercase tracking-widest">โลโก้และชื่อที่แสดงบน Sidebar, Login</p>
                     </div>
                   </div>
 
@@ -2749,7 +2749,7 @@ export default function SettingsPage() {
                     <div className="w-14 h-14 bg-pink-500/10 rounded-2xl flex items-center justify-center text-2xl shadow-inner flex-shrink-0">🎨</div>
                     <div>
                       <h2 className="text-xl sm:text-2xl font-black text-white uppercase tracking-tight">ข้อความใต้สลิป</h2>
-                      <p className="text-xs sm:text-sm text-slate-500 font-bold uppercase tracking-widest">ตั้งค่าข้อความแบรนด์และสีสลิป</p>
+                      <p className="text-xs sm:text-sm text-slate-400 font-bold uppercase tracking-widest">ตั้งค่าข้อความแบรนด์และสีสลิป</p>
                     </div>
                   </div>
 
@@ -2886,7 +2886,7 @@ export default function SettingsPage() {
                               ลบโลโก้
                             </button>
                           )}
-                          <p className="text-[10px] text-slate-500">PNG, JPG, WEBP (ไม่เกิน 500KB)</p>
+                          <p className="text-[11px] text-slate-400">PNG, JPG, WEBP (ไม่เกิน 500KB)</p>
                           <p className="text-[10px] text-amber-400">⚠️ LINE ต้องใช้ URL (HTTPS) เท่านั้น - อัปโหลดใช้แค่ดูตัวอย่าง</p>
                         </div>
                       </div>
@@ -3100,7 +3100,7 @@ export default function SettingsPage() {
                     <div className="w-14 h-14 bg-green-500/10 rounded-2xl flex items-center justify-center text-2xl shadow-inner flex-shrink-0">💬</div>
                     <div>
                       <h2 className="text-xl sm:text-2xl font-black text-white uppercase tracking-tight">ปุ่มติดต่อแอดมิน</h2>
-                      <p className="text-xs sm:text-sm text-slate-500 font-bold uppercase tracking-widest">ปุ่มลอยมุมขวาล่างของหน้าจอ</p>
+                      <p className="text-xs sm:text-sm text-slate-400 font-bold uppercase tracking-widest">ปุ่มลอยมุมขวาล่างของหน้าจอ</p>
                     </div>
                   </div>
 
@@ -3224,7 +3224,7 @@ export default function SettingsPage() {
                                   ลบไอคอน
                                 </button>
                               )}
-                              <p className="text-[10px] text-slate-500">PNG, JPG, WEBP (ไม่เกิน 500KB) - แนะนำขนาด 100x100px</p>
+                              <p className="text-[11px] text-slate-400">PNG, JPG, WEBP (ไม่เกิน 500KB) - แนะนำขนาด 100x100px</p>
                             </div>
                           </div>
                         </div>

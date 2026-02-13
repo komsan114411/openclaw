@@ -509,7 +509,7 @@ export default function LineSessionSettingsPage() {
               </div>
               ตั้งค่า LINE Session
             </h1>
-            <p className="text-slate-500 dark:text-slate-400 mt-1">
+            <p className="text-slate-400 dark:text-slate-300 mt-1">
               กำหนดค่าการตรวจสอบ Keys และ Auto Re-login
             </p>
           </div>
@@ -554,7 +554,7 @@ export default function LineSessionSettingsPage() {
                 <h2 className="text-lg font-semibold text-slate-900 dark:text-white">
                   สถานะ Runtime
                 </h2>
-                <p className="text-sm text-slate-500 dark:text-slate-400">
+                <p className="text-sm text-slate-400 dark:text-slate-300">
                   การตั้งค่าที่ใช้งานอยู่ในขณะนี้
                 </p>
               </div>
@@ -582,21 +582,21 @@ export default function LineSessionSettingsPage() {
           {runtimeConfig && (
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
               <div className="p-3 bg-white dark:bg-slate-800 rounded-lg">
-                <p className="text-xs text-slate-500 dark:text-slate-400">Health Check</p>
+                <p className="text-xs text-slate-400 dark:text-slate-300">Health Check</p>
                 <p className={`text-lg font-bold ${runtimeConfig.enabled ? 'text-emerald-600' : 'text-slate-400'}`}>
                   {runtimeConfig.enabled ? 'เปิดอยู่' : 'ปิดอยู่'}
                 </p>
               </div>
               <div className="p-3 bg-white dark:bg-slate-800 rounded-lg">
-                <p className="text-xs text-slate-500 dark:text-slate-400">ตรวจสอบทุก</p>
+                <p className="text-xs text-slate-400 dark:text-slate-300">ตรวจสอบทุก</p>
                 <p className="text-lg font-bold text-blue-600">{runtimeConfig.intervalMinutes} นาที</p>
               </div>
               <div className="p-3 bg-white dark:bg-slate-800 rounded-lg">
-                <p className="text-xs text-slate-500 dark:text-slate-400">Max Failures</p>
+                <p className="text-xs text-slate-400 dark:text-slate-300">Max Failures</p>
                 <p className="text-lg font-bold text-amber-600">{runtimeConfig.maxConsecutiveFailures} ครั้ง</p>
               </div>
               <div className="p-3 bg-white dark:bg-slate-800 rounded-lg">
-                <p className="text-xs text-slate-500 dark:text-slate-400">Auto Relogin</p>
+                <p className="text-xs text-slate-400 dark:text-slate-300">Auto Relogin</p>
                 <p className={`text-lg font-bold ${runtimeConfig.autoReloginEnabled ? 'text-emerald-600' : 'text-slate-400'}`}>
                   {runtimeConfig.autoReloginEnabled ? 'เปิดอยู่' : 'ปิดอยู่'}
                 </p>
@@ -639,7 +639,7 @@ export default function LineSessionSettingsPage() {
                         {status.status === 'healthy' ? 'ปกติ' : status.status === 'expired' ? 'หมดอายุ' : 'มีปัญหา'}
                       </span>
                       {status.consecutiveFailures > 0 && (
-                        <span className="text-xs text-slate-500">
+                        <span className="text-xs text-slate-300">
                           ({status.consecutiveFailures} fails)
                         </span>
                       )}
@@ -651,7 +651,7 @@ export default function LineSessionSettingsPage() {
           )}
 
           {healthStatuses.length === 0 && (
-            <p className="text-sm text-slate-500 dark:text-slate-400 text-center py-4">
+            <p className="text-sm text-slate-400 dark:text-slate-300 text-center py-4">
               ยังไม่มี Session ที่ตรวจสอบ กดปุ่ม &quot;ตรวจสอบ Keys ทันที&quot; เพื่อเริ่มต้น
             </p>
           )}
@@ -668,7 +668,7 @@ export default function LineSessionSettingsPage() {
                 <h2 className="text-lg font-semibold text-slate-900 dark:text-white">
                   ตรวจสอบสถานะ Keys
                 </h2>
-                <p className="text-sm text-slate-500 dark:text-slate-400">
+                <p className="text-sm text-slate-400 dark:text-slate-300">
                   ระบบจะตรวจสอบว่า Keys ยังใช้งานได้อยู่หรือไม่
                 </p>
               </div>
@@ -680,7 +680,7 @@ export default function LineSessionSettingsPage() {
                   <p className="font-medium text-slate-900 dark:text-white">
                     เปิดใช้งานการตรวจสอบ
                   </p>
-                  <p className="text-sm text-slate-500 dark:text-slate-400">
+                  <p className="text-sm text-slate-400 dark:text-slate-300">
                     ระบบจะ Loop ตรวจสอบ Keys อัตโนมัติ
                   </p>
                 </div>
@@ -713,7 +713,7 @@ export default function LineSessionSettingsPage() {
                   }
                   disabled={!settings.lineSessionHealthCheckEnabled}
                 />
-                <p className="text-xs text-slate-500 mt-1">
+                <p className="text-xs text-slate-400 mt-1">
                   แนะนำ: 5-10 นาที (ค่าน้อยเกินอาจทำให้เซิร์ฟเวอร์หนัก)
                 </p>
               </div>
@@ -736,7 +736,7 @@ export default function LineSessionSettingsPage() {
                   }
                   disabled={!settings.lineSessionHealthCheckEnabled}
                 />
-                <p className="text-xs text-slate-500 mt-1">
+                <p className="text-xs text-slate-400 mt-1">
                   ถ้าตรวจสอบล้มเหลวติดต่อกัน X ครั้ง จะถือว่า Keys หมดอายุ
                 </p>
               </div>
@@ -773,7 +773,7 @@ export default function LineSessionSettingsPage() {
                 <h2 className="text-lg font-semibold text-slate-900 dark:text-white">
                   Auto Re-login
                 </h2>
-                <p className="text-sm text-slate-500 dark:text-slate-400">
+                <p className="text-sm text-slate-400 dark:text-slate-300">
                   ล็อกอินใหม่อัตโนมัติเมื่อ Keys หมดอายุ
                 </p>
               </div>
@@ -785,7 +785,7 @@ export default function LineSessionSettingsPage() {
                   <p className="font-medium text-slate-900 dark:text-white">
                     เปิดใช้งาน Auto Re-login
                   </p>
-                  <p className="text-sm text-slate-500 dark:text-slate-400">
+                  <p className="text-sm text-slate-400 dark:text-slate-300">
                     ระบบจะ Login ใหม่อัตโนมัติเมื่อ Keys หมดอายุ
                   </p>
                 </div>
@@ -818,7 +818,7 @@ export default function LineSessionSettingsPage() {
                   }
                   disabled={!settings.lineSessionAutoReloginEnabled}
                 />
-                <p className="text-xs text-slate-500 mt-1">
+                <p className="text-xs text-slate-400 mt-1">
                   ระบบจะตรวจสอบว่ามี Session ไหนต้อง Re-login ทุก X นาที
                 </p>
               </div>
@@ -852,7 +852,7 @@ export default function LineSessionSettingsPage() {
                 <h2 className="text-lg font-semibold text-slate-900 dark:text-white">
                   ดึงข้อความอัตโนมัติ
                 </h2>
-                <p className="text-sm text-slate-500 dark:text-slate-400">
+                <p className="text-sm text-slate-400 dark:text-slate-300">
                   ดึงข้อความจาก LINE ทุกบัญชีตามช่วงเวลาที่กำหนด
                 </p>
               </div>
@@ -879,21 +879,21 @@ export default function LineSessionSettingsPage() {
           {autoFetchStatus && (
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
               <div className="p-3 bg-white dark:bg-slate-800 rounded-lg">
-                <p className="text-xs text-slate-500 dark:text-slate-400">สถานะ</p>
+                <p className="text-xs text-slate-400 dark:text-slate-300">สถานะ</p>
                 <p className={`text-lg font-bold ${autoFetchStatus.isRunning ? 'text-emerald-600' : 'text-slate-400'}`}>
                   {autoFetchStatus.isRunning ? 'กำลังทำงาน' : 'หยุดอยู่'}
                 </p>
               </div>
               <div className="p-3 bg-white dark:bg-slate-800 rounded-lg">
-                <p className="text-xs text-slate-500 dark:text-slate-400">ดึงทุก</p>
+                <p className="text-xs text-slate-400 dark:text-slate-300">ดึงทุก</p>
                 <p className="text-lg font-bold text-violet-600">{autoFetchStatus.config.intervalSeconds} วินาที</p>
               </div>
               <div className="p-3 bg-white dark:bg-slate-800 rounded-lg">
-                <p className="text-xs text-slate-500 dark:text-slate-400">ข้อความใหม่ทั้งหมด</p>
+                <p className="text-xs text-slate-400 dark:text-slate-300">ข้อความใหม่ทั้งหมด</p>
                 <p className="text-lg font-bold text-blue-600">{autoFetchStatus.stats.totalNewMessages.toLocaleString()}</p>
               </div>
               <div className="p-3 bg-white dark:bg-slate-800 rounded-lg">
-                <p className="text-xs text-slate-500 dark:text-slate-400">ดึงสำเร็จ/ทั้งหมด</p>
+                <p className="text-xs text-slate-400 dark:text-slate-300">ดึงสำเร็จ/ทั้งหมด</p>
                 <p className="text-lg font-bold text-emerald-600">
                   {autoFetchStatus.stats.successfulFetches}/{autoFetchStatus.stats.totalFetches}
                 </p>
@@ -948,7 +948,7 @@ export default function LineSessionSettingsPage() {
           {/* Last Fetch Time (when stopped) */}
           {!autoFetchStatus?.isRunning && autoFetchStatus?.lastFetchTime && (
             <div className="mb-6 p-3 bg-white dark:bg-slate-800 rounded-lg">
-              <p className="text-xs text-slate-500 dark:text-slate-400">ดึงล่าสุดเมื่อ</p>
+              <p className="text-xs text-slate-400 dark:text-slate-300">ดึงล่าสุดเมื่อ</p>
               <p className="text-sm font-medium text-slate-700 dark:text-slate-300">
                 {new Date(autoFetchStatus.lastFetchTime).toLocaleString('th-TH')}
               </p>
@@ -963,7 +963,7 @@ export default function LineSessionSettingsPage() {
                 <p className="font-medium text-slate-900 dark:text-white">
                   เปิดใช้งานการดึงอัตโนมัติ
                 </p>
-                <p className="text-sm text-slate-500 dark:text-slate-400">
+                <p className="text-sm text-slate-400 dark:text-slate-300">
                   ระบบจะดึงข้อความจากทุกบัญชีตามช่วงเวลาที่ตั้งค่า
                 </p>
               </div>
@@ -1031,7 +1031,7 @@ export default function LineSessionSettingsPage() {
                   )}
                 </Button>
               </div>
-              <p className="text-xs text-slate-500 mt-2">
+              <p className="text-xs text-slate-400 mt-2">
                 ค่าต่ำสุด: 10 วินาที, ค่าสูงสุด: 3600 วินาที (1 ชั่วโมง)
               </p>
             </div>
@@ -1078,7 +1078,7 @@ export default function LineSessionSettingsPage() {
               <h2 className="text-lg font-semibold text-slate-900 dark:text-white">
                 ลบข้อความเก่า
               </h2>
-              <p className="text-sm text-slate-500 dark:text-slate-400">
+              <p className="text-sm text-slate-400 dark:text-slate-300">
                 ลบข้อความ (line_messages) ที่เก่าเกินไปเพื่อจัดการพื้นที่เก็บข้อมูล
               </p>
             </div>
@@ -1089,7 +1089,7 @@ export default function LineSessionSettingsPage() {
             <div className="p-3 bg-white dark:bg-slate-800 rounded-lg">
               <div className="flex items-center gap-2 mb-1">
                 <Database className="w-4 h-4 text-blue-500" />
-                <p className="text-xs text-slate-500 dark:text-slate-400">ข้อความทั้งหมด</p>
+                <p className="text-xs text-slate-400 dark:text-slate-300">ข้อความทั้งหมด</p>
               </div>
               <p className="text-lg font-bold text-blue-600">
                 {isLoadingStats ? (
@@ -1102,7 +1102,7 @@ export default function LineSessionSettingsPage() {
             <div className="p-3 bg-white dark:bg-slate-800 rounded-lg">
               <div className="flex items-center gap-2 mb-1">
                 <BarChart3 className="w-4 h-4 text-violet-500" />
-                <p className="text-xs text-slate-500 dark:text-slate-400">จำนวน Session</p>
+                <p className="text-xs text-slate-400 dark:text-slate-300">จำนวน Session</p>
               </div>
               <p className="text-lg font-bold text-violet-600">
                 {isLoadingStats ? (
@@ -1115,7 +1115,7 @@ export default function LineSessionSettingsPage() {
             <div className="p-3 bg-white dark:bg-slate-800 rounded-lg">
               <div className="flex items-center gap-2 mb-1">
                 <Database className="w-4 h-4 text-amber-500" />
-                <p className="text-xs text-slate-500 dark:text-slate-400">พื้นที่โดยประมาณ</p>
+                <p className="text-xs text-slate-400 dark:text-slate-300">พื้นที่โดยประมาณ</p>
               </div>
               <p className="text-lg font-bold text-amber-600">
                 {isLoadingStats ? (
@@ -1159,7 +1159,7 @@ export default function LineSessionSettingsPage() {
                 </label>
               </div>
               <div className="flex gap-2 items-center">
-                <span className="text-sm text-slate-600 dark:text-slate-400">ลบข้อความเก่ากว่า</span>
+                <span className="text-sm text-slate-700 dark:text-slate-300">ลบข้อความเก่ากว่า</span>
                 <Input
                   type="number"
                   min={1}
@@ -1168,7 +1168,7 @@ export default function LineSessionSettingsPage() {
                   onChange={(e) => setCleanupValue(parseInt(e.target.value) || 1)}
                   className="w-24"
                 />
-                <span className="text-sm text-slate-600 dark:text-slate-400">
+                <span className="text-sm text-slate-700 dark:text-slate-300">
                   {cleanupUnit === 'days' ? 'วัน' : 'เดือน'}ย้อนหลัง
                 </span>
               </div>
@@ -1212,7 +1212,7 @@ export default function LineSessionSettingsPage() {
                         )}
                       </span>
                       {msgCount !== null && (
-                        <span className="text-xs text-slate-500 dark:text-slate-400 tabular-nums">
+                        <span className="text-xs text-slate-400 dark:text-slate-300 tabular-nums">
                           {msgCount.toLocaleString()} ข้อความ
                         </span>
                       )}
@@ -1220,7 +1220,7 @@ export default function LineSessionSettingsPage() {
                         <span className={`text-xs px-2 py-0.5 rounded ${
                           session.status === 'active'
                             ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400'
-                            : 'bg-slate-100 text-slate-500 dark:bg-slate-700 dark:text-slate-400'
+                            : 'bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-300'
                         }`}>
                           {session.status}
                         </span>
@@ -1229,7 +1229,7 @@ export default function LineSessionSettingsPage() {
                   );
                 })}
                 {sessions.length === 0 && (
-                  <p className="text-sm text-slate-500 text-center py-2">
+                  <p className="text-sm text-slate-400 text-center py-2">
                     ไม่พบบัญชี
                   </p>
                 )}
@@ -1373,21 +1373,21 @@ export default function LineSessionSettingsPage() {
                 {preview && (
                   <div className="mb-4 p-3 bg-slate-50 dark:bg-slate-700/50 rounded-lg space-y-2">
                     <div className="flex justify-between text-sm">
-                      <span className="text-slate-500 dark:text-slate-400">จำนวนที่จะลบ</span>
+                      <span className="text-slate-400 dark:text-slate-300">จำนวนที่จะลบ</span>
                       <span className="font-bold text-red-600">{preview.messagesToDelete.toLocaleString()} ข้อความ</span>
                     </div>
                     <div className="flex justify-between text-sm">
-                      <span className="text-slate-500 dark:text-slate-400">จำนวนที่จะเหลือ</span>
+                      <span className="text-slate-400 dark:text-slate-300">จำนวนที่จะเหลือ</span>
                       <span className="font-bold text-emerald-600">{preview.messagesRemaining.toLocaleString()} ข้อความ</span>
                     </div>
                     <div className="flex justify-between text-sm">
-                      <span className="text-slate-500 dark:text-slate-400">พื้นที่ที่จะเพิ่ม</span>
+                      <span className="text-slate-400 dark:text-slate-300">พื้นที่ที่จะเพิ่ม</span>
                       <span className="font-bold text-blue-600">{formatBytes(preview.estimatedSizeBytes)}</span>
                     </div>
                   </div>
                 )}
 
-                <p className="text-sm text-slate-600 dark:text-slate-300 mb-2">
+                <p className="text-sm text-slate-700 dark:text-slate-300 mb-2">
                   ลบข้อความตั้งแต่เริ่มต้น ถึง <strong>ก่อนวันที่{' '}
                   {getCutoffDate().toLocaleDateString('th-TH', {
                     year: 'numeric',
@@ -1395,7 +1395,7 @@ export default function LineSessionSettingsPage() {
                     day: 'numeric',
                   })}</strong>
                 </p>
-                <p className="text-sm text-slate-600 dark:text-slate-300 mb-2">
+                <p className="text-sm text-slate-700 dark:text-slate-300 mb-2">
                   จาก{' '}
                   <strong>
                     {selectAllSessions
@@ -1403,7 +1403,7 @@ export default function LineSessionSettingsPage() {
                       : `${selectedSessionIds.length} บัญชีที่เลือก`}
                   </strong>
                 </p>
-                <p className="text-xs text-slate-500 dark:text-slate-400 mb-4">
+                <p className="text-xs text-slate-400 dark:text-slate-300 mb-4">
                   (ข้อความวันที่{' '}
                   {getCutoffDate().toLocaleDateString('th-TH', {
                     year: 'numeric',
@@ -1457,7 +1457,7 @@ export default function LineSessionSettingsPage() {
               <h3 className="text-lg font-semibold text-slate-900 dark:text-white mb-2">
                 การทำงานของระบบ
               </h3>
-              <ul className="space-y-2 text-sm text-slate-600 dark:text-slate-300">
+              <ul className="space-y-2 text-sm text-slate-700 dark:text-slate-300">
                 <li className="flex items-start gap-2">
                   <span className="text-emerald-500 mt-1">1.</span>
                   <span>ผู้ใช้ใส่ Email, Password และเลือกธนาคาร แล้วกด Login</span>

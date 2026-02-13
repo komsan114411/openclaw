@@ -148,16 +148,6 @@ const ADMIN_MENU_ITEMS: MenuItem[] = [
   },
   {
     group: 'system',
-    name: 'Auto-Slip',
-    href: '/admin/auto-slip',
-    icon: (
-      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
-      </svg>
-    ),
-  },
-  {
-    group: 'system',
     name: 'ตั้งค่าระบบ',
     href: '/admin/settings',
     icon: (
@@ -247,17 +237,6 @@ const USER_MENU_ITEMS: MenuItem[] = [
     ),
   },
   // System Group
-  {
-    group: 'system',
-    name: 'Auto-Slip',
-    href: '/user/auto-slip',
-    badge: 'ใหม่',
-    icon: (
-      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
-      </svg>
-    ),
-  },
   {
     group: 'system',
     name: 'ซื้อแพ็คเกจ',
@@ -357,7 +336,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
 
     return (
       <div className="space-y-1 sm:space-y-1.5 mb-5 sm:mb-8">
-        <h3 className="px-3 sm:px-5 text-[9px] sm:text-[10px] md:text-[11px] font-black uppercase tracking-[0.2em] text-emerald-400/40 mb-2 sm:mb-3">
+        <h3 className="px-3 sm:px-5 text-[10px] sm:text-xs font-black uppercase tracking-[0.15em] text-emerald-400/70 mb-2 sm:mb-3">
           {title}
         </h3>
         {items.map((item) => {
@@ -385,7 +364,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
                 isActive ? "text-white font-bold" : "group-hover:text-white"
               )}>{item.name}</span>
               {item.badge && (
-                <span className="flex-shrink-0 px-1.5 sm:px-2 py-0.5 text-[8px] sm:text-[9px] font-bold bg-emerald-500 text-white rounded-full animate-pulse shadow-[0_0_10px_rgba(16,185,129,0.5)] tracking-wider uppercase whitespace-nowrap">
+                <span className="flex-shrink-0 px-1.5 sm:px-2 py-0.5 text-[10px] sm:text-xs font-bold bg-emerald-500 text-white rounded-full animate-pulse shadow-[0_0_10px_rgba(16,185,129,0.5)] tracking-wider uppercase whitespace-nowrap">
                   {item.badge}
                 </span>
               )}
@@ -423,7 +402,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
             <h1 className="text-sm sm:text-base md:text-lg font-bold tracking-tight truncate">
               {siteBranding.siteName || (<>dooslip<span className="text-emerald-500">.com</span></>)}
             </h1>
-            <p className="text-[8px] sm:text-[9px] md:text-[10px] text-emerald-400/60 font-medium tracking-widest uppercase truncate">
+            <p className="text-[10px] sm:text-xs text-emerald-400/80 font-medium tracking-widest uppercase truncate">
               {siteBranding.siteTagline || 'ระบบจัดการสลิป'}
             </p>
           </div>
@@ -477,13 +456,13 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
                     <span className="text-white text-xs sm:text-sm">💰</span>
                   </div>
                   <div className="min-w-0 flex-1">
-                    <p className="text-[8px] sm:text-[9px] text-slate-400 uppercase tracking-wider font-medium truncate">เครดิตคงเหลือ</p>
+                    <p className="text-[10px] sm:text-xs text-slate-300 uppercase tracking-wider font-medium truncate">เครดิตคงเหลือ</p>
                     <p className="text-base sm:text-lg font-black text-emerald-400 leading-none group-hover/wallet:text-emerald-300 transition-colors truncate">
                       ฿{walletBalance.toLocaleString()}
                     </p>
                   </div>
                 </div>
-                <svg className="w-4 h-4 text-slate-500 group-hover/wallet:text-emerald-400 group-hover/wallet:translate-x-1 transition-all flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-4 h-4 text-slate-400 group-hover/wallet:text-emerald-400 group-hover/wallet:translate-x-1 transition-all flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                 </svg>
               </div>
@@ -500,11 +479,11 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
       </nav>
 
       {/* User Info Section */}
-      <div className="p-3 sm:p-4 md:p-6 relative z-10 border-t border-white/5 bg-white/[0.01]">
-        <div className="p-3 sm:p-4 rounded-xl sm:rounded-[1.5rem] bg-white/[0.03] border border-white/[0.05] backdrop-blur-md shadow-xl group hover:border-emerald-500/20 transition-all duration-500">
-          <div className="flex items-center gap-2.5 sm:gap-3 mb-3 sm:mb-4">
-            <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center border border-white/10 shadow-lg group-hover:shadow-emerald-500/20 transition-all duration-500 group-hover:scale-110 flex-shrink-0">
-              <span className="text-white font-bold text-base sm:text-lg drop-shadow-md">
+      <div className="flex-shrink-0 p-3 sm:p-4 md:p-6 relative z-10 border-t border-white/5 bg-white/[0.01]">
+        <div className="p-2.5 sm:p-3 md:p-4 rounded-xl sm:rounded-[1.5rem] bg-white/[0.03] border border-white/[0.05] backdrop-blur-md shadow-xl group hover:border-emerald-500/20 transition-all duration-500 overflow-hidden">
+          <div className="flex items-center gap-2 sm:gap-3 mb-2.5 sm:mb-4">
+            <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center border border-white/10 shadow-lg group-hover:shadow-emerald-500/20 transition-all duration-500 group-hover:scale-110 flex-shrink-0">
+              <span className="text-white font-bold text-sm sm:text-lg drop-shadow-md">
                 {user?.username?.[0]?.toUpperCase() || 'U'}
               </span>
             </div>
@@ -515,26 +494,26 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
                   "w-1.5 h-1.5 rounded-full animate-pulse shadow-[0_0_5px]",
                   isAdmin ? "bg-rose-500 shadow-rose-500/50" : "bg-emerald-500 shadow-emerald-500/50"
                 )} />
-                <p className="text-[10px] text-slate-400 font-medium uppercase tracking-wider">
+                <p className="text-[10px] sm:text-xs text-slate-300 font-medium uppercase tracking-wider">
                   {isAdmin ? 'ผู้ดูแลระบบ' : 'ผู้ใช้งาน'}
                 </p>
               </div>
             </div>
           </div>
-          <div className="flex gap-1.5 sm:gap-2">
+          <div className="grid grid-cols-2 gap-1.5 sm:gap-2">
             <Link
               href="/change-password"
               onClick={() => window.innerWidth < 768 && onClose()}
-              className="flex-1 flex items-center justify-center gap-1.5 sm:gap-2 px-2 sm:px-4 py-3 min-h-[44px] text-[10px] sm:text-xs font-bold rounded-xl bg-white/5 text-slate-400 hover:bg-emerald-500/10 hover:text-emerald-400 hover:border-emerald-500/20 active:bg-emerald-500/20 transition-all duration-300 border border-transparent"
+              className="flex items-center justify-center gap-1 sm:gap-1.5 px-1.5 sm:px-3 py-2.5 sm:py-3 min-h-[44px] text-[9px] sm:text-xs font-bold rounded-xl bg-white/5 text-slate-400 hover:bg-emerald-500/10 hover:text-emerald-400 hover:border-emerald-500/20 active:bg-emerald-500/20 transition-all duration-300 border border-transparent overflow-hidden"
             >
               <svg className="w-3.5 h-3.5 sm:w-4 sm:h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
               </svg>
-              <span className="truncate">เปลี่ยนรหัสผ่าน</span>
+              <span className="truncate">เปลี่ยนรหัส</span>
             </Link>
             <button
               onClick={() => logout()}
-              className="flex-1 flex items-center justify-center gap-1.5 sm:gap-2 px-2 sm:px-4 py-3 min-h-[44px] text-[10px] sm:text-xs font-bold rounded-xl bg-white/5 text-slate-400 hover:bg-rose-500/10 hover:text-rose-400 hover:border-rose-500/20 active:bg-rose-500/20 transition-all duration-300 border border-transparent"
+              className="flex items-center justify-center gap-1 sm:gap-1.5 px-1.5 sm:px-3 py-2.5 sm:py-3 min-h-[44px] text-[9px] sm:text-xs font-bold rounded-xl bg-white/5 text-slate-400 hover:bg-rose-500/10 hover:text-rose-400 hover:border-rose-500/20 active:bg-rose-500/20 transition-all duration-300 border border-transparent overflow-hidden"
             >
               <svg className="w-3.5 h-3.5 sm:w-4 sm:h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />

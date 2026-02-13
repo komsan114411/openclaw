@@ -298,12 +298,12 @@ const Toggle = memo(({ checked, onChange, label, description }: {
     <div className="flex-1 min-w-0">
       <span className={cn(
         "text-xs sm:text-sm font-medium transition-colors block leading-tight",
-        checked ? "text-emerald-700" : "text-slate-600 group-hover:text-slate-800"
+        checked ? "text-emerald-700" : "text-slate-700 group-hover:text-slate-800"
       )}>
         {label}
       </span>
       {description && (
-        <span className="text-[10px] sm:text-xs text-slate-400 mt-0.5 block leading-tight">{description}</span>
+        <span className="text-[10px] sm:text-xs text-slate-300 mt-0.5 block leading-tight">{description}</span>
       )}
     </div>
     <div className={cn(
@@ -341,18 +341,18 @@ const BankButton = memo(({ bank, isSelected, onClick }: {
         {logo ? (
           <img src={logo} alt={bank.shortName} className="w-6 h-6 sm:w-8 sm:h-8 md:w-9 md:h-9 object-contain" />
         ) : (
-          <span className="text-[10px] sm:text-xs font-bold text-slate-400">{(bank.shortName || bank.code)?.substring(0, 2)}</span>
+          <span className="text-[10px] sm:text-xs font-bold text-slate-300">{(bank.shortName || bank.code)?.substring(0, 2)}</span>
         )}
       </div>
       <span className={cn(
-        "text-[8px] sm:text-[10px] font-semibold text-center truncate w-full leading-tight",
-        isSelected ? 'text-emerald-700' : 'text-slate-500'
+        "text-[10px] sm:text-xs font-semibold text-center truncate w-full leading-tight",
+        isSelected ? 'text-emerald-700' : 'text-slate-400'
       )}>
         {bank.shortName || bank.code}
       </span>
       {isSelected && (
         <div className="absolute -top-1 -right-1 w-4 h-4 sm:w-5 sm:h-5 bg-emerald-500 rounded-full flex items-center justify-center">
-          <span className="text-white text-[8px] sm:text-[10px]">✓</span>
+          <span className="text-white text-[10px] sm:text-xs font-bold">✓</span>
         </div>
       )}
     </button>
@@ -416,20 +416,20 @@ const SlipPreview = memo(({ config, senderBank, receiverBank, compact = false }:
           >
             {getStatusText()}
           </p>
-          <p className="text-[8px] sm:text-[9px] text-white/40 font-medium mt-0.5">ยืนยันการทำรายการแล้ว</p>
+          <p className="text-[10px] sm:text-xs text-white/50 font-medium mt-0.5">ยืนยันการทำรายการแล้ว</p>
         </div>
       </div>
       <div className="bg-white rounded-xl sm:rounded-2xl p-3 sm:p-4 md:p-5 space-y-2 sm:space-y-3 shadow-inner relative z-10">
         {config.showAmount && (
           <div className="text-center py-1.5 sm:py-2 border-b border-slate-100">
-            <p className="text-[9px] sm:text-[10px] text-slate-400 font-medium mb-0.5 sm:mb-1">จำนวนเงิน</p>
+            <p className="text-[10px] sm:text-xs text-slate-400 font-medium mb-0.5 sm:mb-1">จำนวนเงิน</p>
             <p className="text-xl sm:text-2xl md:text-3xl font-bold transition-colors duration-200" style={{ color: mainColor }}>
               ฿{config.previewAmount || SAMPLE_DATA.amount}
             </p>
             <div className="flex items-center justify-center gap-1.5 sm:gap-2 mt-1.5 sm:mt-2">
-              {config.showDate && <p className="text-[9px] sm:text-[10px] text-slate-400">{SAMPLE_DATA.date}</p>}
+              {config.showDate && <p className="text-[10px] sm:text-xs text-slate-400">{SAMPLE_DATA.date}</p>}
               {config.showDate && config.showTime && <span className="w-1 h-1 rounded-full bg-slate-300" />}
-              {config.showTime && <p className="text-[9px] sm:text-[10px] text-slate-400">{SAMPLE_DATA.time}</p>}
+              {config.showTime && <p className="text-[10px] sm:text-xs text-slate-400">{SAMPLE_DATA.time}</p>}
             </div>
           </div>
         )}
@@ -442,16 +442,16 @@ const SlipPreview = memo(({ config, senderBank, receiverBank, compact = false }:
                 </div>
               )}
               <div className="flex-1 min-w-0">
-                <p className="text-[8px] sm:text-[9px] text-slate-400 font-medium mb-0.5">ผู้โอน</p>
-                <p className="text-[10px] sm:text-[11px] font-semibold text-slate-800 truncate">{config.previewSenderName || SAMPLE_DATA.sender.name}</p>
-                {config.showSenderAccount && <p className="text-[9px] sm:text-[10px] text-slate-400 font-mono">{config.previewSenderAccount || SAMPLE_DATA.sender.account}</p>}
+                <p className="text-[10px] sm:text-xs text-slate-400 font-medium mb-0.5">ผู้โอน</p>
+                <p className="text-xs sm:text-sm font-semibold text-slate-800 truncate">{config.previewSenderName || SAMPLE_DATA.sender.name}</p>
+                {config.showSenderAccount && <p className="text-[10px] sm:text-xs text-slate-400 font-mono">{config.previewSenderAccount || SAMPLE_DATA.sender.account}</p>}
               </div>
             </div>
           )}
           {config.showSender && config.showReceiver && (
             <div className="flex justify-center -my-0.5 sm:-my-1 relative z-10">
               <div className="w-5 h-5 sm:w-6 sm:h-6 rounded-full bg-white border-2 border-slate-100 flex items-center justify-center shadow-sm">
-                <span className="text-slate-400 text-[10px] sm:text-xs">↓</span>
+                <span className="text-slate-300 text-xs sm:text-sm font-bold">↓</span>
               </div>
             </div>
           )}
@@ -463,9 +463,9 @@ const SlipPreview = memo(({ config, senderBank, receiverBank, compact = false }:
                 </div>
               )}
               <div className="flex-1 min-w-0">
-                <p className="text-[8px] sm:text-[9px] font-medium mb-0.5 transition-colors duration-200" style={{ color: mainColor }}>ผู้รับ</p>
-                <p className="text-[10px] sm:text-[11px] font-semibold text-slate-800 truncate">{config.previewReceiverName || SAMPLE_DATA.receiver.name}</p>
-                {config.showReceiverAccount && <p className="text-[9px] sm:text-[10px] text-slate-400 font-mono">{config.previewReceiverAccount || SAMPLE_DATA.receiver.account}</p>}
+                <p className="text-[10px] sm:text-xs font-medium mb-0.5 transition-colors duration-200" style={{ color: mainColor }}>ผู้รับ</p>
+                <p className="text-xs sm:text-sm font-semibold text-slate-800 truncate">{config.previewReceiverName || SAMPLE_DATA.receiver.name}</p>
+                {config.showReceiverAccount && <p className="text-[10px] sm:text-xs text-slate-400 font-mono">{config.previewReceiverAccount || SAMPLE_DATA.receiver.account}</p>}
               </div>
             </div>
           )}
@@ -473,13 +473,13 @@ const SlipPreview = memo(({ config, senderBank, receiverBank, compact = false }:
         {(config.showTransRef || config.showFee) && (
           <div className="pt-2 sm:pt-3 border-t border-dashed border-slate-200 space-y-1 sm:space-y-1.5">
             {config.showTransRef && (
-              <div className="flex justify-between items-center text-[9px] sm:text-[10px]">
+              <div className="flex justify-between items-center text-[10px] sm:text-xs">
                 <span className="text-slate-400">เลขอ้างอิง</span>
                 <span className="text-slate-700 font-mono font-medium truncate ml-2">{SAMPLE_DATA.transRef.slice(0, 8)}...</span>
               </div>
             )}
             {config.showFee && (
-              <div className="flex justify-between items-center text-[9px] sm:text-[10px]">
+              <div className="flex justify-between items-center text-[10px] sm:text-xs">
                 <span className="text-slate-400">ค่าธรรมเนียม</span>
                 <span className="text-emerald-600 font-medium">ฟรี</span>
               </div>
@@ -488,14 +488,14 @@ const SlipPreview = memo(({ config, senderBank, receiverBank, compact = false }:
         )}
         {config.footerText && (
           <div className="pt-2 sm:pt-3 border-t border-slate-100">
-            <p className="text-[8px] sm:text-[9px] text-slate-400 text-center leading-tight">{config.footerText}</p>
+            <p className="text-[10px] sm:text-xs text-slate-400 text-center leading-tight">{config.footerText}</p>
           </div>
         )}
         {config.showFooterBranding && (config.footerBrandingLogo || config.footerBrandingName) && (
           <div className="pt-2 sm:pt-3 mt-1 border-t border-slate-100">
             <div className="flex items-center justify-center gap-1.5 sm:gap-2">
               {config.footerBrandingText && (
-                <span className="text-[8px] sm:text-[9px] text-slate-400">{config.footerBrandingText}</span>
+                <span className="text-[10px] sm:text-xs text-slate-400">{config.footerBrandingText}</span>
               )}
               {config.footerBrandingLogo && (
                 <img
@@ -505,17 +505,17 @@ const SlipPreview = memo(({ config, senderBank, receiverBank, compact = false }:
                 />
               )}
               {config.footerBrandingName && !config.footerBrandingLogo && (
-                <span className="text-[9px] sm:text-[10px] font-semibold text-slate-600">{config.footerBrandingName}</span>
+                <span className="text-xs sm:text-sm font-semibold text-slate-700">{config.footerBrandingName}</span>
               )}
               {config.footerBrandingName && config.footerBrandingLogo && (
-                <span className="text-[8px] sm:text-[9px] font-medium text-slate-500">{config.footerBrandingName}</span>
+                <span className="text-[10px] sm:text-xs font-medium text-slate-400">{config.footerBrandingName}</span>
               )}
             </div>
           </div>
         )}
       </div>
       <div className="mt-3 sm:mt-4 flex justify-center">
-        <p className="text-[8px] sm:text-[9px] text-white/20 font-medium">LINE OA System</p>
+        <p className="text-[10px] sm:text-xs text-white/30 font-medium">LINE OA System</p>
       </div>
     </div>
   );
@@ -551,7 +551,7 @@ const SystemResponsePreview = memo(({ config, template }: {
           <p className="text-sm font-bold leading-tight" style={{ color: config.primaryColor }}>
             {config.title || typeInfo?.label || 'ข้อความระบบ'}
           </p>
-          <p className="text-[9px] text-white/50 font-medium mt-0.5">ระบบแจ้งเตือน</p>
+          <p className="text-[10px] text-white/60 font-medium mt-0.5">ระบบแจ้งเตือน</p>
         </div>
       </div>
       <div className="bg-white rounded-xl p-4 space-y-3 shadow-inner relative z-10">
@@ -560,7 +560,7 @@ const SystemResponsePreview = memo(({ config, template }: {
             {config.mainMessage || config.textMessage || 'ข้อความหลัก'}
           </p>
           {config.subMessage && (
-            <p className="text-xs text-slate-500 mt-2">{config.subMessage}</p>
+            <p className="text-xs text-slate-400 mt-2">{config.subMessage}</p>
           )}
         </div>
         <div className="space-y-2 pt-2">
@@ -573,14 +573,14 @@ const SystemResponsePreview = memo(({ config, template }: {
             </button>
           )}
           {config.showContactButton && (
-            <button className="w-full py-2.5 rounded-lg text-xs font-semibold border border-slate-200 text-slate-600 bg-white hover:bg-slate-50 transition-colors">
+            <button className="w-full py-2.5 rounded-lg text-xs font-semibold border border-slate-200 text-slate-700 bg-white hover:bg-slate-50 transition-colors">
               {config.contactButtonText}
             </button>
           )}
         </div>
       </div>
       <div className="mt-3 flex justify-center">
-        <p className="text-[8px] text-white/20 font-medium">LINE OA System</p>
+        <p className="text-[10px] text-white/30 font-medium">LINE OA System</p>
       </div>
     </div>
   );
@@ -1003,11 +1003,11 @@ export default function AdminTemplatesPage() {
         {/* Header */}
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div>
-            <p className="text-slate-500 text-sm mb-1">จัดการระบบ</p>
+            <p className="text-slate-400 text-sm mb-1">จัดการระบบ</p>
             <h1 className="text-2xl sm:text-3xl font-bold text-white">
               ข้อความ<span className="text-[#06C755]">ตอบกลับ</span>
             </h1>
-            <p className="text-slate-400 text-sm mt-1">จัดการเทมเพลตสลิปและข้อความระบบ</p>
+            <p className="text-slate-300 text-sm mt-1">จัดการเทมเพลตสลิปและข้อความระบบ</p>
           </div>
           {pageTab === 'templates' && (
             <div className="flex gap-3 w-full sm:w-auto">
@@ -1103,7 +1103,7 @@ export default function AdminTemplatesPage() {
                   <Card className="p-8 sm:p-12 text-center" variant="glass">
                     <div className="text-5xl mb-4 opacity-50">🎨</div>
                     <h3 className="text-lg font-bold text-white mb-2">ยังไม่มีเทมเพลต</h3>
-                    <p className="text-slate-400 mb-6 text-sm">กดปุ่ม "รีเซ็ตค่าเริ่มต้น" เพื่อสร้างเทมเพลตพื้นฐาน</p>
+                    <p className="text-slate-300 mb-6 text-sm">กดปุ่ม "รีเซ็ตค่าเริ่มต้น" เพื่อสร้างเทมเพลตพื้นฐาน</p>
                     <Button onClick={handleInitSlipDefaults} variant="primary">สร้างเทมเพลตเริ่มต้น</Button>
                   </Card>
                 ) : (
@@ -1119,7 +1119,7 @@ export default function AdminTemplatesPage() {
                             </div>
                             <div>
                               <h2 className="text-lg font-bold text-white">{type.label}</h2>
-                              <p className="text-xs text-slate-400">{list.length} เทมเพลต</p>
+                              <p className="text-xs text-slate-300">{list.length} เทมเพลต</p>
                             </div>
                           </div>
                           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -1128,15 +1128,15 @@ export default function AdminTemplatesPage() {
                                 <div className="flex items-start justify-between mb-4">
                                   <div className="flex-1 min-w-0">
                                     <h3 className="font-bold text-white truncate">{template.name}</h3>
-                                    <p className="text-xs text-slate-400 truncate mt-0.5">{template.description || 'ไม่มีคำอธิบาย'}</p>
+                                    <p className="text-xs text-slate-300 truncate mt-0.5">{template.description || 'ไม่มีคำอธิบาย'}</p>
                                   </div>
                                   {template.isDefault && <Badge variant="success" size="sm">ค่าเริ่มต้น</Badge>}
                                 </div>
                                 <div className="flex flex-wrap gap-1.5 mb-4">
-                                  {template.showAmount && <span className="text-[10px] px-2 py-0.5 bg-white/5 text-slate-400 rounded">จำนวนเงิน</span>}
-                                  {template.showSender && <span className="text-[10px] px-2 py-0.5 bg-white/5 text-slate-400 rounded">ผู้โอน</span>}
-                                  {template.showReceiver && <span className="text-[10px] px-2 py-0.5 bg-white/5 text-slate-400 rounded">ผู้รับ</span>}
-                                  {template.showBankLogo && <span className="text-[10px] px-2 py-0.5 bg-white/5 text-slate-400 rounded">โลโก้ธนาคาร</span>}
+                                  {template.showAmount && <span className="text-xs px-2 py-0.5 bg-white/5 text-slate-300 rounded">จำนวนเงิน</span>}
+                                  {template.showSender && <span className="text-xs px-2 py-0.5 bg-white/5 text-slate-300 rounded">ผู้โอน</span>}
+                                  {template.showReceiver && <span className="text-xs px-2 py-0.5 bg-white/5 text-slate-300 rounded">ผู้รับ</span>}
+                                  {template.showBankLogo && <span className="text-xs px-2 py-0.5 bg-white/5 text-slate-300 rounded">โลโก้ธนาคาร</span>}
                                 </div>
                                 <div className="flex gap-2">
                                   <Button variant="ghost" size="sm" className="flex-1" onClick={() => openSlipEditModal(template)}>แก้ไข</Button>
@@ -1174,7 +1174,7 @@ export default function AdminTemplatesPage() {
                   <Card className="p-8 sm:p-12 text-center" variant="glass">
                     <div className="text-5xl mb-4 opacity-50">💬</div>
                     <h3 className="text-lg font-bold text-white mb-2">ยังไม่มีข้อความระบบ</h3>
-                    <p className="text-slate-400 mb-6 text-sm">กดปุ่ม "สร้างค่าเริ่มต้น" เพื่อสร้างข้อความระบบพื้นฐาน</p>
+                    <p className="text-slate-300 mb-6 text-sm">กดปุ่ม "สร้างค่าเริ่มต้น" เพื่อสร้างข้อความระบบพื้นฐาน</p>
                     <Button onClick={handleInitSystemDefaults} variant="primary">สร้างค่าเริ่มต้น</Button>
                   </Card>
                 ) : (
@@ -1247,9 +1247,9 @@ export default function AdminTemplatesPage() {
                         return (
                           <button key={bank._id} type="button" onClick={() => updatePreviewSettingsField('senderBankCode', bank.code || '')} className={cn("flex flex-col items-center p-2 rounded-lg border-2 transition-all", isSelected ? "border-emerald-500 bg-emerald-500/20" : "border-transparent bg-white/5 hover:bg-white/10")}>
                             <div className="w-8 h-8 rounded-lg bg-white flex items-center justify-center mb-1 overflow-hidden">
-                              {logo ? <img src={logo} alt={bank.shortName} className="w-6 h-6 object-contain" /> : <span className="text-xs font-bold text-slate-400">{(bank.shortName || bank.code)?.substring(0, 2)}</span>}
+                              {logo ? <img src={logo} alt={bank.shortName} className="w-6 h-6 object-contain" /> : <span className="text-xs font-bold text-slate-300">{(bank.shortName || bank.code)?.substring(0, 2)}</span>}
                             </div>
-                            <span className={cn("text-[9px] font-medium truncate w-full text-center", isSelected ? 'text-emerald-400' : 'text-slate-400')}>{bank.shortName || bank.code}</span>
+                            <span className={cn("text-[10px] font-medium truncate w-full text-center", isSelected ? 'text-emerald-400' : 'text-slate-400')}>{bank.shortName || bank.code}</span>
                           </button>
                         );
                       })}
@@ -1271,9 +1271,9 @@ export default function AdminTemplatesPage() {
                         return (
                           <button key={bank._id} type="button" onClick={() => updatePreviewSettingsField('receiverBankCode', bank.code || '')} className={cn("flex flex-col items-center p-2 rounded-lg border-2 transition-all", isSelected ? "border-blue-500 bg-blue-500/20" : "border-transparent bg-white/5 hover:bg-white/10")}>
                             <div className="w-8 h-8 rounded-lg bg-white flex items-center justify-center mb-1 overflow-hidden">
-                              {logo ? <img src={logo} alt={bank.shortName} className="w-6 h-6 object-contain" /> : <span className="text-xs font-bold text-slate-400">{(bank.shortName || bank.code)?.substring(0, 2)}</span>}
+                              {logo ? <img src={logo} alt={bank.shortName} className="w-6 h-6 object-contain" /> : <span className="text-xs font-bold text-slate-300">{(bank.shortName || bank.code)?.substring(0, 2)}</span>}
                             </div>
-                            <span className={cn("text-[9px] font-medium truncate w-full text-center", isSelected ? 'text-blue-400' : 'text-slate-400')}>{bank.shortName || bank.code}</span>
+                            <span className={cn("text-[10px] font-medium truncate w-full text-center", isSelected ? 'text-blue-400' : 'text-slate-400')}>{bank.shortName || bank.code}</span>
                           </button>
                         );
                       })}
@@ -1331,7 +1331,7 @@ export default function AdminTemplatesPage() {
                   { id: 'display', label: 'เลเยอร์', shortLabel: 'เลเยอร์', icon: '👁️' },
                   { id: 'banks', label: 'ข้อมูลธนาคาร', shortLabel: 'ธนาคาร', icon: '🏦' },
                 ].map((tab) => (
-                  <button key={tab.id} onClick={() => setSlipActiveTab(tab.id as 'basic' | 'display' | 'banks')} className={cn("flex-1 py-2 sm:py-2.5 px-3 sm:px-4 rounded-lg text-[11px] sm:text-xs font-medium transition-all whitespace-nowrap min-w-[90px] sm:min-w-0", slipActiveTab === tab.id ? "bg-white shadow-sm text-emerald-600" : "text-slate-500 hover:text-slate-700")}>
+                  <button key={tab.id} onClick={() => setSlipActiveTab(tab.id as 'basic' | 'display' | 'banks')} className={cn("flex-1 py-2 sm:py-2.5 px-3 sm:px-4 rounded-lg text-xs sm:text-sm font-medium transition-all whitespace-nowrap min-w-[90px] sm:min-w-0", slipActiveTab === tab.id ? "bg-white shadow-sm text-emerald-600" : "text-slate-400 hover:text-slate-700")}>
                     <span className="mr-1 sm:mr-1.5">{tab.icon}</span>
                     <span className="hidden sm:inline">{tab.label}</span>
                     <span className="sm:hidden">{tab.shortLabel}</span>
@@ -1355,7 +1355,7 @@ export default function AdminTemplatesPage() {
                       <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-md sm:rounded-lg shadow-inner flex-shrink-0" style={{ backgroundColor: slipFormData.primaryColor }} />
                       <div className="min-w-0">
                         <p className="text-xs sm:text-sm font-medium text-slate-700">สีธีมหลัก</p>
-                        <p className="text-[10px] sm:text-xs text-slate-400 truncate">{slipFormData.primaryColor}</p>
+                        <p className="text-[10px] sm:text-xs text-slate-300 truncate">{slipFormData.primaryColor}</p>
                       </div>
                     </div>
                     <input type="color" value={slipFormData.primaryColor} onChange={(e) => updateSlipField('primaryColor', e.target.value)} className="w-9 h-9 sm:w-10 sm:h-10 rounded-lg border-2 border-white shadow cursor-pointer flex-shrink-0" />
@@ -1369,7 +1369,7 @@ export default function AdminTemplatesPage() {
                     <div className="flex items-center gap-2 mb-3">
                       <span className="text-base">🏷️</span>
                       <p className="text-xs sm:text-sm font-semibold text-slate-700">โลโก้แบรนด์</p>
-                      <span className="text-[10px] px-2 py-0.5 bg-slate-200 text-slate-500 rounded-full">ไม่บังคับ</span>
+                      <span className="text-xs px-2 py-0.5 bg-slate-200 text-slate-700 font-medium rounded-full">ไม่บังคับ</span>
                     </div>
                     <Toggle
                       label="แสดงโลโก้แบรนด์ในสลิป"
@@ -1395,7 +1395,7 @@ export default function AdminTemplatesPage() {
                           />
                         </div>
                         <div>
-                          <label className="block text-xs font-medium text-slate-600 mb-2">โลโก้แบรนด์ (URL)</label>
+                          <label className="block text-xs font-medium text-slate-700 mb-2">โลโก้แบรนด์ (URL)</label>
                           <div className="space-y-3">
                             <div className="flex items-start gap-3">
                               {slipFormData.footerBrandingLogo ? (
@@ -1433,7 +1433,7 @@ export default function AdminTemplatesPage() {
                               </div>
                             </div>
                             <div className="p-2.5 bg-amber-50 rounded-lg border border-amber-200">
-                              <p className="text-[10px] text-amber-700 leading-relaxed">
+                              <p className="text-xs text-amber-700 leading-relaxed">
                                 <strong>หมายเหตุ:</strong> LINE รองรับเฉพาะ URL ที่ขึ้นต้นด้วย <code className="bg-amber-100 px-1 rounded">https://</code><br/>
                                 แนะนำใช้ Imgur, Cloudinary หรือ CDN สำหรับอัปโหลดภาพ
                               </p>
@@ -1504,7 +1504,7 @@ export default function AdminTemplatesPage() {
                     <div className="grid grid-cols-4 xs:grid-cols-5 sm:grid-cols-6 md:grid-cols-8 gap-1.5 sm:gap-2 p-2 sm:p-3 bg-white rounded-lg sm:rounded-xl border border-slate-200">
                       <button type="button" onClick={() => updateSlipField('senderBankId', '')} className={cn("flex flex-col items-center p-1.5 sm:p-2 rounded-lg border-2 transition-all", !slipFormData.senderBankId ? "border-emerald-500 bg-emerald-50" : "border-transparent bg-slate-50 hover:bg-white")}>
                         <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg bg-white shadow-sm flex items-center justify-center mb-1"><span className="text-sm sm:text-base">🔄</span></div>
-                        <span className="text-[8px] sm:text-[10px] font-medium text-slate-500">อัตโนมัติ</span>
+                        <span className="text-[10px] sm:text-xs font-medium text-slate-400">อัตโนมัติ</span>
                       </button>
                       {activeBanks.slice(0, 11).map((bank) => <BankButton key={bank._id} bank={bank} isSelected={slipFormData.senderBankId === bank._id} onClick={() => updateSlipField('senderBankId', bank._id)} />)}
                     </div>
@@ -1514,13 +1514,13 @@ export default function AdminTemplatesPage() {
                     <div className="grid grid-cols-4 xs:grid-cols-5 sm:grid-cols-6 md:grid-cols-8 gap-1.5 sm:gap-2 p-2 sm:p-3 bg-white rounded-lg sm:rounded-xl border border-slate-200">
                       <button type="button" onClick={() => updateSlipField('receiverBankId', '')} className={cn("flex flex-col items-center p-1.5 sm:p-2 rounded-lg border-2 transition-all", !slipFormData.receiverBankId ? "border-blue-500 bg-blue-50" : "border-transparent bg-slate-50 hover:bg-white")}>
                         <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg bg-white shadow-sm flex items-center justify-center mb-1"><span className="text-sm sm:text-base">🔄</span></div>
-                        <span className="text-[8px] sm:text-[10px] font-medium text-slate-500">อัตโนมัติ</span>
+                        <span className="text-[10px] sm:text-xs font-medium text-slate-400">อัตโนมัติ</span>
                       </button>
                       {activeBanks.slice(0, 11).map((bank) => <BankButton key={bank._id} bank={bank} isSelected={slipFormData.receiverBankId === bank._id} onClick={() => updateSlipField('receiverBankId', bank._id)} />)}
                     </div>
                   </div>
                   <div className="p-3 sm:p-4 bg-blue-50 rounded-lg sm:rounded-xl border border-blue-100">
-                    <p className="text-[10px] sm:text-xs text-blue-700 leading-relaxed">💡 <strong>คำแนะนำ:</strong> เลือกธนาคารเพื่อดูตัวอย่าง เมื่อใช้งานจริงระบบจะดึงข้อมูลจากสลิปอัตโนมัติ</p>
+                    <p className="text-xs sm:text-sm text-blue-700 leading-relaxed">💡 <strong>คำแนะนำ:</strong> เลือกธนาคารเพื่อดูตัวอย่าง เมื่อใช้งานจริงระบบจะดึงข้อมูลจากสลิปอัตโนมัติ</p>
                   </div>
                 </div>
               )}
@@ -1532,7 +1532,7 @@ export default function AdminTemplatesPage() {
               <div className="flex justify-center"><div className="transform scale-90 sm:scale-100 origin-top"><SlipPreview config={slipFormData} senderBank={senderBank} receiverBank={receiverBank} compact={false} /></div></div>
               <div className="hidden xl:flex flex-col gap-2 mt-5 sm:mt-6 pt-4 sm:pt-5 border-t border-slate-100">
                 <Button variant="primary" fullWidth onClick={handleSlipSubmit} isLoading={isProcessing} className="h-11 sm:h-12">{selectedSlipTemplate ? '💾 บันทึกการแก้ไข' : '🚀 สร้างเทมเพลต'}</Button>
-                <Button variant="ghost" fullWidth onClick={() => setShowSlipModal(false)} disabled={isProcessing} className="text-slate-500">ยกเลิก</Button>
+                <Button variant="ghost" fullWidth onClick={() => setShowSlipModal(false)} disabled={isProcessing} className="text-slate-300">ยกเลิก</Button>
               </div>
             </div>
           </div>
@@ -1571,12 +1571,12 @@ export default function AdminTemplatesPage() {
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
                     <div className="w-10 h-10 rounded-lg shadow-inner flex-shrink-0" style={{ backgroundColor: systemFormData.primaryColor }} />
-                    <div><p className="text-sm font-medium text-slate-700">สีหลัก</p><p className="text-xs text-slate-400">{systemFormData.primaryColor}</p></div>
+                    <div><p className="text-sm font-medium text-slate-700">สีหลัก</p><p className="text-xs text-slate-300">{systemFormData.primaryColor}</p></div>
                   </div>
                   <input type="color" value={systemFormData.primaryColor} onChange={(e) => updateSystemField('primaryColor', e.target.value)} className="w-10 h-10 rounded-lg border-2 border-white shadow cursor-pointer" />
                 </div>
                 <div>
-                  <label className="block text-xs text-slate-500 mb-2">ไอคอน</label>
+                  <label className="block text-xs text-slate-400 mb-2 font-medium">ไอคอน</label>
                   <div className="flex flex-wrap gap-2">
                     {ICON_OPTIONS.map((icon) => (
                       <button key={icon} type="button" onClick={() => updateSystemField('icon', icon)} className={cn("w-10 h-10 rounded-lg text-lg flex items-center justify-center transition-all", systemFormData.icon === icon ? "bg-emerald-100 border-2 border-emerald-500" : "bg-slate-100 border-2 border-transparent hover:border-slate-300")}>{icon}</button>
@@ -1605,7 +1605,7 @@ export default function AdminTemplatesPage() {
               <div className="flex justify-center"><div className="transform scale-90 sm:scale-100 origin-top"><SystemResponsePreview config={systemFormData} template={selectedSystemTemplate} /></div></div>
               <div className="hidden xl:flex flex-col gap-2 mt-5 sm:mt-6 pt-4 sm:pt-5 border-t border-slate-100">
                 <Button variant="primary" fullWidth onClick={handleSystemSubmit} isLoading={isProcessing} className="h-11 sm:h-12">💾 บันทึกการแก้ไข</Button>
-                <Button variant="ghost" fullWidth onClick={() => setShowSystemModal(false)} disabled={isProcessing} className="text-slate-500">ยกเลิก</Button>
+                <Button variant="ghost" fullWidth onClick={() => setShowSystemModal(false)} disabled={isProcessing} className="text-slate-300">ยกเลิก</Button>
               </div>
             </div>
           </div>

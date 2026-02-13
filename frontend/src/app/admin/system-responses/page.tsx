@@ -272,7 +272,7 @@ export default function SystemResponsesPage() {
             </div>
             <div>
               <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-slate-800">ข้อความตอบกลับระบบ</h1>
-              <p className="text-xs sm:text-sm text-slate-500 mt-0.5">จัดการข้อความตอบกลับอัตโนมัติของระบบ</p>
+              <p className="text-xs sm:text-sm text-slate-400 mt-0.5">จัดการข้อความตอบกลับอัตโนมัติของระบบ</p>
             </div>
           </div>
           <Button
@@ -338,14 +338,14 @@ export default function SystemResponsesPage() {
           {isLoading ? (
             <div className="p-12 text-center">
               <Loader2 className="w-10 h-10 animate-spin mx-auto text-purple-500" />
-              <p className="mt-3 text-slate-500">กำลังโหลดเทมเพลต...</p>
+              <p className="mt-3 text-sm text-slate-300">กำลังโหลดเทมเพลต...</p>
             </div>
           ) : templates.length === 0 ? (
             <div className="p-12 text-center">
               <div className="w-20 h-20 mx-auto rounded-full bg-slate-100 flex items-center justify-center mb-4">
                 <MessageSquare className="w-10 h-10 text-slate-300" />
               </div>
-              <p className="text-slate-500 text-lg font-medium">ยังไม่มีเทมเพลต</p>
+              <p className="text-slate-300 text-lg font-medium">ยังไม่มีเทมเพลต</p>
             </div>
           ) : (
             <div className="divide-y divide-slate-100">
@@ -374,20 +374,20 @@ export default function SystemResponsesPage() {
                         <div className="flex-1 min-w-0 w-full">
                           <div className="flex items-center gap-2 mb-2 flex-wrap">
                             <h3 className="font-semibold text-slate-800 text-sm sm:text-base">{template.name}</h3>
-                            <Badge variant="outline" className="text-[9px] sm:text-[10px]">
+                            <Badge variant="outline" className="text-[10px] sm:text-xs">
                               {template.type}
                             </Badge>
                             {template.isActive ? (
-                              <Badge variant="success" className="text-[9px] sm:text-xs">เปิดใช้งาน</Badge>
+                              <Badge variant="success" className="text-[10px] sm:text-xs">เปิดใช้งาน</Badge>
                             ) : (
-                              <Badge variant="secondary" className="text-[9px] sm:text-xs">ปิดใช้งาน</Badge>
+                              <Badge variant="secondary" className="text-[10px] sm:text-xs">ปิดใช้งาน</Badge>
                             )}
-                            <Badge variant={template.responseFormat === 'flex' ? 'info' : 'warning'} className="text-[9px] sm:text-[10px]">
+                            <Badge variant={template.responseFormat === 'flex' ? 'info' : 'warning'} className="text-[10px] sm:text-xs">
                               {template.responseFormat === 'flex' ? 'FLEX' : 'TEXT'}
                             </Badge>
                           </div>
-                          <p className="text-xs sm:text-sm text-slate-500 mb-2 line-clamp-2">{template.description}</p>
-                          <p className="text-xs sm:text-sm text-slate-600 line-clamp-2 break-words">
+                          <p className="text-xs sm:text-sm text-slate-400 mb-2 line-clamp-2">{template.description}</p>
+                          <p className="text-xs sm:text-sm text-slate-300 line-clamp-2 break-words">
                             {template.mainMessage || template.textMessage || 'ไม่มีข้อความ'}
                           </p>
                         </div>

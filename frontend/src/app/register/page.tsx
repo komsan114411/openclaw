@@ -177,7 +177,7 @@ export default function RegisterPage() {
             {siteBranding.siteName && (
               <p className="text-emerald-400 mt-1.5 sm:mt-2 font-bold text-xs sm:text-sm">{siteBranding.siteName}</p>
             )}
-            <p className="text-slate-400 mt-1.5 sm:mt-2 font-bold text-xs sm:text-sm tracking-wide">สร้างบัญชีเพื่อเริ่มใช้งานระบบอัตโนมัติ</p>
+            <p className="text-slate-300 mt-1.5 sm:mt-2 font-bold text-xs sm:text-sm tracking-wide">สร้างบัญชีเพื่อเริ่มใช้งานระบบอัตโนมัติ</p>
           </div>
 
           {/* Registration Disabled by Admin */}
@@ -229,8 +229,8 @@ export default function RegisterPage() {
                 autoComplete="username"
                 required
                 disabled={registrationDisabled || isLoading || isSubmitting}
-                className="bg-white/5 border-white/10 text-white placeholder:text-white/20 focus:border-emerald-500 focus:ring-emerald-500/20 h-12 rounded-2xl disabled:opacity-50"
-                labelClassName="text-slate-300 font-bold uppercase tracking-wider text-[10px]"
+                className="bg-white/5 border-white/10 text-white placeholder:text-slate-400 focus:border-emerald-500 focus:ring-emerald-500/20 h-12 rounded-2xl disabled:opacity-50"
+                labelClassName="text-slate-300 font-bold uppercase tracking-wider text-xs"
               />
             </div>
 
@@ -247,8 +247,8 @@ export default function RegisterPage() {
                 autoComplete="new-password"
                 required
                 disabled={registrationDisabled || isLoading || isSubmitting}
-                className="bg-white/5 border-white/10 text-white placeholder:text-white/20 focus:border-emerald-500 focus:ring-emerald-500/20 h-12 rounded-2xl disabled:opacity-50"
-                labelClassName="text-slate-300 font-bold uppercase tracking-wider text-[10px]"
+                className="bg-white/5 border-white/10 text-white placeholder:text-slate-400 focus:border-emerald-500 focus:ring-emerald-500/20 h-12 rounded-2xl disabled:opacity-50"
+                labelClassName="text-slate-300 font-bold uppercase tracking-wider text-xs"
               />
             </div>
 
@@ -260,8 +260,8 @@ export default function RegisterPage() {
                 {...register('email')}
                 autoComplete="email"
                 disabled={registrationDisabled || isLoading || isSubmitting}
-                className="bg-white/5 border-white/10 text-white placeholder:text-white/20 focus:border-emerald-500 focus:ring-emerald-500/20 h-12 rounded-2xl disabled:opacity-50"
-                labelClassName="text-slate-300 font-bold uppercase tracking-wider text-[10px]"
+                className="bg-white/5 border-white/10 text-white placeholder:text-slate-400 focus:border-emerald-500 focus:ring-emerald-500/20 h-12 rounded-2xl disabled:opacity-50"
+                labelClassName="text-slate-300 font-bold uppercase tracking-wider text-xs"
               />
             </div>
 
@@ -273,8 +273,8 @@ export default function RegisterPage() {
                 {...register('fullName')}
                 autoComplete="name"
                 disabled={registrationDisabled || isLoading || isSubmitting}
-                className="bg-white/5 border-white/10 text-white placeholder:text-white/20 focus:border-emerald-500 focus:ring-emerald-500/20 h-12 rounded-2xl disabled:opacity-50"
-                labelClassName="text-slate-300 font-bold uppercase tracking-wider text-[10px]"
+                className="bg-white/5 border-white/10 text-white placeholder:text-slate-400 focus:border-emerald-500 focus:ring-emerald-500/20 h-12 rounded-2xl disabled:opacity-50"
+                labelClassName="text-slate-300 font-bold uppercase tracking-wider text-xs"
               />
             </div>
 
@@ -298,7 +298,7 @@ export default function RegisterPage() {
           </form>
 
           <div className="mt-6 sm:mt-10 pt-5 sm:pt-8 border-t border-white/5 text-center">
-            <p className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-3">มีบัญชีอยู่แล้ว?</p>
+            <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-3">มีบัญชีอยู่แล้ว?</p>
             <Link href="/login">
               <Button variant="ghost" fullWidth className="h-11 sm:h-12 rounded-2xl text-white hover:bg-white/5 font-bold border border-white/10 text-sm">
                 เข้าสู่ระบบ

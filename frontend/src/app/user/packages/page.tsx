@@ -267,7 +267,7 @@ export default function UserPackagesPage() {
             {/* Balance Card */}
             <div className="flex items-center gap-3">
               <div className="bg-gradient-to-r from-emerald-500/10 to-teal-500/10 border border-emerald-500/20 rounded-2xl px-5 py-3 backdrop-blur-sm">
-                <p className="text-[10px] text-slate-400 uppercase tracking-wider font-medium">เครดิตคงเหลือ</p>
+                <p className="text-xs text-slate-400 uppercase tracking-wider font-medium">เครดิตคงเหลือ</p>
                 <p className="text-2xl font-black text-emerald-400">฿{balance.toLocaleString()}</p>
               </div>
               <Link href="/user/wallet">
@@ -318,7 +318,7 @@ export default function UserPackagesPage() {
                         <div className="flex items-center gap-2 flex-wrap mb-1">
                           <h2 className="text-xl font-black text-white truncate">{pkg.name}</h2>
                           {isRecommended && (
-                            <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-[#06C755] text-white text-[10px] font-bold rounded-full shadow-lg shadow-[#06C755]/30">
+                            <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-[#06C755] text-white text-xs font-bold rounded-full shadow-lg shadow-[#06C755]/30">
                               <Sparkles className="w-3 h-3" />
                               แนะนำ
                             </span>
@@ -330,7 +330,7 @@ export default function UserPackagesPage() {
                             {pkg.durationDays} วัน
                           </span>
                           {pkg.maxPurchasesPerUser && pkg.maxPurchasesPerUser > 0 && (
-                            <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-amber-500/10 text-amber-400 text-[10px] font-semibold rounded-full border border-amber-500/20">
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-amber-500/10 text-amber-400 text-xs font-semibold rounded-full border border-amber-500/20">
                               <Zap className="w-3 h-3" />
                               จำกัด {pkg.maxPurchasesPerUser} ครั้ง
                             </span>
@@ -346,7 +346,7 @@ export default function UserPackagesPage() {
                       <span className="text-3xl sm:text-4xl font-black text-white">฿{pkg.price.toLocaleString()}</span>
                     </div>
                     {pkg.slipQuota > 0 && (
-                      <p className="text-xs text-slate-500">
+                      <p className="text-xs text-slate-400">
                         เฉลี่ย <span className="text-[#06C755] font-bold">฿{(pkg.price / pkg.slipQuota).toFixed(2)}</span> ต่อสลิป
                       </p>
                     )}
@@ -363,7 +363,7 @@ export default function UserPackagesPage() {
                           </div>
                           <div>
                             <p className="text-xl font-black text-white leading-none">{pkg.slipQuota.toLocaleString()}</p>
-                            <p className="text-[10px] text-slate-400 mt-0.5">สลิป</p>
+                            <p className="text-xs text-slate-400 mt-0.5">สลิป</p>
                           </div>
                         </div>
                       </div>
@@ -375,7 +375,7 @@ export default function UserPackagesPage() {
                           </div>
                           <div>
                             <p className="text-xl font-black text-violet-300 leading-none">{(pkg.aiQuota || 0).toLocaleString()}</p>
-                            <p className="text-[10px] text-slate-400 mt-0.5">AI ตอบกลับ</p>
+                            <p className="text-xs text-slate-400 mt-0.5">AI ตอบกลับ</p>
                           </div>
                         </div>
                       </div>
@@ -449,7 +449,7 @@ export default function UserPackagesPage() {
               <Gem className="w-10 h-10 text-slate-600" />
             </div>
             <p className="text-slate-400 text-lg font-medium">ไม่พบแพ็คเกจ</p>
-            <p className="text-slate-500 text-sm mt-1">กรุณาติดต่อผู้ดูแลระบบ</p>
+            <p className="text-slate-400 text-sm mt-1">กรุณาติดต่อผู้ดูแลระบบ</p>
           </div>
         )}
       </div>
@@ -572,7 +572,7 @@ export default function UserPackagesPage() {
                       <div className="flex items-center gap-2 mb-1">
                         <p className="text-lg font-bold text-white">{selectedPackage.name}</p>
                         {selectedPackage.isRecommended && (
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-[#06C755] text-white text-[9px] font-bold rounded-full">
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-[#06C755] text-white text-xs font-bold rounded-full">
                             <Sparkles className="w-2.5 h-2.5" />
                             แนะนำ
                           </span>
@@ -593,7 +593,7 @@ export default function UserPackagesPage() {
                     <div className="text-right">
                       <p className="text-2xl font-black text-[#06C755]">฿{selectedPackage.price.toLocaleString()}</p>
                       {selectedPackage.slipQuota > 0 && (
-                        <p className="text-[10px] text-slate-400 mt-1">
+                        <p className="text-xs text-slate-400 mt-1">
                           เฉลี่ย <span className="text-emerald-400 font-bold">฿{(selectedPackage.price / selectedPackage.slipQuota).toFixed(2)}</span> / สลิป
                         </p>
                       )}

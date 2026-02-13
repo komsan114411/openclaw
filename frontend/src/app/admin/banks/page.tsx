@@ -47,7 +47,7 @@ function BankLogo({ bank }: { bank: Bank }) {
         />
       ) : (
         <div className="w-full h-full flex items-center justify-center bg-white/[0.02]">
-          <span className="text-slate-500 font-black text-2xl md:text-3xl tracking-tighter uppercase">{initials || '🏦'}</span>
+          <span className="text-slate-400 font-black text-2xl md:text-3xl tracking-tighter uppercase">{initials || '🏦'}</span>
         </div>
       )}
       <div className="absolute inset-0 bg-gradient-to-tr from-emerald-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
@@ -169,11 +169,11 @@ export default function BanksManagementPage() {
       <div className="section-gap animate-fade pb-10">
         <div className="page-header relative z-10 flex-col md:flex-row items-start md:items-center">
           <div className="space-y-1 sm:space-y-2">
-            <p className="text-slate-500 font-medium text-xs sm:text-sm">จัดการระบบ</p>
+            <p className="text-slate-400 font-medium text-xs sm:text-sm">จัดการระบบ</p>
             <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-white tracking-tight">
               จัดการ<span className="text-[#06C755]">ธนาคาร</span>
             </h1>
-            <p className="text-slate-500 text-xs sm:text-sm">
+            <p className="text-slate-400 text-xs sm:text-sm">
               เพิ่มและจัดการรายชื่อธนาคารในระบบ
             </p>
           </div>
@@ -228,7 +228,7 @@ export default function BanksManagementPage() {
           <Card className="p-6 border border-white/5 shadow-2xl bg-black/40 backdrop-blur-3xl rounded-[2.5rem] sticky top-8 z-20">
             <div className="flex flex-col lg:flex-row items-center gap-6">
               <div className="relative flex-1 w-full group">
-                <div className="absolute inset-y-0 left-0 pl-8 flex items-center pointer-events-none text-slate-500 group-focus-within:text-emerald-400 transition-colors">
+                <div className="absolute inset-y-0 left-0 pl-8 flex items-center pointer-events-none text-slate-400 group-focus-within:text-emerald-400 transition-colors">
                   <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                   </svg>
@@ -238,7 +238,7 @@ export default function BanksManagementPage() {
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   containerClassName="!mb-0"
-                  className="pl-16 h-16 bg-white/[0.02] border-white/5 shadow-inner focus:bg-white/[0.05] rounded-2xl font-semibold text-sm text-white placeholder:text-slate-500"
+                  className="pl-16 h-16 bg-white/[0.02] border-white/5 shadow-inner focus:bg-white/[0.05] rounded-2xl font-semibold text-sm text-white placeholder:text-slate-400"
                 />
               </div>
               <div className="flex items-center gap-4 w-full lg:w-auto">
@@ -293,11 +293,11 @@ export default function BanksManagementPage() {
                     <h3 className="text-[13px] font-black text-white uppercase tracking-tighter truncate group-hover:text-emerald-400 transition-colors">
                       {bank.shortName || bank.code}
                     </h3>
-                    <p className="text-[10px] font-black text-slate-500 truncate uppercase tracking-widest opacity-60">
+                    <p className="text-xs font-black text-slate-400 truncate uppercase tracking-widest">
                       {bank.nameEn || bank.name}
                     </p>
                     <div className="pt-3">
-                      <span className="text-[9px] font-mono font-black text-indigo-400 bg-indigo-500/10 px-3 py-1 rounded-lg tracking-widest border border-indigo-500/20">
+                      <span className="text-[10px] font-mono font-black text-indigo-400 bg-indigo-500/10 px-3 py-1 rounded-lg tracking-widest border border-indigo-500/20">
                         {bank.code}
                       </span>
                     </div>
@@ -310,7 +310,7 @@ export default function BanksManagementPage() {
                         size="xs"
                         fullWidth
                         onClick={() => setEditingBank(bank)}
-                        className="h-10 rounded-xl font-semibold text-xs text-slate-400 hover:text-white hover:bg-white/5 border border-white/5 transition-all"
+                        className="h-10 rounded-xl font-semibold text-xs text-slate-300 hover:text-white hover:bg-white/5 border border-white/5 transition-all"
                       >
                         แก้ไข
                       </Button>
@@ -332,7 +332,7 @@ export default function BanksManagementPage() {
                       variant="ghost"
                       size="xs"
                       fullWidth
-                      className="h-10 rounded-xl font-semibold text-xs text-slate-500 hover:text-indigo-400 hover:bg-indigo-500/5 group/preview border border-transparent hover:border-indigo-500/20"
+                      className="h-10 rounded-xl font-semibold text-xs text-slate-300 hover:text-indigo-400 hover:bg-indigo-500/5 group/preview border border-transparent hover:border-indigo-500/20"
                       onClick={() => router.push(`/admin/templates?bankId=${bank._id}`)}
                     >
                       <span>จำลองสลิป</span>
@@ -497,7 +497,7 @@ function BankModal({ bank, onClose, onSave }: BankModalProps) {
 
         {/* Logo Upload Zone */}
         <div className="flex flex-col items-center">
-          <p className="text-[10px] font-semibold text-slate-400 mb-4">โลโก้ธนาคาร</p>
+          <p className="text-xs font-semibold text-slate-300 mb-4">โลโก้ธนาคาร</p>
           <div
             className={cn(
               "relative group cursor-pointer rounded-[2.5rem] border-4 border-dashed transition-all duration-500 overflow-hidden w-40 h-40 flex flex-col items-center justify-center",
@@ -521,7 +521,7 @@ function BankModal({ bank, onClose, onSave }: BankModalProps) {
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
                   </svg>
                 </div>
-                <p className="text-[10px] font-semibold text-slate-400">อัปโหลดโลโก้</p>
+                <p className="text-sm font-semibold text-slate-700">อัปโหลดโลโก้</p>
               </div>
             )}
             <input ref={fileInputRef} type="file" accept="image/*" onChange={handleFileChange} className="hidden" disabled={saving} />

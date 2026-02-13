@@ -288,11 +288,11 @@ export default function WalletPage() {
                 </h2>
                 <div className="flex gap-4 sm:gap-6 mt-3">
                   <div>
-                    <p className="text-[10px] text-slate-500">เติมสะสม</p>
+                    <p className="text-xs text-slate-400">เติมสะสม</p>
                     <p className="text-sm font-bold text-emerald-400">฿{balance?.totalDeposited?.toLocaleString() || 0}</p>
                   </div>
                   <div>
-                    <p className="text-[10px] text-slate-500">ใช้ไป</p>
+                    <p className="text-xs text-slate-400">ใช้ไป</p>
                     <p className="text-sm font-bold text-rose-400">฿{balance?.totalSpent?.toLocaleString() || 0}</p>
                   </div>
                 </div>
@@ -379,7 +379,7 @@ export default function WalletPage() {
                           )}
                           <div className="flex-1 min-w-0">
                             <p className="text-xs sm:text-sm text-slate-400 truncate">{account.bankName}</p>
-                            <p className="text-[10px] sm:text-xs text-slate-500 truncate">{account.accountName}</p>
+                            <p className="text-xs sm:text-xs text-slate-500 truncate">{account.accountName}</p>
                           </div>
                         </div>
                         <div className="mt-3 flex items-center gap-2">
@@ -445,7 +445,7 @@ export default function WalletPage() {
                     <div className="text-center">
                       <Camera className="w-8 h-8 text-emerald-400 mx-auto mb-2" />
                       <p className="text-emerald-400 font-bold text-sm">คลิกเพื่ออัปโหลดสลิป</p>
-                      <p className="text-[10px] text-slate-400 mt-1">JPG, PNG (สูงสุด 5MB)</p>
+                      <p className="text-xs text-slate-300 mt-1">JPG, PNG (สูงสุด 5MB)</p>
                     </div>
                   )}
                 </label>
@@ -466,8 +466,8 @@ export default function WalletPage() {
 
                 {/* Steps */}
                 <div className="mt-4 p-3 bg-white/[0.02] rounded-xl border border-white/5">
-                  <p className="text-[10px] text-slate-500 mb-2">ขั้นตอน:</p>
-                  <div className="flex items-center gap-2 text-[10px] text-slate-400">
+                  <p className="text-xs text-slate-400 mb-2">ขั้นตอน:</p>
+                  <div className="flex items-center gap-2 text-xs text-slate-300">
                     <span className="text-emerald-400">1.</span> โอนเงิน →
                     <span className="text-emerald-400">2.</span> อัปโหลดสลิป →
                     <span className="text-emerald-400">3.</span> รับเครดิต
@@ -492,7 +492,7 @@ export default function WalletPage() {
                   </div>
                 ) : (
                   <>
-                    <Badge variant="warning" className="mb-3 text-[10px]">NETWORK: {usdtSettings?.network || 'TRC20'}</Badge>
+                    <Badge variant="warning" className="mb-3 text-xs">NETWORK: {usdtSettings?.network || 'TRC20'}</Badge>
                     <h3 className="text-base sm:text-lg font-bold text-white">USDT Wallet Address</h3>
                     <p className="text-slate-400 text-xs mt-1">สแกน QR Code หรือคัดลอกที่อยู่</p>
 
@@ -507,7 +507,7 @@ export default function WalletPage() {
                     )}
 
                     <div className="w-full mt-4 relative">
-                      <div className="bg-[#0A0F0D] border border-white/10 rounded-xl p-3 pr-10 break-all text-[10px] sm:text-xs font-mono text-emerald-400">
+                      <div className="bg-[#0A0F0D] border border-white/10 rounded-xl p-3 pr-10 break-all text-xs sm:text-xs font-mono text-emerald-400">
                         {usdtSettings?.address || 'Loading...'}
                       </div>
                       <button
@@ -517,7 +517,7 @@ export default function WalletPage() {
                         {copiedAccount === usdtSettings?.address ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4 text-slate-400" />}
                       </button>
                     </div>
-                    <p className="text-[10px] text-slate-500 mt-2">*ตรวจสอบ Network ให้ถูกต้อง ({usdtSettings?.network})</p>
+                    <p className="text-xs text-slate-400 mt-2">*ตรวจสอบ Network ให้ถูกต้อง ({usdtSettings?.network})</p>
                   </>
                 )}
               </div>
@@ -535,11 +535,11 @@ export default function WalletPage() {
                   {/* Rate Display */}
                   <div className="bg-gradient-to-r from-emerald-500/10 to-cyan-500/10 border border-emerald-500/20 rounded-xl p-3">
                     <div className="flex items-center justify-between">
-                      <span className="text-[10px] text-slate-400">อัตราแลกเปลี่ยน</span>
+                      <span className="text-xs text-slate-300">อัตราแลกเปลี่ยน</span>
                       <button
                         onClick={fetchUsdtRate}
                         disabled={rateLoading}
-                        className="text-[10px] text-emerald-400 hover:text-emerald-300"
+                        className="text-xs text-emerald-400 hover:text-emerald-300"
                       >
                         {rateLoading ? '🔄' : '↻'} รีเฟรช
                       </button>
@@ -568,7 +568,7 @@ export default function WalletPage() {
                       <div className="flex items-center gap-2 p-2 bg-emerald-500/10 border border-emerald-500/20 rounded-lg">
                         <Wallet className="w-4 h-4 text-emerald-400" />
                         <div>
-                          <p className="text-[10px] text-slate-400">เครดิตที่จะได้รับ</p>
+                          <p className="text-xs text-slate-300">เครดิตที่จะได้รับ</p>
                           <p className="text-base font-bold text-emerald-400">{thbCredits.toLocaleString()} บาท</p>
                         </div>
                       </div>
@@ -637,7 +637,7 @@ export default function WalletPage() {
                         <p className="font-semibold text-white text-sm truncate">{getTypeLabel(tx.type)}</p>
                         {getStatusBadge(tx.status)}
                       </div>
-                      <p className="text-[10px] text-slate-500">{formatDate(tx.createdAt)}</p>
+                      <p className="text-xs text-slate-400">{formatDate(tx.createdAt)}</p>
                     </div>
                     <div className="text-right flex-shrink-0">
                       <p className={cn(

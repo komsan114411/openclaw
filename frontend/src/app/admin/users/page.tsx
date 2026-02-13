@@ -237,17 +237,17 @@ export default function UsersPage() {
 
         <div className="page-header relative z-10 flex flex-col lg:flex-row items-start lg:items-center gap-4">
           <div className="space-y-1 sm:space-y-2 text-left">
-            <p className="text-slate-500 font-medium text-xs sm:text-sm">จัดการระบบ</p>
+            <p className="text-slate-400 font-medium text-xs sm:text-sm">จัดการระบบ</p>
             <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-white tracking-tight">
               จัดการ<span className="text-[#06C755]">ผู้ใช้งาน</span>
             </h1>
-            <p className="text-slate-500 text-xs sm:text-sm">
+            <p className="text-slate-400 text-xs sm:text-sm">
               ศูนย์ควบคุมบัญชีผู้ใช้ทั้งหมดในระบบ
             </p>
           </div>
           <Button
             variant="primary"
-            className="w-full sm:w-auto h-11 sm:h-12 px-5 sm:px-6 rounded-full font-semibold text-xs shadow-lg shadow-[#06C755]/20 mt-4 lg:mt-0"
+            className="w-full sm:w-auto h-11 sm:h-12 px-5 sm:px-6 rounded-full font-semibold text-sm shadow-lg shadow-[#06C755]/20 mt-4 lg:mt-0"
             onClick={() => setShowCreateModal(true)}
           >
             + สร้างผู้ใช้ใหม่
@@ -394,11 +394,11 @@ export default function UsersPage() {
               <table className="w-full text-left border-collapse">
                 <thead>
                   <tr className="border-b border-white/5 bg-white/[0.02]">
-                    <th className="px-4 lg:px-6 xl:px-8 py-4 lg:py-5 text-[10px] font-semibold text-slate-400">ผู้ใช้งาน</th>
-                    <th className="px-4 lg:px-6 xl:px-8 py-4 lg:py-5 text-[10px] font-semibold text-slate-400">อีเมล</th>
-                    <th className="px-4 lg:px-6 xl:px-8 py-4 lg:py-5 text-[10px] font-semibold text-slate-400">ระดับสิทธิ์</th>
-                    <th className="px-4 lg:px-6 xl:px-8 py-4 lg:py-5 text-[10px] font-semibold text-slate-400">สถานะ</th>
-                    <th className="px-4 lg:px-6 xl:px-8 py-4 lg:py-5 text-[10px] font-semibold text-slate-400 text-right">การจัดการ</th>
+                    <th className="px-4 lg:px-6 xl:px-8 py-4 lg:py-5 text-xs font-semibold text-slate-300 uppercase">ผู้ใช้งาน</th>
+                    <th className="px-4 lg:px-6 xl:px-8 py-4 lg:py-5 text-xs font-semibold text-slate-300 uppercase">อีเมล</th>
+                    <th className="px-4 lg:px-6 xl:px-8 py-4 lg:py-5 text-xs font-semibold text-slate-300 uppercase">ระดับสิทธิ์</th>
+                    <th className="px-4 lg:px-6 xl:px-8 py-4 lg:py-5 text-xs font-semibold text-slate-300 uppercase">สถานะ</th>
+                    <th className="px-4 lg:px-6 xl:px-8 py-4 lg:py-5 text-xs font-semibold text-slate-300 text-right uppercase">การจัดการ</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-white/[0.02]">
@@ -413,7 +413,7 @@ export default function UsersPage() {
                       <td colSpan={5} className="px-10 py-32 text-center">
                         <div className="flex flex-col items-center gap-6 opacity-30">
                           <div className="w-24 h-24 bg-slate-100 rounded-[2.5rem] flex items-center justify-center text-4xl">👤</div>
-                          <p className="text-slate-500 font-black uppercase tracking-[0.3em] text-sm">ไม่พบข้อมูลผู้ใช้</p>
+                          <p className="text-slate-400 font-black uppercase tracking-[0.3em] text-sm">ไม่พบข้อมูลผู้ใช้</p>
                         </div>
                       </td>
                     </tr>
@@ -435,18 +435,18 @@ export default function UsersPage() {
                             </div>
                             <div className="min-w-0">
                               <p className="font-black text-white leading-none mb-1.5 group-hover:text-emerald-400 transition-colors uppercase tracking-tight text-base lg:text-lg truncate">{user.username}</p>
-                              <p className="text-[10px] text-slate-600 font-bold tracking-widest uppercase opacity-70 truncate">{user.fullName || 'ไม่ระบุชื่อ'}</p>
+                              <p className="text-xs text-slate-400 font-bold tracking-widest uppercase truncate">{user.fullName || 'ไม่ระบุชื่อ'}</p>
                             </div>
                           </div>
                         </td>
                         <td className="px-4 lg:px-6 xl:px-8 py-4 lg:py-6">
-                          <p className="font-mono text-xs font-black text-slate-500 lowercase mb-1 truncate">{user.email || 'no-email@system.com'}</p>
-                          <p className="text-[9px] font-black text-white/20 uppercase tracking-[0.2em]">การเชื่อมต่อระบบ: สมบูรณ์</p>
+                          <p className="font-mono text-sm font-black text-slate-400 lowercase mb-1 truncate">{user.email || 'no-email@system.com'}</p>
+                          <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">การเชื่อมต่อระบบ: สมบูรณ์</p>
                         </td>
                         <td className="px-4 lg:px-6 xl:px-8 py-4 lg:py-6">
                           <Badge
                             variant={user.role === 'admin' ? 'purple' : 'emerald'}
-                            className="font-black uppercase tracking-[0.2em] px-3 lg:px-4 py-1.5 rounded-xl text-[9px] shadow-lg"
+                            className="font-black uppercase tracking-[0.2em] px-3 lg:px-4 py-1.5 rounded-xl text-[10px] shadow-lg"
                           >
                             {user.role === 'admin' ? 'ผู้ดูแลระบบ' : 'ผู้ใช้ทั่วไป'}
                           </Badge>
@@ -455,13 +455,13 @@ export default function UsersPage() {
                           <div className="flex flex-col gap-2">
                             <div className="flex items-center gap-2.5">
                               <div className={cn("w-2 h-2 rounded-full shadow-[0_0_10px_rgba(16,185,129,0.5)]", user.isActive ? "bg-emerald-500 animate-pulse" : "bg-white/10")} />
-                              <span className={cn("text-[10px] font-black uppercase tracking-[0.15em]", user.isActive ? "text-emerald-400" : "text-white/20")}>
+                              <span className={cn("text-xs font-black uppercase tracking-[0.15em]", user.isActive ? "text-emerald-400" : "text-slate-500")}>
                                 {user.isActive ? 'ออนไลน์' : 'ออฟไลน์'}
                               </span>
                             </div>
                             {user.isBlocked && (
                               <div className="flex items-center gap-1.5">
-                                <span className="text-[8px] font-black uppercase tracking-widest bg-rose-500/10 text-rose-400 px-2 py-0.5 rounded-md border border-rose-500/10">ถูกระงับ</span>
+                                <span className="text-[9px] font-black uppercase tracking-widest bg-rose-500/10 text-rose-400 px-2 py-0.5 rounded-md border border-rose-500/10">ถูกระงับ</span>
                               </div>
                             )}
                           </div>
@@ -523,7 +523,7 @@ export default function UsersPage() {
             ) : users.length === 0 ? (
               <div className="col-span-full flex flex-col items-center justify-center opacity-30 py-20">
                 <div className="w-16 h-16 rounded-2xl bg-white/5 flex items-center justify-center text-3xl mb-4">👥</div>
-                <p className="text-[10px] font-black uppercase tracking-[0.5em] text-white">ไม่พบผู้ใช้</p>
+                <p className="text-xs font-black uppercase tracking-[0.5em] text-slate-400">ไม่พบผู้ใช้</p>
               </div>
             ) : (
               users.map((user) => (
@@ -537,11 +537,11 @@ export default function UsersPage() {
                     </div>
                     <div className="flex-1 min-w-0">
                       <h3 className="font-black text-white truncate uppercase tracking-tight text-base sm:text-lg leading-none mb-1">{user.username}</h3>
-                      <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest truncate leading-none">{user.fullName || 'ไม่ระบุชื่อ'}</p>
+                      <p className="text-xs text-slate-400 font-bold uppercase tracking-widest truncate leading-none">{user.fullName || 'ไม่ระบุชื่อ'}</p>
                     </div>
                     <Badge
                       variant={user.role === 'admin' ? 'purple' : 'emerald'}
-                      className="font-black uppercase tracking-widest text-[8px] px-2 sm:px-3 py-1 shadow-lg shrink-0"
+                      className="font-black uppercase tracking-widest text-[9px] px-2 sm:px-3 py-1 shadow-lg shrink-0"
                     >
                       {user.role === 'admin' ? 'ผู้ดูแลระบบ' : 'ผู้ใช้ทั่วไป'}
                     </Badge>
@@ -549,15 +549,15 @@ export default function UsersPage() {
 
                   <div className="space-y-3 sm:space-y-4 mb-6 sm:mb-8">
                     <div className="flex justify-between items-center bg-white/[0.02] p-3 sm:p-4 rounded-xl sm:rounded-2xl border border-white/5">
-                      <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest">สถานะการเชื่อมต่อ</span>
+                      <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">สถานะการเชื่อมต่อ</span>
                       <div className="flex items-center gap-2">
                         <div className={cn("w-1.5 h-1.5 rounded-full", user.isActive ? "bg-emerald-500" : "bg-white/10")} />
-                        <span className={cn("text-[10px] font-black uppercase tracking-widest leading-none", user.isActive ? "text-emerald-400" : "text-slate-600")}>
+                        <span className={cn("text-xs font-black uppercase tracking-widest leading-none", user.isActive ? "text-emerald-400" : "text-slate-500")}>
                           {user.isActive ? 'ออนไลน์' : 'ออฟไลน์'}
                         </span>
                       </div>
                     </div>
-                    <p className="text-[10px] font-mono text-slate-600 truncate px-2 text-center">{user.email || '—'}</p>
+                    <p className="text-xs font-mono text-slate-400 truncate px-2 text-center">{user.email || '—'}</p>
                   </div>
 
                   <div className="grid grid-cols-4 gap-1.5 sm:gap-2 bg-white/[0.02] p-1.5 sm:p-2 rounded-xl sm:rounded-2xl border border-white/5">

@@ -96,7 +96,7 @@ export default function ChangePasswordPage() {
             {siteBranding.siteName && (
               <p className="text-amber-400 mt-1.5 sm:mt-2 font-bold text-xs sm:text-sm">{siteBranding.siteName}</p>
             )}
-            <p className="text-slate-400 mt-1.5 sm:mt-2 font-bold text-xs sm:text-sm tracking-wide">เพื่อความปลอดภัย กรุณาตั้งรหัสผ่านใหม่</p>
+            <p className="text-slate-300 mt-1.5 sm:mt-2 font-bold text-xs sm:text-sm tracking-wide">เพื่อความปลอดภัย กรุณาตั้งรหัสผ่านใหม่</p>
           </div>
 
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 sm:space-y-6">
@@ -108,8 +108,8 @@ export default function ChangePasswordPage() {
                 {...register('currentPassword', { required: 'กรุณากรอกรหัสผ่านปัจจุบัน' })}
                 error={errors.currentPassword?.message}
                 autoComplete="current-password"
-                className="bg-white/5 border-white/10 text-white placeholder:text-white/20 focus:border-amber-500 focus:ring-amber-500/20 h-12 rounded-2xl"
-                labelClassName="text-slate-300 font-bold uppercase tracking-wider text-[10px]"
+                className="bg-white/5 border-white/10 text-white placeholder:text-slate-400 focus:border-amber-500 focus:ring-amber-500/20 h-12 rounded-2xl"
+                labelClassName="text-slate-300 font-bold uppercase tracking-wider text-xs"
               />
             </div>
 
@@ -126,8 +126,8 @@ export default function ChangePasswordPage() {
                 })}
                 error={errors.newPassword?.message}
                 autoComplete="new-password"
-                className="bg-white/5 border-white/10 text-white placeholder:text-white/20 focus:border-amber-500 focus:ring-amber-500/20 h-12 rounded-2xl"
-                labelClassName="text-slate-300 font-bold uppercase tracking-wider text-[10px]"
+                className="bg-white/5 border-white/10 text-white placeholder:text-slate-400 focus:border-amber-500 focus:ring-amber-500/20 h-12 rounded-2xl"
+                labelClassName="text-slate-300 font-bold uppercase tracking-wider text-xs"
               />
             </div>
 
@@ -142,8 +142,8 @@ export default function ChangePasswordPage() {
                 })}
                 error={errors.confirmPassword?.message}
                 autoComplete="new-password"
-                className="bg-white/5 border-white/10 text-white placeholder:text-white/20 focus:border-amber-500 focus:ring-amber-500/20 h-12 rounded-2xl"
-                labelClassName="text-slate-300 font-bold uppercase tracking-wider text-[10px]"
+                className="bg-white/5 border-white/10 text-white placeholder:text-slate-400 focus:border-amber-500 focus:ring-amber-500/20 h-12 rounded-2xl"
+                labelClassName="text-slate-300 font-bold uppercase tracking-wider text-xs"
               />
             </div>
 

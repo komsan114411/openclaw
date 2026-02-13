@@ -236,7 +236,7 @@ export default function UserDashboard() {
                 <div className="p-4 sm:p-6 lg:p-8 relative z-10">
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
                     <div>
-                      <p className="text-[10px] sm:text-xs font-semibold text-slate-400 mb-1">แพ็คเกจปัจจุบัน</p>
+                      <p className="text-xs sm:text-sm font-semibold text-slate-300 mb-1">แพ็คเกจปัจจุบัน</p>
                       <h3 className="text-2xl sm:text-3xl lg:text-4xl font-black text-white tracking-tight">
                         {subscription.packageName || 'แพ็คเกจมาตรฐาน'}
                       </h3>
@@ -256,7 +256,7 @@ export default function UserDashboard() {
                         </span>
                         <p className="text-3xl sm:text-4xl font-black text-white">
                           {subscription.remainingQuota?.toLocaleString() || 0}
-                          <span className="text-lg sm:text-xl text-slate-500 font-semibold ml-2">
+                          <span className="text-lg sm:text-xl text-slate-400 font-semibold ml-2">
                             / {subscription.quota?.toLocaleString() || 0}
                           </span>
                         </p>
@@ -290,7 +290,7 @@ export default function UserDashboard() {
                           </span>
                           <p className="text-2xl sm:text-3xl font-black text-white">
                             {aiQuota.remainingQuota?.toLocaleString() || 0}
-                            <span className="text-base sm:text-lg text-slate-500 font-semibold ml-2">
+                            <span className="text-base sm:text-lg text-slate-400 font-semibold ml-2">
                               / {aiQuota.totalQuota?.toLocaleString() || 0}
                             </span>
                           </p>
@@ -319,7 +319,7 @@ export default function UserDashboard() {
                   <div className="mt-6 pt-6 border-t border-white/5 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                     <div className="flex flex-wrap items-center gap-2 sm:gap-4">
                       <div>
-                        <span className="text-[10px] font-semibold text-slate-400">หมดอายุ</span>
+                        <span className="text-xs font-semibold text-slate-300">หมดอายุ</span>
                         <p className="text-sm font-bold text-white">
                           {subscription.expiresAt ? formatDate(subscription.expiresAt) : 'ไม่มีกำหนด'}
                         </p>
@@ -327,13 +327,13 @@ export default function UserDashboard() {
                       {quotaPercentage < 20 && (
                         <div className="flex items-center gap-2 px-3 py-1.5 bg-rose-500/10 border border-rose-500/20 rounded-lg">
                           <div className="w-1.5 h-1.5 rounded-full bg-rose-500" />
-                          <span className="text-[10px] font-semibold text-rose-400">สลิปใกล้หมด</span>
+                          <span className="text-xs font-semibold text-rose-400">สลิปใกล้หมด</span>
                         </div>
                       )}
                       {aiQuota && aiQuota.totalQuota > 0 && aiQuotaPercentage < 20 && (
                         <div className="flex items-center gap-2 px-3 py-1.5 bg-violet-500/10 border border-violet-500/20 rounded-lg">
                           <div className="w-1.5 h-1.5 rounded-full bg-violet-500" />
-                          <span className="text-[10px] font-semibold text-violet-400">AI ใกล้หมด</span>
+                          <span className="text-xs font-semibold text-violet-400">AI ใกล้หมด</span>
                         </div>
                       )}
                     </div>

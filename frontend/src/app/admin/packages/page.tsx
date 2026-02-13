@@ -198,11 +198,11 @@ export default function AdminPackagesPage() {
 
         <div className="page-header relative z-10 flex-col lg:flex-row items-start lg:items-center">
           <div className="space-y-1 sm:space-y-2 text-left">
-            <p className="text-slate-500 font-medium text-xs sm:text-sm">จัดการระบบ</p>
+            <p className="text-slate-400 font-medium text-xs sm:text-sm">จัดการระบบ</p>
             <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-white tracking-tight">
               จัดการ<span className="text-[#06C755]">แพ็คเกจ</span>
             </h1>
-            <p className="text-slate-500 text-xs sm:text-sm">
+            <p className="text-slate-400 text-xs sm:text-sm">
               ตั้งค่าแพ็คเกจและราคาบริการ
             </p>
           </div>
@@ -278,7 +278,7 @@ export default function AdminPackagesPage() {
                     <div className="flex justify-between items-start mb-8">
                       <div className="space-y-1">
                         <h3 className="text-2xl sm:text-3xl font-black text-white tracking-tight leading-tight uppercase group-hover:text-emerald-400 transition-colors">{pkg.name}</h3>
-                        <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.3em] flex items-center gap-2">
+                        <p className="text-[11px] font-black text-slate-400 uppercase tracking-[0.3em] flex items-center gap-2">
                           {pkg.durationDays} วัน
                         </p>
                       </div>
@@ -305,7 +305,7 @@ export default function AdminPackagesPage() {
                     <div className="mb-10">
                       <div className="flex items-baseline gap-2">
                         <span className="text-4xl sm:text-5xl font-black text-white tracking-tighter">฿{pkg.price.toLocaleString()}</span>
-                        <span className="text-[10px] font-black font-mono text-slate-600 uppercase tracking-widest opacity-60">/ ระบบ {pkg.durationDays} วัน</span>
+                        <span className="text-[11px] font-black font-mono text-slate-400 uppercase tracking-widest">/ ระบบ {pkg.durationDays} วัน</span>
                       </div>
                       {(pkg.priceUsdt ?? 0) > 0 && (
                         <div className="mt-3 flex items-center gap-2 bg-emerald-500/5 w-fit px-3 sm:px-4 py-1 sm:py-1.5 rounded-full border border-emerald-500/10">
@@ -319,13 +319,13 @@ export default function AdminPackagesPage() {
 
                     <div className="bg-white/[0.02] border border-white/5 backdrop-blur-md p-6 sm:p-8 mb-6 rounded-[2rem] sm:rounded-[2.5rem] flex items-center justify-between shadow-inner">
                       <div>
-                        <p className="text-[9px] font-semibold text-slate-500 mb-2 text-center">โควต้าสลิป</p>
-                        <p className="text-xl sm:text-2xl font-bold text-white leading-none tracking-tight text-center">{pkg.slipQuota.toLocaleString()}<span className="text-sm ml-1 opacity-40">รายการ</span></p>
+                        <p className="text-[10px] font-semibold text-slate-400 mb-2 text-center">โควต้าสลิป</p>
+                        <p className="text-xl sm:text-2xl font-bold text-white leading-none tracking-tight text-center">{pkg.slipQuota.toLocaleString()}<span className="text-sm ml-1 text-slate-400/70">รายการ</span></p>
                       </div>
                       <div className="h-10 w-[1px] bg-white/5 mx-6" />
                       <div className="text-center">
-                        <p className="text-[9px] font-semibold text-slate-500 mb-2">โควต้า AI</p>
-                        <p className="text-lg font-bold text-indigo-400 leading-none tracking-tight">{(pkg.aiQuota || 0).toLocaleString()}<span className="text-sm ml-1 opacity-40">ครั้ง</span></p>
+                        <p className="text-[10px] font-semibold text-slate-400 mb-2">โควต้า AI</p>
+                        <p className="text-lg font-bold text-indigo-400 leading-none tracking-tight">{(pkg.aiQuota || 0).toLocaleString()}<span className="text-sm ml-1 text-slate-400/70">ครั้ง</span></p>
                       </div>
                     </div>
 
@@ -333,17 +333,17 @@ export default function AdminPackagesPage() {
                     {pkg.slipQuota > 0 && (
                       <div className="bg-emerald-500/5 border border-emerald-500/10 backdrop-blur-md p-4 sm:p-5 mb-10 rounded-2xl sm:rounded-3xl">
                         <div className="flex items-center justify-center gap-3">
-                          <span className="text-[10px] font-semibold text-slate-500">ราคาเฉลี่ย</span>
+                          <span className="text-[11px] font-semibold text-slate-400">ราคาเฉลี่ย</span>
                           <span className="text-xl sm:text-2xl font-black text-emerald-400">
                             ฿{(pkg.price / pkg.slipQuota).toFixed(2)}
                           </span>
-                          <span className="text-[10px] font-semibold text-slate-500">/ สลิป</span>
+                          <span className="text-[11px] font-semibold text-slate-400">/ สลิป</span>
                         </div>
                       </div>
                     )}
 
                     <div className="space-y-5 mb-12 flex-1">
-                      <p className="text-[10px] font-semibold text-slate-500 flex items-center gap-3 justify-center">
+                      <p className="text-[11px] font-semibold text-slate-400 flex items-center gap-3 justify-center">
                         <span className="w-4 h-[1px] bg-white/10"></span>
                         คุณสมบัติ
                         <span className="w-4 h-[1px] bg-white/10"></span>
@@ -356,7 +356,7 @@ export default function AdminPackagesPage() {
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3.5} d="M5 13l4 4L19 7" />
                               </svg>
                             </div>
-                            <span className="text-[13px] font-bold tracking-tight text-white/60 leading-tight pt-0.5">{feature}</span>
+                            <span className="text-sm font-bold tracking-tight text-white/80 leading-tight pt-0.5">{feature}</span>
                           </li>
                         ))}
                       </ul>
@@ -493,7 +493,7 @@ export default function AdminPackagesPage() {
               <div className="flex items-center justify-between p-4 rounded-2xl bg-white/[0.03] border border-white/10">
                 <div>
                   <p className="text-sm font-bold text-white">แพ็คเกจแนะนำ</p>
-                  <p className="text-xs text-slate-500 mt-1">แสดง highlight ในหน้าเลือกแพ็คเกจ</p>
+                  <p className="text-xs text-slate-400 mt-1">แสดง highlight ในหน้าเลือกแพ็คเกจ</p>
                 </div>
                 <button
                   type="button"

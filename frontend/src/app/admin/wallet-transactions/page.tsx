@@ -166,11 +166,11 @@ export default function AdminWalletTransactionsPage() {
         {/* Header */}
         <div className="page-header relative z-10 flex-col lg:flex-row items-start lg:items-end">
           <div className="space-y-1 sm:space-y-2 text-left">
-            <p className="text-slate-500 font-medium text-xs sm:text-sm">จัดการระบบ</p>
+            <p className="text-slate-400 font-medium text-xs sm:text-sm">จัดการระบบ</p>
             <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-white tracking-tight">
               รายการ<span className="text-[#06C755]">เติมเครดิต</span>
             </h1>
-            <p className="text-slate-500 text-xs sm:text-sm">
+            <p className="text-slate-400 text-xs sm:text-sm">
               ประวัติการเติมเงินของผู้ใช้ทั้งหมด (สลิป & USDT)
             </p>
           </div>
@@ -223,13 +223,13 @@ export default function AdminWalletTransactionsPage() {
             <table className="min-w-full border-collapse">
               <thead>
                 <tr className="bg-white/[0.02] border-b border-white/5">
-                  <th className="px-6 py-4 text-left text-[10px] font-semibold text-slate-400 uppercase">วันที่</th>
-                  <th className="px-6 py-4 text-left text-[10px] font-semibold text-slate-400 uppercase">ผู้ใช้</th>
-                  <th className="px-6 py-4 text-left text-[10px] font-semibold text-slate-400 uppercase">ประเภท</th>
-                  <th className="px-6 py-4 text-left text-[10px] font-semibold text-slate-400 uppercase">รายละเอียด</th>
-                  <th className="px-6 py-4 text-right text-[10px] font-semibold text-slate-400 uppercase">จำนวนเงิน</th>
-                  <th className="px-6 py-4 text-center text-[10px] font-semibold text-slate-400 uppercase">สถานะ</th>
-                  <th className="px-6 py-4 text-center text-[10px] font-semibold text-slate-400 uppercase">ดูรายละเอียด</th>
+                  <th className="px-6 py-4 text-left text-[10px] font-semibold text-slate-300 uppercase">วันที่</th>
+                  <th className="px-6 py-4 text-left text-[10px] font-semibold text-slate-300 uppercase">ผู้ใช้</th>
+                  <th className="px-6 py-4 text-left text-[10px] font-semibold text-slate-300 uppercase">ประเภท</th>
+                  <th className="px-6 py-4 text-left text-[10px] font-semibold text-slate-300 uppercase">รายละเอียด</th>
+                  <th className="px-6 py-4 text-right text-[10px] font-semibold text-slate-300 uppercase">จำนวนเงิน</th>
+                  <th className="px-6 py-4 text-center text-[10px] font-semibold text-slate-300 uppercase">สถานะ</th>
+                  <th className="px-6 py-4 text-center text-[10px] font-semibold text-slate-300 uppercase">ดูรายละเอียด</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-white/[0.02]">
@@ -260,7 +260,7 @@ export default function AdminWalletTransactionsPage() {
                                 year: 'numeric',
                               })}
                             </p>
-                            <p className="text-[10px] text-slate-500">
+                            <p className="text-[10px] text-slate-400">
                               {new Date(tx.createdAt).toLocaleTimeString('th-TH', {
                                 hour: '2-digit',
                                 minute: '2-digit',
@@ -274,7 +274,7 @@ export default function AdminWalletTransactionsPage() {
                               {tx.userId?.username || 'Unknown'}
                             </p>
                             {tx.userId?.email && (
-                              <p className="text-[10px] text-slate-500 truncate max-w-[150px]">
+                              <p className="text-[10px] text-slate-400 truncate max-w-[150px]">
                                 {tx.userId.email}
                               </p>
                             )}
@@ -285,7 +285,7 @@ export default function AdminWalletTransactionsPage() {
                             {getTypeLabel(tx.type)}
                           </Badge>
                           {tx.metadata?.network && (
-                            <p className="text-[9px] text-slate-500 mt-1">
+                            <p className="text-[10px] text-slate-400 mt-1">
                               {tx.metadata.network}
                             </p>
                           )}
@@ -295,12 +295,12 @@ export default function AdminWalletTransactionsPage() {
                             {tx.description}
                           </p>
                           {tx.transRef && (
-                            <p className="text-[9px] text-slate-500 font-mono mt-1">
+                            <p className="text-[10px] text-slate-400 font-mono mt-1">
                               Ref: {tx.transRef}
                             </p>
                           )}
                           {tx.metadata?.txHash && (
-                            <p className="text-[9px] text-slate-500 font-mono mt-1 truncate max-w-[150px]">
+                            <p className="text-[10px] text-slate-400 font-mono mt-1 truncate max-w-[150px]">
                               TxHash: {tx.metadata.txHash.slice(0, 10)}...
                             </p>
                           )}
@@ -310,7 +310,7 @@ export default function AdminWalletTransactionsPage() {
                             {tx.amount >= 0 ? '+' : ''}{tx.amount.toLocaleString()} ฿
                           </p>
                           {tx.metadata?.usdtAmount && (
-                            <p className="text-[9px] text-slate-500">
+                            <p className="text-[10px] text-slate-400">
                               ({tx.metadata.usdtAmount} USDT)
                             </p>
                           )}
@@ -351,21 +351,21 @@ export default function AdminWalletTransactionsPage() {
             <div className="space-y-6">
               {/* User Info */}
               <div className="bg-white/5 rounded-xl p-4">
-                <h3 className="text-xs font-semibold text-slate-400 uppercase mb-3">ข้อมูลผู้ใช้</h3>
+                <h3 className="text-xs font-semibold text-slate-300 uppercase mb-3">ข้อมูลผู้ใช้</h3>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <p className="text-[10px] text-slate-500">ชื่อผู้ใช้</p>
+                    <p className="text-[10px] text-slate-400">ชื่อผู้ใช้</p>
                     <p className="text-sm font-semibold text-white">{selectedTransaction.userId?.username || 'Unknown'}</p>
                   </div>
                   {selectedTransaction.userId?.email && (
                     <div>
-                      <p className="text-[10px] text-slate-500">อีเมล</p>
+                      <p className="text-[10px] text-slate-400">อีเมล</p>
                       <p className="text-sm text-white">{selectedTransaction.userId.email}</p>
                     </div>
                   )}
                   {selectedTransaction.userId?.fullName && (
                     <div>
-                      <p className="text-[10px] text-slate-500">ชื่อ-นามสกุล</p>
+                      <p className="text-[10px] text-slate-400">ชื่อ-นามสกุล</p>
                       <p className="text-sm text-white">{selectedTransaction.userId.fullName}</p>
                     </div>
                   )}
@@ -374,37 +374,37 @@ export default function AdminWalletTransactionsPage() {
 
               {/* Transaction Info */}
               <div className="bg-white/5 rounded-xl p-4">
-                <h3 className="text-xs font-semibold text-slate-400 uppercase mb-3">ข้อมูลธุรกรรม</h3>
+                <h3 className="text-xs font-semibold text-slate-300 uppercase mb-3">ข้อมูลธุรกรรม</h3>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <p className="text-[10px] text-slate-500">ประเภท</p>
+                    <p className="text-[10px] text-slate-400">ประเภท</p>
                     <Badge variant={getTypeVariant(selectedTransaction.type)}>
                       {getTypeLabel(selectedTransaction.type)}
                     </Badge>
                   </div>
                   <div>
-                    <p className="text-[10px] text-slate-500">สถานะ</p>
+                    <p className="text-[10px] text-slate-400">สถานะ</p>
                     <StatusBadge status={mapStatusForBadge(selectedTransaction.status)} />
                   </div>
                   <div>
-                    <p className="text-[10px] text-slate-500">จำนวนเงิน</p>
+                    <p className="text-[10px] text-slate-400">จำนวนเงิน</p>
                     <p className={`text-lg font-bold ${selectedTransaction.amount >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
                       {selectedTransaction.amount >= 0 ? '+' : ''}{selectedTransaction.amount.toLocaleString()} ฿
                     </p>
                   </div>
                   <div>
-                    <p className="text-[10px] text-slate-500">ยอดคงเหลือหลังทำรายการ</p>
+                    <p className="text-[10px] text-slate-400">ยอดคงเหลือหลังทำรายการ</p>
                     <p className="text-sm text-white">{selectedTransaction.balanceAfter?.toLocaleString() || 0} ฿</p>
                   </div>
                   <div>
-                    <p className="text-[10px] text-slate-500">วันที่ทำรายการ</p>
+                    <p className="text-[10px] text-slate-400">วันที่ทำรายการ</p>
                     <p className="text-sm text-white">
                       {new Date(selectedTransaction.createdAt).toLocaleString('th-TH')}
                     </p>
                   </div>
                   {selectedTransaction.completedAt && (
                     <div>
-                      <p className="text-[10px] text-slate-500">วันที่สำเร็จ</p>
+                      <p className="text-[10px] text-slate-400">วันที่สำเร็จ</p>
                       <p className="text-sm text-white">
                         {new Date(selectedTransaction.completedAt).toLocaleString('th-TH')}
                       </p>
@@ -420,27 +420,27 @@ export default function AdminWalletTransactionsPage() {
               {/* USDT Info */}
               {selectedTransaction.metadata?.network && (
                 <div className="bg-white/5 rounded-xl p-4">
-                  <h3 className="text-xs font-semibold text-slate-400 uppercase mb-3">ข้อมูล USDT</h3>
+                  <h3 className="text-xs font-semibold text-slate-300 uppercase mb-3">ข้อมูล USDT</h3>
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <p className="text-[10px] text-slate-500">Network</p>
+                      <p className="text-[10px] text-slate-400">Network</p>
                       <p className="text-sm text-white">{selectedTransaction.metadata.network}</p>
                     </div>
                     {selectedTransaction.metadata.usdtAmount && (
                       <div>
-                        <p className="text-[10px] text-slate-500">จำนวน USDT</p>
+                        <p className="text-[10px] text-slate-400">จำนวน USDT</p>
                         <p className="text-sm text-white">{selectedTransaction.metadata.usdtAmount} USDT</p>
                       </div>
                     )}
                     {selectedTransaction.metadata.walletAddress && (
                       <div className="col-span-2">
-                        <p className="text-[10px] text-slate-500">กระเป๋าปลายทาง</p>
+                        <p className="text-[10px] text-slate-400">กระเป๋าปลายทาง</p>
                         <p className="text-xs text-white font-mono break-all">{selectedTransaction.metadata.walletAddress}</p>
                       </div>
                     )}
                     {selectedTransaction.metadata.txHash && (
                       <div className="col-span-2">
-                        <p className="text-[10px] text-slate-500">Transaction Hash</p>
+                        <p className="text-[10px] text-slate-400">Transaction Hash</p>
                         <p className="text-xs text-white font-mono break-all">{selectedTransaction.metadata.txHash}</p>
                       </div>
                     )}
@@ -451,9 +451,9 @@ export default function AdminWalletTransactionsPage() {
               {/* Slip Reference */}
               {selectedTransaction.transRef && (
                 <div className="bg-white/5 rounded-xl p-4">
-                  <h3 className="text-xs font-semibold text-slate-400 uppercase mb-3">ข้อมูลสลิป</h3>
+                  <h3 className="text-xs font-semibold text-slate-300 uppercase mb-3">ข้อมูลสลิป</h3>
                   <div>
-                    <p className="text-[10px] text-slate-500">เลขอ้างอิง</p>
+                    <p className="text-[10px] text-slate-400">เลขอ้างอิง</p>
                     <p className="text-sm text-white font-mono">{selectedTransaction.transRef}</p>
                   </div>
                 </div>
@@ -462,7 +462,7 @@ export default function AdminWalletTransactionsPage() {
               {/* Slip Image */}
               {selectedTransaction.hasSlipImage && (
                 <div className="bg-white/5 rounded-xl p-4">
-                  <h3 className="text-xs font-semibold text-slate-400 uppercase mb-3">รูปสลิป</h3>
+                  <h3 className="text-xs font-semibold text-slate-300 uppercase mb-3">รูปสลิป</h3>
                   {loadingSlip ? (
                     <div className="flex items-center justify-center py-8">
                       <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-500"></div>
@@ -482,7 +482,7 @@ export default function AdminWalletTransactionsPage() {
               {/* Admin Notes */}
               {selectedTransaction.adminNotes && (
                 <div className="bg-white/5 rounded-xl p-4">
-                  <h3 className="text-xs font-semibold text-slate-400 uppercase mb-3">หมายเหตุ Admin</h3>
+                  <h3 className="text-xs font-semibold text-slate-300 uppercase mb-3">หมายเหตุ Admin</h3>
                   <p className="text-sm text-white">{selectedTransaction.adminNotes}</p>
                 </div>
               )}
@@ -490,7 +490,7 @@ export default function AdminWalletTransactionsPage() {
               {/* Processed By */}
               {selectedTransaction.processedBy && (
                 <div className="bg-white/5 rounded-xl p-4">
-                  <h3 className="text-xs font-semibold text-slate-400 uppercase mb-3">ดำเนินการโดย</h3>
+                  <h3 className="text-xs font-semibold text-slate-300 uppercase mb-3">ดำเนินการโดย</h3>
                   <p className="text-sm text-white">{selectedTransaction.processedBy.username}</p>
                 </div>
               )}

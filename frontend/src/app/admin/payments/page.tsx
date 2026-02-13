@@ -148,11 +148,11 @@ export default function AdminPaymentsPage() {
 
         <div className="page-header relative z-10 flex-col lg:flex-row items-start lg:items-end">
           <div className="space-y-1 sm:space-y-2 text-left">
-            <p className="text-slate-500 font-medium text-xs sm:text-sm">จัดการระบบ</p>
+            <p className="text-slate-400 font-medium text-xs sm:text-sm">จัดการระบบ</p>
             <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-white tracking-tight">
               ประวัติ<span className="text-[#06C755]">การชำระเงิน</span>
             </h1>
-            <p className="text-slate-500 text-xs sm:text-sm">
+            <p className="text-slate-400 text-xs sm:text-sm">
               ศูนย์ตรวจสอบและอนุมัติธุรกรรมการเงิน
             </p>
           </div>
@@ -192,12 +192,12 @@ export default function AdminPaymentsPage() {
             <table className="min-w-full border-collapse">
               <thead>
                 <tr className="bg-white/[0.02] border-b border-white/5">
-                  <th className="px-6 sm:px-8 py-5 sm:py-6 text-left text-[9px] sm:text-[10px] font-semibold text-slate-400">วันที่</th>
-                  <th className="px-6 sm:px-8 py-5 sm:py-6 text-left text-[9px] sm:text-[10px] font-semibold text-slate-400">ผู้ใช้งาน</th>
-                  <th className="px-6 sm:px-8 py-5 sm:py-6 text-left text-[9px] sm:text-[10px] font-semibold text-slate-400">ประเภท</th>
-                  <th className="px-6 sm:px-8 py-5 sm:py-6 text-left text-[9px] sm:text-[10px] font-semibold text-slate-400">จำนวนเงิน</th>
-                  <th className="px-6 sm:px-8 py-5 sm:py-6 text-left text-[9px] sm:text-[10px] font-semibold text-slate-400">สถานะ</th>
-                  <th className="px-6 sm:px-8 py-5 sm:py-6 text-right text-[9px] sm:text-[10px] font-semibold text-slate-400">การจัดการ</th>
+                  <th className="px-6 sm:px-8 py-5 sm:py-6 text-left text-[10px] sm:text-xs font-semibold text-slate-300">วันที่</th>
+                  <th className="px-6 sm:px-8 py-5 sm:py-6 text-left text-[10px] sm:text-xs font-semibold text-slate-300">ผู้ใช้งาน</th>
+                  <th className="px-6 sm:px-8 py-5 sm:py-6 text-left text-[10px] sm:text-xs font-semibold text-slate-300">ประเภท</th>
+                  <th className="px-6 sm:px-8 py-5 sm:py-6 text-left text-[10px] sm:text-xs font-semibold text-slate-300">จำนวนเงิน</th>
+                  <th className="px-6 sm:px-8 py-5 sm:py-6 text-left text-[10px] sm:text-xs font-semibold text-slate-300">สถานะ</th>
+                  <th className="px-6 sm:px-8 py-5 sm:py-6 text-right text-[10px] sm:text-xs font-semibold text-slate-300">การจัดการ</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-white/[0.02]">
@@ -229,7 +229,7 @@ export default function AdminPaymentsPage() {
                             </p>
                             <div className="flex items-center gap-2">
                               <div className="w-1.5 h-1.5 rounded-full bg-emerald-500/30" />
-                              <p className="text-[10px] font-black font-mono text-slate-600 uppercase tracking-widest leading-none">
+                              <p className="text-[10px] font-black font-mono text-slate-400 uppercase tracking-widest leading-none">
                                 {new Date(payment.createdAt).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false })}
                               </p>
                             </div>
@@ -242,7 +242,7 @@ export default function AdminPaymentsPage() {
                             </div>
                             <div>
                               <p className="text-[13px] font-black text-white uppercase tracking-tight mb-1">{payment.user?.username || '-'}</p>
-                              <p className="text-[10px] font-bold text-slate-600 tracking-wider lowercase">{payment.user?.email || '-'}</p>
+                              <p className="text-[10px] font-bold text-slate-400 tracking-wider lowercase">{payment.user?.email || '-'}</p>
                             </div>
                           </div>
                         </td>
@@ -261,7 +261,7 @@ export default function AdminPaymentsPage() {
                             <p className="text-xl font-black text-white tracking-tighter">฿{payment.amount.toLocaleString()}</p>
                             <div className="flex items-center gap-2">
                               <div className={cn("w-1.5 h-1.5 rounded-full", payment.paymentType === 'usdt' ? "bg-emerald-500" : "bg-indigo-500")} />
-                              <p className="text-[8px] font-black text-slate-600 uppercase tracking-[0.2em]">
+                              <p className="text-[9px] font-black text-slate-400 uppercase tracking-[0.2em]">
                                 {payment.paymentType === 'usdt' ? 'โอนผ่าน USDT' : 'โอนผ่านธนาคาร'}
                               </p>
                             </div>
@@ -361,7 +361,7 @@ export default function AdminPaymentsPage() {
                 <div className="flex items-center justify-between pt-5 border-t border-white/5">
                   <div>
                     <p className="text-2xl font-black text-white tracking-tighter leading-none mb-1">฿{payment.amount.toLocaleString()}</p>
-                    <p className="text-[9px] font-black text-slate-600 uppercase tracking-[0.2em] leading-none">
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] leading-none">
                       {new Date(payment.createdAt).toLocaleDateString('th-TH', { day: '2-digit', month: 'short', year: 'numeric' })}
                     </p>
                   </div>
@@ -406,7 +406,7 @@ export default function AdminPaymentsPage() {
             <div className="flex flex-col lg:flex-row items-center justify-between p-8 sm:p-12 bg-slate-950 rounded-[2.5rem] sm:rounded-[3.5rem] relative overflow-hidden border border-white/5">
               <div className="absolute top-0 right-0 w-96 h-96 bg-emerald-500/[0.03] blur-[120px] rounded-full" />
               <div className="relative z-10 text-center lg:text-left mb-8 lg:mb-0">
-                <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.4em] mb-4">ยอดเงินที่ตรวจสอบ</p>
+                <p className="text-[11px] font-black text-slate-400 uppercase tracking-[0.4em] mb-4">ยอดเงินที่ตรวจสอบ</p>
                 <p className="text-4xl sm:text-6xl font-black text-white tracking-tighter leading-none">฿{selectedPayment.amount.toLocaleString()}</p>
                 <div className="flex flex-wrap items-center justify-center lg:justify-start gap-3 mt-8">
                   <div className="px-4 py-2 rounded-xl bg-white/[0.03] text-white/40 font-black text-[8px] uppercase tracking-widest border border-white/10">
@@ -441,35 +441,35 @@ export default function AdminPaymentsPage() {
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-12 gap-y-10 px-4 sm:px-8">
               <div className="space-y-3">
-                <p className="text-[9px] font-black text-slate-500 uppercase tracking-[0.3em]">ข้อมูลผู้ใช้</p>
+                <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em]">ข้อมูลผู้ใช้</p>
                 <div className="flex items-center gap-4">
                   <div className="w-10 h-10 rounded-xl bg-white/[0.03] flex items-center justify-center font-black text-emerald-400 border border-white/5">
                     {selectedPayment.user?.username?.charAt(0).toUpperCase()}
                   </div>
                   <div>
                     <p className="text-base font-black text-white tracking-tight uppercase leading-none mb-1">{selectedPayment.user?.username || 'Unknown'}</p>
-                    <p className="text-[10px] text-slate-600 font-bold tracking-wider lowercase leading-none">{selectedPayment.user?.email || '-'}</p>
+                    <p className="text-[10px] text-slate-400 font-bold tracking-wider lowercase leading-none">{selectedPayment.user?.email || '-'}</p>
                   </div>
                 </div>
               </div>
               <div className="space-y-3">
-                <p className="text-[9px] font-black text-slate-500 uppercase tracking-[0.3em]">ข้อมูลแพ็คเกจ</p>
+                <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em]">ข้อมูลแพ็คเกจ</p>
                 <p className="text-base font-black text-white tracking-tight uppercase">{selectedPayment.package?.name || 'Manual Index'}</p>
                 <div className="flex items-center gap-2">
                   <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.5)]" />
-                  <p className="text-[9px] text-emerald-400 font-black uppercase tracking-widest">{selectedPayment.package?.slipQuota?.toLocaleString() || '-'} เครดิต (เพิ่มเข้าสู่ระบบ)</p>
+                  <p className="text-[10px] text-emerald-400 font-black uppercase tracking-widest">{selectedPayment.package?.slipQuota?.toLocaleString() || '-'} เครดิต (เพิ่มเข้าสู่ระบบ)</p>
                 </div>
               </div>
               <div className="space-y-3">
-                <p className="text-[9px] font-black text-slate-500 uppercase tracking-[0.3em]">วันและเวลา (UTC)</p>
+                <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em]">วันและเวลา (UTC)</p>
                 <p className="text-sm font-black text-white tracking-tight flex items-center gap-2">
                   <svg className="w-4 h-4 text-emerald-500/40" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
                   {new Date(selectedPayment.createdAt).toLocaleDateString('en-US', { day: '2-digit', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false })}
                 </p>
               </div>
               <div className="space-y-3">
-                <p className="text-[9px] font-black text-slate-500 uppercase tracking-[0.3em]">เลขอ้างอิงรายการ</p>
-                <p className="text-[10px] font-mono font-bold text-slate-600 break-all select-all hover:text-emerald-400 transition-colors uppercase">{selectedPayment._id}</p>
+                <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em]">เลขอ้างอิงรายการ</p>
+                <p className="text-[10px] font-mono font-bold text-slate-400 break-all select-all hover:text-emerald-400 transition-colors uppercase">{selectedPayment._id}</p>
               </div>
             </div>
 

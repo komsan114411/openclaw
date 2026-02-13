@@ -310,7 +310,7 @@ export default function AdminCreditsPage() {
 
                             <div className="space-y-4">
                                 <div>
-                                    <label className="text-sm text-slate-400 block mb-2">เลือกผู้ใช้</label>
+                                    <label className="text-sm text-slate-300 block mb-2">เลือกผู้ใช้</label>
                                     <select
                                         value={selectedUser}
                                         onChange={(e) => setSelectedUser(e.target.value)}
@@ -344,19 +344,19 @@ export default function AdminCreditsPage() {
                                                 {/* Statistics Grid */}
                                                 <div className="grid grid-cols-2 gap-2 text-xs">
                                                     <div className="bg-slate-900/50 rounded-lg p-2">
-                                                        <div className="text-slate-500">💵 เติมสะสม</div>
+                                                        <div className="text-slate-400 text-[10px]">💵 เติมสะสม</div>
                                                         <div className="text-blue-400 font-semibold">฿{userStats.totalDeposited.toLocaleString()}</div>
                                                     </div>
                                                     <div className="bg-slate-900/50 rounded-lg p-2">
-                                                        <div className="text-slate-500">🛒 ใช้ไป</div>
+                                                        <div className="text-slate-400 text-[10px]">🛒 ใช้ไป</div>
                                                         <div className="text-amber-400 font-semibold">฿{userStats.totalSpent.toLocaleString()}</div>
                                                     </div>
                                                     <div className="bg-slate-900/50 rounded-lg p-2">
-                                                        <div className="text-slate-500">🎁 โบนัส</div>
+                                                        <div className="text-slate-400 text-[10px]">🎁 โบนัส</div>
                                                         <div className="text-purple-400 font-semibold">฿{userStats.totalBonusReceived.toLocaleString()}</div>
                                                     </div>
                                                     <div className="bg-slate-900/50 rounded-lg p-2">
-                                                        <div className="text-slate-500">➖ ถูกหัก</div>
+                                                        <div className="text-slate-400 text-[10px]">➖ ถูกหัก</div>
                                                         <div className="text-rose-400 font-semibold">฿{userStats.totalDeducted.toLocaleString()}</div>
                                                     </div>
                                                 </div>
@@ -365,11 +365,11 @@ export default function AdminCreditsPage() {
                                                 {creditAmount && parseFloat(creditAmount) > 0 && (
                                                     <div className="mt-2 pt-3 border-t border-white/5 space-y-1">
                                                         <div className="flex justify-between text-xs">
-                                                            <span className="text-slate-500">ถ้าเพิ่ม ฿{parseFloat(creditAmount).toLocaleString()}</span>
+                                                            <span className="text-slate-400">ถ้าเพิ่ม ฿{parseFloat(creditAmount).toLocaleString()}</span>
                                                             <span className="text-emerald-400">→ ฿{(userStats.currentBalance + parseFloat(creditAmount)).toLocaleString()}</span>
                                                         </div>
                                                         <div className="flex justify-between text-xs">
-                                                            <span className="text-slate-500">ถ้าหัก ฿{parseFloat(creditAmount).toLocaleString()}</span>
+                                                            <span className="text-slate-400">ถ้าหัก ฿{parseFloat(creditAmount).toLocaleString()}</span>
                                                             <span className={cn(
                                                                 userStats.currentBalance - parseFloat(creditAmount) >= 0 ? "text-amber-400" : "text-rose-400"
                                                             )}>
@@ -383,11 +383,11 @@ export default function AdminCreditsPage() {
                                                 {/* Recent Transactions */}
                                                 {userStats.lastTransactions.length > 0 && (
                                                     <div className="mt-2 pt-3 border-t border-white/5">
-                                                        <div className="text-xs text-slate-500 mb-2">📋 ธุรกรรมล่าสุด</div>
+                                                        <div className="text-xs text-slate-400 mb-2">📋 ธุรกรรมล่าสุด</div>
                                                         <div className="space-y-1 max-h-24 overflow-y-auto">
                                                             {userStats.lastTransactions.slice(0, 3).map((tx) => (
                                                                 <div key={tx._id} className="flex justify-between text-xs bg-slate-900/30 rounded px-2 py-1">
-                                                                    <span className="text-slate-400 truncate flex-1">{tx.description.slice(0, 20)}</span>
+                                                                    <span className="text-slate-300 truncate flex-1">{tx.description.slice(0, 20)}</span>
                                                                     <span className={cn(
                                                                         "ml-2 font-medium",
                                                                         tx.amount > 0 ? "text-emerald-400" : "text-rose-400"
@@ -409,7 +409,7 @@ export default function AdminCreditsPage() {
                                 )}
 
                                 <div>
-                                    <label className="text-sm text-slate-400 block mb-2">จำนวนเครดิต (บาท)</label>
+                                    <label className="text-sm text-slate-300 block mb-2">จำนวนเครดิต (บาท)</label>
                                     <input
                                         type="number"
                                         value={creditAmount}
@@ -420,7 +420,7 @@ export default function AdminCreditsPage() {
                                 </div>
 
                                 <div>
-                                    <label className="text-sm text-slate-400 block mb-2">เหตุผล</label>
+                                    <label className="text-sm text-slate-300 block mb-2">เหตุผล</label>
                                     <input
                                         type="text"
                                         value={creditDescription}
@@ -514,8 +514,8 @@ export default function AdminCreditsPage() {
                                                         </p>
                                                         {getStatusBadge(tx.status)}
                                                     </div>
-                                                    <p className="text-xs text-slate-400 truncate">{tx.description}</p>
-                                                    <p className="text-[10px] text-slate-500">{formatDate(tx.createdAt)}</p>
+                                                    <p className="text-xs text-slate-300 truncate">{tx.description}</p>
+                                                    <p className="text-[10px] text-slate-400">{formatDate(tx.createdAt)}</p>
                                                 </div>
                                                 <div className="text-right">
                                                     <p className={cn(

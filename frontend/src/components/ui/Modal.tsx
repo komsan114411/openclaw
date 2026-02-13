@@ -84,7 +84,7 @@ export function Modal({
           <div className="flex items-center justify-between px-4 sm:px-6 md:px-8 py-4 sm:py-5 md:py-6 border-b border-white/5 bg-white/5 backdrop-blur-md flex-shrink-0">
             <div className="space-y-0.5 sm:space-y-1 min-w-0 flex-1 pr-3">
               {title && <h3 className="text-base sm:text-lg md:text-xl font-extrabold text-white tracking-tight truncate">{title}</h3>}
-              {subtitle && <p className="text-xs sm:text-sm font-medium text-emerald-500/70 truncate">{subtitle}</p>}
+              {subtitle && <p className="text-xs sm:text-sm font-medium text-emerald-400/80 truncate">{subtitle}</p>}
             </div>
             {showCloseButton && (
               <IconButton
@@ -196,7 +196,7 @@ export function ConfirmModal({
           {config.icon}
         </div>
         <h3 className="text-2xl font-extrabold text-white tracking-tight">{title}</h3>
-        <p className="mt-3 text-slate-400 font-medium leading-relaxed">{message}</p>
+        <p className="mt-3 text-sm text-slate-300 font-medium leading-relaxed">{message}</p>
 
         <div className="mt-10 flex flex-col w-full gap-3">
           <Button
@@ -214,7 +214,7 @@ export function ConfirmModal({
             variant="ghost"
             size="lg"
             fullWidth
-            className="text-slate-500 font-bold hover:text-white"
+            className="text-slate-400 font-bold hover:text-white"
           >
             {cancelText}
           </Button>

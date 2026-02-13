@@ -114,11 +114,11 @@ export default function AdminHistoryPage() {
 
         <div className="page-header relative z-10 flex-col lg:flex-row items-start lg:items-center">
           <div className="space-y-1 sm:space-y-2 text-left">
-            <p className="text-slate-500 font-medium text-xs sm:text-sm">จัดการระบบ</p>
+            <p className="text-slate-400 font-medium text-xs sm:text-sm">จัดการระบบ</p>
             <h1 className="text-2xl sm:text-3xl md:text-4xl font-black text-white tracking-tight">
               ประวัติ<span className="text-[#06C755]">ระบบ</span>
             </h1>
-            <p className="text-slate-500 text-xs sm:text-sm">
+            <p className="text-slate-400 text-xs sm:text-sm">
               บันทึกกิจกรรมทั้งหมดในระบบ
             </p>
           </div>
@@ -172,11 +172,11 @@ export default function AdminHistoryPage() {
             <table className="w-full text-left border-collapse">
               <thead>
                 <tr className="border-b border-white/5 bg-white/[0.02]">
-                  <th className="px-6 sm:px-8 py-5 sm:py-6 text-[10px] font-black uppercase tracking-widest text-slate-400">วันที่และเวลา</th>
-                  <th className="px-6 sm:px-8 py-5 sm:py-6 text-[10px] font-black uppercase tracking-widest text-slate-400">ผู้ดำเนินการ</th>
-                  <th className="px-6 sm:px-8 py-5 sm:py-6 text-[10px] font-black uppercase tracking-widest text-slate-400">ประเภท</th>
-                  <th className="px-6 sm:px-8 py-5 sm:py-6 text-[10px] font-black uppercase tracking-widest text-slate-400">เป้าหมาย</th>
-                  <th className="px-6 sm:px-8 py-5 sm:py-6 text-[10px] font-black uppercase tracking-widest text-slate-400">รายละเอียด</th>
+                  <th className="px-6 sm:px-8 py-5 sm:py-6 text-[10px] font-black uppercase tracking-widest text-slate-300">วันที่และเวลา</th>
+                  <th className="px-6 sm:px-8 py-5 sm:py-6 text-[10px] font-black uppercase tracking-widest text-slate-300">ผู้ดำเนินการ</th>
+                  <th className="px-6 sm:px-8 py-5 sm:py-6 text-[10px] font-black uppercase tracking-widest text-slate-300">ประเภท</th>
+                  <th className="px-6 sm:px-8 py-5 sm:py-6 text-[10px] font-black uppercase tracking-widest text-slate-300">เป้าหมาย</th>
+                  <th className="px-6 sm:px-8 py-5 sm:py-6 text-[10px] font-black uppercase tracking-widest text-slate-300">รายละเอียด</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-white/[0.02]">
@@ -214,7 +214,7 @@ export default function AdminHistoryPage() {
                             <Calendar className="w-3 h-3 text-slate-500" />
                             {new Date(log.createdAt).toLocaleDateString('th-TH')}
                           </span>
-                          <span className="text-[10px] font-bold text-slate-600 ml-5">{new Date(log.createdAt).toLocaleTimeString('th-TH')}</span>
+                          <span className="text-[10px] font-bold text-slate-400 ml-5">{new Date(log.createdAt).toLocaleTimeString('th-TH')}</span>
                         </div>
                       </td>
                       <td className="px-10 py-8">
@@ -235,29 +235,29 @@ export default function AdminHistoryPage() {
                       <td className="px-10 py-8">
                         <div className="flex flex-col gap-2 items-start">
                           {getActionBadge(log.action)}
-                          <span className="font-mono text-[9px] font-black text-slate-600 uppercase tracking-widest">{log.action}</span>
+                          <span className="font-mono text-[10px] font-black text-slate-400 uppercase tracking-widest">{log.action}</span>
                         </div>
                       </td>
                       <td className="px-10 py-8">
                         <div className="flex items-center gap-2 p-2 bg-white/[0.02] rounded-xl border border-white/5 group-hover:bg-white/[0.04] transition-colors">
                           <Box className="w-3 h-3 text-slate-500" />
                           <div className="flex flex-col">
-                            <p className="text-[9px] font-black text-white uppercase tracking-tight">{log.entityType || 'GLOBAL'}</p>
-                            <p className="font-mono text-[8px] text-slate-600 truncate max-w-[100px]">{log.entityId || '---'}</p>
+                            <p className="text-[10px] font-black text-white uppercase tracking-tight">{log.entityType || 'GLOBAL'}</p>
+                            <p className="font-mono text-[9px] text-slate-400 truncate max-w-[100px]">{log.entityId || '---'}</p>
                           </div>
                         </div>
                       </td>
                       <td className="px-10 py-8 max-w-md">
                         <div className="flex items-start gap-2">
-                          <MessageSquare className="w-3 h-3 text-slate-600 mt-0.5" />
+                          <MessageSquare className="w-3 h-3 text-slate-500 mt-0.5" />
                           <div>
-                            <p className="text-xs font-medium text-slate-400 leading-relaxed group-hover:text-emerald-400 transition-colors">
+                            <p className="text-xs font-medium text-slate-300 leading-relaxed group-hover:text-emerald-400 transition-colors">
                               {log.message || <span className="italic opacity-30 text-[10px]">ไม่มีข้อมูลเพิ่มเติม</span>}
                             </p>
                             {log.subjectUserId && (
                               <div className="mt-2 flex items-center gap-2">
-                                <span className="text-[9px] font-black uppercase tracking-widest text-slate-700">Subject:</span>
-                                <span className="text-[9px] font-black text-indigo-400 bg-indigo-500/10 px-2 py-0.5 rounded-lg border border-indigo-500/10 uppercase tracking-widest">{userMap.get(log.subjectUserId) || log.subjectUserId}</span>
+                                <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">Subject:</span>
+                                <span className="text-[10px] font-black text-indigo-400 bg-indigo-500/10 px-2 py-0.5 rounded-lg border border-indigo-500/10 uppercase tracking-widest">{userMap.get(log.subjectUserId) || log.subjectUserId}</span>
                               </div>
                             )}
                           </div>
@@ -296,20 +296,20 @@ export default function AdminHistoryPage() {
                         <p className="text-xs font-black text-white uppercase tracking-tight">
                           {log.actorRole === 'system' ? 'SYSTEM' : userMap.get(log.actorUserId || '') || 'Unknown'}
                         </p>
-                        <p className="text-[9px] text-slate-500 font-bold uppercase tracking-widest">{log.actorRole}</p>
+                        <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">{log.actorRole}</p>
                       </div>
                     </div>
                     {getActionBadge(log.action)}
                   </div>
-                  <p className="text-[11px] font-bold text-slate-400 line-clamp-2 mb-4 group-hover:text-emerald-400 transition-colors">
+                  <p className="text-xs font-bold text-slate-300 line-clamp-2 mb-4 group-hover:text-emerald-400 transition-colors">
                     {log.message || log.action}
                   </p>
                   <div className="flex items-center justify-between pt-4 border-t border-white/5">
-                    <span className="text-[9px] text-slate-600 font-black uppercase tracking-widest flex items-center gap-1">
+                    <span className="text-[10px] text-slate-400 font-black uppercase tracking-widest flex items-center gap-1">
                       <Box className="w-3 h-3" />
                       {log.entityType || 'GLOBAL'}
                     </span>
-                    <span className="text-[9px] text-slate-600 font-bold uppercase tracking-widest">
+                    <span className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">
                       {new Date(log.createdAt).toLocaleString('th-TH')}
                     </span>
                   </div>

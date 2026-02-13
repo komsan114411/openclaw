@@ -541,13 +541,13 @@ export default function AdminBankMonitorPage() {
       case 'error':
         return <Badge className="bg-amber-100 text-amber-700 border-amber-200">ข้อผิดพลาด</Badge>;
       case 'no_session':
-        return <Badge className="bg-slate-100 text-slate-500 border-slate-200">ไม่มี Session</Badge>;
+        return <Badge className="bg-slate-100 text-slate-600 border-slate-200 font-medium">ไม่มี Session</Badge>;
       case 'pending':
         return <Badge className="bg-blue-100 text-blue-700 border-blue-200">รอดำเนินการ</Badge>;
       case 'validating':
         return <Badge className="bg-blue-100 text-blue-700 border-blue-200">กำลังตรวจสอบ</Badge>;
       default:
-        return <Badge className="bg-slate-100 text-slate-600 border-slate-200">ไม่ทราบ</Badge>;
+        return <Badge className="bg-slate-100 text-slate-700 border-slate-200 font-medium">ไม่ทราบ</Badge>;
     }
   };
 
@@ -616,7 +616,7 @@ export default function AdminBankMonitorPage() {
               ตรวจสอบธุรกรรมธนาคารจาก LINE sessions ({stats.sessionsWithKeys}/{stats.totalSessions} มี Keys)
             </p>
             {lastUpdatedAt && (
-              <p className="text-slate-500 text-xs mt-0.5">
+              <p className="text-slate-400 text-xs mt-0.5">
                 อัปเดตล่าสุด: {formatThaiDate(lastUpdatedAt)}
               </p>
             )}
@@ -668,7 +668,7 @@ export default function AdminBankMonitorPage() {
               <div className="w-8 h-8 rounded-xl bg-blue-500/20 flex items-center justify-center shrink-0">
                 <Building2 className="w-4 h-4 text-blue-400" />
               </div>
-              <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest leading-tight">Sessions</span>
+              <span className="text-[10px] font-bold text-slate-300 uppercase tracking-widest leading-tight">Sessions</span>
             </div>
             <p className="text-xl font-black text-white">{stats.totalSessions}</p>
           </div>
@@ -677,7 +677,7 @@ export default function AdminBankMonitorPage() {
               <div className="w-8 h-8 rounded-xl bg-emerald-500/20 flex items-center justify-center shrink-0">
                 <Activity className="w-4 h-4 text-emerald-400" />
               </div>
-              <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest leading-tight">ใช้งาน</span>
+              <span className="text-[10px] font-bold text-slate-300 uppercase tracking-widest leading-tight">ใช้งาน</span>
             </div>
             <p className="text-xl font-black text-emerald-400">{stats.activeSessions}</p>
           </div>
@@ -686,7 +686,7 @@ export default function AdminBankMonitorPage() {
               <div className="w-8 h-8 rounded-xl bg-green-500/20 flex items-center justify-center shrink-0">
                 <TrendingUp className="w-4 h-4 text-green-400" />
               </div>
-              <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest leading-tight">เงินเข้า</span>
+              <span className="text-[10px] font-bold text-slate-300 uppercase tracking-widest leading-tight">เงินเข้า</span>
             </div>
             <p className="text-sm md:text-base font-black text-green-400">
               {stats.totalDeposits.toLocaleString('th-TH', { style: 'currency', currency: 'THB' })}
@@ -697,7 +697,7 @@ export default function AdminBankMonitorPage() {
               <div className="w-8 h-8 rounded-xl bg-rose-500/20 flex items-center justify-center shrink-0">
                 <TrendingDown className="w-4 h-4 text-rose-400" />
               </div>
-              <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest leading-tight">เงินออก</span>
+              <span className="text-[10px] font-bold text-slate-300 uppercase tracking-widest leading-tight">เงินออก</span>
             </div>
             <p className="text-sm md:text-base font-black text-rose-400">
               {stats.totalWithdrawals.toLocaleString('th-TH', { style: 'currency', currency: 'THB' })}
@@ -708,7 +708,7 @@ export default function AdminBankMonitorPage() {
               <div className="w-8 h-8 rounded-xl bg-amber-500/20 flex items-center justify-center shrink-0">
                 <Wallet className="w-4 h-4 text-amber-400" />
               </div>
-              <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest leading-tight">ยอดคงเหลือล่าสุด</span>
+              <span className="text-[10px] font-bold text-slate-300 uppercase tracking-widest leading-tight">ยอดคงเหลือล่าสุด</span>
             </div>
             <p className="text-sm md:text-base font-black text-amber-400">
               {stats.latestBalance.toLocaleString('th-TH', { style: 'currency', currency: 'THB' })}
@@ -719,7 +719,7 @@ export default function AdminBankMonitorPage() {
               <div className="w-8 h-8 rounded-xl bg-violet-500/20 flex items-center justify-center shrink-0">
                 <Mail className="w-4 h-4 text-violet-400" />
               </div>
-              <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest leading-tight">ข้อความ</span>
+              <span className="text-[10px] font-bold text-slate-300 uppercase tracking-widest leading-tight">ข้อความ</span>
             </div>
             <p className="text-xl font-black text-violet-400">{stats.totalMessages.toLocaleString()}</p>
           </div>
@@ -768,9 +768,9 @@ export default function AdminBankMonitorPage() {
         {/* Sessions List - Grouped by Owner */}
         {filteredSessions.length === 0 ? (
           <div className="p-12 bg-slate-800/30 rounded-2xl border border-slate-700/30 text-center">
-            <Building2 className="w-16 h-16 text-slate-600 mx-auto mb-4" />
-            <h3 className="text-lg font-bold text-slate-400 mb-2">ไม่พบ Bank Sessions</h3>
-            <p className="text-sm text-slate-500">
+            <Building2 className="w-16 h-16 text-slate-400 mx-auto mb-4" />
+            <h3 className="text-lg font-bold text-slate-300 mb-2">ไม่พบ Bank Sessions</h3>
+            <p className="text-sm text-slate-400">
               ตั้งค่า Bank Monitor ใน LINE Account เพื่อเริ่มติดตามธุรกรรม
             </p>
           </div>
@@ -852,7 +852,7 @@ export default function AdminBankMonitorPage() {
                             {session.bankName || session.bankCode}
                           </span>
                         ) : (
-                          <span className="flex items-center gap-1 text-slate-500">
+                          <span className="flex items-center gap-1 text-slate-400">
                             <Building2 className="w-3.5 h-3.5" />
                             ยังไม่ตั้งค่า
                           </span>
@@ -864,7 +864,7 @@ export default function AdminBankMonitorPage() {
                           </span>
                         )}
                       </div>
-                      <div className="flex flex-wrap items-center gap-2 text-[10px] sm:text-xs text-slate-500 mt-1">
+                      <div className="flex flex-wrap items-center gap-2 text-xs sm:text-sm text-slate-400 mt-1">
                         {session.lineEmail && (
                           <span className="truncate max-w-[180px]">LINE: {session.lineEmail}</span>
                         )}
@@ -905,20 +905,20 @@ export default function AdminBankMonitorPage() {
                     <div className="text-right">
                       {session.balance && (
                         <div className="mb-1">
-                          <p className="text-[9px] sm:text-[10px] font-bold text-slate-500 uppercase tracking-widest">ยอดคงเหลือ</p>
+                          <p className="text-[10px] sm:text-xs font-bold text-slate-400 uppercase tracking-widest">ยอดคงเหลือ</p>
                           <p className="text-lg sm:text-xl font-black text-emerald-400">
                             {Number(session.balance).toLocaleString()} <span className="text-xs">THB</span>
                           </p>
                         </div>
                       )}
                       <div>
-                        <p className="text-[9px] sm:text-[10px] font-bold text-slate-500 uppercase tracking-widest">ข้อความ</p>
+                        <p className="text-[10px] sm:text-xs font-bold text-slate-400 uppercase tracking-widest">ข้อความ</p>
                         <p className={cn("font-black", session.balance ? "text-sm text-blue-400" : "text-lg sm:text-xl text-blue-400")}>
                           {session.messageCount || 0}
                         </p>
                       </div>
                     </div>
-                    <ChevronRight className="w-5 h-5 text-slate-500 group-hover:text-emerald-400 group-hover:translate-x-1 transition-all hidden sm:block" />
+                    <ChevronRight className="w-5 h-5 text-slate-400 group-hover:text-emerald-400 group-hover:translate-x-1 transition-all hidden sm:block" />
                   </div>
                 </div>
               </div>
@@ -953,7 +953,7 @@ export default function AdminBankMonitorPage() {
                 </div>
                 {selectedSession.lineEmail && (
                   <div className="sm:text-right pl-13 sm:pl-0">
-                    <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">LINE Email</p>
+                    <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">LINE Email</p>
                     <p className="text-sm text-slate-300 truncate">{selectedSession.lineEmail}</p>
                   </div>
                 )}
@@ -970,7 +970,7 @@ export default function AdminBankMonitorPage() {
                       <Building2 className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
                     </div>
                     <div className="min-w-0">
-                      <p className="text-[9px] sm:text-[10px] font-black text-white/70 uppercase tracking-widest">
+                      <p className="text-[10px] sm:text-xs font-black text-white/80 uppercase tracking-widest">
                         {selectedSession.bankName || selectedSession.bankCode}
                       </p>
                       <p className="text-white font-bold truncate">{selectedSession.accountNumber || 'ไม่มีเลขบัญชี'}</p>
@@ -980,13 +980,13 @@ export default function AdminBankMonitorPage() {
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                   <div className="bg-white/10 rounded-xl p-3 sm:p-4">
-                    <p className="text-[9px] font-bold text-white/60 uppercase tracking-widest mb-1">ยอดคงเหลือปัจจุบัน</p>
+                    <p className="text-[10px] font-bold text-white/70 uppercase tracking-widest mb-1">ยอดคงเหลือปัจจุบัน</p>
                     <p className="text-xl sm:text-2xl font-black text-white">
                       {selectedSession.balance ? `${Number(selectedSession.balance).toLocaleString()} THB` : 'ไม่มีข้อมูล'}
                     </p>
                   </div>
                   <div className="bg-white/10 rounded-xl p-3 sm:p-4">
-                    <p className="text-[9px] font-bold text-white/60 uppercase tracking-widest mb-1">Chat MID</p>
+                    <p className="text-[10px] font-bold text-white/70 uppercase tracking-widest mb-1">Chat MID</p>
                     <p className="text-xs sm:text-sm font-mono text-white/80 truncate">
                       {selectedSession.chatMid || 'ยังไม่ตั้งค่า'}
                     </p>
@@ -1010,7 +1010,7 @@ export default function AdminBankMonitorPage() {
                           <TrendingUp className="w-4 h-4 text-emerald-400" />
                         </div>
                         <div>
-                          <p className="text-[9px] font-bold text-emerald-400 uppercase tracking-widest">เงินเข้า</p>
+                          <p className="text-[10px] font-bold text-emerald-400 uppercase tracking-widest">เงินเข้า</p>
                           <p className="text-sm font-black text-emerald-300">{summary.deposits?.count || 0} รายการ</p>
                         </div>
                       </div>
@@ -1024,7 +1024,7 @@ export default function AdminBankMonitorPage() {
                           <TrendingDown className="w-4 h-4 text-rose-400" />
                         </div>
                         <div>
-                          <p className="text-[9px] font-bold text-rose-400 uppercase tracking-widest">เงินออก</p>
+                          <p className="text-[10px] font-bold text-rose-400 uppercase tracking-widest">เงินออก</p>
                           <p className="text-sm font-black text-rose-300">{summary.withdrawals?.count || 0} รายการ</p>
                         </div>
                       </div>
@@ -1051,7 +1051,7 @@ export default function AdminBankMonitorPage() {
                           )} />
                         </div>
                         <div>
-                          <p className="text-[9px] font-bold text-amber-400 uppercase tracking-widest">คงเหลือสุทธิ</p>
+                          <p className="text-[10px] font-bold text-amber-400 uppercase tracking-widest">คงเหลือสุทธิ</p>
                           <p className="text-sm font-black text-slate-300">
                             {(summary.deposits?.count || 0) + (summary.withdrawals?.count || 0)} รายการรวม
                           </p>
@@ -1071,8 +1071,8 @@ export default function AdminBankMonitorPage() {
                 {/* Fetch Button */}
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 sm:p-4 bg-slate-800/50 rounded-xl border border-slate-700/50">
                   <div>
-                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">ข้อความ</p>
-                    <p className="text-sm text-slate-600">{detailTotal} รายการทั้งหมด</p>
+                    <p className="text-xs font-black text-slate-300 uppercase tracking-widest">ข้อความ</p>
+                    <p className="text-sm text-slate-300">{detailTotal} รายการทั้งหมด</p>
                   </div>
                   <Button
                     variant="secondary"
@@ -1152,7 +1152,7 @@ export default function AdminBankMonitorPage() {
                         "flex-1 sm:flex-none px-4 py-2.5 rounded-xl text-sm font-bold transition-colors",
                         detailStartDate || detailEndDate
                           ? "bg-emerald-500 text-white hover:bg-emerald-600"
-                          : "bg-slate-700/50 text-slate-500 cursor-not-allowed"
+                          : "bg-slate-700/50 text-slate-400 cursor-not-allowed"
                       )}
                     >
                       กรอง
@@ -1166,7 +1166,7 @@ export default function AdminBankMonitorPage() {
                             fetchDetailMessages(selectedSession.lineAccountId, 1, detailFilterType);
                           }
                         }}
-                        className="px-3 py-2.5 rounded-xl text-sm font-bold bg-slate-100 text-slate-600 hover:bg-slate-200 transition-colors"
+                        className="px-3 py-2.5 rounded-xl text-sm font-bold bg-slate-100 text-slate-700 hover:bg-slate-200 transition-colors"
                       >
                         ล้าง
                       </button>
@@ -1177,7 +1177,7 @@ export default function AdminBankMonitorPage() {
                 {/* Info bar */}
                 {detailTotal > 0 && (
                   <div className="px-2">
-                    <p className="text-[11px] sm:text-xs text-slate-500">
+                    <p className="text-xs sm:text-sm text-slate-400">
                       แสดง {((detailCurrentPage - 1) * DETAIL_ITEMS_PER_PAGE) + 1}-{Math.min(detailCurrentPage * DETAIL_ITEMS_PER_PAGE, detailTotal)} จาก {detailTotal} รายการ
                       {detailFilterType && (
                         <span className="ml-1 text-emerald-600">
@@ -1196,11 +1196,11 @@ export default function AdminBankMonitorPage() {
 
                 {/* Messages List */}
                 <div className="space-y-3">
-                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-2">รายการธุรกรรมล่าสุด</p>
+                  <p className="text-xs font-black text-slate-300 uppercase tracking-widest px-2">รายการธุรกรรมล่าสุด</p>
                   {filteredMessages.length === 0 ? (
                     <div className="p-8 bg-slate-800/30 rounded-[2rem] text-center border border-slate-700/30">
-                      <Wallet className="w-12 h-12 text-slate-600 mx-auto mb-3" />
-                      <p className="text-sm text-slate-500">
+                      <Wallet className="w-12 h-12 text-slate-400 mx-auto mb-3" />
+                      <p className="text-sm text-slate-400">
                         {detailSearchQuery.trim() ? 'ไม่พบรายการที่ค้นหา' : 'ยังไม่มีรายการธุรกรรม'}
                       </p>
                     </div>
@@ -1215,7 +1215,7 @@ export default function AdminBankMonitorPage() {
                         <div key={msg.id || msg.messageId || index} className="p-3 sm:p-4 bg-slate-800/50 rounded-xl border border-slate-700/50">
                           <div className="flex items-center justify-between mb-2">
                             <Badge className={cn(
-                              "text-[9px] font-bold",
+                              "text-[10px] font-bold",
                               msg.transactionType === 'deposit' && "bg-emerald-100 text-emerald-700",
                               msg.transactionType === 'withdraw' && "bg-rose-100 text-rose-700",
                               msg.transactionType === 'transfer' && "bg-blue-100 text-blue-700",
@@ -1223,11 +1223,11 @@ export default function AdminBankMonitorPage() {
                               msg.transactionType === 'fee' && "bg-amber-100 text-amber-700",
                               msg.transactionType === 'interest' && "bg-cyan-100 text-cyan-700",
                               msg.transactionType === 'bill' && "bg-orange-100 text-orange-700",
-                              msg.transactionType === 'unknown' && "bg-slate-100 text-slate-600"
+                              msg.transactionType === 'unknown' && "bg-slate-100 text-slate-700"
                             )}>
                               {{ deposit: 'เงินเข้า', withdraw: 'เงินออก', transfer: 'โอน', payment: 'ชำระเงิน', fee: 'ค่าธรรมเนียม', interest: 'ดอกเบี้ย', bill: 'ชำระบิล', unknown: 'อื่นๆ' }[msg.transactionType] || msg.transactionType || 'อื่นๆ'}
                             </Badge>
-                            <span className="text-[9px] text-slate-400 shrink-0 ml-2">
+                            <span className="text-[10px] text-slate-400 shrink-0 ml-2">
                               {formatThaiDate(msg.messageDate)}
                             </span>
                           </div>
@@ -1245,7 +1245,7 @@ export default function AdminBankMonitorPage() {
                             )}
                           </div>
                           {msg.balance && (
-                            <p className="text-[10px] text-slate-400 mt-1">
+                            <p className="text-xs text-slate-300 mt-1">
                               คงเหลือ: {Number(msg.balance).toLocaleString()} THB
                             </p>
                           )}
@@ -1518,7 +1518,7 @@ export default function AdminBankMonitorPage() {
 
             {/* Metadata */}
             <div className="p-3 sm:p-4 bg-slate-800/30 rounded-xl border border-slate-700/30">
-              <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-3">ข้อมูลเพิ่มเติม</p>
+              <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-3">ข้อมูลเพิ่มเติม</p>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
                 <div>
                   <span className="text-slate-500">User Agent:</span>
@@ -1571,7 +1571,7 @@ export default function AdminBankMonitorPage() {
                 </div>
                 <div className="min-w-0">
                   <p className="text-sm font-bold text-white truncate">{alertSession.accountName}</p>
-                  <p className="text-xs text-slate-400">{alertSession.bankName || alertSession.bankCode || 'ไม่ระบุธนาคาร'}</p>
+                  <p className="text-xs text-slate-300">{alertSession.bankName || alertSession.bankCode || 'ไม่ระบุธนาคาร'}</p>
                 </div>
               </div>
             </div>
@@ -1583,8 +1583,8 @@ export default function AdminBankMonitorPage() {
               </div>
             ) : alerts.length === 0 ? (
               <div className="p-8 bg-slate-800/30 rounded-2xl text-center border border-slate-700/30">
-                <CheckCheck className="w-12 h-12 text-slate-600 mx-auto mb-3" />
-                <p className="text-sm text-slate-500">ไม่มีรายการแจ้งเตือน</p>
+                <CheckCheck className="w-12 h-12 text-slate-400 mx-auto mb-3" />
+                <p className="text-sm text-slate-400">ไม่มีรายการแจ้งเตือน</p>
               </div>
             ) : (
               <div className="space-y-2">
@@ -1600,14 +1600,14 @@ export default function AdminBankMonitorPage() {
                   >
                     <div className="flex items-center justify-between mb-1.5">
                       <Badge className={cn(
-                        "text-[9px] font-bold",
+                        "text-[10px] font-bold",
                         alert.transactionType === 'transfer' && "bg-blue-100 text-blue-700",
                         alert.transactionType === 'payment' && "bg-violet-100 text-violet-700",
                         alert.transactionType === 'fee' && "bg-amber-100 text-amber-700",
                         alert.transactionType === 'interest' && "bg-cyan-100 text-cyan-700",
                         alert.transactionType === 'bill' && "bg-orange-100 text-orange-700",
                         alert.transactionType === 'withdraw' && "bg-red-100 text-red-700",
-                        alert.transactionType === 'unknown' && "bg-slate-100 text-slate-600"
+                        alert.transactionType === 'unknown' && "bg-slate-100 text-slate-700"
                       )}>
                         {translateAlertType(alert.transactionType)}
                       </Badge>
@@ -1646,7 +1646,7 @@ export default function AdminBankMonitorPage() {
                 >
                   <ChevronLeft className="w-4 h-4" />
                 </button>
-                <span className="text-xs text-slate-400">
+                <span className="text-xs text-slate-300">
                   หน้า {alertPage} / {alertTotalPages}
                 </span>
                 <button

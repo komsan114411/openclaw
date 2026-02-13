@@ -307,7 +307,7 @@ export default function LoginPage() {
             <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-white mt-4 sm:mt-6 tracking-tight">
               {siteBranding.siteName || (<>dooslip<span className="text-[#06C755]">.com</span></>)}
             </h1>
-            <p className="text-slate-400 mt-1.5 sm:mt-2 text-xs sm:text-sm">เข้าสู่ระบบเพื่อจัดการบัญชี LINE OA ของคุณ</p>
+            <p className="text-slate-300 mt-1.5 sm:mt-2 text-xs sm:text-sm font-medium">เข้าสู่ระบบเพื่อจัดการบัญชี LINE OA ของคุณ</p>
           </div>
 
           {/* Session kicked by admin (403 error) */}
@@ -383,10 +383,10 @@ export default function LoginPage() {
               <label className="text-slate-300 text-xs font-semibold uppercase tracking-wider block mb-2">ชื่อผู้ใช้</label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                  <svg className="w-5 h-5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
+                  <svg className="w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
                 </div>
                 <input type="text" placeholder="ระบุชื่อผู้ใช้" maxLength={MAX_USERNAME_LENGTH} disabled={isLocked || isSubmitting || isLoading} autoComplete="username" aria-label="ชื่อผู้ใช้"
-                  className="w-full h-12 pl-12 pr-4 bg-white/5 border border-white/10 rounded-xl text-white placeholder:text-slate-500 focus:border-[#06C755] focus:ring-2 focus:ring-[#06C755]/20 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="w-full h-12 pl-12 pr-4 bg-white/5 border border-white/10 rounded-xl text-white placeholder:text-slate-400 focus:border-[#06C755] focus:ring-2 focus:ring-[#06C755]/20 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                   {...register('username', { required: 'กรุณากรอกชื่อผู้ใช้', maxLength: { value: MAX_USERNAME_LENGTH, message: 'ไม่เกิน ' + MAX_USERNAME_LENGTH + ' ตัวอักษร' }, pattern: { value: /^[a-zA-Z0-9_]+$/, message: 'ใช้ได้เฉพาะ a-z, 0-9, _ เท่านั้น' } })} />
               </div>
               {errors.username && <p className="text-rose-400 text-xs mt-1">⚠️ {errors.username.message}</p>}
@@ -396,10 +396,10 @@ export default function LoginPage() {
               <label className="text-slate-300 text-xs font-semibold uppercase tracking-wider block mb-2">รหัสผ่าน</label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                  <svg className="w-5 h-5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
+                  <svg className="w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
                 </div>
                 <input type={showPassword ? 'text' : 'password'} placeholder="••••••••" maxLength={MAX_PASSWORD_LENGTH} disabled={isLocked || isSubmitting || isLoading} autoComplete="current-password" aria-label="รหัสผ่าน"
-                  className="w-full h-12 pl-12 pr-12 bg-white/5 border border-white/10 rounded-xl text-white placeholder:text-slate-500 focus:border-[#06C755] focus:ring-2 focus:ring-[#06C755]/20 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="w-full h-12 pl-12 pr-12 bg-white/5 border border-white/10 rounded-xl text-white placeholder:text-slate-400 focus:border-[#06C755] focus:ring-2 focus:ring-[#06C755]/20 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                   {...register('password', { required: 'กรุณากรอกรหัสผ่าน', maxLength: { value: MAX_PASSWORD_LENGTH, message: 'รหัสผ่านยาวเกินไป' } })} />
                 <button type="button" onClick={() => setShowPassword((v) => !v)} className="absolute inset-y-0 right-0 pr-3 sm:pr-4 flex items-center text-slate-400 hover:text-white transition-colors min-w-[44px] min-h-[44px] justify-center" aria-label={showPassword ? 'ซ่อนรหัสผ่าน' : 'แสดงรหัสผ่าน'} tabIndex={-1}>
                   {showPassword ? <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" /></svg> : <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>}
@@ -419,7 +419,7 @@ export default function LoginPage() {
           </form>
 
           <div className="mt-5 sm:mt-8 pt-4 sm:pt-6 border-t border-white/5 text-center">
-            <p className="text-slate-500 text-xs sm:text-sm mb-3 sm:mb-4">ยังไม่มีบัญชี?</p>
+            <p className="text-slate-400 text-xs sm:text-sm font-medium mb-3 sm:mb-4">ยังไม่มีบัญชี?</p>
             <Link href="/register">
               <Button variant="ghost" fullWidth className="h-11 sm:h-12 rounded-xl text-white hover:bg-white/5 font-medium border border-white/10 hover:border-[#06C755]/30 transition-all text-sm">
                 <span className="flex items-center justify-center gap-2">
@@ -431,7 +431,7 @@ export default function LoginPage() {
           </div>
 
           <div className="mt-6 text-center">
-            <p className="text-slate-600 text-[10px] flex items-center justify-center gap-1">
+            <p className="text-slate-400 text-[10px] sm:text-xs font-medium flex items-center justify-center gap-1">
               <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" /></svg>
               การเชื่อมต่อปลอดภัยด้วย SSL
             </p>

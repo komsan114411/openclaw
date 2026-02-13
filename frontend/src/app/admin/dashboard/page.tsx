@@ -203,11 +203,11 @@ export default function AdminDashboard() {
 
         <div className="page-header relative z-10">
           <div className="space-y-1 sm:space-y-2">
-            <p className="text-slate-500 font-medium text-xs sm:text-sm">สวัสดี,</p>
+            <p className="text-slate-400 font-medium text-xs sm:text-sm">สวัสดี,</p>
             <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-white tracking-tight">
               ศูนย์<span className="text-[#06C755]">ควบคุม</span>
             </h1>
-            <p className="text-slate-500 text-xs sm:text-sm">
+            <p className="text-slate-400 text-xs sm:text-sm">
               ภาพรวมระบบวันนี้
             </p>
           </div>
@@ -216,16 +216,16 @@ export default function AdminDashboard() {
               variant="outline"
               size="lg"
               onClick={() => { fetchStats(); fetchThunderQuota(); }}
-              className="group border-emerald-500/20 bg-[#0F1A14] hover:bg-emerald-500/10 hover:border-emerald-500/40 text-slate-400 hover:text-[#06C755] rounded-full h-11 sm:h-12 px-5 sm:px-6 font-semibold text-xs transition-all duration-300"
+              className="group border-emerald-500/20 bg-[#0F1A14] hover:bg-emerald-500/10 hover:border-emerald-500/40 text-slate-300 hover:text-[#06C755] rounded-full h-11 sm:h-12 px-5 sm:px-6 font-semibold text-sm transition-all duration-300"
               isLoading={isLoading || isLoadingQuota}
             >
-              <svg className="w-4 h-4 mr-2 text-slate-500 group-hover:text-[#06C755] group-hover:rotate-180 transition-all duration-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-4 h-4 mr-2 text-slate-400 group-hover:text-[#06C755] group-hover:rotate-180 transition-all duration-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
               </svg>
               รีเฟรช
             </Button>
             <Link href="/admin/settings" className="w-full sm:w-auto">
-              <Button size="lg" variant="primary" className="w-full h-11 sm:h-12 px-5 sm:px-6 rounded-full font-semibold text-xs shadow-lg shadow-[#06C755]/20">
+              <Button size="lg" variant="primary" className="w-full h-11 sm:h-12 px-5 sm:px-6 rounded-full font-semibold text-sm shadow-lg shadow-[#06C755]/20">
                 ⚙️ ตั้งค่า
               </Button>
             </Link>
@@ -236,7 +236,7 @@ export default function AdminDashboard() {
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 md:gap-6">
           <Card variant="glass" className="p-4 sm:p-6 rounded-2xl border border-white/5 hover:border-emerald-500/20 transition-all">
             <div className="flex items-center justify-between mb-3">
-              <p className="text-[10px] sm:text-xs font-medium text-slate-400">ผู้ใช้ทั้งหมด</p>
+              <p className="text-xs sm:text-sm font-semibold text-slate-300">ผู้ใช้ทั้งหมด</p>
               <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-emerald-500/10 flex items-center justify-center">
                 <svg className="w-4 h-4 sm:w-5 sm:h-5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
@@ -244,12 +244,12 @@ export default function AdminDashboard() {
               </div>
             </div>
             <p className="text-2xl sm:text-3xl font-bold text-white mb-1">{isLoading ? '...' : stats?.totalUsers || 0}</p>
-            <p className="text-[9px] sm:text-[10px] text-emerald-400 font-medium">+{stats?.activeUsers || 0} ใช้งานอยู่</p>
+            <p className="text-[10px] sm:text-xs text-emerald-400 font-semibold">+{stats?.activeUsers || 0} ใช้งานอยู่</p>
           </Card>
 
           <Card variant="glass" className="p-4 sm:p-6 rounded-2xl border border-white/5 hover:border-blue-500/20 transition-all">
             <div className="flex items-center justify-between mb-3">
-              <p className="text-[10px] sm:text-xs font-medium text-slate-400">บัญชี LINE</p>
+              <p className="text-xs sm:text-sm font-semibold text-slate-300">บัญชี LINE</p>
               <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-blue-500/10 flex items-center justify-center">
                 <svg className="w-4 h-4 sm:w-5 sm:h-5 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
@@ -257,12 +257,12 @@ export default function AdminDashboard() {
               </div>
             </div>
             <p className="text-2xl sm:text-3xl font-bold text-white mb-1">{isLoading ? '...' : stats?.totalLineAccounts || 0}</p>
-            <p className="text-[9px] sm:text-[10px] text-blue-400 font-medium">{stats?.totalMessages || 0} ข้อความ</p>
+            <p className="text-[10px] sm:text-xs text-blue-400 font-semibold">{stats?.totalMessages || 0} ข้อความ</p>
           </Card>
 
           <Card variant="glass" className="p-4 sm:p-6 rounded-2xl border border-white/5 hover:border-violet-500/20 transition-all">
             <div className="flex items-center justify-between mb-3">
-              <p className="text-[10px] sm:text-xs font-medium text-slate-400">สลิปที่ตรวจสอบ</p>
+              <p className="text-xs sm:text-sm font-semibold text-slate-300">สลิปที่ตรวจสอบ</p>
               <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-violet-500/10 flex items-center justify-center">
                 <svg className="w-4 h-4 sm:w-5 sm:h-5 text-violet-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
@@ -274,7 +274,7 @@ export default function AdminDashboard() {
 
           <Card variant="glass" className="p-4 sm:p-6 rounded-2xl border border-white/5 hover:border-amber-500/20 transition-all">
             <div className="flex items-center justify-between mb-3">
-              <p className="text-[10px] sm:text-xs font-medium text-slate-400">รอตรวจสอบ</p>
+              <p className="text-xs sm:text-sm font-semibold text-slate-300">รอตรวจสอบ</p>
               <div className={cn(
                 "w-8 h-8 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center",
                 stats?.pendingPayments ? "bg-amber-500/10" : "bg-slate-500/10"
@@ -300,7 +300,7 @@ export default function AdminDashboard() {
               </div>
               <div>
                 <h3 className="text-sm sm:text-base font-bold text-white">สถิติกระเป๋าเงิน</h3>
-                <p className="text-[9px] sm:text-[10px] text-slate-500 font-medium uppercase tracking-wider">Wallet Statistics</p>
+                <p className="text-[10px] sm:text-xs text-slate-400 font-semibold uppercase tracking-wider">Wallet Statistics</p>
               </div>
             </div>
             {isLoading ? (
@@ -310,20 +310,20 @@ export default function AdminDashboard() {
             ) : walletStats ? (
               <div className="space-y-3">
                 <div className="bg-emerald-500/5 border border-emerald-500/10 rounded-xl p-3 sm:p-4">
-                  <p className="text-[9px] sm:text-[10px] text-slate-500 font-bold uppercase tracking-widest mb-1">ยอดคงเหลือรวม</p>
-                  <p className="text-2xl sm:text-3xl font-black text-emerald-400">{(walletStats.totalBalance || 0).toLocaleString()} <span className="text-sm text-slate-500">บาท</span></p>
+                  <p className="text-[10px] sm:text-xs text-slate-400 font-bold uppercase tracking-widest mb-1">ยอดคงเหลือรวม</p>
+                  <p className="text-2xl sm:text-3xl font-black text-emerald-400">{(walletStats.totalBalance || 0).toLocaleString()} <span className="text-sm text-slate-400">บาท</span></p>
                 </div>
                 <div className="grid grid-cols-3 gap-2 sm:gap-3">
                   <div className="bg-white/5 rounded-xl p-3 border border-white/5">
-                    <p className="text-[8px] sm:text-[9px] text-slate-500 font-bold uppercase tracking-widest mb-1">ยอดฝากรวม</p>
+                    <p className="text-[9px] sm:text-[10px] text-slate-400 font-bold uppercase tracking-widest mb-1">ยอดฝากรวม</p>
                     <p className="text-base sm:text-lg font-black text-white">{(walletStats.totalDeposited || 0).toLocaleString()}</p>
                   </div>
                   <div className="bg-white/5 rounded-xl p-3 border border-white/5">
-                    <p className="text-[8px] sm:text-[9px] text-slate-500 font-bold uppercase tracking-widest mb-1">ยอดใช้ไป</p>
+                    <p className="text-[9px] sm:text-[10px] text-slate-400 font-bold uppercase tracking-widest mb-1">ยอดใช้ไป</p>
                     <p className="text-base sm:text-lg font-black text-white">{(walletStats.totalSpent || 0).toLocaleString()}</p>
                   </div>
                   <div className="bg-white/5 rounded-xl p-3 border border-white/5">
-                    <p className="text-[8px] sm:text-[9px] text-slate-500 font-bold uppercase tracking-widest mb-1">รอดำเนินการ</p>
+                    <p className="text-[9px] sm:text-[10px] text-slate-400 font-bold uppercase tracking-widest mb-1">รอดำเนินการ</p>
                     <p className="text-base sm:text-lg font-black text-amber-400">{walletStats.pendingTransactions || 0}</p>
                   </div>
                 </div>
@@ -345,7 +345,7 @@ export default function AdminDashboard() {
               </div>
               <div>
                 <h3 className="text-sm sm:text-base font-bold text-white">สถิติโควต้า</h3>
-                <p className="text-[9px] sm:text-[10px] text-slate-500 font-medium uppercase tracking-wider">Subscription Statistics</p>
+                <p className="text-[10px] sm:text-xs text-slate-400 font-semibold uppercase tracking-wider">Subscription Statistics</p>
               </div>
             </div>
             {isLoading ? (
@@ -356,21 +356,21 @@ export default function AdminDashboard() {
               <div className="space-y-3">
                 <div className="grid grid-cols-2 gap-2 sm:gap-3">
                   <div className="bg-violet-500/5 border border-violet-500/10 rounded-xl p-3 sm:p-4">
-                    <p className="text-[9px] sm:text-[10px] text-slate-500 font-bold uppercase tracking-widest mb-1">Active</p>
+                    <p className="text-[10px] sm:text-xs text-slate-400 font-bold uppercase tracking-widest mb-1">Active</p>
                     <p className="text-2xl sm:text-3xl font-black text-violet-400">{subscriptionStats.totalActive || 0}</p>
                   </div>
                   <div className="bg-white/5 rounded-xl p-3 sm:p-4 border border-white/5">
-                    <p className="text-[9px] sm:text-[10px] text-slate-500 font-bold uppercase tracking-widest mb-1">หมดอายุ</p>
+                    <p className="text-[10px] sm:text-xs text-slate-400 font-bold uppercase tracking-widest mb-1">หมดอายุ</p>
                     <p className="text-2xl sm:text-3xl font-black text-slate-400">{subscriptionStats.totalExpired || 0}</p>
                   </div>
                 </div>
                 <div className="grid grid-cols-2 gap-2 sm:gap-3">
                   <div className="bg-white/5 rounded-xl p-3 border border-white/5">
-                    <p className="text-[8px] sm:text-[9px] text-slate-500 font-bold uppercase tracking-widest mb-1">โควต้าใช้ไป</p>
+                    <p className="text-[9px] sm:text-[10px] text-slate-400 font-bold uppercase tracking-widest mb-1">โควต้าใช้ไป</p>
                     <p className="text-base sm:text-lg font-black text-white">{(subscriptionStats.totalQuotaUsed || 0).toLocaleString()}</p>
                   </div>
                   <div className="bg-emerald-500/5 border border-emerald-500/10 rounded-xl p-3">
-                    <p className="text-[8px] sm:text-[9px] text-slate-500 font-bold uppercase tracking-widest mb-1">โควต้าคงเหลือ</p>
+                    <p className="text-[9px] sm:text-[10px] text-slate-400 font-bold uppercase tracking-widest mb-1">โควต้าคงเหลือ</p>
                     <p className="text-base sm:text-lg font-black text-emerald-400">{(subscriptionStats.totalQuotaRemaining || 0).toLocaleString()}</p>
                   </div>
                 </div>
@@ -403,7 +403,7 @@ export default function AdminDashboard() {
                     </div>
                     <div>
                       <h2 className="text-xl md:text-3xl font-black text-white tracking-tight uppercase leading-none">Slip API</h2>
-                      <p className="text-slate-400 font-bold text-[9px] md:text-xs tracking-[0.3em] uppercase opacity-40 mt-1 md:mt-2 text-gradient">ระบบตรวจสอบสลิป</p>
+                      <p className="text-slate-400 font-bold text-[10px] md:text-xs tracking-[0.3em] uppercase opacity-60 mt-1 md:mt-2 text-gradient">ระบบตรวจสอบสลิป</p>
                     </div>
                   </div>
                   <IconButton
@@ -429,15 +429,15 @@ export default function AdminDashboard() {
                       <div className="space-y-4">
                         <div className="flex items-center gap-2 mb-2">
                           <div className="w-2 h-2 rounded-full bg-yellow-400" />
-                          <p className="text-xs sm:text-sm font-black text-white uppercase tracking-wider">dooslip API (Thunder)</p>
-                          <Badge variant="success" className="text-[8px] px-2 py-0.5">Active</Badge>
+                          <p className="text-sm font-black text-white uppercase tracking-wider">dooslip API (Thunder)</p>
+                          <Badge variant="success" className="text-[9px] px-2 py-0.5">Active</Badge>
                         </div>
                         {/* Progress */}
                         <div className="space-y-2">
                           <div className="flex justify-between items-end">
                             <div className="flex items-baseline gap-2">
                               <span className="text-2xl md:text-4xl font-black text-white">{thunderQuota.data.usedQuota.toLocaleString()}</span>
-                              <span className="text-slate-500 font-bold text-sm md:text-base">/ {thunderQuota.data.maxQuota.toLocaleString()}</span>
+                              <span className="text-slate-400 font-bold text-sm md:text-base">/ {thunderQuota.data.maxQuota.toLocaleString()}</span>
                             </div>
                             <span className={cn(
                               "text-xl md:text-2xl font-black",
@@ -462,15 +462,15 @@ export default function AdminDashboard() {
                         {/* Meta */}
                         <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 md:gap-4">
                           <div className="bg-white/5 rounded-xl md:rounded-2xl p-3 md:p-4 border border-white/5">
-                            <p className="text-slate-500 font-bold text-[8px] md:text-[9px] uppercase tracking-widest">เครดิต</p>
+                            <p className="text-slate-400 font-bold text-[9px] md:text-[10px] uppercase tracking-widest">เครดิต</p>
                             <p className="text-lg md:text-2xl font-black text-emerald-400">{thunderQuota.data.currentCredit.toLocaleString()}</p>
                           </div>
                           <div className="bg-white/5 rounded-xl md:rounded-2xl p-3 md:p-4 border border-white/5">
-                            <p className="text-slate-500 font-bold text-[8px] md:text-[9px] uppercase tracking-widest">วันหมดอายุ</p>
+                            <p className="text-slate-400 font-bold text-[9px] md:text-[10px] uppercase tracking-widest">วันหมดอายุ</p>
                             <p className="text-sm md:text-lg font-black text-white">{formatDate(thunderQuota.data.expiredAt)}</p>
                           </div>
                           <div className="bg-white/5 rounded-xl md:rounded-2xl p-3 md:p-4 border border-white/5">
-                            <p className="text-slate-500 font-bold text-[8px] md:text-[9px] uppercase tracking-widest">เหลือ</p>
+                            <p className="text-slate-400 font-bold text-[9px] md:text-[10px] uppercase tracking-widest">เหลือ</p>
                             <p className={cn(
                               "text-lg md:text-2xl font-black",
                               thunderQuota.data.daysRemaining <= 7 ? "text-rose-400" : "text-blue-400"
@@ -506,38 +506,38 @@ export default function AdminDashboard() {
                     <div className="border-t border-white/5 pt-4 md:pt-6">
                       <div className="flex items-center gap-2 mb-3">
                         <div className="w-2 h-2 rounded-full bg-blue-400" />
-                        <p className="text-xs sm:text-sm font-black text-white uppercase tracking-wider">SlipMate API</p>
+                        <p className="text-sm font-black text-white uppercase tracking-wider">SlipMate API</p>
                         {slipProviders['slipmate'] ? (
-                          <Badge variant={slipProviders['slipmate'].success ? 'success' : 'error'} className="text-[8px] px-2 py-0.5">
+                          <Badge variant={slipProviders['slipmate'].success ? 'success' : 'error'} className="text-[9px] px-2 py-0.5">
                             {slipProviders['slipmate'].success ? 'Active' : 'Offline'}
                           </Badge>
                         ) : (
-                          <Badge variant="default" className="text-[8px] px-2 py-0.5">ไม่ได้ตั้งค่า</Badge>
+                          <Badge variant="default" className="text-[9px] px-2 py-0.5">ไม่ได้ตั้งค่า</Badge>
                         )}
                       </div>
                       {slipProviders['slipmate'] ? (
                         <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 md:gap-4">
                           <div className="bg-white/5 rounded-xl p-3 border border-white/5">
-                            <p className="text-slate-500 font-bold text-[8px] md:text-[9px] uppercase tracking-widest">สถานะ</p>
+                            <p className="text-slate-400 font-bold text-[9px] md:text-[10px] uppercase tracking-widest">สถานะ</p>
                             <p className={cn("text-sm md:text-base font-black", slipProviders['slipmate'].success ? "text-emerald-400" : "text-rose-400")}>
                               {slipProviders['slipmate'].message}
                             </p>
                           </div>
                           <div className="bg-white/5 rounded-xl p-3 border border-white/5">
-                            <p className="text-slate-500 font-bold text-[8px] md:text-[9px] uppercase tracking-widest">โควต้าคงเหลือ</p>
+                            <p className="text-slate-400 font-bold text-[9px] md:text-[10px] uppercase tracking-widest">โควต้าคงเหลือ</p>
                             <p className="text-lg md:text-2xl font-black text-blue-400">
                               {slipProviders['slipmate'].remainingQuota != null ? slipProviders['slipmate'].remainingQuota.toLocaleString() : '-'}
                             </p>
                           </div>
                           <div className="bg-white/5 rounded-xl p-3 border border-white/5">
-                            <p className="text-slate-500 font-bold text-[8px] md:text-[9px] uppercase tracking-widest">วันหมดอายุ</p>
+                            <p className="text-slate-400 font-bold text-[9px] md:text-[10px] uppercase tracking-widest">วันหมดอายุ</p>
                             <p className="text-sm md:text-base font-black text-white">
                               {slipProviders['slipmate'].expiresAt ? formatDate(slipProviders['slipmate'].expiresAt) : '-'}
                             </p>
                           </div>
                         </div>
                       ) : (
-                        <p className="text-xs text-slate-500">ยังไม่ได้ตั้งค่า API Key</p>
+                        <p className="text-sm text-slate-400">ยังไม่ได้ตั้งค่า API Key</p>
                       )}
                     </div>
 
@@ -545,38 +545,38 @@ export default function AdminDashboard() {
                     <div className="border-t border-white/5 pt-4 md:pt-6">
                       <div className="flex items-center gap-2 mb-3">
                         <div className="w-2 h-2 rounded-full bg-violet-400" />
-                        <p className="text-xs sm:text-sm font-black text-white uppercase tracking-wider">Slip2Go API</p>
+                        <p className="text-sm font-black text-white uppercase tracking-wider">Slip2Go API</p>
                         {slipProviders['slip2go'] ? (
-                          <Badge variant={slipProviders['slip2go'].success ? 'success' : 'error'} className="text-[8px] px-2 py-0.5">
+                          <Badge variant={slipProviders['slip2go'].success ? 'success' : 'error'} className="text-[9px] px-2 py-0.5">
                             {slipProviders['slip2go'].success ? 'Active' : 'Offline'}
                           </Badge>
                         ) : (
-                          <Badge variant="default" className="text-[8px] px-2 py-0.5">ไม่ได้ตั้งค่า</Badge>
+                          <Badge variant="default" className="text-[9px] px-2 py-0.5">ไม่ได้ตั้งค่า</Badge>
                         )}
                       </div>
                       {slipProviders['slip2go'] ? (
                         <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 md:gap-4">
                           <div className="bg-white/5 rounded-xl p-3 border border-white/5">
-                            <p className="text-slate-500 font-bold text-[8px] md:text-[9px] uppercase tracking-widest">สถานะ</p>
+                            <p className="text-slate-400 font-bold text-[9px] md:text-[10px] uppercase tracking-widest">สถานะ</p>
                             <p className={cn("text-sm md:text-base font-black", slipProviders['slip2go'].success ? "text-emerald-400" : "text-rose-400")}>
                               {slipProviders['slip2go'].message}
                             </p>
                           </div>
                           <div className="bg-white/5 rounded-xl p-3 border border-white/5">
-                            <p className="text-slate-500 font-bold text-[8px] md:text-[9px] uppercase tracking-widest">โควต้าคงเหลือ</p>
+                            <p className="text-slate-400 font-bold text-[9px] md:text-[10px] uppercase tracking-widest">โควต้าคงเหลือ</p>
                             <p className="text-lg md:text-2xl font-black text-violet-400">
                               {slipProviders['slip2go'].remainingQuota != null ? slipProviders['slip2go'].remainingQuota.toLocaleString() : '-'}
                             </p>
                           </div>
                           <div className="bg-white/5 rounded-xl p-3 border border-white/5">
-                            <p className="text-slate-500 font-bold text-[8px] md:text-[9px] uppercase tracking-widest">วันหมดอายุ</p>
+                            <p className="text-slate-400 font-bold text-[9px] md:text-[10px] uppercase tracking-widest">วันหมดอายุ</p>
                             <p className="text-sm md:text-base font-black text-white">
                               {slipProviders['slip2go'].expiresAt ? formatDate(slipProviders['slip2go'].expiresAt) : '-'}
                             </p>
                           </div>
                         </div>
                       ) : (
-                        <p className="text-xs text-slate-500">ยังไม่ได้ตั้งค่า API Key</p>
+                        <p className="text-sm text-slate-400">ยังไม่ได้ตั้งค่า API Key</p>
                       )}
                     </div>
                   </div>
@@ -590,10 +590,10 @@ export default function AdminDashboard() {
               <div className="flex items-center justify-between mb-6 md:mb-8">
                 <div className="space-y-1">
                   <h2 className="text-lg sm:text-xl font-black text-white tracking-tight leading-none uppercase">กิจกรรมล่าสุด</h2>
-                  <p className="text-emerald-400/40 font-black text-[9px] uppercase tracking-[0.2em] leading-none mt-1">รอดำเนินการ</p>
+                  <p className="text-emerald-400/70 font-black text-[10px] uppercase tracking-[0.2em] leading-none mt-1">รอดำเนินการ</p>
                 </div>
                 <Link href="/admin/payments">
-                  <Button variant="ghost" size="sm" className="text-emerald-400 font-black tracking-widest text-[9px] uppercase hover:bg-emerald-500/10">
+                  <Button variant="ghost" size="sm" className="text-emerald-400 font-black tracking-widest text-[10px] uppercase hover:bg-emerald-500/10">
                     ดูทั้งหมด
                   </Button>
                 </Link>
@@ -610,13 +610,13 @@ export default function AdminDashboard() {
                           </div>
                           <div>
                             <p className="text-base sm:text-xl font-black text-white leading-none mb-1">฿{payment.amount?.toLocaleString()}</p>
-                            <p className="text-[9px] text-slate-500 font-black uppercase tracking-[0.1em]">{payment.paymentType === 'bank_transfer' ? 'โอนผ่านธนาคาร' : 'คริปโต / USDT'}</p>
+                            <p className="text-[10px] text-slate-400 font-black uppercase tracking-[0.1em]">{payment.paymentType === 'bank_transfer' ? 'โอนผ่านธนาคาร' : 'คริปโต / USDT'}</p>
                           </div>
                         </div>
-                        <StatusBadge status="pending" className="px-3 text-[8px] sm:text-[9px] h-6" />
+                        <StatusBadge status="pending" className="px-3 text-[9px] sm:text-[10px] h-6" />
                       </div>
                       <div className="flex items-center justify-between pt-3 border-t border-white/[0.05]">
-                        <p className="text-[10px] sm:text-xs font-bold text-slate-500">{formatDate(payment.createdAt)}</p>
+                        <p className="text-xs font-bold text-slate-400">{formatDate(payment.createdAt)}</p>
                         <Link href={`/admin/payments?id=${payment._id}`}>
                           <IconButton variant="ghost" size="sm" className="text-slate-500 group-hover:text-emerald-400 group-hover:translate-x-1 transition-all">
                             <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -634,7 +634,7 @@ export default function AdminDashboard() {
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
                       </svg>
                     </div>
-                    <p className="font-black text-slate-500 uppercase tracking-widest text-[9px]">ไม่มีรายการรอดำเนินการ</p>
+                    <p className="font-black text-slate-400 uppercase tracking-widest text-[10px]">ไม่มีรายการรอดำเนินการ</p>
                   </div>
                 )}
               </div>
@@ -785,13 +785,13 @@ export default function AdminDashboard() {
                 </div>
                 <div>
                   <h3 className="font-black text-white text-sm sm:text-base leading-tight uppercase tracking-tight">ล้างระบบ</h3>
-                  <p className="text-[8px] sm:text-[10px] font-black text-rose-500/40 uppercase tracking-widest mt-1">การบำรุงรักษา</p>
+                  <p className="text-[9px] sm:text-[10px] font-black text-rose-400/60 uppercase tracking-widest mt-1">การบำรุงรักษา</p>
                 </div>
               </div>
               <Button
                 size="sm"
                 variant="ghost"
-                className="text-white hover:text-rose-400 font-black text-[9px] uppercase tracking-widest hover:bg-rose-500/10 relative z-10 px-2 sm:px-4"
+                className="text-white hover:text-rose-400 font-black text-[10px] uppercase tracking-widest hover:bg-rose-500/10 relative z-10 px-2 sm:px-4"
                 onClick={runCleanupSessions}
                 isLoading={isRunningMaintenance === 'sessions'}
               >
@@ -829,7 +829,7 @@ function ActionTile({ title, desc, href, icon, color }: { title: string, desc: s
         </div>
         <div>
           <h3 className="font-bold text-white text-sm sm:text-base leading-tight">{title}</h3>
-          <p className="text-[9px] sm:text-[10px] font-medium text-slate-500 mt-1">{desc}</p>
+          <p className="text-[10px] sm:text-xs font-semibold text-slate-400 mt-1">{desc}</p>
         </div>
       </Card>
     </Link>

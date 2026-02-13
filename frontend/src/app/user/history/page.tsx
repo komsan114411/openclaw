@@ -56,14 +56,14 @@ export default function UserHistoryPage() {
             case 'completed':
             case 'approved':
             case 'success':
-                return <Badge variant="emerald" className="px-2 py-0.5 border-none font-black text-[10px] uppercase tracking-wider">สำเร็จ</Badge>;
+                return <Badge variant="emerald" className="px-2 py-0.5 border-none font-black text-xs uppercase tracking-wider">สำเร็จ</Badge>;
             case 'pending':
-                return <Badge variant="warning" className="px-2 py-0.5 border-none font-black text-[10px] uppercase tracking-wider">รอดำเนินการ</Badge>;
+                return <Badge variant="warning" className="px-2 py-0.5 border-none font-black text-xs uppercase tracking-wider">รอดำเนินการ</Badge>;
             case 'failed':
             case 'rejected':
-                return <Badge variant="rose" className="px-2 py-0.5 border-none font-black text-[10px] uppercase tracking-wider">ล้มเหลว</Badge>;
+                return <Badge variant="rose" className="px-2 py-0.5 border-none font-black text-xs uppercase tracking-wider">ล้มเหลว</Badge>;
             default:
-                return <Badge variant="slate" className="px-2 py-0.5 border-none font-black text-[10px] uppercase tracking-wider">{status}</Badge>;
+                return <Badge variant="slate" className="px-2 py-0.5 border-none font-black text-xs uppercase tracking-wider">{status}</Badge>;
         }
     };
 
@@ -73,7 +73,7 @@ export default function UserHistoryPage() {
             case 'purchase':
             case 'subscription': return <div className="w-10 h-10 rounded-xl bg-blue-500/10 flex items-center justify-center text-blue-500"><CheckCircle2 className="w-5 h-5" /></div>;
             case 'bonus': return <div className="w-10 h-10 rounded-xl bg-amber-500/10 flex items-center justify-center text-amber-500"><Zap className="w-5 h-5" /></div>;
-            default: return <div className="w-10 h-10 rounded-xl bg-slate-500/10 flex items-center justify-center text-slate-500"><Clock className="w-5 h-5" /></div>;
+            default: return <div className="w-10 h-10 rounded-xl bg-slate-500/10 flex items-center justify-center text-slate-400"><Clock className="w-5 h-5" /></div>;
         }
     };
 
@@ -116,8 +116,8 @@ export default function UserHistoryPage() {
                                 key={f}
                                 onClick={() => setFilter(f)}
                                 className={cn(
-                                    "flex-1 py-2 px-2 rounded-lg sm:rounded-xl text-[10px] sm:text-xs font-bold transition-all uppercase tracking-wider min-h-[44px]",
-                                    filter === f ? "bg-[#06C755] text-white shadow-lg shadow-[#06C755]/20" : "text-slate-500 hover:text-white"
+                                    "flex-1 py-2 px-2 rounded-lg sm:rounded-xl text-xs sm:text-xs font-bold transition-all uppercase tracking-wider min-h-[44px]",
+                                    filter === f ? "bg-[#06C755] text-white shadow-lg shadow-[#06C755]/20" : "text-slate-400 hover:text-white"
                                 )}
                             >
                                 {f === 'all' ? 'ทั้งหมด' : f === 'deposit' ? 'เติมเงิน' : 'แพ็คเกจ'}
@@ -131,7 +131,7 @@ export default function UserHistoryPage() {
                     {isLoading ? (
                         <div className="py-20 flex flex-col items-center gap-4">
                             <div className="w-10 h-10 border-2 border-[#06C755] border-t-transparent rounded-full animate-spin" />
-                            <p className="text-slate-500 font-semibold">กำลังโหลดข้อมูล...</p>
+                            <p className="text-slate-400 font-semibold">กำลังโหลดข้อมูล...</p>
                         </div>
                     ) : filteredTransactions.length === 0 ? (
                         <div className="py-20 flex flex-col items-center gap-4 text-center opacity-40">
@@ -144,11 +144,11 @@ export default function UserHistoryPage() {
                             <table className="w-full text-left min-w-[600px]">
                                 <thead>
                                     <tr className="bg-white/5 border-b border-white/10">
-                                        <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">วันเวลา</th>
-                                        <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">รายการ</th>
-                                        <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400 text-center">ประเภท</th>
-                                        <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400 text-right">จำนวน</th>
-                                        <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400 text-center">สถานะ</th>
+                                        <th className="px-6 py-4 text-xs font-black uppercase tracking-widest text-slate-400">วันเวลา</th>
+                                        <th className="px-6 py-4 text-xs font-black uppercase tracking-widest text-slate-400">รายการ</th>
+                                        <th className="px-6 py-4 text-xs font-black uppercase tracking-widest text-slate-400 text-center">ประเภท</th>
+                                        <th className="px-6 py-4 text-xs font-black uppercase tracking-widest text-slate-400 text-right">จำนวน</th>
+                                        <th className="px-6 py-4 text-xs font-black uppercase tracking-widest text-slate-400 text-center">สถานะ</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-white/5">
@@ -164,10 +164,10 @@ export default function UserHistoryPage() {
                                                 <td className="px-6 py-6">
                                                     <div className="flex flex-col">
                                                         <span className="text-xs font-bold text-white flex items-center gap-2">
-                                                            <Calendar className="w-3 h-3 text-slate-500" />
+                                                            <Calendar className="w-3 h-3 text-slate-400" />
                                                             {new Date(t.createdAt).toLocaleDateString('th-TH')}
                                                         </span>
-                                                        <span className="text-[10px] text-slate-500 font-semibold ml-5">
+                                                        <span className="text-xs text-slate-400 font-semibold ml-5">
                                                             {new Date(t.createdAt).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })}
                                                         </span>
                                                     </div>
@@ -177,13 +177,13 @@ export default function UserHistoryPage() {
                                                         {getTransactionIcon(t.type)}
                                                         <div>
                                                             <p className="text-sm text-white group-hover:text-emerald-400 transition-colors line-clamp-1">{t.description}</p>
-                                                            {t.metadata?.packageId && <p className="text-[10px] text-slate-500 font-mono">ID: {t._id.slice(-8).toUpperCase()}</p>}
+                                                            {t.metadata?.packageId && <p className="text-xs text-slate-400 font-mono">ID: {t._id.slice(-8).toUpperCase()}</p>}
                                                         </div>
                                                     </div>
                                                 </td>
                                                 <td className="px-6 py-6 text-center">
                                                     <span className={cn(
-                                                        "text-[10px] font-black uppercase px-2 py-1 rounded-lg border",
+                                                        "text-xs font-black uppercase px-2 py-1 rounded-lg border",
                                                         t.type === 'deposit' ? "border-emerald-500/20 text-emerald-400 bg-emerald-500/5" :
                                                             (t.type === 'purchase' || t.type === 'subscription') ? "border-blue-500/20 text-blue-400 bg-blue-500/5" :
                                                                 "border-slate-500/20 text-slate-400 bg-slate-500/5"
@@ -197,7 +197,7 @@ export default function UserHistoryPage() {
                                                         t.amount > 0 ? "text-emerald-400" : "text-rose-400"
                                                     )}>
                                                         {t.amount > 0 ? `+${t.amount.toLocaleString()}` : t.amount.toLocaleString()}
-                                                        <span className="text-[10px] ml-1 opacity-50 text-white">THB</span>
+                                                        <span className="text-xs ml-1 opacity-50 text-white">THB</span>
                                                     </span>
                                                 </td>
                                                 <td className="px-6 py-6 text-center">

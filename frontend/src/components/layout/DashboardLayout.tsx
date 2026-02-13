@@ -128,7 +128,7 @@ export default function DashboardLayout({ children, requiredRole }: DashboardLay
           <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-emerald-500 flex items-center justify-center shadow-lg shadow-emerald-500/20 flex-shrink-0">
             <span className="text-white text-[10px] sm:text-xs font-black">L</span>
           </div>
-          <span className="text-[10px] sm:text-xs font-black tracking-widest text-emerald-400 uppercase truncate">Line OA</span>
+          <span className="text-xs sm:text-sm font-black tracking-widest text-emerald-400 uppercase truncate">Line OA</span>
         </div>
       </div>
 
