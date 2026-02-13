@@ -81,8 +81,8 @@ class ErrorBoundary extends Component<Props, State> {
       const isChunkError = this.state.error?.message.includes('Loading chunk');
 
       return (
-        <div className="min-h-screen flex items-center justify-center bg-slate-950 px-4">
-          <div className="max-w-md w-full bg-slate-900/90 backdrop-blur-xl rounded-3xl shadow-2xl p-8 text-center border border-white/10">
+        <div className="min-h-screen flex items-center justify-center bg-slate-950 px-4 py-8">
+          <div className="max-w-md w-full bg-slate-900/90 backdrop-blur-xl rounded-2xl sm:rounded-3xl shadow-2xl p-6 sm:p-8 text-center border border-white/10">
             <div className="w-20 h-20 mx-auto mb-6 rounded-2xl bg-gradient-to-br from-rose-500 to-red-600 flex items-center justify-center shadow-xl shadow-rose-500/30">
               <svg
                 className="w-10 h-10 text-white"
@@ -121,7 +121,7 @@ class ErrorBoundary extends Component<Props, State> {
               {isChunkError ? (
                 <button
                   onClick={this.handleRefresh}
-                  className="px-6 py-3 bg-gradient-to-r from-emerald-500 to-teal-600 text-white rounded-xl font-semibold hover:from-emerald-600 hover:to-teal-700 transition-all shadow-lg shadow-emerald-500/20"
+                  className="px-6 py-3 min-h-[44px] bg-gradient-to-r from-emerald-500 to-teal-600 text-white rounded-xl font-semibold hover:from-emerald-600 hover:to-teal-700 active:from-emerald-700 active:to-teal-800 transition-all shadow-lg shadow-emerald-500/20 touch-manipulation"
                 >
                   รีเฟรชหน้าเว็บ
                 </button>
@@ -129,13 +129,13 @@ class ErrorBoundary extends Component<Props, State> {
                 <>
                   <button
                     onClick={this.handleRetry}
-                    className="px-6 py-3 bg-gradient-to-r from-emerald-500 to-teal-600 text-white rounded-xl font-semibold hover:from-emerald-600 hover:to-teal-700 transition-all shadow-lg shadow-emerald-500/20"
+                    className="w-full sm:w-auto px-6 py-3 min-h-[44px] bg-gradient-to-r from-emerald-500 to-teal-600 text-white rounded-xl font-semibold hover:from-emerald-600 hover:to-teal-700 active:from-emerald-700 active:to-teal-800 transition-all shadow-lg shadow-emerald-500/20 touch-manipulation"
                   >
                     ลองใหม่
                   </button>
                   <button
                     onClick={this.handleGoHome}
-                    className="px-6 py-3 bg-white/10 text-white rounded-xl font-semibold hover:bg-white/20 transition-all border border-white/10"
+                    className="w-full sm:w-auto px-6 py-3 min-h-[44px] bg-white/10 text-white rounded-xl font-semibold hover:bg-white/20 active:bg-white/30 transition-all border border-white/10 touch-manipulation"
                   >
                     กลับหน้าหลัก
                   </button>

@@ -148,6 +148,16 @@ const ADMIN_MENU_ITEMS: MenuItem[] = [
   },
   {
     group: 'system',
+    name: 'Auto-Slip',
+    href: '/admin/auto-slip',
+    icon: (
+      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+      </svg>
+    ),
+  },
+  {
+    group: 'system',
     name: 'ตั้งค่าระบบ',
     href: '/admin/settings',
     icon: (
@@ -237,6 +247,17 @@ const USER_MENU_ITEMS: MenuItem[] = [
     ),
   },
   // System Group
+  {
+    group: 'system',
+    name: 'Auto-Slip',
+    href: '/user/auto-slip',
+    badge: 'ใหม่',
+    icon: (
+      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+      </svg>
+    ),
+  },
   {
     group: 'system',
     name: 'ซื้อแพ็คเกจ',
@@ -360,11 +381,11 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
                 {item.icon}
               </span>
               <span className={clsx(
-                "font-medium text-xs sm:text-sm tracking-wide transition-all duration-300 truncate",
+                "font-medium text-xs sm:text-sm tracking-wide transition-all duration-300 truncate flex-1",
                 isActive ? "text-white font-bold" : "group-hover:text-white"
               )}>{item.name}</span>
               {item.badge && (
-                <span className="absolute right-3 px-2 py-0.5 text-[9px] font-bold bg-emerald-500 text-white rounded-full animate-pulse shadow-[0_0_10px_rgba(16,185,129,0.5)] tracking-widest uppercase">
+                <span className="flex-shrink-0 px-1.5 sm:px-2 py-0.5 text-[8px] sm:text-[9px] font-bold bg-emerald-500 text-white rounded-full animate-pulse shadow-[0_0_10px_rgba(16,185,129,0.5)] tracking-wider uppercase whitespace-nowrap">
                   {item.badge}
                 </span>
               )}
@@ -392,17 +413,17 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
               <img src={siteBranding.siteLogoBase64} alt="Logo" className="w-full h-full object-contain" />
             </div>
           ) : (
-            <div className="p-2 sm:p-2.5 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 shadow-lg shadow-emerald-500/20">
+            <div className="p-2 sm:p-2.5 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 shadow-lg shadow-emerald-500/20 flex-shrink-0">
               <svg className="w-5 h-5 sm:w-6 sm:h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
               </svg>
             </div>
           )}
-          <div className="min-w-0">
-            <h1 className="text-base sm:text-lg font-bold tracking-tight truncate">
+          <div className="min-w-0 flex-1">
+            <h1 className="text-sm sm:text-base md:text-lg font-bold tracking-tight truncate">
               {siteBranding.siteName || (<>dooslip<span className="text-emerald-500">.com</span></>)}
             </h1>
-            <p className="text-[9px] sm:text-[10px] text-emerald-400/60 font-medium tracking-widest uppercase truncate">
+            <p className="text-[8px] sm:text-[9px] md:text-[10px] text-emerald-400/60 font-medium tracking-widest uppercase truncate">
               {siteBranding.siteTagline || 'ระบบจัดการสลิป'}
             </p>
           </div>
@@ -449,20 +470,20 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
             href="/user/wallet"
             className="mt-3 block group/wallet"
           >
-            <div className="w-full py-3 px-4 rounded-xl border backdrop-blur-sm bg-gradient-to-r from-emerald-500/10 via-teal-500/5 to-cyan-500/10 border-emerald-500/20 shadow-lg shadow-emerald-500/5 hover:border-emerald-400/40 hover:shadow-emerald-500/20 transition-all duration-300">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center shadow-md shadow-amber-500/30 group-hover/wallet:scale-110 transition-transform">
-                    <span className="text-white text-sm">💰</span>
+            <div className="w-full py-3 px-3 sm:px-4 rounded-xl border backdrop-blur-sm bg-gradient-to-r from-emerald-500/10 via-teal-500/5 to-cyan-500/10 border-emerald-500/20 shadow-lg shadow-emerald-500/5 hover:border-emerald-400/40 hover:shadow-emerald-500/20 transition-all duration-300">
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2 min-w-0 flex-1">
+                  <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center shadow-md shadow-amber-500/30 group-hover/wallet:scale-110 transition-transform flex-shrink-0">
+                    <span className="text-white text-xs sm:text-sm">💰</span>
                   </div>
-                  <div>
-                    <p className="text-[9px] text-slate-400 uppercase tracking-wider font-medium">เครดิตคงเหลือ</p>
-                    <p className="text-lg font-black text-emerald-400 leading-none group-hover/wallet:text-emerald-300 transition-colors">
+                  <div className="min-w-0 flex-1">
+                    <p className="text-[8px] sm:text-[9px] text-slate-400 uppercase tracking-wider font-medium truncate">เครดิตคงเหลือ</p>
+                    <p className="text-base sm:text-lg font-black text-emerald-400 leading-none group-hover/wallet:text-emerald-300 transition-colors truncate">
                       ฿{walletBalance.toLocaleString()}
                     </p>
                   </div>
                 </div>
-                <svg className="w-4 h-4 text-slate-500 group-hover/wallet:text-emerald-400 group-hover/wallet:translate-x-1 transition-all" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-4 h-4 text-slate-500 group-hover/wallet:text-emerald-400 group-hover/wallet:translate-x-1 transition-all flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                 </svg>
               </div>

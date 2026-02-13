@@ -53,17 +53,17 @@ export function Modal({
   if (!isOpen) return null;
 
   const sizeClasses = {
-    sm: 'max-w-sm',
-    md: 'max-w-md',
-    lg: 'max-w-xl',
-    xl: 'max-w-2xl',
-    '2xl': 'max-w-4xl',
+    sm: 'max-w-[95vw] sm:max-w-sm',
+    md: 'max-w-[95vw] sm:max-w-md',
+    lg: 'max-w-[95vw] sm:max-w-xl',
+    xl: 'max-w-[95vw] sm:max-w-2xl',
+    '2xl': 'max-w-[95vw] sm:max-w-4xl',
     full: 'max-w-[95vw]',
-    fullMobile: 'max-w-[95vw] md:max-w-2xl', // Fullscreen on mobile, normal on desktop
+    fullMobile: 'max-w-[95vw] md:max-w-2xl',
   };
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-2 sm:p-4">
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-3 sm:p-4">
       {/* Overlay */}
       <div
         className="fixed inset-0 bg-black/70 backdrop-blur-md transition-all duration-500 animate-fade"
@@ -73,25 +73,26 @@ export function Modal({
       {/* Modal Container */}
       <div
         className={cn(
-          'relative w-full overflow-hidden bg-[#0F1A14]/95 backdrop-blur-2xl border border-emerald-500/20 rounded-xl xs:rounded-2xl sm:rounded-[2rem] shadow-2xl transition-all animate-scale-in',
+          'relative w-full overflow-hidden bg-[#0F1A14]/95 backdrop-blur-2xl border border-emerald-500/20 rounded-2xl sm:rounded-[2rem] shadow-2xl transition-all animate-scale-in',
           sizeClasses[size],
-          'flex flex-col max-h-[95vh] xs:max-h-[90vh] sm:max-h-[90vh]'
+          'flex flex-col max-h-[92vh] sm:max-h-[90vh]'
         )}
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
         {(title || showCloseButton) && (
-          <div className="flex items-center justify-between px-3 xs:px-4 sm:px-6 md:px-8 py-3 xs:py-4 sm:py-6 border-b border-white/5 bg-white/5 backdrop-blur-md sticky top-0 z-10">
-            <div className="space-y-0.5 xs:space-y-1">
-              {title && <h3 className="text-lg xs:text-xl font-extrabold text-white tracking-tight">{title}</h3>}
-              {subtitle && <p className="text-xs xs:text-sm font-medium text-emerald-500/70">{subtitle}</p>}
+          <div className="flex items-center justify-between px-4 sm:px-6 md:px-8 py-4 sm:py-5 md:py-6 border-b border-white/5 bg-white/5 backdrop-blur-md flex-shrink-0">
+            <div className="space-y-0.5 sm:space-y-1 min-w-0 flex-1 pr-3">
+              {title && <h3 className="text-base sm:text-lg md:text-xl font-extrabold text-white tracking-tight truncate">{title}</h3>}
+              {subtitle && <p className="text-xs sm:text-sm font-medium text-emerald-500/70 truncate">{subtitle}</p>}
             </div>
             {showCloseButton && (
               <IconButton
                 onClick={onClose}
                 variant="ghost"
                 size="md"
-                className="hover:rotate-90 transition-transform duration-300"
+                className="hover:rotate-90 transition-transform duration-300 flex-shrink-0"
+                aria-label="ปิด"
               >
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />
@@ -102,13 +103,13 @@ export function Modal({
         )}
 
         {/* Content */}
-        <div className="flex-1 px-4 sm:px-6 md:px-8 py-4 sm:py-6 md:py-8 overflow-y-auto no-scrollbar scroll-smooth">
+        <div className="flex-1 px-4 sm:px-6 md:px-8 py-4 sm:py-5 md:py-6 overflow-y-auto overflow-x-hidden overscroll-contain">
           {children}
         </div>
 
         {/* Footer */}
         {footer && (
-          <div className="px-4 sm:px-6 md:px-8 py-4 sm:py-6 bg-white/5 border-t border-white/5 backdrop-blur-md flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-end gap-2 sm:gap-3 sticky bottom-0 z-10">
+          <div className="px-4 sm:px-6 md:px-8 py-3 sm:py-4 md:py-5 bg-white/5 border-t border-white/5 backdrop-blur-md flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-end gap-2 sm:gap-3 flex-shrink-0">
             {footer}
           </div>
         )}

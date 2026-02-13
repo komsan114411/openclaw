@@ -28,7 +28,7 @@ export default function SectionHeader({
   return (
     <div
       className={cn(
-        'relative z-10 flex-col lg:flex-row items-start lg:items-center gap-4 lg:gap-6 w-full',
+        'relative z-10 flex flex-col lg:flex-row items-start lg:items-center gap-4 lg:gap-6 w-full',
         className,
       )}
     >
@@ -36,18 +36,18 @@ export default function SectionHeader({
         <div className="pointer-events-none absolute -top-10 -right-10 w-48 h-48 bg-emerald-500/10 rounded-full blur-3xl" />
       )}
       {/* Title */}
-      <div className="space-y-1 sm:space-y-2 text-left flex-1">
-        <h1 className="text-2xl sm:text-3xl md:text-4xl font-black text-white tracking-tight">
+      <div className="space-y-1 sm:space-y-2 text-left flex-1 min-w-0">
+        <h1 className="text-2xl sm:text-3xl md:text-4xl font-black text-white tracking-tight break-words">
           {title} {highlight && <span className="text-emerald-400">{highlight}</span>}
         </h1>
         {subtitle && (
-          <p className="text-slate-400 font-medium text-xs sm:text-sm">{subtitle}</p>
+          <p className="text-slate-400 font-medium text-xs sm:text-sm break-words">{subtitle}</p>
         )}
       </div>
 
       {/* Actions */}
       {actions && (
-        <div className="flex flex-wrap gap-2 sm:gap-3 w-full lg:w-auto">{actions}</div>
+        <div className="flex flex-wrap gap-2 sm:gap-3 w-full lg:w-auto flex-shrink-0">{actions}</div>
       )}
     </div>
   );

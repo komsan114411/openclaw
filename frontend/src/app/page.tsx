@@ -268,7 +268,7 @@ export default function LandingPage() {
                 เชื่อมต่อ API ง่ายๆ ภายใน 5 นาที • รองรับ USDT
               </div>
 
-              <h1 className="text-5xl md:text-7xl font-black leading-[1.1] tracking-tight mb-8">
+              <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-black leading-[1.1] tracking-tight mb-8">
                 ตรวจสอบสลิปอัตโนมัติ <br /> <span className="text-emerald-500">{brandName}</span> รวดเร็ว แม่นยำ
               </h1>
 
@@ -494,13 +494,13 @@ export default function LandingPage() {
 
         {/* Stats Section */}
         <section className="py-20 bg-emerald-500/5 border-y border-emerald-500/10">
-          <div className="max-w-7xl mx-auto px-4 grid grid-cols-2 lg:grid-cols-4 gap-8">
+          <div className="max-w-7xl mx-auto px-4 grid grid-cols-2 lg:grid-cols-4 gap-6 sm:gap-8">
             {stats.map((stat, idx) => (
               <div key={idx} className="text-center group">
-                <div className="text-4xl md:text-5xl font-black text-white mb-2 group-hover:text-emerald-500 transition-colors line-clamp-1">
+                <div className="text-3xl sm:text-4xl md:text-5xl font-black text-white mb-2 group-hover:text-emerald-500 transition-colors break-words">
                   {stat.value}
                 </div>
-                <div className="text-xs md:text-sm font-bold text-slate-500 uppercase tracking-widest">
+                <div className="text-[10px] sm:text-xs md:text-sm font-bold text-slate-500 uppercase tracking-widest px-2">
                   {stat.label}
                 </div>
               </div>
@@ -613,8 +613,8 @@ export default function LandingPage() {
 
       {/* Footer */}
       <footer id="contact" className="pt-20 pb-10 px-4 border-t border-white/5 bg-[#080C0B]">
-        <div className="max-w-7xl mx-auto grid md:grid-cols-4 gap-12 mb-16">
-          <div className="col-span-1 md:col-span-1">
+        <div className="max-w-7xl mx-auto grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-8 sm:gap-10 md:gap-12 mb-16">
+          <div className="col-span-1 sm:col-span-2 md:col-span-1">
             <Link href="/" className="flex items-center gap-2 mb-6">
               {siteBranding.siteLogoBase64 ? (
                 <div className="w-8 h-8 rounded-lg overflow-hidden">

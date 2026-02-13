@@ -398,8 +398,8 @@ export default function AdminPackagesPage() {
         subtitle="กำหนดรายละเอียดแพ็คเกจและราคา"
         size="lg"
       >
-        <form onSubmit={handleSubmit} className="p-2 space-y-10 focus-within:animate-pulse-slow">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
+        <form onSubmit={handleSubmit} className="p-2 space-y-6 sm:space-y-10 focus-within:animate-pulse-slow">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 sm:gap-10">
             <div className="space-y-8">
               <Input
                 label="ชื่อแพ็คเกจ"
@@ -410,7 +410,7 @@ export default function AdminPackagesPage() {
                 required
                 className="h-14 rounded-2xl bg-white/[0.03] border-white/10 text-white font-bold text-sm"
               />
-              <div className="grid grid-cols-2 gap-5">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
                 <Input
                   label="ราคา (บาท)"
                   type="number"
@@ -430,7 +430,7 @@ export default function AdminPackagesPage() {
                   className="h-14 rounded-2xl bg-white/[0.03] border-white/10 text-white font-bold text-sm opacity-70 focus:opacity-100"
                 />
               </div>
-              <div className="grid grid-cols-2 gap-5">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
                 <Input
                   label="โควต้าสลิป"
                   type="number"
@@ -451,7 +451,7 @@ export default function AdminPackagesPage() {
                   className="h-14 rounded-2xl bg-white/[0.03] border-white/10 text-white font-bold text-sm"
                 />
               </div>
-              <div className="grid grid-cols-2 gap-5">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
                 <Input
                   label="ระยะเวลา (วัน)"
                   type="number"
@@ -464,7 +464,7 @@ export default function AdminPackagesPage() {
                 />
                 <div></div>
               </div>
-              <div className="grid grid-cols-2 gap-5">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
                 <Input
                   label="ลำดับการแสดงผล"
                   type="number"

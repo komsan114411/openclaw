@@ -804,7 +804,7 @@ export default function AutoSlipPage() {
             </Button>
           </Card>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
             {accounts.map((account) => {
               const statusConfig = STATUS_CONFIG[account.status] || STATUS_CONFIG.INIT;
               const StatusIcon = statusConfig.icon;
@@ -813,21 +813,21 @@ export default function AutoSlipPage() {
               return (
                 <Card
                   key={account._id}
-                  className="p-6 border border-white/5 bg-black/40 backdrop-blur-3xl rounded-[2rem] hover:border-white/10 transition-all"
+                  className="p-4 sm:p-6 border border-white/5 bg-black/40 backdrop-blur-3xl rounded-2xl sm:rounded-[2rem] hover:border-white/10 transition-all"
                 >
                   <div className="flex flex-col h-full">
                     {/* Header */}
                     <div className="flex items-start justify-between mb-4">
-                      <div className="flex items-center gap-3">
+                      <div className="flex items-center gap-2 sm:gap-3">
                         <div
-                          className="w-12 h-12 rounded-2xl flex items-center justify-center text-white font-bold text-lg"
+                          className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl flex items-center justify-center text-white font-bold text-base sm:text-lg flex-shrink-0"
                           style={{ backgroundColor: BANK_COLORS[account.bankType] || '#666' }}
                         >
                           {account.bankType.slice(0, 2)}
                         </div>
-                        <div>
-                          <h3 className="font-bold text-white">{account.accountName}</h3>
-                          <p className="text-sm text-slate-400 font-mono">{account.accountNumber}</p>
+                        <div className="min-w-0">
+                          <h3 className="font-bold text-white text-sm sm:text-base truncate">{account.accountName}</h3>
+                          <p className="text-xs sm:text-sm text-slate-400 font-mono truncate">{account.accountNumber}</p>
                         </div>
                       </div>
                     </div>
@@ -869,13 +869,13 @@ export default function AutoSlipPage() {
                     )}
 
                     {/* Actions */}
-                    <div className="flex flex-wrap gap-2 mt-auto">
+                    <div className="flex flex-col sm:flex-row flex-wrap gap-2 mt-auto">
                       {needsLogin ? (
                         <Button
                           variant="primary"
                           size="sm"
                           onClick={() => handleQuickLogin(account)}
-                          className="flex-1 h-10 rounded-xl font-semibold"
+                          className="flex-1 h-10 sm:h-11 rounded-xl font-semibold text-sm min-h-[44px]"
                         >
                           <LogIn className="w-4 h-4 mr-2" />
                           ล็อกอิน LINE
@@ -885,33 +885,35 @@ export default function AutoSlipPage() {
                           variant="ghost"
                           size="sm"
                           onClick={() => openAccountDetails(account)}
-                          className="flex-1 h-10 rounded-xl font-semibold text-slate-400 hover:text-white border border-white/10"
+                          className="flex-1 h-10 sm:h-11 rounded-xl font-semibold text-slate-400 hover:text-white border border-white/10 text-sm min-h-[44px]"
                         >
                           ดูรายละเอียด
                         </Button>
                       )}
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => {
-                          setSelectedAccount(account);
-                          setShowKeysModal(true);
-                        }}
-                        className="h-10 px-4 rounded-xl text-slate-400 hover:text-cyan-400 border border-white/10"
-                      >
-                        <Key className="w-4 h-4" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => {
-                          setAccountToDelete(account);
-                          setShowDeleteModal(true);
-                        }}
-                        className="h-10 px-4 rounded-xl text-slate-400 hover:text-rose-400 border border-white/10"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
+                      <div className="flex gap-2">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => {
+                            setSelectedAccount(account);
+                            setShowKeysModal(true);
+                          }}
+                          className="h-10 sm:h-11 px-3 sm:px-4 rounded-xl text-slate-400 hover:text-cyan-400 border border-white/10 min-h-[44px] min-w-[44px]"
+                        >
+                          <Key className="w-4 h-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => {
+                            setAccountToDelete(account);
+                            setShowDeleteModal(true);
+                          }}
+                          className="h-10 sm:h-11 px-3 sm:px-4 rounded-xl text-slate-400 hover:text-rose-400 border border-white/10 min-h-[44px] min-w-[44px]"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </div>
                     </div>
                   </div>
                 </Card>

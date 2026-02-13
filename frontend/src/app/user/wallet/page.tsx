@@ -315,18 +315,18 @@ export default function WalletPage() {
             <button
               onClick={() => setActiveTab('bank')}
               className={cn(
-                "flex-1 sm:flex-none px-4 sm:px-6 py-2.5 rounded-lg text-xs sm:text-sm font-bold transition-all flex items-center justify-center gap-2",
+                "flex-1 sm:flex-none px-3 sm:px-4 md:px-6 py-2.5 rounded-lg text-xs sm:text-sm font-bold transition-all flex items-center justify-center gap-2 min-h-[44px]",
                 activeTab === 'bank'
                   ? "bg-[#06C755] text-white shadow-lg"
                   : "text-slate-400 hover:text-white hover:bg-white/5"
               )}
             >
-              <Building2 className="w-4 h-4" /> <span className="hidden xs:inline">โอนเงิน</span>ธนาคาร
+              <Building2 className="w-4 h-4" /> <span className="hidden xs:inline">โอนเงิน</span><span className="xs:hidden">ธนาคาร</span><span className="hidden sm:inline xs:hidden">ธนาคาร</span>
             </button>
             <button
               onClick={() => setActiveTab('crypto')}
               className={cn(
-                "flex-1 sm:flex-none px-4 sm:px-6 py-2.5 rounded-lg text-xs sm:text-sm font-bold transition-all flex items-center justify-center gap-2",
+                "flex-1 sm:flex-none px-3 sm:px-4 md:px-6 py-2.5 rounded-lg text-xs sm:text-sm font-bold transition-all flex items-center justify-center gap-2 min-h-[44px]",
                 activeTab === 'crypto'
                   ? "bg-[#06C755] text-white shadow-lg"
                   : "text-slate-400 hover:text-white hover:bg-white/5"
@@ -365,15 +365,15 @@ export default function WalletPage() {
                         key={index}
                         className="bg-slate-900/60 rounded-xl p-3 sm:p-4 border border-white/5"
                       >
-                        <div className="flex items-center gap-3">
+                        <div className="flex items-center gap-2 sm:gap-3">
                           {account.bank?.logoBase64 ? (
                             <img
                               src={account.bank.logoBase64}
                               alt={account.bankName}
-                              className="w-10 h-10 sm:w-12 sm:h-12 rounded-lg object-contain bg-white p-1 flex-shrink-0"
+                              className="w-9 h-9 sm:w-10 sm:h-10 md:w-12 md:h-12 rounded-lg object-contain bg-white p-1 flex-shrink-0"
                             />
                           ) : (
-                            <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-lg bg-emerald-500/20 flex items-center justify-center flex-shrink-0">
+                            <div className="w-9 h-9 sm:w-10 sm:h-10 md:w-12 md:h-12 rounded-lg bg-emerald-500/20 flex items-center justify-center flex-shrink-0">
                               <Building2 className="w-5 h-5 sm:w-6 sm:h-6 text-emerald-400" />
                             </div>
                           )}
@@ -383,14 +383,14 @@ export default function WalletPage() {
                           </div>
                         </div>
                         <div className="mt-3 flex items-center gap-2">
-                          <p className="text-lg sm:text-xl font-black text-white font-mono tracking-wider flex-1">
+                          <p className="text-base sm:text-lg md:text-xl font-black text-white font-mono tracking-wider flex-1 break-all">
                             {account.accountNumber}
                           </p>
                           <button
                             type="button"
                             onClick={() => handleCopyAccount(account.accountNumber)}
                             className={cn(
-                              "px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex-shrink-0",
+                              "px-2 sm:px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex-shrink-0 min-h-[44px] min-w-[44px] flex items-center justify-center",
                               copiedAccount === account.accountNumber
                                 ? "bg-emerald-500 text-white"
                                 : "bg-white/10 text-white hover:bg-emerald-500"

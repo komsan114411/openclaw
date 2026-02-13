@@ -290,15 +290,15 @@ export function AnnouncementBanner() {
                   <div className="flex items-start sm:items-center justify-between gap-2 sm:gap-3">
                     {/* ข้อความ */}
                     <div className="flex items-start sm:items-center gap-2 sm:gap-3 flex-1 min-w-0">
-                      <div className="flex-shrink-0 w-7 h-7 sm:w-9 sm:h-9 rounded-full bg-white/15 flex items-center justify-center mt-0.5 sm:mt-0">
-                        <Bell className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                      <div className="flex-shrink-0 w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-white/15 flex items-center justify-center mt-0.5 sm:mt-0">
+                        <Bell className="w-4 h-4 sm:w-4 sm:h-4" />
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className="font-bold text-xs sm:text-sm md:text-base leading-tight line-clamp-2 sm:truncate">
+                        <p className="font-bold text-xs sm:text-sm md:text-base leading-tight line-clamp-2 break-words">
                           {currentBanner.title}
                         </p>
                         {currentBanner.message && (
-                          <p className="text-[10px] sm:text-xs md:text-sm opacity-85 leading-tight line-clamp-2 sm:truncate mt-0.5">
+                          <p className="text-[10px] sm:text-xs md:text-sm opacity-85 leading-tight line-clamp-2 break-words mt-0.5">
                             {currentBanner.message}
                           </p>
                         )}
@@ -310,10 +310,11 @@ export function AnnouncementBanner() {
                       {currentBanner.linkUrl && (
                         <button
                           onClick={() => openLink(currentBanner.linkUrl!)}
-                          className="flex items-center gap-1 sm:gap-1.5 px-2 sm:px-3 py-1.5 bg-white/20 hover:bg-white/30 active:bg-white/40 rounded-lg text-[10px] sm:text-xs md:text-sm font-medium transition-colors min-h-[36px] sm:min-h-0"
+                          className="flex items-center gap-1 sm:gap-1.5 px-2.5 sm:px-3 py-2 sm:py-1.5 bg-white/20 hover:bg-white/30 active:bg-white/40 rounded-lg text-[10px] sm:text-xs md:text-sm font-medium transition-colors min-h-[44px] sm:min-h-0 touch-manipulation"
+                          aria-label={currentBanner.linkText || 'ดูเพิ่มเติม'}
                         >
-                          <span className="hidden xs:inline">{currentBanner.linkText || 'ดูเพิ่มเติม'}</span>
-                          <ExternalLink className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
+                          <span className="hidden xs:inline whitespace-nowrap">{currentBanner.linkText || 'ดูเพิ่มเติม'}</span>
+                          <ExternalLink className="w-4 h-4 sm:w-3.5 sm:h-3.5" />
                         </button>
                       )}
 
@@ -330,10 +331,10 @@ export function AnnouncementBanner() {
                           )}
                           <button
                             onClick={() => dismiss(currentBanner, false)}
-                            className="p-1.5 sm:p-1.5 bg-white/10 hover:bg-white/20 active:bg-white/30 rounded-lg transition-colors min-w-[36px] min-h-[36px] sm:min-w-0 sm:min-h-0 flex items-center justify-center"
+                            className="p-2 sm:p-1.5 bg-white/10 hover:bg-white/20 active:bg-white/30 rounded-lg transition-colors min-w-[44px] min-h-[44px] sm:min-w-0 sm:min-h-0 flex items-center justify-center touch-manipulation"
                             aria-label="ปิด"
                           >
-                            <X className="w-4 h-4" />
+                            <X className="w-4 h-4 sm:w-4 sm:h-4" />
                           </button>
                         </div>
                       )}
@@ -356,10 +357,10 @@ export function AnnouncementBanner() {
                     <div className="flex items-center justify-center gap-2 sm:gap-2 mt-2 sm:mt-2.5">
                       <button
                         onClick={goPrev}
-                        className="p-1.5 sm:p-1 bg-white/10 hover:bg-white/20 active:bg-white/30 rounded-full transition-colors min-w-[32px] min-h-[32px] sm:min-w-0 sm:min-h-0 flex items-center justify-center"
+                        className="p-2 sm:p-1 bg-white/10 hover:bg-white/20 active:bg-white/30 rounded-full transition-colors min-w-[44px] min-h-[44px] sm:min-w-0 sm:min-h-0 flex items-center justify-center touch-manipulation"
                         aria-label="ก่อนหน้า"
                       >
-                        <ChevronLeft className="w-3.5 h-3.5" />
+                        <ChevronLeft className="w-4 h-4 sm:w-3.5 sm:h-3.5" />
                       </button>
 
                       <div className="flex items-center gap-1.5 sm:gap-1.5">
@@ -367,10 +368,10 @@ export function AnnouncementBanner() {
                           <button
                             key={i}
                             onClick={() => setCurrentBannerIndex(i)}
-                            className={`rounded-full transition-all duration-300 min-h-[8px] ${
+                            className={`rounded-full transition-all duration-300 touch-manipulation ${
                               i === currentBannerIndex
-                                ? 'bg-white w-5 h-2 sm:h-1.5'
-                                : 'bg-white/40 hover:bg-white/60 w-2 h-2 sm:w-1.5 sm:h-1.5'
+                                ? 'bg-white w-6 h-2 sm:w-5 sm:h-1.5'
+                                : 'bg-white/40 hover:bg-white/60 w-2 h-2 sm:w-1.5 sm:h-1.5 min-w-[8px] min-h-[8px]'
                             }`}
                             aria-label={`ประกาศที่ ${i + 1}`}
                           />
@@ -379,10 +380,10 @@ export function AnnouncementBanner() {
 
                       <button
                         onClick={goNext}
-                        className="p-1.5 sm:p-1 bg-white/10 hover:bg-white/20 active:bg-white/30 rounded-full transition-colors min-w-[32px] min-h-[32px] sm:min-w-0 sm:min-h-0 flex items-center justify-center"
+                        className="p-2 sm:p-1 bg-white/10 hover:bg-white/20 active:bg-white/30 rounded-full transition-colors min-w-[44px] min-h-[44px] sm:min-w-0 sm:min-h-0 flex items-center justify-center touch-manipulation"
                         aria-label="ถัดไป"
                       >
-                        <ChevronRight className="w-3.5 h-3.5" />
+                        <ChevronRight className="w-4 h-4 sm:w-3.5 sm:h-3.5" />
                       </button>
                     </div>
                   )}

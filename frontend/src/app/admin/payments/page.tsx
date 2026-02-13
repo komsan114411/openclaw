@@ -187,8 +187,8 @@ export default function AdminPaymentsPage() {
           <StatCard title="ยอดรวม" value={`฿${totalVerifiedAmount.toLocaleString()}`} icon="💰" color="blue" variant="glass" />
         </div>
 
-        <Card className="hidden md:block overflow-hidden" variant="glass" padding="none">
-          <div className="table-responsive">
+        <Card className="hidden lg:block overflow-hidden" variant="glass" padding="none">
+          <div className="overflow-x-auto">
             <table className="min-w-full border-collapse">
               <thead>
                 <tr className="bg-white/[0.02] border-b border-white/5">

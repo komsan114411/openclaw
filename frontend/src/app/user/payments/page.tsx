@@ -224,23 +224,23 @@ export default function UserPaymentsPage() {
         </div>
 
         {/* Stats Summary */}
-        <div className="grid grid-cols-3 gap-3 mb-6">
-          <Card variant="glass" className="p-4 border border-white/10 text-center">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-6">
+          <Card variant="glass" className="p-3 sm:p-4 border border-white/10 text-center">
             <p className="text-[10px] text-slate-400 font-semibold mb-1">เติมสะสม</p>
-            <p className="text-lg sm:text-xl font-black text-emerald-400">฿{totalDeposits.toLocaleString()}</p>
+            <p className="text-base sm:text-lg md:text-xl font-black text-emerald-400">฿{totalDeposits.toLocaleString()}</p>
           </Card>
-          <Card variant="glass" className="p-4 border border-white/10 text-center">
+          <Card variant="glass" className="p-3 sm:p-4 border border-white/10 text-center">
             <p className="text-[10px] text-slate-400 font-semibold mb-1">ใช้ไป</p>
-            <p className="text-lg sm:text-xl font-black text-rose-400">฿{totalPurchases.toLocaleString()}</p>
+            <p className="text-base sm:text-lg md:text-xl font-black text-rose-400">฿{totalPurchases.toLocaleString()}</p>
           </Card>
-          <Card variant="glass" className="p-4 border border-white/10 text-center">
+          <Card variant="glass" className="p-3 sm:p-4 border border-white/10 text-center">
             <p className="text-[10px] text-slate-400 font-semibold mb-1">รอดำเนินการ</p>
-            <p className="text-lg sm:text-xl font-black text-yellow-400">{pendingCount}</p>
+            <p className="text-base sm:text-lg md:text-xl font-black text-yellow-400">{pendingCount}</p>
           </Card>
         </div>
 
         {/* Filter Tabs */}
-        <div className="flex gap-2 mb-6 p-1 bg-white/5 border border-white/10 rounded-xl w-fit">
+        <div className="flex gap-2 mb-6 p-1 bg-white/5 border border-white/10 rounded-xl w-full sm:w-fit overflow-x-auto">
           {[
             { key: 'all', label: 'ทั้งหมด', icon: null },
             { key: 'deposit', label: 'เติมเครดิต', icon: <Banknote className="w-3 h-3" /> },
@@ -250,13 +250,13 @@ export default function UserPaymentsPage() {
               key={filter.key}
               onClick={() => setActiveFilter(filter.key as any)}
               className={cn(
-                "px-4 py-2 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5",
+                "px-3 sm:px-4 py-2 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 whitespace-nowrap min-h-[44px]",
                 activeFilter === filter.key
                   ? "bg-[#06C755] text-white shadow-lg"
                   : "text-slate-400 hover:text-white hover:bg-white/5"
               )}
             >
-              {filter.icon} {filter.label}
+              {filter.icon} <span className="hidden xs:inline">{filter.label}</span><span className="xs:hidden">{filter.key === 'all' ? 'ทั้งหมด' : filter.key === 'deposit' ? 'เติม' : 'แพ็คเกจ'}</span>
             </button>
           ))}
         </div>
@@ -289,10 +289,10 @@ export default function UserPaymentsPage() {
                   variant="glass"
                   className="p-4 border border-white/10 rounded-xl hover:bg-white/[0.02] transition-colors"
                 >
-                  <div className="flex items-center gap-4">
+                  <div className="flex items-center gap-3 sm:gap-4">
                     {/* Icon */}
                     <div className={cn(
-                      "w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0",
+                      "w-9 h-9 sm:w-11 sm:h-11 rounded-xl flex items-center justify-center flex-shrink-0",
                       isPositive ? "bg-emerald-500/10" : "bg-slate-500/10"
                     )}>
                       {getTypeIcon(tx.type)}
@@ -300,17 +300,17 @@ export default function UserPaymentsPage() {
 
                     {/* Info */}
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-1">
-                        <p className="text-sm font-bold text-white truncate">{tx.description}</p>
+                      <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2 mb-1">
+                        <p className="text-xs sm:text-sm font-bold text-white truncate">{tx.description}</p>
                         <StatusBadge status={tx.status} />
                       </div>
-                      <p className="text-xs text-slate-500">{formatDate(tx.createdAt)}</p>
+                      <p className="text-[10px] sm:text-xs text-slate-500">{formatDate(tx.createdAt)}</p>
                     </div>
 
                     {/* Amount & Actions */}
-                    <div className="text-right flex items-center gap-3">
+                    <div className="text-right flex flex-col sm:flex-row items-end sm:items-center gap-2 sm:gap-3 flex-shrink-0">
                       <p className={cn(
-                        "text-lg font-black",
+                        "text-sm sm:text-lg font-black",
                         isPositive ? "text-emerald-400" : "text-white"
                       )}>
                         {formatAmount(tx.amount, isPositive)}
@@ -318,7 +318,7 @@ export default function UserPaymentsPage() {
                       {tx.slipImageUrl && (
                         <button
                           onClick={() => setSelectedSlip(tx.slipImageUrl!)}
-                          className="p-2 text-slate-400 hover:text-[#06C755] hover:bg-[#06C755]/10 rounded-lg transition-colors"
+                          className="p-2 text-slate-400 hover:text-[#06C755] hover:bg-[#06C755]/10 rounded-lg transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center"
                           title="ดูสลิป"
                         >
                           <FileText className="w-4 h-4" />

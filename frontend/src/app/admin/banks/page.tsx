@@ -537,7 +537,7 @@ function BankModal({ bank, onClose, onSave }: BankModalProps) {
           )}
         </div>
 
-        <div className="grid grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
           <Input
             label="รหัสธนาคาร"
             placeholder="เช่น KBANK"

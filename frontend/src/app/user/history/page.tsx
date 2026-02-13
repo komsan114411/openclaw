@@ -100,14 +100,14 @@ export default function UserHistoryPage() {
 
                 {/* Filters and Search */}
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-8">
-                    <Card variant="glass" className="lg:col-span-2 p-2 rounded-2xl flex items-center gap-3 border-white/10">
-                        <div className="pl-3 opacity-30 px-3"><Search className="w-5 h-5 text-white" /></div>
+                    <Card variant="glass" className="lg:col-span-2 p-2 rounded-2xl flex items-center gap-2 sm:gap-3 border-white/10">
+                        <div className="pl-2 sm:pl-3 opacity-30"><Search className="w-4 h-4 sm:w-5 sm:h-5 text-white" /></div>
                         <input
                             type="text"
                             placeholder="ค้นหารายการ..."
                             value={search}
                             onChange={(e) => setSearch(e.target.value)}
-                            className="bg-transparent border-none focus:ring-0 w-full text-white placeholder-slate-500 font-semibold"
+                            className="bg-transparent border-none focus:ring-0 w-full text-white placeholder-slate-500 font-semibold text-sm sm:text-base min-h-[44px]"
                         />
                     </Card>
                     <div className="flex gap-1 sm:gap-2 p-1 bg-white/5 rounded-xl sm:rounded-2xl border border-white/10">
@@ -116,7 +116,7 @@ export default function UserHistoryPage() {
                                 key={f}
                                 onClick={() => setFilter(f)}
                                 className={cn(
-                                    "flex-1 py-2 rounded-lg sm:rounded-xl text-[10px] sm:text-xs font-bold transition-all uppercase tracking-wider min-h-[40px]",
+                                    "flex-1 py-2 px-2 rounded-lg sm:rounded-xl text-[10px] sm:text-xs font-bold transition-all uppercase tracking-wider min-h-[44px]",
                                     filter === f ? "bg-[#06C755] text-white shadow-lg shadow-[#06C755]/20" : "text-slate-500 hover:text-white"
                                 )}
                             >
@@ -137,11 +137,11 @@ export default function UserHistoryPage() {
                         <div className="py-20 flex flex-col items-center gap-4 text-center opacity-40">
                             <div className="w-20 h-20 bg-white/5 rounded-3xl flex items-center justify-center text-4xl mb-2">📜</div>
                             <p className="text-white font-bold text-lg">ไม่พบข้อมูลประวัติ</p>
-                            <p className="text-slate-400 text-sm max-w-xs">คุณยังไม่มีรายการทำธุรกรรมในขณะนี้ หรือลองเปลี่ยนคำค้นหาดูนะครับ</p>
+                            <p className="text-slate-400 text-sm max-w-xs px-4">คุณยังไม่มีรายการทำธุรกรรมในขณะนี้ หรือลองเปลี่ยนคำค้นหาดูนะครับ</p>
                         </div>
                     ) : (
-                        <div className="overflow-x-auto">
-                            <table className="w-full text-left">
+                        <div className="overflow-x-auto -mx-4 sm:mx-0">
+                            <table className="w-full text-left min-w-[600px]">
                                 <thead>
                                     <tr className="bg-white/5 border-b border-white/10">
                                         <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">วันเวลา</th>

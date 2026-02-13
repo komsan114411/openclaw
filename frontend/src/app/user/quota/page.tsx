@@ -401,49 +401,49 @@ export default function UserQuotaPage() {
               <p className="text-[9px] sm:text-[10px] font-semibold text-slate-400">การกระจายทรัพยากรแบบเรียลไทม์ใน {accounts.length} บัญชีที่ใช้งาน</p>
             </div>
 
-            <div className="overflow-x-auto">
+            <div className="overflow-x-auto -mx-4 sm:mx-0">
               <table className="min-w-full">
                 <thead>
                   <tr className="bg-white/[0.02] border-y border-white/5">
-                    <th className="px-4 sm:px-6 lg:px-8 py-3 sm:py-4 lg:py-5 text-left text-[9px] sm:text-[10px] font-semibold text-slate-400">ชื่อบัญชี</th>
-                    <th className="px-4 sm:px-6 lg:px-8 py-3 sm:py-4 lg:py-5 text-center text-[9px] sm:text-[10px] font-semibold text-slate-400">ข้อความ</th>
-                    <th className="px-4 sm:px-6 lg:px-8 py-3 sm:py-4 lg:py-5 text-center text-[9px] sm:text-[10px] font-semibold text-slate-400">สลิป</th>
-                    <th className="px-4 sm:px-6 lg:px-8 py-3 sm:py-4 lg:py-5 text-center text-[9px] sm:text-[10px] font-semibold text-slate-400 hidden sm:table-cell">AI</th>
-                    <th className="px-4 sm:px-6 lg:px-8 py-3 sm:py-4 lg:py-5 text-right text-[9px] sm:text-[10px] font-semibold text-slate-400">สถานะ</th>
+                    <th className="px-3 sm:px-4 md:px-6 lg:px-8 py-3 sm:py-4 lg:py-5 text-left text-[9px] sm:text-[10px] font-semibold text-slate-400 whitespace-nowrap">ชื่อบัญชี</th>
+                    <th className="px-3 sm:px-4 md:px-6 lg:px-8 py-3 sm:py-4 lg:py-5 text-center text-[9px] sm:text-[10px] font-semibold text-slate-400 whitespace-nowrap">ข้อความ</th>
+                    <th className="px-3 sm:px-4 md:px-6 lg:px-8 py-3 sm:py-4 lg:py-5 text-center text-[9px] sm:text-[10px] font-semibold text-slate-400 whitespace-nowrap">สลิป</th>
+                    <th className="px-3 sm:px-4 md:px-6 lg:px-8 py-3 sm:py-4 lg:py-5 text-center text-[9px] sm:text-[10px] font-semibold text-slate-400 hidden md:table-cell whitespace-nowrap">AI</th>
+                    <th className="px-3 sm:px-4 md:px-6 lg:px-8 py-3 sm:py-4 lg:py-5 text-right text-[9px] sm:text-[10px] font-semibold text-slate-400 whitespace-nowrap">สถานะ</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-white/5">
                   {accounts.map((account) => (
                     <tr key={account._id} className="hover:bg-white/[0.02] transition-colors group">
-                      <td className="px-4 sm:px-6 lg:px-8 py-4 sm:py-5 lg:py-6">
-                        <div className="flex items-center gap-3 sm:gap-4 lg:gap-5">
-                          <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl bg-black/40 border border-white/10 flex items-center justify-center text-[#06C755] font-black text-base sm:text-lg shadow-lg group-hover:scale-110 group-hover:bg-[#06C755] group-hover:text-white transition-all duration-500 flex-shrink-0">
+                      <td className="px-3 sm:px-4 md:px-6 lg:px-8 py-4 sm:py-5 lg:py-6">
+                        <div className="flex items-center gap-2 sm:gap-3 md:gap-4 lg:gap-5">
+                          <div className="w-9 h-9 sm:w-10 sm:h-10 md:w-12 md:h-12 rounded-lg sm:rounded-xl md:rounded-2xl bg-black/40 border border-white/10 flex items-center justify-center text-[#06C755] font-black text-sm sm:text-base md:text-lg shadow-lg group-hover:scale-110 group-hover:bg-[#06C755] group-hover:text-white transition-all duration-500 flex-shrink-0">
                             {account.accountName?.charAt(0).toUpperCase() || 'L'}
                           </div>
                           <div className="min-w-0">
-                            <p className="font-black text-white text-sm sm:text-base truncate group-hover:text-[#06C755] transition-colors">{account.accountName}</p>
+                            <p className="font-black text-white text-xs sm:text-sm md:text-base truncate group-hover:text-[#06C755] transition-colors">{account.accountName}</p>
                             <p className="text-[8px] sm:text-[9px] font-mono font-semibold text-slate-500 truncate mt-0.5 sm:mt-1">{account.channelId}</p>
                           </div>
                         </div>
                       </td>
-                      <td className="px-4 sm:px-6 lg:px-8 py-4 sm:py-5 lg:py-6 text-center">
+                      <td className="px-3 sm:px-4 md:px-6 lg:px-8 py-4 sm:py-5 lg:py-6 text-center">
                         <span className="font-black text-slate-300 text-xs sm:text-sm">
                           {(account.statistics?.totalMessages || 0).toLocaleString()}
                         </span>
                       </td>
-                      <td className="px-4 sm:px-6 lg:px-8 py-4 sm:py-5 lg:py-6 text-center">
+                      <td className="px-3 sm:px-4 md:px-6 lg:px-8 py-4 sm:py-5 lg:py-6 text-center">
                         <span className="font-black text-[#06C755] text-sm sm:text-base lg:text-lg">
                           {(account.statistics?.totalSlipsVerified || 0).toLocaleString()}
                         </span>
                       </td>
-                      <td className="px-4 sm:px-6 lg:px-8 py-4 sm:py-5 lg:py-6 text-center hidden sm:table-cell">
+                      <td className="px-3 sm:px-4 md:px-6 lg:px-8 py-4 sm:py-5 lg:py-6 text-center hidden md:table-cell">
                         <span className="font-black text-indigo-400 text-xs sm:text-sm">
                           {(account.statistics?.totalAiResponses || 0).toLocaleString()}
                         </span>
                       </td>
-                      <td className="px-4 sm:px-6 lg:px-8 py-4 sm:py-5 lg:py-6 text-right">
-                        <Badge variant={account.isActive ? 'success' : 'secondary'} size="sm" className="font-semibold text-[8px] sm:text-[9px] px-2 sm:px-3 py-0.5 sm:py-1 rounded-lg">
-                          {account.isActive ? 'เปิดใช้งาน' : 'ปิดใช้งาน'}
+                      <td className="px-3 sm:px-4 md:px-6 lg:px-8 py-4 sm:py-5 lg:py-6 text-right">
+                        <Badge variant={account.isActive ? 'success' : 'secondary'} size="sm" className="font-semibold text-[8px] sm:text-[9px] px-2 sm:px-3 py-0.5 sm:py-1 rounded-lg whitespace-nowrap">
+                          {account.isActive ? 'เปิด' : 'ปิด'}
                         </Badge>
                       </td>
                     </tr>

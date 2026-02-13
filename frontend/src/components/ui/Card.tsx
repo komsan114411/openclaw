@@ -24,11 +24,11 @@ export function Card({
 }: CardProps) {
   const paddingClasses = {
     none: '',
-    xs: 'p-2',
-    sm: 'p-3 md:p-4',
-    md: 'p-4 md:p-6',
-    lg: 'p-5 md:p-6 lg:p-8',
-    xl: 'p-6 md:p-8 lg:p-10',
+    xs: 'p-3 sm:p-4',
+    sm: 'p-4 sm:p-5 md:p-6',
+    md: 'p-5 sm:p-6 md:p-7 lg:p-8',
+    lg: 'p-6 sm:p-7 md:p-8 lg:p-10',
+    xl: 'p-7 sm:p-8 md:p-10 lg:p-12',
   };
 
   const variantClasses = {

@@ -211,7 +211,7 @@ export default function AdminDashboard() {
               ภาพรวมระบบวันนี้
             </p>
           </div>
-          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3 w-full md:w-auto">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3 w-full lg:w-auto">
             <Button
               variant="outline"
               size="lg"
@@ -224,7 +224,7 @@ export default function AdminDashboard() {
               </svg>
               รีเฟรช
             </Button>
-            <Link href="/admin/settings" className="flex-1 sm:flex-none">
+            <Link href="/admin/settings" className="w-full sm:w-auto">
               <Button size="lg" variant="primary" className="w-full h-11 sm:h-12 px-5 sm:px-6 rounded-full font-semibold text-xs shadow-lg shadow-[#06C755]/20">
                 ⚙️ ตั้งค่า
               </Button>

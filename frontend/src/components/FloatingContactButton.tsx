@@ -102,7 +102,7 @@ export function FloatingContactButton() {
 
   return (
     <div
-      className="fixed z-[9999]"
+      className="fixed z-[9998]"
       style={{
         bottom: `${bottomPosition}px`,
         right: `${rightPosition}px`,
