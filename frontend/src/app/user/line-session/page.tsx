@@ -45,7 +45,6 @@ import {
   HelpCircle,
   Bell,
   CheckCheck,
-  AlertCircle,
 } from 'lucide-react';
 import { useLoginNotifications } from '@/hooks';
 
@@ -1106,35 +1105,8 @@ export default function LineSessionPage() {
   if (isLoading) {
     return (
       <DashboardLayout>
-        <div className="flex flex-col items-center justify-center min-h-[70vh] space-y-6">
-          {/* Animated logo/icon */}
-          <div className="relative">
-            <div className="absolute inset-0 bg-emerald-500/20 blur-2xl rounded-full animate-pulse" />
-            <div className="relative p-6 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-2xl shadow-xl">
-              <Key className="w-12 h-12 text-white animate-pulse" />
-            </div>
-          </div>
-
-          {/* Loading text */}
-          <div className="text-center space-y-2">
-            <h3 className="text-lg font-semibold text-slate-900 dark:text-white">
-              กำลังโหลดข้อมูล...
-            </h3>
-            <p className="text-sm text-slate-500 dark:text-slate-400">
-              กรุณารอสักครู่
-            </p>
-          </div>
-
-          {/* Skeleton cards preview */}
-          <div className="w-full max-w-5xl px-4 grid grid-cols-1 lg:grid-cols-[320px_1fr] gap-4 lg:gap-6">
-            <div className="space-y-3">
-              {[1, 2, 3].map((i) => (
-                <div key={i} className="h-20 bg-gradient-to-r from-slate-100 to-slate-200 dark:from-slate-800/50 dark:to-slate-700/50 rounded-xl animate-pulse"
-                  style={{ animationDelay: `${i * 150}ms` }} />
-              ))}
-            </div>
-            <div className="h-64 bg-gradient-to-br from-slate-100 to-slate-200 dark:from-slate-800/50 dark:to-slate-700/50 rounded-xl animate-pulse" />
-          </div>
+        <div className="flex items-center justify-center min-h-[60vh]">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-500" />
         </div>
       </DashboardLayout>
     );
@@ -1146,259 +1118,164 @@ export default function LineSessionPage() {
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
           <div>
-            <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-slate-900 dark:text-white flex items-center gap-2 sm:gap-3">
-              <div className="relative p-2 sm:p-3 bg-gradient-to-br from-emerald-500 via-teal-500 to-cyan-600 rounded-xl sm:rounded-2xl text-white shadow-lg shadow-emerald-500/30 group-hover:shadow-emerald-500/50 transition-shadow">
-                <Key className="w-6 h-6 sm:w-7 sm:h-7 lg:w-8 lg:h-8" />
-                <div className="absolute inset-0 bg-gradient-to-br from-emerald-400/20 to-transparent rounded-xl sm:rounded-2xl blur-xl"></div>
+            <h1 className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white flex items-center gap-2 sm:gap-3">
+              <div className="p-1.5 sm:p-2 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-lg sm:rounded-xl text-white">
+                <Key className="w-5 h-5 sm:w-6 sm:h-6" />
               </div>
-              <span className="bg-gradient-to-r from-emerald-600 to-teal-600 bg-clip-text text-transparent">
-                LINE Session
-              </span>
+              LINE Session
             </h1>
-            <p className="text-slate-600 dark:text-slate-300 mt-2 text-sm sm:text-base font-medium">
+            <p className="text-slate-500 dark:text-slate-400 mt-1 text-xs sm:text-sm">
               จัดการ LINE Login และดึง Keys อัตโนมัติ
             </p>
           </div>
           <Button
             variant="primary"
             onClick={() => setShowCreateModal(true)}
-            className="gap-2 w-full sm:w-auto min-h-[44px] bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 shadow-lg shadow-emerald-500/30 hover:shadow-emerald-500/50 transform hover:scale-105 transition-all duration-200 font-semibold group"
+            className="gap-2 w-full sm:w-auto min-h-[44px]"
           >
-            <div className="p-0.5 bg-white/20 rounded-full group-hover:bg-white/30 transition-colors">
-              <Plus className="w-4 h-4" />
-            </div>
+            <Plus className="w-4 h-4" />
             เพิ่ม LINE Login
           </Button>
         </div>
 
         {lineSessions.length === 0 ? (
-          <Card className="p-8 sm:p-12 md:p-16 bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900/50 dark:to-slate-800/30 border-2 border-dashed border-emerald-300 dark:border-emerald-500/30 relative overflow-hidden">
-            <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/5 to-teal-500/5 dark:from-emerald-500/10 dark:to-teal-500/10"></div>
-            <div className="relative flex flex-col items-center justify-center text-center space-y-6">
-              <div className="relative animate-bounce">
-                <div className="absolute inset-0 bg-gradient-to-br from-emerald-400 to-teal-500 rounded-full blur-2xl opacity-30 scale-150"></div>
-                <div className="relative p-6 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-3xl shadow-2xl shadow-emerald-500/40">
-                  <Key className="w-12 h-12 sm:w-16 sm:h-16 text-white" />
-                </div>
-              </div>
-              <div className="space-y-2">
-                <h3 className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white">
-                  ยังไม่มี LINE Login
-                </h3>
-                <p className="text-slate-600 dark:text-slate-400 text-sm sm:text-base max-w-md">
-                  เริ่มต้นใช้งานด้วยการเพิ่ม LINE Login ของคุณ เพื่อดึง Keys อัตโนมัติ
-                </p>
-              </div>
-              <Button
-                variant="primary"
-                onClick={() => setShowCreateModal(true)}
-                className="gap-2 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 shadow-lg shadow-emerald-500/30 hover:shadow-emerald-500/50 transform hover:scale-105 transition-all duration-200 font-semibold px-8 py-3"
-              >
-                <Plus className="w-5 h-5" />
-                เพิ่ม LINE Login ตอนนี้
-              </Button>
-            </div>
+          <Card className="p-4 sm:p-6 md:p-8">
+            <EmptyState
+              icon={<Key className="w-10 h-10 sm:w-12 sm:h-12" />}
+              title="ยังไม่มี LINE Login"
+              description="กดปุ่ม 'เพิ่ม LINE Login' เพื่อเริ่มต้นใช้งาน"
+            />
           </Card>
         ) : (
-          <div className="grid grid-cols-1 lg:grid-cols-[320px_1fr] gap-4 sm:gap-6 lg:gap-8">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
             {/* Session Selection */}
-            <Card className="p-4 sm:p-5 h-fit lg:sticky lg:top-4 bg-gradient-to-br from-slate-50 to-slate-100/50 dark:from-slate-900/90 dark:to-slate-800/50 border border-slate-200/50 dark:border-slate-700/50 backdrop-blur-xl shadow-xl">
-              {/* Premium Header */}
-              <div className="mb-5 sm:mb-6">
-                <div className="flex items-center justify-between mb-2">
-                  <div className="flex items-center gap-3">
-                    <div className="relative">
-                      <div className="absolute inset-0 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-xl blur-md opacity-40"></div>
-                      <div className="relative p-2.5 bg-gradient-to-br from-emerald-500 via-emerald-600 to-teal-600 rounded-xl shadow-lg">
-                        <Smartphone className="w-5 h-5 text-white" />
-                      </div>
-                    </div>
-                    <div>
-                      <h2 className="text-lg font-bold text-slate-900 dark:text-white tracking-tight">LINE Login</h2>
-                      <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">เลือกบัญชีเพื่อจัดการ</p>
-                    </div>
-                  </div>
-                  <div className="flex items-center justify-center min-w-[2.5rem] h-10 px-3 bg-gradient-to-br from-emerald-500/10 to-teal-500/10 dark:from-emerald-500/20 dark:to-teal-500/20 rounded-xl border border-emerald-500/20 dark:border-emerald-400/30 shadow-sm">
-                    <span className="text-sm font-bold bg-gradient-to-r from-emerald-600 to-teal-600 dark:from-emerald-400 dark:to-teal-400 bg-clip-text text-transparent">{lineSessions.length}</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Session List */}
-              <div className="space-y-2.5 max-h-[calc(100vh-240px)] overflow-y-auto pr-1 scrollbar-thin scrollbar-thumb-slate-300 dark:scrollbar-thumb-slate-600 scrollbar-track-transparent hover:scrollbar-thumb-slate-400 dark:hover:scrollbar-thumb-slate-500">
+            <Card className="p-3 sm:p-4">
+              <h2 className="text-base sm:text-lg font-semibold text-slate-900 dark:text-white mb-3 sm:mb-4 flex items-center gap-2">
+                <Smartphone className="w-4 h-4 sm:w-5 sm:h-5 text-emerald-500" />
+                LINE Login ของคุณ
+              </h2>
+              <div className="space-y-2">
                 {lineSessions.map((session) => (
                   <div
                     key={session._id}
-                    className={`relative group cursor-pointer transition-all duration-300 ${
-                      selectedSession?._id === session._id ? 'transform scale-[1.02]' : 'hover:transform hover:scale-[1.01]'
+                    className={`relative group p-3 rounded-xl transition-all cursor-pointer ${
+                      selectedSession?._id === session._id
+                        ? 'bg-emerald-500/10 border-2 border-emerald-500'
+                        : 'bg-slate-50 dark:bg-slate-800/50 border-2 border-transparent hover:border-emerald-500/50'
                     }`}
                     onClick={() => setSelectedSession(session)}
                   >
-                    <div className={`relative rounded-2xl transition-all duration-300 ${
-                      selectedSession?._id === session._id
-                        ? 'bg-gradient-to-r from-emerald-500 via-teal-500 to-emerald-500 p-[2px] shadow-lg shadow-emerald-500/25'
-                        : 'bg-gradient-to-r from-slate-200/50 via-slate-300/30 to-slate-200/50 dark:from-slate-700/30 dark:via-slate-600/20 dark:to-slate-700/30 p-[1px] hover:from-emerald-500/50 hover:via-teal-500/50 hover:to-emerald-500/50'
-                    }`}>
-                      <div className={`relative rounded-2xl p-4 transition-all duration-300 ${
-                        selectedSession?._id === session._id
-                          ? 'bg-gradient-to-br from-emerald-500/10 via-emerald-500/5 to-teal-500/10 dark:from-emerald-500/20 dark:via-emerald-500/10 dark:to-teal-500/20 backdrop-blur-xl'
-                          : 'bg-white/80 dark:bg-slate-800/80 backdrop-blur-xl hover:bg-white/90 dark:hover:bg-slate-800/90'
-                      }`}>
-                        {selectedSession?._id === session._id && (
-                          <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-12 bg-gradient-to-b from-emerald-400 via-teal-500 to-emerald-400 rounded-r-full shadow-lg shadow-emerald-500/50"></div>
-                        )}
-                        <div className="flex items-start justify-between gap-3">
-                          <div className="flex-1 min-w-0 pl-2">
-                            <div className="flex items-center gap-2 mb-2">
-                              {session.hasKeys && (
-                                <div className="relative">
-                                  <div className="absolute inset-0 bg-emerald-500 rounded-full blur-sm animate-pulse"></div>
-                                  <div className="relative w-2 h-2 bg-emerald-500 rounded-full"></div>
-                                </div>
-                              )}
-                              <h3 className="font-semibold text-slate-900 dark:text-white truncate text-base">{session.name}</h3>
-                            </div>
-                            <div className="flex flex-col gap-2">
-                              {session.hasKeys ? (
-                                <div className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-gradient-to-r from-emerald-500/10 to-teal-500/10 dark:from-emerald-500/20 dark:to-teal-500/20 border border-emerald-500/20 rounded-lg w-fit shadow-sm">
-                                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-                                  <span className="text-xs font-medium text-emerald-700 dark:text-emerald-300">มี Keys</span>
-                                </div>
-                              ) : (
-                                <div className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-amber-500/10 dark:bg-amber-500/20 border border-amber-500/30 rounded-lg w-fit">
-                                  <Clock className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400 animate-pulse" />
-                                  <span className="text-xs font-medium text-amber-700 dark:text-amber-300">รอตั้งค่า</span>
-                                </div>
-                              )}
-                              {session.bankName && (
-                                <div className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-slate-500/10 dark:bg-slate-500/20 border border-slate-500/20 rounded-lg w-fit">
-                                  <div className="w-1.5 h-1.5 rounded-full bg-gradient-to-r from-blue-500 to-purple-500"></div>
-                                  <span className="text-xs font-medium text-slate-700 dark:text-slate-300">{session.bankName}</span>
-                                </div>
-                              )}
-                            </div>
-                          </div>
-                          <div className="flex flex-col items-end gap-2">
-                            {alertCounts[session._id] > 0 && (
-                              <button
-                                onClick={(e) => openAlertModal(session, e)}
-                                className="relative flex items-center gap-1.5 px-2.5 py-1.5 bg-gradient-to-r from-red-500/10 to-rose-500/10 hover:from-red-500/20 hover:to-rose-500/20 border border-red-500/30 rounded-lg transition-all duration-200 shadow-lg shadow-red-500/10"
-                                title="มีรายการผิดปกติ"
-                              >
-                                <Bell className="w-3.5 h-3.5 text-red-500 dark:text-red-400 animate-pulse" />
-                                <span className="bg-gradient-to-br from-red-500 to-rose-600 text-white text-[10px] font-bold rounded-full min-w-[20px] h-5 flex items-center justify-center px-1.5 shadow-lg">{alertCounts[session._id]}</span>
-                              </button>
-                            )}
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setSessionToDelete(session);
-                                setShowDeleteModal(true);
-                              }}
-                              className="opacity-0 group-hover:opacity-100 p-2 text-red-500 hover:text-red-600 dark:text-red-400 hover:bg-red-500/10 dark:hover:bg-red-500/20 rounded-lg transition-all duration-200 min-w-[36px] min-h-[36px] flex items-center justify-center"
-                              title="ลบ"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </button>
-                          </div>
+                    <div className="flex items-center justify-between">
+                      <div className="flex-1 min-w-0">
+                        <div className="font-medium text-slate-900 dark:text-white truncate">
+                          {session.name}
                         </div>
+                        <div className="text-xs text-slate-500 dark:text-slate-400 mt-1 flex items-center gap-2">
+                          {session.hasKeys ? (
+                            <span className="flex items-center gap-1 text-emerald-600">
+                              <CheckCircle2 className="w-3 h-3" />
+                              มี Keys
+                            </span>
+                          ) : (
+                            <span className="flex items-center gap-1 text-slate-400">
+                              <Clock className="w-3 h-3" />
+                              รอตั้งค่า
+                            </span>
+                          )}
+                          {session.bankName && (
+                            <span className="text-slate-400">| {session.bankName}</span>
+                          )}
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        {/* Alert Badge */}
+                        {alertCounts[session._id] > 0 && (
+                          <button
+                            onClick={(e) => openAlertModal(session, e)}
+                            className="flex items-center gap-1 px-2 py-1 bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 rounded-lg transition-colors"
+                            title="มีรายการผิดปกติ"
+                          >
+                            <Bell className="w-3.5 h-3.5 text-red-400 animate-pulse" />
+                            <span className="bg-red-500 text-white text-[10px] font-bold rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1">
+                              {alertCounts[session._id]}
+                            </span>
+                          </button>
+                        )}
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setSessionToDelete(session);
+                            setShowDeleteModal(true);
+                          }}
+                          className="opacity-100 sm:opacity-0 group-hover:opacity-100 p-1.5 text-red-500 hover:bg-red-500/10 rounded-lg transition-all min-w-[36px] min-h-[36px] flex items-center justify-center"
+                          title="ลบ"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
                       </div>
                     </div>
                   </div>
                 ))}
-                <div className="mt-4 pt-4 border-t border-dashed border-slate-300/50 dark:border-slate-600/50">
-                  <div className="flex items-center justify-center gap-2 p-4 rounded-xl bg-slate-100/50 dark:bg-slate-800/30 border border-dashed border-slate-300/50 dark:border-slate-600/50 text-slate-400 dark:text-slate-500 hover:border-emerald-500/30 hover:text-emerald-600 dark:hover:text-emerald-400 transition-all duration-200 cursor-pointer group/add"
-                    onClick={() => setShowCreateModal(true)}
-                  >
-                    <Plus className="w-4 h-4 group-hover/add:rotate-90 transition-transform duration-300" />
-                    <span className="text-xs font-medium">เพิ่ม LINE Login เพื่อเริ่มต้น</span>
-                  </div>
-                </div>
               </div>
             </Card>
 
             {/* Setup & Status */}
-            <Card className="p-3 sm:p-4 md:p-6 shadow-sm border border-slate-200 dark:border-slate-700/50">
+            <Card className="lg:col-span-2 p-3 sm:p-4 md:p-6">
               {!selectedSession ? (
-                <div className="flex flex-col items-center justify-center py-16 sm:py-24 text-center">
-                  <div className="relative mb-6">
-                    <div className="absolute inset-0 bg-emerald-500/10 blur-3xl rounded-full" />
-                    <div className="relative p-8 bg-gradient-to-br from-emerald-500/10 to-teal-500/10 rounded-3xl border-2 border-dashed border-emerald-300 dark:border-emerald-700/30">
-                      <Key className="w-16 h-16 text-emerald-500 dark:text-emerald-400 opacity-40" />
-                    </div>
-                  </div>
-                  <h3 className="text-lg sm:text-xl font-semibold text-slate-900 dark:text-white mb-2">
-                    เลือก LINE Login เพื่อเริ่มต้น
-                  </h3>
-                  <p className="text-sm text-slate-500 dark:text-slate-400 max-w-sm">
-                    คลิกที่ LINE Login ด้านซ้ายเพื่อดูรายละเอียดและจัดการ
-                  </p>
+                <div className="flex flex-col items-center justify-center py-8 sm:py-12 text-slate-400">
+                  <Key className="w-12 h-12 sm:w-16 sm:h-16 mb-3 sm:mb-4 opacity-30" />
+                  <p className="text-sm sm:text-base">เลือก LINE Login เพื่อเริ่มต้น</p>
                 </div>
               ) : (
                 <div className="space-y-6">
                   {/* Session Info */}
-                  <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-blue-500/5 via-purple-500/5 to-pink-500/5 dark:from-blue-500/10 dark:via-purple-500/10 dark:to-pink-500/10 p-6 border border-blue-200/20 dark:border-blue-700/20">
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                      <div className="min-w-0 flex-1">
-                        <h3 className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white truncate mb-1">
-                          {selectedSession.name}
-                        </h3>
-                        <p className="text-sm text-slate-600 dark:text-slate-400 truncate flex items-center gap-2">
-                          <Mail className="w-4 h-4 opacity-50" />
-                          {credentialsStatus?.email || 'ยังไม่ได้ตั้งค่า'}
-                        </p>
-                      </div>
-                      {sessionStatus?.status && (
-                        <Badge variant={getStatusDisplay(sessionStatus.status).color} className="text-sm px-4 py-2 shadow-sm">
-                          {getStatusDisplay(sessionStatus.status).text}
-                        </Badge>
-                      )}
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                    <div className="min-w-0">
+                      <h3 className="text-base sm:text-lg font-semibold text-slate-900 dark:text-white truncate">
+                        {selectedSession.name}
+                      </h3>
+                      <p className="text-xs sm:text-sm text-slate-500 truncate">
+                        {credentialsStatus?.email || 'ยังไม่ได้ตั้งค่า'}
+                      </p>
                     </div>
+                    {sessionStatus?.status && (
+                      <Badge variant={getStatusDisplay(sessionStatus.status).color}>
+                        {getStatusDisplay(sessionStatus.status).text}
+                      </Badge>
+                    )}
                   </div>
 
                   {/* Current Keys Status */}
                   {sessionStatus?.hasKeys && (
-                    <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-emerald-500/10 to-teal-500/10 dark:from-emerald-500/20 dark:to-teal-500/20 p-6 border-2 border-emerald-300/50 dark:border-emerald-600/50 shadow-lg shadow-emerald-500/10">
-                      <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-400/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2"></div>
-                      <div className="relative">
-                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                          <div className="flex items-center gap-4">
-                            <div className="relative">
-                              <div className="absolute inset-0 bg-emerald-500/20 rounded-full blur-xl animate-pulse"></div>
-                              <div className="relative p-3 bg-gradient-to-br from-emerald-500 to-teal-500 rounded-2xl shadow-lg">
-                                <Key className="w-6 h-6 text-white" />
-                              </div>
-                            </div>
-                            <div className="min-w-0">
-                              <p className="font-bold text-lg text-emerald-800 dark:text-emerald-100 mb-1">
-                                มี Keys แล้ว
-                              </p>
-                              <p className="text-sm text-emerald-700 dark:text-emerald-300 flex items-center gap-2">
-                                <Building2 className="w-4 h-4" />
-                                ธนาคาร: {sessionStatus.bankName || '-'}
-                              </p>
-                            </div>
-                          </div>
-                          <Button
-                            variant="secondary"
-                            size="sm"
-                            onClick={handleViewKeys}
-                            disabled={isLoadingKeys}
-                            className="gap-2 w-full sm:w-auto min-h-[44px] bg-white dark:bg-slate-800 hover:bg-emerald-50 dark:hover:bg-slate-700 border-emerald-200 dark:border-emerald-700 font-medium shadow-md"
-                          >
-                            {isLoadingKeys ? <Loader2 className="w-4 h-4 animate-spin" /> : <Eye className="w-4 h-4" />}
-                            ดู Keys
-                          </Button>
-                        </div>
-                        {sessionStatus.extractedAt && (
-                          <div className="flex items-center gap-2 mt-4 pt-4 border-t border-emerald-300/30 dark:border-emerald-700/30">
-                            <Clock className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
-                            <p className="text-xs text-emerald-700 dark:text-emerald-300">
-                              ดึงเมื่อ: {new Date(sessionStatus.extractedAt).toLocaleString('th-TH')}
+                    <div className="p-3 sm:p-4 bg-emerald-50 dark:bg-emerald-900/20 rounded-xl border border-emerald-200 dark:border-emerald-800">
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 sm:gap-3">
+                        <div className="flex items-center gap-2 sm:gap-3">
+                          <CheckCircle2 className="w-4 h-4 sm:w-5 sm:h-5 text-emerald-500 flex-shrink-0" />
+                          <div className="min-w-0">
+                            <p className="font-medium text-emerald-800 dark:text-emerald-200 text-sm sm:text-base">
+                              มี Keys แล้ว
+                            </p>
+                            <p className="text-[10px] sm:text-xs text-emerald-600 dark:text-emerald-400">
+                              ธนาคาร: {sessionStatus.bankName || '-'}
                             </p>
                           </div>
-                        )}
+                        </div>
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          onClick={handleViewKeys}
+                          disabled={isLoadingKeys}
+                          className="gap-2 w-full sm:w-auto min-h-[40px]"
+                        >
+                          {isLoadingKeys ? <Loader2 className="w-4 h-4 animate-spin" /> : <Eye className="w-4 h-4" />}
+                          ดู Keys
+                        </Button>
                       </div>
+                      {sessionStatus.extractedAt && (
+                        <p className="text-xs text-emerald-600 dark:text-emerald-400 mt-2">
+                          ดึงเมื่อ: {new Date(sessionStatus.extractedAt).toLocaleString('th-TH')}
+                        </p>
+                      )}
                     </div>
                   )}
 
@@ -1519,52 +1396,28 @@ export default function LineSessionPage() {
 
                   {/* Login Status (when in progress) */}
                   {loginStatus && (['waiting_for_pin', 'waiting_pin', 'pin_displayed', 'extracting_keys', 'triggering_messages', 'capturing_curl', 'starting', 'initializing', 'launching_browser', 'loading_extension', 'checking_session', 'entering_credentials', 'verifying'].includes(loginStatus.status || '')) && (
-                    <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-amber-50 via-orange-50 to-yellow-50 dark:from-amber-900/30 dark:via-orange-900/30 dark:to-yellow-900/30 p-6 border-2 border-amber-300/50 dark:border-amber-600/50 shadow-xl shadow-amber-500/20">
-                      <div className="absolute top-0 left-0 w-40 h-40 bg-amber-400/10 rounded-full blur-3xl -translate-x-1/2 -translate-y-1/2"></div>
-
-                      <div className="relative">
-                        <div className="flex items-center gap-4 mb-4">
-                          <div className="relative">
-                            <div className="absolute inset-0 bg-amber-400 rounded-full blur-xl opacity-40 animate-pulse"></div>
-                            <div className="relative p-3 bg-gradient-to-br from-amber-500 to-orange-500 rounded-2xl shadow-lg">
-                              <Loader2 className="w-6 h-6 text-white animate-spin" />
-                            </div>
-                          </div>
-                          <p className={`font-semibold text-lg ${getLoginStatusDisplay(loginStatus.status).color}`}>
-                            {getLoginStatusDisplay(loginStatus.status).text}
-                          </p>
-                        </div>
+                    <div className="p-4 bg-amber-50 dark:bg-amber-900/20 rounded-xl border border-amber-200 dark:border-amber-800">
+                      <div className="flex items-center gap-3 mb-3">
+                        <Loader2 className="w-5 h-5 text-amber-500 animate-spin" />
+                        <p className={`font-medium ${getLoginStatusDisplay(loginStatus.status).color}`}>
+                          {getLoginStatusDisplay(loginStatus.status).text}
+                        </p>
+                      </div>
 
                       {loginStatus.pin && (
-                        <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-emerald-500/10 to-teal-500/10 dark:from-emerald-500/20 dark:to-teal-500/20 p-8 border-2 border-emerald-400/30 dark:border-emerald-500/30 shadow-2xl mb-4">
-                          <div className="absolute inset-0 bg-gradient-to-br from-emerald-400/5 to-teal-400/5 animate-pulse"></div>
-
-                          <div className="relative text-center">
-                            <div className="flex items-center justify-center gap-3 mb-4">
-                              <div className="relative">
-                                <div className="absolute inset-0 bg-emerald-400 rounded-full blur-lg opacity-50 animate-pulse"></div>
-                                <Smartphone className="relative w-8 h-8 text-emerald-500 dark:text-emerald-400" />
-                              </div>
-                              <p className="text-base font-semibold text-slate-700 dark:text-slate-200">
-                                ยืนยัน PIN บนมือถือ
-                              </p>
-                            </div>
-
-                            <div className="relative inline-block">
-                              <div className="absolute inset-0 bg-emerald-400/20 dark:bg-emerald-400/30 blur-2xl animate-pulse"></div>
-                              <p className="relative text-6xl sm:text-7xl font-black tracking-[0.5em] text-transparent bg-clip-text bg-gradient-to-r from-emerald-600 to-teal-600 dark:from-emerald-400 dark:to-teal-400 py-4">
-                                {loginStatus.pin}
-                              </p>
-                            </div>
-
-                            <div className="mt-4 flex items-center justify-center gap-2 text-slate-600 dark:text-slate-400">
-                              <div className="h-px flex-1 bg-gradient-to-r from-transparent to-slate-300 dark:to-slate-600"></div>
-                              <p className="text-xs sm:text-sm font-medium px-3">
-                                เปิดแอป LINE บนมือถือแล้วกดยืนยันตัวเลขนี้
-                              </p>
-                              <div className="h-px flex-1 bg-gradient-to-l from-transparent to-slate-300 dark:to-slate-600"></div>
-                            </div>
+                        <div className="p-3 sm:p-4 bg-white dark:bg-slate-800 rounded-lg text-center">
+                          <div className="flex items-center justify-center gap-2 mb-2">
+                            <Smartphone className="w-4 h-4 sm:w-5 sm:h-5 text-emerald-500" />
+                            <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-300">
+                              ยืนยัน PIN บนมือถือ
+                            </p>
                           </div>
+                          <p className="text-3xl sm:text-4xl font-bold tracking-[0.3em] sm:tracking-[0.5em] text-emerald-600 dark:text-emerald-400">
+                            {loginStatus.pin}
+                          </p>
+                          <p className="text-[10px] sm:text-xs text-slate-400 dark:text-slate-500 mt-2">
+                            เปิดแอป LINE บนมือถือแล้วกดยืนยันตัวเลขนี้
+                          </p>
                         </div>
                       )}
 
@@ -1574,9 +1427,9 @@ export default function LineSessionPage() {
                             variant="ghost"
                             size="sm"
                             onClick={handleRetryWrongPin}
-                            className="text-amber-700 dark:text-amber-400 hover:text-amber-800 dark:hover:text-amber-300 hover:bg-amber-100 dark:hover:bg-amber-900/30 min-h-[40px] text-xs sm:text-sm font-medium"
+                            className="text-amber-600 hover:text-amber-700 hover:bg-amber-50 dark:hover:bg-amber-900/20 min-h-[40px] text-xs sm:text-sm"
                           >
-                            <RefreshCw className="w-4 h-4 mr-1.5" />
+                            <RefreshCw className="w-3.5 h-3.5 mr-1" />
                             PIN ผิด? ขอ PIN ใหม่
                           </Button>
                         )}
@@ -1584,44 +1437,33 @@ export default function LineSessionPage() {
                           variant="ghost"
                           size="sm"
                           onClick={handleCancelLogin}
-                          className="text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 hover:bg-red-50 dark:hover:bg-red-900/20 min-h-[40px] text-xs sm:text-sm font-medium"
+                          className="text-red-500 hover:text-red-600 min-h-[40px] text-xs sm:text-sm"
                         >
                           ยกเลิก
                         </Button>
-                      </div>
                       </div>
                     </div>
                   )}
 
                   {/* Setup Form */}
                   {(!loginStatus || loginStatus.status === 'completed' || loginStatus.status === 'success' || loginStatus.status === 'failed' || loginStatus.status === 'error' || loginStatus.status === 'credential_error') && (
-                    <div className="space-y-5">
-                      <div className="flex items-center gap-3">
-                        <div className="p-2.5 bg-gradient-to-br from-blue-500 to-indigo-500 rounded-xl shadow-md">
-                          <LogIn className="w-5 h-5 text-white" />
-                        </div>
-                        <h4 className="text-lg font-bold text-slate-900 dark:text-white">
-                          {credentialsStatus?.hasCredentials ? 'Login ใหม่' : 'ตั้งค่า Login'}
-                        </h4>
-                      </div>
+                    <div className="space-y-4">
+                      <h4 className="font-medium text-slate-900 dark:text-white flex items-center gap-2">
+                        <LogIn className="w-4 h-4" />
+                        {credentialsStatus?.hasCredentials ? 'Login ใหม่' : 'ตั้งค่า Login'}
+                      </h4>
 
                       {credentialsStatus?.hasCredentials && (
-                        <div className="relative overflow-hidden rounded-xl bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 p-4 border border-blue-200/50 dark:border-blue-700/50 shadow-md">
-                          <div className="flex items-center gap-3 mb-3">
-                            <CheckCircle2 className="w-5 h-5 text-blue-500" />
-                            <p className="font-semibold text-blue-800 dark:text-blue-200">
-                              มีข้อมูล Login บันทึกไว้แล้ว
-                            </p>
-                          </div>
-                          <p className="text-sm text-blue-700 dark:text-blue-300 mb-3 ml-8">
-                            {credentialsStatus.email}
+                        <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg text-sm">
+                          <p className="text-blue-700 dark:text-blue-300">
+                            มีข้อมูล Login บันทึกไว้แล้ว: {credentialsStatus.email}
                           </p>
                           <Button
                             variant="primary"
                             size="sm"
                             onClick={handleRelogin}
                             disabled={isSettingUp}
-                            className="mt-2 gap-2 w-full sm:w-auto bg-gradient-to-r from-blue-500 to-indigo-500 hover:from-blue-600 hover:to-indigo-600 shadow-lg"
+                            className="mt-2 gap-2"
                           >
                             {isSettingUp ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
                             Re-login ด้วยข้อมูลเดิม
@@ -1687,21 +1529,17 @@ export default function LineSessionPage() {
                         variant="primary"
                         onClick={handleSetup}
                         disabled={isSettingUp || !setupForm.email || !setupForm.password || !setupForm.bankCode}
-                        className="relative w-full gap-3 h-14 text-base font-bold bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 hover:from-blue-700 hover:via-indigo-700 hover:to-purple-700 shadow-xl shadow-blue-500/30 hover:shadow-2xl hover:shadow-blue-500/40 transition-all duration-300 overflow-hidden group"
+                        className="w-full gap-2"
                       >
-                        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent translate-x-[-200%] group-hover:translate-x-[200%] transition-transform duration-1000"></div>
                         {isSettingUp ? (
                           <>
-                            <Loader2 className="w-5 h-5 animate-spin relative z-10" />
-                            <span className="relative z-10">กำลังดำเนินการ...</span>
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                            กำลังดำเนินการ...
                           </>
                         ) : (
                           <>
-                            <div className="relative">
-                              <div className="absolute inset-0 bg-yellow-400 rounded-full blur-md opacity-50 animate-pulse"></div>
-                              <Zap className="relative w-5 h-5 text-yellow-300" />
-                            </div>
-                            <span className="relative z-10">เริ่มดึง Keys</span>
+                            <Zap className="w-4 h-4" />
+                            เริ่มดึง Keys
                           </>
                         )}
                       </Button>
@@ -1709,96 +1547,47 @@ export default function LineSessionPage() {
                   )}
 
                   {/* Instructions */}
-                  <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-800/50 dark:to-slate-900/50 p-6 border border-slate-200/50 dark:border-slate-700/50 shadow-md">
-                    <div className="flex items-center gap-3 mb-4">
-                      <div className="p-2 bg-gradient-to-br from-purple-500 to-pink-500 rounded-lg shadow-md">
-                        <HelpCircle className="w-5 h-5 text-white" />
-                      </div>
-                      <h4 className="font-bold text-lg text-slate-900 dark:text-white">
-                        วิธีใช้งาน
-                      </h4>
-                    </div>
-                    <div className="space-y-3">
-                      <div className="flex items-start gap-3 group">
-                        <div className="flex-shrink-0 w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center text-white font-bold text-sm shadow-md group-hover:scale-110 transition-transform">
-                          1
-                        </div>
-                        <p className="text-sm text-slate-700 dark:text-slate-300 pt-1.5 leading-relaxed">
-                          กรอก Email และ Password ของ LINE
-                        </p>
-                      </div>
-                      <div className="flex items-start gap-3 group">
-                        <div className="flex-shrink-0 w-8 h-8 rounded-full bg-gradient-to-br from-indigo-500 to-indigo-600 flex items-center justify-center text-white font-bold text-sm shadow-md group-hover:scale-110 transition-transform">
-                          2
-                        </div>
-                        <p className="text-sm text-slate-700 dark:text-slate-300 pt-1.5 leading-relaxed">
-                          เลือกธนาคารที่ต้องการใช้
-                        </p>
-                      </div>
-                      <div className="flex items-start gap-3 group">
-                        <div className="flex-shrink-0 w-8 h-8 rounded-full bg-gradient-to-br from-purple-500 to-purple-600 flex items-center justify-center text-white font-bold text-sm shadow-md group-hover:scale-110 transition-transform">
-                          3
-                        </div>
-                        <p className="text-sm text-slate-700 dark:text-slate-300 pt-1.5 leading-relaxed">
-                          กดปุ่ม "เริ่มดึง Keys"
-                        </p>
-                      </div>
-                      <div className="flex items-start gap-3 group">
-                        <div className="flex-shrink-0 w-8 h-8 rounded-full bg-gradient-to-br from-pink-500 to-pink-600 flex items-center justify-center text-white font-bold text-sm shadow-md group-hover:scale-110 transition-transform">
-                          4
-                        </div>
-                        <p className="text-sm text-slate-700 dark:text-slate-300 pt-1.5 leading-relaxed">
-                          ยืนยัน PIN ที่แสดงบนหน้าจอในแอป LINE มือถือ
-                        </p>
-                      </div>
-                      <div className="flex items-start gap-3 group">
-                        <div className="flex-shrink-0 w-8 h-8 rounded-full bg-gradient-to-br from-rose-500 to-rose-600 flex items-center justify-center text-white font-bold text-sm shadow-md group-hover:scale-110 transition-transform">
-                          5
-                        </div>
-                        <p className="text-sm text-slate-700 dark:text-slate-300 pt-1.5 leading-relaxed">
-                          ระบบจะดึง Keys อัตโนมัติเมื่อยืนยันสำเร็จ
-                        </p>
-                      </div>
-                    </div>
+                  <div className="p-4 bg-slate-50 dark:bg-slate-800/50 rounded-xl">
+                    <h4 className="font-medium text-slate-900 dark:text-white mb-2">
+                      วิธีใช้งาน
+                    </h4>
+                    <ol className="text-sm text-slate-600 dark:text-slate-400 space-y-1 list-decimal list-inside">
+                      <li>กรอก Email และ Password ของ LINE</li>
+                      <li>เลือกธนาคารที่ต้องการใช้</li>
+                      <li>กดปุ่ม "เริ่มดึง Keys"</li>
+                      <li>ยืนยัน PIN ที่แสดงบนหน้าจอในแอป LINE มือถือ</li>
+                      <li>ระบบจะดึง Keys อัตโนมัติเมื่อยืนยันสำเร็จ</li>
+                    </ol>
                   </div>
 
                   {/* Transactions Section - Only show if session has keys */}
                   {sessionStatus?.hasKeys && (
-                    <div className="relative mt-8 pt-8">
-                      {/* Gradient divider */}
-                      <div className="absolute top-0 inset-x-0 h-px bg-gradient-to-r from-transparent via-slate-300 dark:via-slate-600 to-transparent" />
-                      <div className="absolute top-0 inset-x-0 h-px bg-gradient-to-r from-transparent via-emerald-400/50 to-transparent blur-sm" />
+                    <div className="border-t pt-6 mt-6">
                       {/* Auto-fetch status banner */}
                       {autoFetchConfig && (
-                        <div className={`mb-4 p-3 sm:p-4 rounded-xl text-xs sm:text-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 backdrop-blur-sm border shadow-lg transition-all duration-300 ${
+                        <div className={`mb-4 p-2 sm:p-3 rounded-lg text-xs sm:text-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-1 sm:gap-2 ${
                           autoFetchConfig.enabled && autoFetchConfig.isRunning
-                            ? 'bg-gradient-to-r from-emerald-500/10 via-emerald-400/10 to-emerald-500/10 border-emerald-300/50 dark:border-emerald-600/50 shadow-emerald-500/20'
-                            : 'bg-white/30 dark:bg-slate-800/30 border-slate-200/50 dark:border-slate-700/50'
+                            ? 'bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800'
+                            : 'bg-slate-100 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700'
                         }`}>
-                          <div className="flex items-center gap-2 sm:gap-3">
-                            <div className={`p-2 rounded-lg ${
+                          <div className="flex items-center gap-2">
+                            <RefreshCw className={`w-4 h-4 ${
                               autoFetchConfig.enabled && autoFetchConfig.isRunning
-                                ? 'bg-emerald-500/20'
-                                : 'bg-slate-200/50 dark:bg-slate-700/50'
-                            }`}>
-                              <RefreshCw className={`w-4 h-4 ${
-                                autoFetchConfig.enabled && autoFetchConfig.isRunning
-                                  ? 'text-emerald-600 dark:text-emerald-400 animate-spin'
-                                  : 'text-slate-400'
-                              }`} style={{ animationDuration: '3s' }} />
-                            </div>
-                            <span className={`font-medium ${
+                                ? 'text-emerald-500 animate-spin'
+                                : 'text-slate-400'
+                            }`} style={{ animationDuration: '3s' }} />
+                            <span className={
                               autoFetchConfig.enabled && autoFetchConfig.isRunning
                                 ? 'text-emerald-700 dark:text-emerald-300'
                                 : 'text-slate-600 dark:text-slate-400'
-                            }`}>
+                            }>
                               {autoFetchConfig.enabled && autoFetchConfig.isRunning
                                 ? `ดึงรายการอัตโนมัติทุก ${autoFetchConfig.intervalSeconds} วินาที`
                                 : 'การดึงรายการอัตโนมัติปิดอยู่'}
                             </span>
                           </div>
                           {autoFetchConfig.lastFetchTime && (
-                            <span className="text-xs text-slate-500 dark:text-slate-400 bg-white/40 dark:bg-slate-700/40 px-3 py-1 rounded-full">
+                            <span className="text-xs text-slate-500">
                               ดึงล่าสุด: {new Date(autoFetchConfig.lastFetchTime).toLocaleTimeString('th-TH')}
                             </span>
                           )}
@@ -1811,16 +1600,14 @@ export default function LineSessionPage() {
                             <History className="w-4 h-4 sm:w-5 sm:h-5 text-emerald-500 flex-shrink-0" />
                             รายการธุรกรรม
                             {showTransactions && autoFetchConfig?.enabled && (
-                              <span className="text-xs font-normal ml-2">
+                              <span className="text-xs font-normal text-slate-500 ml-2">
                                 {isAutoFetching ? (
-                                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30">
+                                  <span className="text-emerald-500 flex items-center gap-1">
                                     <Loader2 className="w-3 h-3 animate-spin" />
                                     กำลังดึงรายการ...
                                   </span>
                                 ) : countdown > 0 ? (
-                                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20 font-medium">
-                                    ดึงใหม่ใน {countdown} วินาที
-                                  </span>
+                                  `(ดึงใหม่ใน ${countdown} วินาที)`
                                 ) : null}
                               </span>
                             )}
@@ -1860,55 +1647,47 @@ export default function LineSessionPage() {
 
                       {/* Transaction Summary */}
                       {transactionSummary && (
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4 mb-4">
-                          <div className="group p-4 bg-gradient-to-br from-emerald-500/10 via-emerald-400/5 to-transparent backdrop-blur-sm rounded-xl border border-emerald-200/50 dark:border-emerald-700/50 hover:border-emerald-400/70 dark:hover:border-emerald-500/70 transition-all duration-300 hover:shadow-lg hover:shadow-emerald-500/20 hover:-translate-y-0.5">
-                            <div className="flex items-center gap-3 mb-2">
-                              <div className="p-2 rounded-full bg-emerald-500/20 border border-emerald-500/30">
-                                <ArrowDownCircle className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
-                              </div>
-                              <span className="text-xs font-medium text-emerald-700 dark:text-emerald-400">เงินเข้า</span>
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-2 sm:gap-3 mb-4">
+                          <div className="p-2 sm:p-3 bg-emerald-50 dark:bg-emerald-900/20 rounded-lg">
+                            <div className="flex items-center gap-2 mb-1">
+                              <ArrowDownCircle className="w-4 h-4 text-emerald-500" />
+                              <span className="text-xs text-emerald-600 dark:text-emerald-400">เงินเข้า</span>
                             </div>
-                            <p className="text-xl font-bold text-emerald-700 dark:text-emerald-300 mb-1">
+                            <p className="font-semibold text-emerald-700 dark:text-emerald-300">
                               {transactionSummary.deposits.count} รายการ
                             </p>
-                            <p className="text-sm font-semibold text-emerald-600 dark:text-emerald-400">
+                            <p className="text-xs text-emerald-600 dark:text-emerald-400">
                               ฿{transactionSummary.deposits.total?.toLocaleString() || 0}
                             </p>
                           </div>
-                          <div className="group p-4 bg-gradient-to-br from-red-500/10 via-red-400/5 to-transparent backdrop-blur-sm rounded-xl border border-red-200/50 dark:border-red-700/50 hover:border-red-400/70 dark:hover:border-red-500/70 transition-all duration-300 hover:shadow-lg hover:shadow-red-500/20 hover:-translate-y-0.5">
-                            <div className="flex items-center gap-3 mb-2">
-                              <div className="p-2 rounded-full bg-red-500/20 border border-red-500/30">
-                                <ArrowUpCircle className="w-5 h-5 text-red-600 dark:text-red-400" />
-                              </div>
-                              <span className="text-xs font-medium text-red-700 dark:text-red-400">เงินออก</span>
+                          <div className="p-3 bg-red-50 dark:bg-red-900/20 rounded-lg">
+                            <div className="flex items-center gap-2 mb-1">
+                              <ArrowUpCircle className="w-4 h-4 text-red-500" />
+                              <span className="text-xs text-red-600 dark:text-red-400">เงินออก</span>
                             </div>
-                            <p className="text-xl font-bold text-red-700 dark:text-red-300 mb-1">
+                            <p className="font-semibold text-red-700 dark:text-red-300">
                               {transactionSummary.withdrawals.count} รายการ
                             </p>
-                            <p className="text-sm font-semibold text-red-600 dark:text-red-400">
+                            <p className="text-xs text-red-600 dark:text-red-400">
                               ฿{transactionSummary.withdrawals.total?.toLocaleString() || 0}
                             </p>
                           </div>
-                          <div className="group p-4 bg-gradient-to-br from-blue-500/10 via-blue-400/5 to-transparent backdrop-blur-sm rounded-xl border border-blue-200/50 dark:border-blue-700/50 hover:border-blue-400/70 dark:hover:border-blue-500/70 transition-all duration-300 hover:shadow-lg hover:shadow-blue-500/20 hover:-translate-y-0.5">
-                            <div className="flex items-center gap-3 mb-2">
-                              <div className="p-2 rounded-full bg-blue-500/20 border border-blue-500/30">
-                                <History className="w-5 h-5 text-blue-600 dark:text-blue-400" />
-                              </div>
-                              <span className="text-xs font-medium text-blue-700 dark:text-blue-400">ทั้งหมด</span>
+                          <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+                            <div className="flex items-center gap-2 mb-1">
+                              <History className="w-4 h-4 text-blue-500" />
+                              <span className="text-xs text-blue-600 dark:text-blue-400">ทั้งหมด</span>
                             </div>
-                            <p className="text-2xl font-bold text-blue-700 dark:text-blue-300">
+                            <p className="font-semibold text-blue-700 dark:text-blue-300">
                               {transactionSummary.totalTransactions} รายการ
                             </p>
                           </div>
                           {transactionSummary.balance && (
-                            <div className="group p-4 bg-gradient-to-br from-purple-500/10 via-purple-400/5 to-transparent backdrop-blur-sm rounded-xl border border-purple-200/50 dark:border-purple-700/50 hover:border-purple-400/70 dark:hover:border-purple-500/70 transition-all duration-300 hover:shadow-lg hover:shadow-purple-500/20 hover:-translate-y-0.5">
-                              <div className="flex items-center gap-3 mb-2">
-                                <div className="p-2 rounded-full bg-purple-500/20 border border-purple-500/30">
-                                  <TrendingUp className="w-5 h-5 text-purple-600 dark:text-purple-400" />
-                                </div>
-                                <span className="text-xs font-medium text-purple-700 dark:text-purple-400">ยอดคงเหลือ</span>
+                            <div className="p-3 bg-purple-50 dark:bg-purple-900/20 rounded-lg">
+                              <div className="flex items-center gap-2 mb-1">
+                                <TrendingUp className="w-4 h-4 text-purple-500" />
+                                <span className="text-xs text-purple-600 dark:text-purple-400">ยอดคงเหลือ</span>
                               </div>
-                              <p className="text-2xl font-bold text-purple-700 dark:text-purple-300">
+                              <p className="font-semibold text-purple-700 dark:text-purple-300">
                                 ฿{parseFloat(transactionSummary.balance).toLocaleString()}
                               </p>
                             </div>
@@ -1920,7 +1699,7 @@ export default function LineSessionPage() {
                       {showTransactions && (
                         <div className="space-y-2">
                           {/* Search + Filter Bar */}
-                          <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 mb-4">
+                          <div className="flex flex-col sm:flex-row gap-2 mb-4">
                             <div className="relative flex-1">
                               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                               <input
@@ -1934,10 +1713,10 @@ export default function LineSessionPage() {
                                     fetchTransactions(selectedSession._id, false, 1, searchQuery, filterType);
                                   }
                                 }}
-                                className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200/50 dark:border-slate-700/50 bg-white/50 dark:bg-slate-800/50 backdrop-blur-sm text-slate-900 dark:text-white text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500/50 focus:bg-white dark:focus:bg-slate-800 transition-all duration-200 min-h-[42px]"
+                                className="w-full pl-10 pr-4 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent min-h-[40px]"
                               />
                             </div>
-                            <div className="flex gap-2 sm:gap-3">
+                            <div className="flex gap-2">
                               <select
                                 value={filterType}
                                 onChange={(e) => {
@@ -1947,7 +1726,7 @@ export default function LineSessionPage() {
                                     fetchTransactions(selectedSession._id, false, 1, searchQuery, e.target.value);
                                   }
                                 }}
-                                className="flex-1 sm:flex-none px-3 sm:px-4 py-2.5 rounded-xl border border-slate-200/50 dark:border-slate-700/50 bg-white/50 dark:bg-slate-800/50 backdrop-blur-sm text-slate-900 dark:text-white text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500/50 focus:bg-white dark:focus:bg-slate-800 transition-all duration-200 min-h-[42px] cursor-pointer"
+                                className="flex-1 sm:flex-none px-2 sm:px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent min-h-[40px]"
                               >
                                 <option value="">ทั้งหมด</option>
                                 <option value="deposit">เงินเข้า</option>
@@ -1966,7 +1745,7 @@ export default function LineSessionPage() {
                                     fetchTransactions(selectedSession._id, false, 1, searchQuery, filterType);
                                   }
                                 }}
-                                className="px-4 sm:px-6 py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-emerald-600 text-white text-xs sm:text-sm font-semibold hover:from-emerald-600 hover:to-emerald-700 active:from-emerald-700 active:to-emerald-800 transition-all duration-200 min-h-[42px] flex-shrink-0 shadow-lg shadow-emerald-500/30 hover:shadow-xl hover:shadow-emerald-500/40 transform hover:-translate-y-0.5"
+                                className="px-3 sm:px-4 py-2 rounded-lg bg-emerald-500 text-white text-xs sm:text-sm font-medium hover:bg-emerald-600 transition-colors min-h-[40px] flex-shrink-0"
                               >
                                 ค้นหา
                               </button>
@@ -1990,25 +1769,14 @@ export default function LineSessionPage() {
                           </p>
 
                           {isLoadingTransactions ? (
-                            <div className="flex flex-col items-center justify-center py-12 space-y-3">
-                              <div className="relative">
-                                <div className="absolute inset-0 bg-emerald-500/20 blur-xl rounded-full animate-pulse" />
-                                <Loader2 className="relative w-8 h-8 animate-spin text-emerald-500" />
-                              </div>
-                              <p className="text-sm text-slate-500 dark:text-slate-400">กำลังโหลดรายการ...</p>
+                            <div className="flex items-center justify-center py-8">
+                              <Loader2 className="w-6 h-6 animate-spin text-emerald-500" />
                             </div>
                           ) : transactions.length === 0 ? (
-                            <div className="text-center py-12 px-4">
-                              <div className="relative inline-block mb-4">
-                                <div className="absolute inset-0 bg-slate-200 dark:bg-slate-700 blur-xl opacity-50 rounded-full" />
-                                <div className="relative p-6 bg-slate-100 dark:bg-slate-800 rounded-2xl">
-                                  <History className="w-12 h-12 text-slate-400 dark:text-slate-500" />
-                                </div>
-                              </div>
-                              <h4 className="text-base font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                                {searchQuery || filterType ? 'ไม่พบรายการที่ค้นหา' : 'ยังไม่มีรายการธุรกรรม'}
-                              </h4>
-                              <p className="text-sm text-slate-500 dark:text-slate-400">
+                            <div className="text-center py-8 text-slate-500">
+                              <History className="w-12 h-12 mx-auto mb-2 opacity-30" />
+                              <p>{searchQuery || filterType ? 'ไม่พบรายการที่ค้นหา' : 'ยังไม่มีรายการธุรกรรม'}</p>
+                              <p className="text-xs mt-1">
                                 {searchQuery || filterType
                                   ? 'ลองเปลี่ยนคำค้นหาหรือตัวกรอง'
                                   : 'กดปุ่ม "ดึงรายการใหม่" เพื่อดึงข้อมูลจาก LINE'}
@@ -2028,22 +1796,22 @@ export default function LineSessionPage() {
                                 return (
                                   <div
                                     key={tx._id}
-                                    className={`p-4 rounded-xl border-l-4 border-r border-t border-b transition-all duration-300 hover:shadow-lg hover:-translate-y-0.5 ${
+                                    className={`p-4 rounded-xl border ${
                                       txType === 'deposit'
-                                        ? 'bg-emerald-50/50 dark:bg-emerald-900/10 border-l-emerald-500 border-emerald-200/50 dark:border-emerald-800/50 hover:border-emerald-400/70 dark:hover:border-emerald-600/70 hover:shadow-emerald-500/20'
+                                        ? 'bg-emerald-50 dark:bg-emerald-900/10 border-emerald-200 dark:border-emerald-800'
                                         : txType === 'withdraw'
-                                        ? 'bg-red-50/50 dark:bg-red-900/10 border-l-red-500 border-red-200/50 dark:border-red-800/50 hover:border-red-400/70 dark:hover:border-red-600/70 hover:shadow-red-500/20'
+                                        ? 'bg-red-50 dark:bg-red-900/10 border-red-200 dark:border-red-800'
                                         : txType === 'transfer'
-                                        ? 'bg-blue-50/50 dark:bg-blue-900/10 border-l-blue-500 border-blue-200/50 dark:border-blue-800/50 hover:border-blue-400/70 dark:hover:border-blue-600/70 hover:shadow-blue-500/20'
+                                        ? 'bg-blue-50 dark:bg-blue-900/10 border-blue-200 dark:border-blue-800'
                                         : txType === 'payment'
-                                        ? 'bg-orange-50/50 dark:bg-orange-900/10 border-l-orange-500 border-orange-200/50 dark:border-orange-800/50 hover:border-orange-400/70 dark:hover:border-orange-600/70 hover:shadow-orange-500/20'
+                                        ? 'bg-orange-50 dark:bg-orange-900/10 border-orange-200 dark:border-orange-800'
                                         : txType === 'fee'
-                                        ? 'bg-slate-50/50 dark:bg-slate-800/50 border-l-slate-500 border-slate-300/50 dark:border-slate-600/50 hover:border-slate-400/70 hover:shadow-slate-500/20'
+                                        ? 'bg-slate-50 dark:bg-slate-800/50 border-slate-300 dark:border-slate-600'
                                         : txType === 'interest'
-                                        ? 'bg-cyan-50/50 dark:bg-cyan-900/10 border-l-cyan-500 border-cyan-200/50 dark:border-cyan-800/50 hover:border-cyan-400/70 dark:hover:border-cyan-600/70 hover:shadow-cyan-500/20'
+                                        ? 'bg-cyan-50 dark:bg-cyan-900/10 border-cyan-200 dark:border-cyan-800'
                                         : txType === 'bill'
-                                        ? 'bg-purple-50/50 dark:bg-purple-900/10 border-l-purple-500 border-purple-200/50 dark:border-purple-800/50 hover:border-purple-400/70 dark:hover:border-purple-600/70 hover:shadow-purple-500/20'
-                                        : 'bg-slate-50/50 dark:bg-slate-800/50 border-l-slate-500 border-slate-200/50 dark:border-slate-700/50 hover:border-slate-400/70 hover:shadow-slate-500/20'
+                                        ? 'bg-purple-50 dark:bg-purple-900/10 border-purple-200 dark:border-purple-800'
+                                        : 'bg-slate-50 dark:bg-slate-800/50 border-slate-200 dark:border-slate-700'
                                     }`}
                                   >
                                     {/* Header: Type + Amount */}
@@ -2133,7 +1901,7 @@ export default function LineSessionPage() {
 
                                     {/* Account Details: From → To */}
                                     {(fromAccount || toAccount) && (
-                                      <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-1 sm:gap-2 p-3 bg-white/60 dark:bg-slate-800/60 backdrop-blur-sm rounded-lg mb-2 sm:mb-3 border border-white/50 dark:border-slate-700/50">
+                                      <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-1 sm:gap-2 p-2 sm:p-3 bg-white/50 dark:bg-slate-800/50 rounded-lg mb-2 sm:mb-3">
                                         {fromAccount && (
                                           <div className="flex-1">
                                             <p className="text-xs text-slate-500 mb-0.5">จากบัญชี</p>
@@ -2174,9 +1942,7 @@ export default function LineSessionPage() {
 
                           {/* Pagination */}
                           {totalPages > 1 && (
-                            <div className="flex flex-wrap items-center justify-center gap-2 mt-6 pt-6 relative">
-                              {/* Gradient divider */}
-                              <div className="absolute top-0 inset-x-0 h-px bg-gradient-to-r from-transparent via-slate-300 dark:via-slate-600 to-transparent" />
+                            <div className="flex flex-wrap items-center justify-center gap-1.5 sm:gap-2 mt-4 pt-4 border-t border-slate-200 dark:border-slate-700">
                               <button
                                 onClick={() => {
                                   if (selectedSession && currentPage > 1) {
@@ -2186,7 +1952,7 @@ export default function LineSessionPage() {
                                   }
                                 }}
                                 disabled={currentPage <= 1}
-                                className="p-2.5 rounded-full border border-slate-200/50 dark:border-slate-700/50 bg-white/50 dark:bg-slate-800/50 backdrop-blur-sm hover:bg-slate-100 dark:hover:bg-slate-700 disabled:opacity-30 disabled:cursor-not-allowed transition-all duration-200 hover:shadow-md hover:-translate-y-0.5"
+                                className="p-2 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
                               >
                                 <ChevronLeft className="w-4 h-4" />
                               </button>
@@ -2209,10 +1975,10 @@ export default function LineSessionPage() {
                                         fetchTransactions(selectedSession._id, false, p, searchQuery, filterType);
                                       }
                                     }}
-                                    className={`min-w-[36px] px-3 h-9 rounded-full text-sm font-semibold transition-all duration-200 ${
+                                    className={`min-w-[36px] h-9 rounded-lg text-sm font-medium transition-colors ${
                                       p === currentPage
-                                        ? 'bg-gradient-to-r from-emerald-500 to-emerald-600 text-white shadow-lg shadow-emerald-500/40 scale-105'
-                                        : 'bg-white/50 dark:bg-slate-800/50 backdrop-blur-sm text-slate-700 dark:text-slate-300 border border-slate-200/50 dark:border-slate-700/50 hover:bg-slate-100 dark:hover:bg-slate-700 hover:shadow-md hover:-translate-y-0.5'
+                                        ? 'bg-emerald-500 text-white'
+                                        : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'
                                     }`}
                                   >
                                     {p}
@@ -2229,7 +1995,7 @@ export default function LineSessionPage() {
                                   }
                                 }}
                                 disabled={currentPage >= totalPages}
-                                className="p-2.5 rounded-full border border-slate-200/50 dark:border-slate-700/50 bg-white/50 dark:bg-slate-800/50 backdrop-blur-sm hover:bg-slate-100 dark:hover:bg-slate-700 disabled:opacity-30 disabled:cursor-not-allowed transition-all duration-200 hover:shadow-md hover:-translate-y-0.5"
+                                className="p-2 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
                               >
                                 <ChevronRight className="w-4 h-4" />
                               </button>
@@ -2389,49 +2155,40 @@ export default function LineSessionPage() {
                 <p className="text-sm text-slate-500">ไม่มีรายการแจ้งเตือน</p>
               </div>
             ) : (
-              <div className="space-y-3">
+              <div className="space-y-2">
                 {alerts.map((alert) => (
                   <div
                     key={alert._id}
-                    className={`relative p-4 rounded-xl border-l-4 transition-all ${
+                    className={`p-3 rounded-xl border transition-colors ${
                       alert.isReadByUser
-                        ? "bg-slate-50 dark:bg-slate-800/30 border-slate-300 dark:border-slate-700"
-                        : "bg-white dark:bg-slate-800/60 border-slate-400 dark:border-slate-600 shadow-sm"
-                    } ${
-                      alert.transactionType === 'withdraw' ? 'border-l-red-500' :
-                      alert.transactionType === 'payment' ? 'border-l-amber-500' :
-                      alert.transactionType === 'fee' ? 'border-l-orange-500' :
-                      'border-l-slate-400'
+                        ? "bg-slate-50 dark:bg-slate-800/30 border-slate-200 dark:border-slate-700/30"
+                        : "bg-white dark:bg-slate-800/50 border-slate-300 dark:border-slate-700/50"
                     }`}
                   >
-                    <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center justify-between mb-1.5">
                       <Badge variant={
                         alert.transactionType === 'withdraw' ? 'error' :
                         alert.transactionType === 'payment' ? 'warning' :
                         alert.transactionType === 'fee' ? 'warning' :
                         'default'
-                      } className="text-xs font-bold px-3 py-1">
+                      }>
                         {translateAlertType(alert.transactionType)}
                       </Badge>
                       <div className="flex items-center gap-2">
                         {alert.amount && (
-                          <span className="text-base font-bold text-slate-900 dark:text-white">
-                            {Number(alert.amount).toLocaleString()} <span className="text-xs text-slate-500">THB</span>
+                          <span className="text-sm font-bold text-slate-900 dark:text-white">
+                            {Number(alert.amount).toLocaleString()} THB
                           </span>
                         )}
                         {!alert.isReadByUser && (
-                          <div className="relative">
-                            <span className="absolute inset-0 w-3 h-3 rounded-full bg-red-500 animate-ping opacity-75"></span>
-                            <span className="relative block w-3 h-3 rounded-full bg-red-500"></span>
-                          </div>
+                          <span className="w-2 h-2 rounded-full bg-red-500" />
                         )}
                       </div>
                     </div>
-                    <p className="text-sm text-slate-700 dark:text-slate-300 truncate mb-2">
+                    <p className="text-xs text-slate-500 dark:text-slate-400 truncate mb-1">
                       {alert.text || 'ไม่มีข้อความ'}
                     </p>
-                    <p className="text-xs text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
-                      <span className="inline-block w-1 h-1 rounded-full bg-slate-400"></span>
+                    <p className="text-[10px] text-slate-400 dark:text-slate-500">
                       {alert.messageDate ? new Date(alert.messageDate).toLocaleString('th-TH') : alert.createdAt ? new Date(alert.createdAt).toLocaleString('th-TH') : '-'}
                     </p>
                   </div>
@@ -2441,31 +2198,27 @@ export default function LineSessionPage() {
 
             {/* Pagination */}
             {alertTotalPages > 1 && (
-              <div className="flex items-center justify-center gap-3 pt-4">
+              <div className="flex items-center justify-center gap-2 pt-2">
                 <button
                   onClick={() => fetchAlertPage(alertPage - 1)}
                   disabled={alertPage <= 1}
-                  className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all font-medium ${
-                    alertPage <= 1
-                      ? "text-slate-300 dark:text-slate-700 cursor-not-allowed bg-slate-100 dark:bg-slate-800/30"
-                      : "text-slate-700 dark:text-slate-300 hover:bg-red-50 dark:hover:bg-red-900/20 hover:text-red-600 dark:hover:text-red-400 border border-slate-200 dark:border-slate-700"
+                  className={`w-8 h-8 rounded-lg flex items-center justify-center transition-colors ${
+                    alertPage <= 1 ? "text-slate-400 dark:text-slate-600 cursor-not-allowed" : "text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700/50"
                   }`}
                 >
-                  <ChevronLeft className="w-5 h-5" />
+                  <ChevronLeft className="w-4 h-4" />
                 </button>
-                <span className="text-sm font-semibold text-slate-700 dark:text-slate-300 px-4 py-2 bg-slate-100 dark:bg-slate-800/50 rounded-lg">
-                  {alertPage} / {alertTotalPages}
+                <span className="text-xs text-slate-500 dark:text-slate-400">
+                  หน้า {alertPage} / {alertTotalPages}
                 </span>
                 <button
                   onClick={() => fetchAlertPage(alertPage + 1)}
                   disabled={alertPage >= alertTotalPages}
-                  className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all font-medium ${
-                    alertPage >= alertTotalPages
-                      ? "text-slate-300 dark:text-slate-700 cursor-not-allowed bg-slate-100 dark:bg-slate-800/30"
-                      : "text-slate-700 dark:text-slate-300 hover:bg-red-50 dark:hover:bg-red-900/20 hover:text-red-600 dark:hover:text-red-400 border border-slate-200 dark:border-slate-700"
+                  className={`w-8 h-8 rounded-lg flex items-center justify-center transition-colors ${
+                    alertPage >= alertTotalPages ? "text-slate-400 dark:text-slate-600 cursor-not-allowed" : "text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700/50"
                   }`}
                 >
-                  <ChevronRight className="w-5 h-5" />
+                  <ChevronRight className="w-4 h-4" />
                 </button>
               </div>
             )}
@@ -2492,68 +2245,62 @@ export default function LineSessionPage() {
         size="lg"
       >
         {fullKeys && (
-          <div className="space-y-5">
-            {/* xLineAccess */}
-            <div className="space-y-2">
-              <label className="block text-xs font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider mb-2">
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
                 xLineAccess
               </label>
               <div className="flex gap-2">
-                <div className="flex-1 p-3 bg-slate-950 dark:bg-slate-900 border border-emerald-500/20 rounded-lg overflow-hidden">
-                  <p className="font-mono text-xs text-emerald-400 break-all select-all">
-                    {(fullKeys.xLineAccess as string) || ''}
-                  </p>
-                </div>
+                <Input
+                  value={(fullKeys.xLineAccess as string) || ''}
+                  readOnly
+                  className="font-mono text-xs"
+                />
                 <Button
                   variant="secondary"
                   size="sm"
                   onClick={() => copyToClipboard(fullKeys.xLineAccess as string, 'xLineAccess')}
-                  className="shrink-0 bg-emerald-500/10 hover:bg-emerald-500/20 border-emerald-500/30 hover:border-emerald-500/50 text-emerald-600 dark:text-emerald-400 transition-all"
                 >
                   <Copy className="w-4 h-4" />
                 </Button>
               </div>
             </div>
 
-            {/* xHmac */}
-            <div className="space-y-2">
-              <label className="block text-xs font-bold text-blue-600 dark:text-blue-400 uppercase tracking-wider mb-2">
+            <div>
+              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
                 xHmac
               </label>
               <div className="flex gap-2">
-                <div className="flex-1 p-3 bg-slate-950 dark:bg-slate-900 border border-blue-500/20 rounded-lg overflow-hidden">
-                  <p className="font-mono text-xs text-blue-400 break-all select-all">
-                    {(fullKeys.xHmac as string) || ''}
-                  </p>
-                </div>
+                <Input
+                  value={(fullKeys.xHmac as string) || ''}
+                  readOnly
+                  className="font-mono text-xs"
+                />
                 <Button
                   variant="secondary"
                   size="sm"
                   onClick={() => copyToClipboard(fullKeys.xHmac as string, 'xHmac')}
-                  className="shrink-0 bg-blue-500/10 hover:bg-blue-500/20 border-blue-500/30 hover:border-blue-500/50 text-blue-600 dark:text-blue-400 transition-all"
                 >
                   <Copy className="w-4 h-4" />
                 </Button>
               </div>
             </div>
 
-            {/* Chat MID */}
             {fullKeys.chatMid ? (
-              <div className="space-y-2">
-                <label className="block text-xs font-bold text-purple-600 dark:text-purple-400 uppercase tracking-wider mb-2">
+              <div>
+                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
                   Chat MID
                 </label>
                 <div className="flex gap-2">
-                  <div className="flex-1 p-3 bg-slate-950 dark:bg-slate-900 border border-purple-500/20 rounded-lg overflow-hidden">
-                    <p className="font-mono text-xs text-purple-400 break-all select-all">
-                      {String(fullKeys.chatMid) || ''}
-                    </p>
-                  </div>
+                  <Input
+                    value={String(fullKeys.chatMid) || ''}
+                    readOnly
+                    className="font-mono text-xs"
+                  />
                   <Button
                     variant="secondary"
                     size="sm"
                     onClick={() => copyToClipboard(String(fullKeys.chatMid), 'chatMid')}
-                    className="shrink-0 bg-purple-500/10 hover:bg-purple-500/20 border-purple-500/30 hover:border-purple-500/50 text-purple-600 dark:text-purple-400 transition-all"
                   >
                     <Copy className="w-4 h-4" />
                   </Button>
@@ -2563,49 +2310,37 @@ export default function LineSessionPage() {
 
             {/* cURL Bash Command */}
             {fullKeys.cUrlBash ? (
-              <div className="space-y-2">
-                <label className="block text-xs font-bold text-cyan-600 dark:text-cyan-400 uppercase tracking-wider mb-2 flex items-center gap-2">
-                  <span className="inline-block w-2 h-2 bg-cyan-500 rounded-full animate-pulse"></span>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
                   cURL Bash
                 </label>
                 <div className="flex gap-2">
-                  <div className="flex-1 p-4 bg-slate-950 dark:bg-slate-900 border-2 border-cyan-500/20 rounded-lg overflow-hidden">
-                    <pre className="font-mono text-xs text-cyan-300 whitespace-pre-wrap break-all select-all leading-relaxed">
-{String(fullKeys.cUrlBash) || ''}
-                    </pre>
-                  </div>
+                  <textarea
+                    value={String(fullKeys.cUrlBash) || ''}
+                    readOnly
+                    className="flex-1 p-3 font-mono text-xs bg-slate-900 text-slate-200 border border-slate-700 rounded-lg resize-none focus:outline-none focus:ring-0"
+                    rows={4}
+                  />
                   <Button
                     variant="secondary"
                     size="sm"
                     onClick={() => copyToClipboard(String(fullKeys.cUrlBash), 'cURL Bash')}
-                    className="shrink-0 bg-cyan-500/10 hover:bg-cyan-500/20 border-cyan-500/30 hover:border-cyan-500/50 text-cyan-600 dark:text-cyan-400 transition-all h-10"
+                    className="shrink-0"
                   >
                     <Copy className="w-4 h-4" />
                   </Button>
                 </div>
-                <p className="text-xs text-slate-500 dark:text-slate-400 flex items-center gap-1.5 mt-2">
-                  <span className="inline-block w-1 h-1 rounded-full bg-cyan-500"></span>
+                <p className="text-xs text-slate-500 mt-1">
                   คำสั่ง cURL สำหรับทดสอบ API
                 </p>
               </div>
             ) : null}
 
-            {/* Status Footer */}
-            <div className="pt-4 border-t border-slate-200 dark:border-slate-700">
-              <div className="p-3 bg-slate-50 dark:bg-slate-800/30 rounded-lg">
-                <p className="text-xs text-slate-600 dark:text-slate-400 space-y-1">
-                  <span className="flex items-center gap-2">
-                    <span className="font-semibold text-slate-700 dark:text-slate-300">สถานะ:</span>
-                    <span className="px-2 py-0.5 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 rounded font-medium">
-                      {String(fullKeys.status || '-')}
-                    </span>
-                  </span>
-                  <span className="flex items-center gap-2">
-                    <span className="font-semibold text-slate-700 dark:text-slate-300">ดึงเมื่อ:</span>
-                    <span>{fullKeys.extractedAt ? new Date(String(fullKeys.extractedAt)).toLocaleString('th-TH') : '-'}</span>
-                  </span>
-                </p>
-              </div>
+            <div className="pt-4 border-t">
+              <p className="text-xs text-slate-500">
+                สถานะ: {String(fullKeys.status || '-')}<br />
+                ดึงเมื่อ: {fullKeys.extractedAt ? new Date(String(fullKeys.extractedAt)).toLocaleString('th-TH') : '-'}
+              </p>
             </div>
           </div>
         )}
