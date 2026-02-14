@@ -99,6 +99,20 @@ export default function ChangePasswordPage() {
             <p className="text-slate-300 mt-1.5 sm:mt-2 font-bold text-xs sm:text-sm tracking-wide">เพื่อความปลอดภัย กรุณาตั้งรหัสผ่านใหม่</p>
           </div>
 
+          {/* ปุ่มย้อนกลับ — ซ่อนถ้าถูกบังคับเปลี่ยนรหัสผ่าน */}
+          {user && !user.forcePasswordChange && (
+            <button
+              type="button"
+              onClick={() => router.back()}
+              className="flex items-center gap-1.5 text-slate-400 hover:text-amber-400 transition-colors text-xs font-bold uppercase tracking-wider mb-4"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+              </svg>
+              ย้อนกลับ
+            </button>
+          )}
+
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 sm:space-y-6">
             <div className="space-y-2">
               <Input
