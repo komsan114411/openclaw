@@ -638,8 +638,20 @@ export default function AdminLineAccountsPage() {
   }, [accounts, isLoading]);
 
   const handleAddAccount = async () => {
-    if (!formData.accountName || !formData.channelId || !formData.channelSecret || !formData.accessToken) {
-      toast.error('กรุณากรอกข้อมูลที่จำเป็นให้ครบถ้วน');
+    if (!formData.accountName?.trim()) {
+      toast.error('กรุณากรอกชื่อบัญชี');
+      return;
+    }
+    if (!formData.channelId?.trim()) {
+      toast.error('กรุณากรอก Channel ID');
+      return;
+    }
+    if (!formData.channelSecret?.trim()) {
+      toast.error('กรุณากรอก Channel Secret');
+      return;
+    }
+    if (!formData.accessToken?.trim()) {
+      toast.error('กรุณากรอก Access Token');
       return;
     }
 
@@ -653,8 +665,17 @@ export default function AdminLineAccountsPage() {
       setShowAddModal(false);
       setFormData({ accountName: '', channelId: '', channelSecret: '', accessToken: '', description: '', ownerId: '' });
       fetchData();
-    } catch (error: any) {
-      toast.error(error.response?.data?.message || 'ไม่สามารถเพิ่มบัญชีได้');
+    } catch (error: unknown) {
+      const err = error as { response?: { data?: { message?: string; error?: { message?: string } } }; message?: string };
+      const serverMessage = err.response?.data?.message || err.response?.data?.error?.message;
+
+      if (serverMessage) {
+        toast.error(serverMessage);
+      } else if (err.message === 'Network Error') {
+        toast.error('ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้');
+      } else {
+        toast.error('ไม่สามารถเพิ่มบัญชีได้ กรุณาลองใหม่อีกครั้ง');
+      }
     } finally {
       setIsProcessing(false);
     }
@@ -668,8 +689,10 @@ export default function AdminLineAccountsPage() {
       toast.success('อัปเดตบัญชีสำเร็จ');
       setShowEditModal(false);
       fetchData();
-    } catch (error: any) {
-      toast.error('ไม่สามารถบันทึกได้');
+    } catch (error: unknown) {
+      const err = error as { response?: { data?: { message?: string; error?: { message?: string } } }; message?: string };
+      const serverMessage = err.response?.data?.message || err.response?.data?.error?.message;
+      toast.error(serverMessage || 'ไม่สามารถบันทึกได้ กรุณาลองใหม่อีกครั้ง');
     } finally {
       setIsProcessing(false);
     }

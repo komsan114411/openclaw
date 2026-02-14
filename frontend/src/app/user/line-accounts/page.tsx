@@ -620,6 +620,25 @@ export default function UserLineAccountsPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    // Client-side validation with specific messages
+    if (!formData.accountName.trim()) {
+      toast.error('กรุณากรอกชื่อบัญชี');
+      return;
+    }
+    if (!formData.channelId.trim()) {
+      toast.error('กรุณากรอก Channel ID (ดูได้จาก LINE Developers Console)');
+      return;
+    }
+    if (!formData.channelSecret.trim()) {
+      toast.error('กรุณากรอก Channel Secret (ดูได้จาก LINE Developers Console)');
+      return;
+    }
+    if (!formData.accessToken.trim()) {
+      toast.error('กรุณากรอก Access Token (ออก Long-lived token จาก LINE Developers Console)');
+      return;
+    }
+
     try {
       // Filter out empty template IDs
       const filteredTemplateIds: Record<string, string> = {};
@@ -649,8 +668,16 @@ export default function UserLineAccountsPage() {
       resetForm();
       fetchAccounts();
     } catch (error: unknown) {
-      const err = error as { response?: { data?: { message?: string } } };
-      toast.error(err.response?.data?.message || 'เกิดข้อผิดพลาด');
+      const err = error as { response?: { data?: { message?: string; error?: { message?: string } } }; message?: string };
+      const serverMessage = err.response?.data?.message || err.response?.data?.error?.message;
+
+      if (serverMessage) {
+        toast.error(serverMessage);
+      } else if (err.message === 'Network Error') {
+        toast.error('ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้ กรุณาตรวจสอบการเชื่อมต่ออินเทอร์เน็ต');
+      } else {
+        toast.error('เกิดข้อผิดพลาดในการสร้างบัญชี กรุณาลองใหม่อีกครั้ง');
+      }
     }
   };
 

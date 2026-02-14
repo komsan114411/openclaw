@@ -66,10 +66,16 @@ export class LineAccountsService {
   }
 
   async create(ownerId: string, dto: CreateLineAccountDto): Promise<LineAccountDocument> {
+    // Check if account name already exists
+    const existingName = await this.lineAccountModel.findOne({ accountName: dto.accountName });
+    if (existingName) {
+      throw new BadRequestException('ชื่อบัญชีนี้มีอยู่ในระบบแล้ว กรุณาใช้ชื่ออื่น');
+    }
+
     // Check if channel ID already exists
     const existing = await this.lineAccountModel.findOne({ channelId: dto.channelId });
     if (existing) {
-      throw new BadRequestException('Channel ID นี้มีอยู่ในระบบแล้ว');
+      throw new BadRequestException('Channel ID นี้มีอยู่ในระบบแล้ว กรุณาตรวจสอบว่าใส่ Channel ID ถูกต้อง');
     }
 
     // Generate unique webhook slug
@@ -135,7 +141,22 @@ export class LineAccountsService {
       settings,
     });
 
-    return account.save();
+    try {
+      return await account.save();
+    } catch (error: any) {
+      // Handle MongoDB duplicate key error (race condition)
+      if (error.code === 11000) {
+        const keyPattern = error.keyPattern || {};
+        if (keyPattern.accountName) {
+          throw new BadRequestException('ชื่อบัญชีนี้มีอยู่ในระบบแล้ว กรุณาใช้ชื่ออื่น');
+        }
+        if (keyPattern.channelId) {
+          throw new BadRequestException('Channel ID นี้มีอยู่ในระบบแล้ว กรุณาตรวจสอบว่าใส่ Channel ID ถูกต้อง');
+        }
+        throw new BadRequestException('ข้อมูลซ้ำกับบัญชีที่มีอยู่แล้ว กรุณาตรวจสอบชื่อบัญชีและ Channel ID');
+      }
+      throw error;
+    }
   }
 
   async findAll(includeInactive = false): Promise<any[]> {
@@ -252,7 +273,15 @@ export class LineAccountsService {
   async update(id: string, dto: UpdateLineAccountDto, ownerId?: string): Promise<LineAccountDocument> {
     const account = await this.lineAccountModel.findById(id);
     if (!account) {
-      throw new NotFoundException('LINE account not found');
+      throw new NotFoundException('ไม่พบบัญชี LINE นี้ในระบบ');
+    }
+
+    // Check accountName duplicate if being updated
+    if (dto.accountName && dto.accountName !== account.accountName) {
+      const existingName = await this.lineAccountModel.findOne({ accountName: dto.accountName, _id: { $ne: id } });
+      if (existingName) {
+        throw new BadRequestException('ชื่อบัญชีนี้มีอยู่ในระบบแล้ว กรุณาใช้ชื่ออื่น');
+      }
     }
 
     const userIdToCheck = ownerId || account.ownerId;
@@ -336,7 +365,19 @@ export class LineAccountsService {
 
     // Mark settings as modified for Mongoose to detect nested changes
     account.markModified('settings');
-    await account.save();
+
+    try {
+      await account.save();
+    } catch (error: any) {
+      if (error.code === 11000) {
+        const keyPattern = error.keyPattern || {};
+        if (keyPattern.accountName) {
+          throw new BadRequestException('ชื่อบัญชีนี้มีอยู่ในระบบแล้ว กรุณาใช้ชื่ออื่น');
+        }
+        throw new BadRequestException('ข้อมูลซ้ำกับบัญชีที่มีอยู่แล้ว');
+      }
+      throw error;
+    }
 
     // Invalidate cache
     await this.redisService.invalidateCache(`line-account:${id}`);
