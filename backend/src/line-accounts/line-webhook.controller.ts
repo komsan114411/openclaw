@@ -306,9 +306,14 @@ export class LineWebhookController {
       const angpaoEnabled = account.settings?.enableAngpao ?? false;
       const angpaoPhone = account.settings?.angpaoPhoneNumber;
       if (angpaoEnabled && angpaoPhone) {
-        const voucherHash = this.angpaoService.detectAngpaoLink(message.text);
-        if (voucherHash) {
-          await this.handleAngpaoRedeem(account, event, voucherHash, angpaoPhone);
+        const voucherHashes = this.angpaoService.detectAngpaoLinks(message.text);
+        if (voucherHashes.length > 0) {
+          // Process all angpao links found in message (sequentially to respect rate limits)
+          for (const hash of voucherHashes) {
+            await this.handleAngpaoRedeem(account, event, hash, angpaoPhone);
+            // After first reply, replyToken is consumed — subsequent ones use push
+            event = { ...event, replyToken: null };
+          }
           return; // Do NOT fall through to AI
         }
       }
@@ -467,6 +472,15 @@ export class LineWebhookController {
         subtitle = result.message;
         headerBg = '#F57F17';
         break;
+      case 'error':
+        // Check specifically for zero-amount
+        if (result.message?.includes('0 บาท')) {
+          icon = '💨'; title = 'อังเปาไม่มีมูลค่า';
+          subtitle = 'ซองนี้มีมูลค่า 0 บาท ไม่สามารถรับได้';
+          headerBg = '#9E9E9E';
+          break;
+        }
+        // fall through to default
       default:
         icon = '❌'; title = 'เกิดข้อผิดพลาด';
         subtitle = result.message;
@@ -552,8 +566,8 @@ export class LineWebhookController {
     });
 
     const detailRows: Record<string, unknown>[] = [];
-    if (result.ownerName) {
-      detailRows.push(infoRow('ผู้ส่ง', result.ownerName));
+    if (result.ownerName && result.ownerName.trim()) {
+      detailRows.push(infoRow('ผู้ส่ง', result.ownerName.trim()));
     }
     detailRows.push(infoRow('สถานะ', result.success ? 'สำเร็จ' : title.replace(/^[^\s]+\s*/, '')));
 

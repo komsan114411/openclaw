@@ -20,7 +20,7 @@ export class AngpaoService implements OnModuleInit {
   // Hash: alphanumeric, 10-100 chars (covers all known formats)
   // ========================================
   private readonly ANGPAO_URL_REGEX =
-    /https?:\/\/gift\.truemoney\.com\/campaign\/\?v=([a-zA-Z0-9]{10,100})/;
+    /https?:\/\/gift\.truemoney\.com\/campaign\/?\?v=([a-zA-Z0-9]{10,100})/g;
 
   // Thai mobile: 0xxxxxxxxx (exactly 10 digits, starts with 0)
   private readonly THAI_PHONE_REGEX = /^0[0-9]{9}$/;
@@ -32,6 +32,8 @@ export class AngpaoService implements OnModuleInit {
   private readonly RATE_LIMIT_PER_ACCOUNT = 10; // per minute
   private readonly RATE_LIMIT_PER_USER = 5; // per minute
   private readonly API_TIMEOUT_MS = 15000;
+  private readonly API_MAX_RETRIES = 2; // retry up to 2 times (3 total attempts)
+  private readonly API_RETRY_DELAY_MS = 1000; // 1s → 2s backoff
 
   constructor(
     @InjectModel(AngpaoHistory.name)
@@ -62,16 +64,33 @@ export class AngpaoService implements OnModuleInit {
   }
 
   /**
-   * Detect angpao link in text message.
-   * Returns voucher hash if found, null otherwise.
+   * Detect angpao links in text message.
+   * Returns array of unique voucher hashes found (supports multiple URLs in one message).
    * SECURITY: Only matches exact truemoney.com domain — no open redirect/SSRF risk.
    */
-  detectAngpaoLink(text: string): string | null {
-    if (!text || typeof text !== 'string') return null;
+  detectAngpaoLinks(text: string): string[] {
+    if (!text || typeof text !== 'string') return [];
     // Limit input length to prevent ReDoS
-    if (text.length > 2000) return null;
-    const match = text.match(this.ANGPAO_URL_REGEX);
-    return match ? match[1] : null;
+    if (text.length > 2000) return [];
+    const hashes: string[] = [];
+    const seen = new Set<string>();
+    for (const match of text.matchAll(this.ANGPAO_URL_REGEX)) {
+      const hash = match[1];
+      if (!seen.has(hash)) {
+        seen.add(hash);
+        hashes.push(hash);
+      }
+    }
+    return hashes;
+  }
+
+  /**
+   * Backward-compatible single link detection.
+   * Returns first voucher hash if found, null otherwise.
+   */
+  detectAngpaoLink(text: string): string | null {
+    const hashes = this.detectAngpaoLinks(text);
+    return hashes.length > 0 ? hashes[0] : null;
   }
 
   /**
@@ -188,10 +207,20 @@ export class AngpaoService implements OnModuleInit {
       }
 
       // ========================================
-      // 5. Call TrueWallet redeem API
+      // 5. Call TrueWallet redeem API (with retry for transient errors)
       // ========================================
       this.logger.log(`[ANGPAO] Calling redeem API for account=${lineAccountId}, phone=${this.maskPhoneNumber(phoneNumber)}`);
-      const result = await this.callRedeemApi(voucherHash, phoneNumber);
+      const result = await this.callRedeemApiWithRetry(voucherHash, phoneNumber);
+
+      // ========================================
+      // 5.5. Check for zero-amount voucher
+      // ========================================
+      if (result.success && result.amount !== undefined && result.amount <= 0) {
+        result.success = false;
+        result.status = 'error';
+        result.message = 'อังเปานี้ไม่มีมูลค่า (0 บาท)';
+        this.logger.log(`[ANGPAO] Zero-amount voucher detected for hash`);
+      }
 
       // ========================================
       // 6. Save history (with sanitized data)
@@ -219,6 +248,40 @@ export class AngpaoService implements OnModuleInit {
       // ========================================
       await this.redisService.releaseLock(lockKey, lockToken);
     }
+  }
+
+  /**
+   * Call TrueWallet redeem API with automatic retry for transient errors.
+   * Retries on: timeout, Cloudflare 403, network errors.
+   * Does NOT retry on: business logic errors (voucher not found, expired, etc.)
+   */
+  private async callRedeemApiWithRetry(
+    voucherHash: string,
+    phoneNumber: string,
+  ): Promise<AngpaoRedeemResult> {
+    let lastResult: AngpaoRedeemResult | null = null;
+
+    for (let attempt = 0; attempt <= this.API_MAX_RETRIES; attempt++) {
+      if (attempt > 0) {
+        const delay = this.API_RETRY_DELAY_MS * attempt; // linear backoff: 1s, 2s
+        this.logger.log(`[ANGPAO] Retry attempt ${attempt}/${this.API_MAX_RETRIES} after ${delay}ms`);
+        await new Promise(resolve => setTimeout(resolve, delay));
+      }
+
+      const result = await this.callRedeemApi(voucherHash, phoneNumber);
+
+      // Only retry on transient errors (network/timeout/cloudflare)
+      // Do NOT retry on business logic errors (voucher not found, expired, already redeemed, etc.)
+      if (result.status !== 'error') {
+        return result;
+      }
+
+      lastResult = result;
+      this.logger.warn(`[ANGPAO] API call failed (attempt ${attempt + 1}/${this.API_MAX_RETRIES + 1}): ${result.message}`);
+    }
+
+    this.logger.error(`[ANGPAO] All ${this.API_MAX_RETRIES + 1} attempts failed`);
+    return lastResult!;
   }
 
   /**
@@ -314,7 +377,7 @@ export class AngpaoService implements OnModuleInit {
         const rawAmount = parseFloat(jsonData?.data?.voucher?.redeemed_amount_baht || jsonData?.data?.voucher?.amount_baht || '0');
         const amount = Number.isFinite(rawAmount) && rawAmount >= 0 ? rawAmount : 0;
         const rawOwnerName = jsonData?.data?.owner_profile?.full_name || jsonData?.data?.voucher?.member?.name || '';
-        const ownerName = String(rawOwnerName).replace(/[<>"'&]/g, '').slice(0, 100);
+        const ownerName = String(rawOwnerName).replace(/[<>"'&]/g, '').trim().slice(0, 100);
         return {
           success: true,
           status: 'success',
@@ -333,7 +396,7 @@ export class AngpaoService implements OnModuleInit {
           const rawAmt = parseFloat(jsonData.data.voucher.amount_baht || '0');
           if (Number.isFinite(rawAmt) && rawAmt > 0) amount = rawAmt;
           const rawName = jsonData.data.owner_profile?.full_name || jsonData.data.voucher.member?.name || '';
-          if (rawName) ownerName = String(rawName).replace(/[<>"'&]/g, '').slice(0, 100);
+          if (rawName) ownerName = String(rawName).replace(/[<>"'&]/g, '').trim().slice(0, 100) || undefined;
         }
         return {
           success: false,
