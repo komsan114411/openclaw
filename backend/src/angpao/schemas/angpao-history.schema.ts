@@ -43,7 +43,10 @@ export class AngpaoHistory {
 
 export const AngpaoHistorySchema = SchemaFactory.createForClass(AngpaoHistory);
 
-// Compound index for checking existing redemptions
+// Compound index for checking existing redemptions (per phone)
+AngpaoHistorySchema.index({ voucherHash: 1, phoneNumberMasked: 1, status: 1 });
+
+// Index for cross-phone check (other phone already redeemed?)
 AngpaoHistorySchema.index({ voucherHash: 1, status: 1 });
 
 // Index for listing history per account

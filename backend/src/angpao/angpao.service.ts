@@ -34,6 +34,8 @@ export class AngpaoService implements OnModuleInit {
   private readonly API_TIMEOUT_MS = 15000;
   private readonly API_MAX_RETRIES = 2; // retry up to 2 times (3 total attempts)
   private readonly API_RETRY_DELAY_MS = 1000; // 1s → 2s backoff
+  private readonly LOCK_MAX_RETRIES = 3; // retry lock acquisition
+  private readonly LOCK_RETRY_DELAY_MS = 1500; // wait 1.5s between retries
 
   constructor(
     @InjectModel(AngpaoHistory.name)
@@ -173,12 +175,24 @@ export class AngpaoService implements OnModuleInit {
     }
 
     // ========================================
-    // 3. Distributed lock — prevent duplicate concurrent redemption
+    // 3. Distributed lock — per phone+voucher (allows different phones to try independently)
     // ========================================
-    const lockKey = `angpao:lock:${voucherHash}`;
-    const lockToken = await this.redisService.acquireLock(lockKey, 30);
+    const phoneSuffix = phoneNumber.slice(-4); // last 4 digits for lock key
+    const lockKey = `angpao:lock:${voucherHash}:${phoneSuffix}`;
+    let lockToken: string | null = null;
+
+    for (let attempt = 0; attempt <= this.LOCK_MAX_RETRIES; attempt++) {
+      lockToken = await this.redisService.acquireLock(lockKey, 30);
+      if (lockToken) break;
+
+      if (attempt < this.LOCK_MAX_RETRIES) {
+        this.logger.log(`[ANGPAO] Lock busy, retry ${attempt + 1}/${this.LOCK_MAX_RETRIES} in ${this.LOCK_RETRY_DELAY_MS}ms`);
+        await new Promise(resolve => setTimeout(resolve, this.LOCK_RETRY_DELAY_MS));
+      }
+    }
+
     if (!lockToken) {
-      this.logger.log(`[ANGPAO] Duplicate processing blocked for voucher hash`);
+      this.logger.log(`[ANGPAO] Lock failed after ${this.LOCK_MAX_RETRIES + 1} attempts`);
       return {
         success: false,
         status: 'already_redeemed',
@@ -189,21 +203,36 @@ export class AngpaoService implements OnModuleInit {
 
     try {
       // ========================================
-      // 4. Check existing history — skip API call if already redeemed
+      // 4. Check existing history — per phone (allows different phones to try independently)
       // ========================================
-      const existing = await this.angpaoHistoryModel.findOne({
+      const maskedPhone = this.maskPhoneNumber(phoneNumber);
+      const existingSamePhone = await this.angpaoHistoryModel.findOne({
         voucherHash,
+        phoneNumberMasked: maskedPhone,
         status: 'success',
       });
-      if (existing) {
-        this.logger.log(`[ANGPAO] Voucher already redeemed (from history)`);
+      if (existingSamePhone) {
+        this.logger.log(`[ANGPAO] Voucher already redeemed by same phone (from history)`);
         return {
           success: false,
           status: 'already_redeemed',
-          message: `อังเปานี้ถูกรับไปแล้ว (${existing.amount?.toFixed(2) || '?'} บาท)`,
+          message: `อังเปานี้ถูกรับไปแล้วโดยเบอร์นี้ (${existingSamePhone.amount?.toFixed(2) || '?'} บาท)`,
           voucherHash,
-          amount: existing.amount,
+          amount: existingSamePhone.amount,
         };
+      }
+
+      // Also check if another phone already redeemed (for single-use vouchers)
+      const existingOtherPhone = await this.angpaoHistoryModel.findOne({
+        voucherHash,
+        phoneNumberMasked: { $ne: maskedPhone },
+        status: 'success',
+      });
+      if (existingOtherPhone) {
+        // Another phone already redeemed — still TRY the API because:
+        // - Multi-slot campaigns: this phone can still redeem a different slot
+        // - Single-slot campaigns: TrueMoney API will reject with VOUCHER_OUT_OF_STOCK
+        this.logger.log(`[ANGPAO] Voucher redeemed by another phone — trying API anyway (may be multi-slot)`);
       }
 
       // ========================================
