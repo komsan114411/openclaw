@@ -1219,7 +1219,7 @@ export default function AutoSlipPage() {
                   {isPollingLogin && !loginStatus.pinCode && (
                     <div className="mt-4">
                       <div className="h-1 bg-slate-700 rounded-full overflow-hidden">
-                        <div className="h-full bg-blue-500 rounded-full animate-pulse" style={{ width: '60%' }} />
+                        <div className="h-full bg-gradient-to-r from-blue-500 to-blue-400 rounded-full animate-pulse w-full origin-left scale-x-100" />
                       </div>
                       <p className="text-xs text-slate-500 text-center mt-2">กำลังดำเนินการ...</p>
                     </div>

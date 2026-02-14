@@ -242,8 +242,17 @@ export default function UserDashboard() {
                       </h3>
                     </div>
                     <div className="flex items-center gap-2">
-                      <div className="w-2 h-2 rounded-full bg-[#06C755] animate-pulse" />
-                      <span className="text-xs font-semibold text-[#06C755]">ใช้งานอยู่</span>
+                      {subscription.status === 'active' && (!subscription.expiresAt || new Date(subscription.expiresAt).getTime() > Date.now()) ? (
+                        <>
+                          <div className="w-2 h-2 rounded-full bg-[#06C755] animate-pulse" />
+                          <span className="text-xs font-semibold text-[#06C755]">ใช้งานอยู่</span>
+                        </>
+                      ) : (
+                        <>
+                          <div className="w-2 h-2 rounded-full bg-rose-500" />
+                          <span className="text-xs font-semibold text-rose-400">หมดอายุ</span>
+                        </>
+                      )}
                     </div>
                   </div>
 

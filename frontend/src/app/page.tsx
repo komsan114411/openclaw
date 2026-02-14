@@ -100,9 +100,9 @@ export default function LandingPage() {
   ];
 
   const stats = [
-    { label: 'สลิปที่ตรวจสอบแล้ว', value: '1.2M+' },
-    { label: 'ยอดผู้ใช้งาน', value: '15,000+' },
-    { label: 'เชื่อมต่อ API แล้ว', value: '450+' },
+    { label: 'ตรวจสอบสลิปอัตโนมัติ', value: 'AI' },
+    { label: 'รองรับทุกธนาคาร', value: 'ครบ' },
+    { label: 'เชื่อมต่อ LINE OA', value: 'ง่าย' },
     { label: 'ความเร็วเฉลี่ย', value: '< 1s' },
   ];
 
@@ -298,10 +298,10 @@ export default function LandingPage() {
                     <div key={i} className="w-8 h-8 rounded-full border-2 border-[#0A0F0D] bg-slate-800" />
                   ))}
                   <div className="w-8 h-8 rounded-full border-2 border-[#0A0F0D] bg-emerald-500 flex items-center justify-center text-[10px] font-bold text-white">
-                    +2k
+                    <Zap className="w-4 h-4" />
                   </div>
                 </div>
-                <span>ได้รับความไว้วางใจจากธุรกิจกว่า 2,000 แห่ง</span>
+                <span>ระบบจัดการ LINE OA ครบวงจร</span>
               </div>
             </motion.div>
 
