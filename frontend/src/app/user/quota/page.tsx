@@ -214,21 +214,56 @@ export default function UserQuotaPage() {
         <Card className="rounded-xl sm:rounded-2xl border border-white/5 shadow-2xl overflow-hidden relative p-4 sm:p-6 group" variant="glass">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-6 mb-4 sm:mb-6">
             <div className="space-y-1">
-              <h3 className="font-black text-white text-lg sm:text-xl tracking-tight">การเติบโตผู้ใช้</h3>
-              <p className="text-xs sm:text-sm font-semibold text-slate-400">ผู้ใช้งานรายวันในช่วง 30 วันที่ผ่านมา</p>
+              <h3 className="font-black text-white text-lg sm:text-xl tracking-tight">สถิติการใช้งาน</h3>
+              <p className="text-xs sm:text-sm font-semibold text-slate-400">ภาพรวมการใช้งานจาก {accounts.length} บัญชี LINE</p>
             </div>
           </div>
-          
-          <div className="h-24 sm:h-32 bg-white/[0.02] rounded-lg sm:rounded-xl p-2 sm:p-4 flex items-end justify-between gap-1 sm:gap-2 overflow-x-auto">
-            {Array.from({ length: 28 }, (_, i) => (
-              <div key={i} className="flex-1 min-w-[8px] sm:min-w-0 flex flex-col items-center gap-1">
-                <div 
-                  className="w-full bg-[#06C755] rounded-t transition-all"
-                  style={{ height: `${Math.random() * 60 + 20}%` }}
-                />
-              </div>
-            ))}
-          </div>
+
+          {accounts.length > 0 ? (
+            <div className="space-y-3 sm:space-y-4">
+              {accounts.map((acc) => {
+                const msgs = acc.statistics?.totalMessages || 0;
+                const slips = acc.statistics?.totalSlipsVerified || 0;
+                const ai = acc.statistics?.totalAiResponses || 0;
+                const total = msgs + slips + ai;
+                const maxVal = Math.max(...accounts.map(a => (a.statistics?.totalMessages || 0) + (a.statistics?.totalSlipsVerified || 0) + (a.statistics?.totalAiResponses || 0)), 1);
+                return (
+                  <div key={acc._id} className="bg-white/[0.02] rounded-lg sm:rounded-xl p-3 sm:p-4 border border-white/5">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-xs sm:text-sm font-bold text-white truncate mr-2">{acc.accountName}</span>
+                      <span className="text-xs font-semibold text-slate-400 flex-shrink-0">{total.toLocaleString()} รวม</span>
+                    </div>
+                    <div className="h-2 sm:h-3 bg-white/[0.03] rounded-full overflow-hidden flex">
+                      {msgs > 0 && (
+                        <div className="h-full bg-blue-500 transition-all" style={{ width: `${(msgs / maxVal) * 100}%` }} title={`ข้อความ: ${msgs}`} />
+                      )}
+                      {slips > 0 && (
+                        <div className="h-full bg-[#06C755] transition-all" style={{ width: `${(slips / maxVal) * 100}%` }} title={`สลิป: ${slips}`} />
+                      )}
+                      {ai > 0 && (
+                        <div className="h-full bg-violet-500 transition-all" style={{ width: `${(ai / maxVal) * 100}%` }} title={`AI: ${ai}`} />
+                      )}
+                    </div>
+                    <div className="flex gap-3 sm:gap-4 mt-2">
+                      <span className="text-[9px] sm:text-xs font-semibold text-blue-400 flex items-center gap-1">
+                        <span className="w-1.5 h-1.5 rounded-full bg-blue-500" /> ข้อความ {msgs.toLocaleString()}
+                      </span>
+                      <span className="text-[9px] sm:text-xs font-semibold text-[#06C755] flex items-center gap-1">
+                        <span className="w-1.5 h-1.5 rounded-full bg-[#06C755]" /> สลิป {slips.toLocaleString()}
+                      </span>
+                      <span className="text-[9px] sm:text-xs font-semibold text-violet-400 flex items-center gap-1">
+                        <span className="w-1.5 h-1.5 rounded-full bg-violet-500" /> AI {ai.toLocaleString()}
+                      </span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="h-24 sm:h-32 bg-white/[0.02] rounded-lg sm:rounded-xl flex items-center justify-center">
+              <p className="text-xs sm:text-sm text-slate-500 font-semibold">ยังไม่มีข้อมูลการใช้งาน</p>
+            </div>
+          )}
         </Card>
 
           {subscription ? (

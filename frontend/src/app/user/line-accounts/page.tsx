@@ -888,12 +888,10 @@ export default function UserLineAccountsPage() {
           <Card variant="glass" className="p-4 sm:p-6">
             <div className="flex items-center justify-between">
               <div className="flex-1 min-w-0">
-                <p className="text-[9px] sm:text-[10px] font-semibold text-slate-400 mb-1">ผู้ติดตามทั้งหมด</p>
+                <p className="text-[9px] sm:text-[10px] font-semibold text-slate-400 mb-1">ผู้ใช้ทั้งหมด</p>
                 <div className="flex flex-col sm:flex-row sm:items-baseline gap-1 sm:gap-2">
-                  <p className="text-xl sm:text-2xl font-black text-white">{accounts.reduce((sum, acc) => sum + (acc.statistics?.totalMessages || 0), 0).toLocaleString()}</p>
-                  <span className="text-xs sm:text-sm font-bold text-[#06C755] flex items-center gap-1">
-                    <span>↑</span> +5% สัปดาห์นี้
-                  </span>
+                  <p className="text-xl sm:text-2xl font-black text-white">{accounts.reduce((sum, acc) => sum + (acc.statistics?.totalUsers || 0), 0).toLocaleString()}</p>
+                  <span className="text-xs sm:text-sm font-semibold text-slate-400">คน</span>
                 </div>
               </div>
               <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-lg sm:rounded-xl bg-[#06C755]/10 flex items-center justify-center flex-shrink-0 ml-2">
@@ -904,17 +902,22 @@ export default function UserLineAccountsPage() {
           <Card variant="glass" className="p-4 sm:p-6">
             <div className="flex items-center justify-between">
               <div className="flex-1 min-w-0">
-                <p className="text-[9px] sm:text-[10px] font-semibold text-slate-400 mb-1">ข้อความ</p>
+                <p className="text-[9px] sm:text-[10px] font-semibold text-slate-400 mb-1">ข้อความทั้งหมด</p>
                 <div className="flex items-baseline gap-2 mb-2">
                   <p className="text-xl sm:text-2xl font-black text-white">{accounts.reduce((sum, acc) => sum + (acc.statistics?.totalMessages || 0), 0).toLocaleString()}</p>
-                  <span className="text-xs sm:text-sm font-semibold text-slate-400">/ {accounts.reduce((sum, acc) => sum + (acc.statistics?.totalMessages || 0), 0) + 1000}</span>
                 </div>
-                <div className="h-1.5 sm:h-2 bg-white/10 rounded-full overflow-hidden">
-                  <div className="h-full bg-[#06C755] rounded-full" style={{ width: '90%' }}></div>
+                <div className="flex gap-3 mt-1">
+                  <span className="text-[8px] sm:text-[9px] font-semibold text-[#06C755] flex items-center gap-1">
+                    <CheckCircle2 className="w-3 h-3" /> สลิป {accounts.reduce((sum, acc) => sum + (acc.statistics?.totalSlipsVerified || 0), 0).toLocaleString()}
+                  </span>
+                  <span className="text-[8px] sm:text-[9px] font-semibold text-violet-400 flex items-center gap-1">
+                    <Brain className="w-3 h-3" /> AI {accounts.reduce((sum, acc) => sum + (acc.statistics?.totalAiResponses || 0), 0).toLocaleString()}
+                  </span>
                 </div>
-                <p className="text-[8px] sm:text-[9px] font-semibold text-slate-500 mt-1">ต่ออายุใน 5 วัน</p>
               </div>
-              <Badge variant="info" className="text-[8px] sm:text-[9px] px-1.5 sm:px-2 py-0.5 sm:py-1 ml-2 flex-shrink-0">PRO</Badge>
+              <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-lg sm:rounded-xl bg-blue-500/10 flex items-center justify-center flex-shrink-0 ml-2">
+                <MessageSquare className="w-5 h-5 sm:w-6 sm:h-6 text-blue-400" />
+              </div>
             </div>
           </Card>
         </div>
