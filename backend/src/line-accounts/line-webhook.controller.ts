@@ -424,6 +424,11 @@ export class LineWebhookController {
     ownerName?: string;
     message: string;
     voucherHash: string;
+    redeemedByOtherAccount?: {
+      amount?: number;
+      ownerName?: string;
+      samePhone: boolean;
+    };
   }): Record<string, unknown> {
     // Determine header per status
     let icon: string;
@@ -438,9 +443,15 @@ export class LineWebhookController {
         headerBg = '#1DB446';
         break;
       case 'already_redeemed':
-        icon = '🔴'; title = 'อังเปานี้ถูกใช้งานไปแล้ว';
-        subtitle = 'ซองนี้ถูกเปิดใช้งานไปแล้ว';
-        headerBg = '#D32F2F';
+        if (result.redeemedByOtherAccount?.samePhone) {
+          icon = '🔔'; title = 'ซองนี้ถูกรับผ่านบัญชีอื่นแล้ว';
+          subtitle = 'เบอร์เดียวกันเคยรับอังเปานี้ผ่านอีกบัญชีในระบบ';
+          headerBg = '#E65100';
+        } else {
+          icon = '🔴'; title = 'อังเปานี้ถูกใช้งานไปแล้ว';
+          subtitle = 'ซองนี้ถูกเปิดใช้งานไปแล้ว';
+          headerBg = '#D32F2F';
+        }
         break;
       case 'expired':
         icon = '⌛'; title = 'อังเปาหมดอายุ';
@@ -448,9 +459,15 @@ export class LineWebhookController {
         headerBg = '#E65100';
         break;
       case 'out_of_stock':
-        icon = '📭'; title = 'อังเปาถูกรับหมดแล้ว';
-        subtitle = 'ซองนี้ถูกรับครบจำนวนแล้ว';
-        headerBg = '#E65100';
+        if (result.redeemedByOtherAccount) {
+          icon = '🔔'; title = 'ซองนี้ถูกรับโดยบัญชีอื่นแล้ว';
+          subtitle = 'อังเปานี้ถูกรับครบจำนวนโดยเบอร์อื่นในระบบ';
+          headerBg = '#E65100';
+        } else {
+          icon = '📭'; title = 'อังเปาถูกรับหมดแล้ว';
+          subtitle = 'ซองนี้ถูกรับครบจำนวนแล้ว';
+          headerBg = '#E65100';
+        }
         break;
       case 'not_found':
         icon = '🔍'; title = 'ไม่พบอังเปานี้';
@@ -578,6 +595,56 @@ export class LineWebhookController {
         margin: 'lg',
         spacing: 'md',
         contents: detailRows,
+      });
+    }
+
+    // === CROSS-ACCOUNT NOTICE (when voucher was redeemed by another LINE account in system) ===
+    if (result.redeemedByOtherAccount) {
+      const crossInfo = result.redeemedByOtherAccount;
+      const noticeText = crossInfo.samePhone
+        ? '⚠️ ซองนี้ถูกรับไปแล้วผ่านบัญชีไลน์อื่นในระบบ (เบอร์เดียวกัน)'
+        : '⚠️ ซองนี้ถูกรับไปแล้วโดยเบอร์อื่นในระบบ';
+
+      const noticeContents: Record<string, unknown>[] = [
+        {
+          type: 'text',
+          text: noticeText,
+          size: 'xs',
+          color: '#D32F2F',
+          wrap: true,
+          weight: 'bold',
+        },
+      ];
+
+      if (crossInfo.amount) {
+        noticeContents.push({
+          type: 'text',
+          text: `มูลค่าที่ถูกรับ: ฿${crossInfo.amount.toFixed(2)}`,
+          size: 'xs',
+          color: '#666666',
+          margin: 'sm',
+        });
+      }
+
+      if (crossInfo.ownerName && crossInfo.ownerName.trim()) {
+        noticeContents.push({
+          type: 'text',
+          text: `ผู้ส่งอังเปา: ${crossInfo.ownerName.trim()}`,
+          size: 'xs',
+          color: '#666666',
+          margin: 'sm',
+        });
+      }
+
+      bodyRows.push({ type: 'separator', margin: 'lg' });
+      bodyRows.push({
+        type: 'box',
+        layout: 'vertical',
+        margin: 'lg',
+        paddingAll: '12px',
+        backgroundColor: '#FFF3E0',
+        cornerRadius: '8px',
+        contents: noticeContents,
       });
     }
 

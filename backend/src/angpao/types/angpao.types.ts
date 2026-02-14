@@ -47,6 +47,13 @@ export interface AngpaoRedeemResult {
   ownerName?: string;
   message: string;
   voucherHash: string;
+  /** Set when voucher was already redeemed by another LINE account in our system */
+  redeemedByOtherAccount?: {
+    amount?: number;
+    ownerName?: string;
+    /** true = same phone across accounts, false = different phone */
+    samePhone: boolean;
+  };
 }
 
 /** Parameters for redeem operation */

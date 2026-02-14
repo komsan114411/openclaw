@@ -212,13 +212,25 @@ export class AngpaoService implements OnModuleInit {
         status: 'success',
       });
       if (existingSamePhone) {
-        this.logger.log(`[ANGPAO] Voucher already redeemed by same phone (from history)`);
+        // Check if it was redeemed by THIS account or ANOTHER account (same phone, different LINE OA)
+        const isCrossAccount = existingSamePhone.lineAccountId !== lineAccountId;
+        const label = isCrossAccount
+          ? 'อังเปานี้ถูกรับไปแล้วผ่านบัญชีไลน์อื่นในระบบ (เบอร์เดียวกัน)'
+          : `อังเปานี้ถูกรับไปแล้วโดยเบอร์นี้`;
+        this.logger.log(`[ANGPAO] Voucher already redeemed by same phone (crossAccount=${isCrossAccount})`);
         return {
           success: false,
           status: 'already_redeemed',
-          message: `อังเปานี้ถูกรับไปแล้วโดยเบอร์นี้ (${existingSamePhone.amount?.toFixed(2) || '?'} บาท)`,
+          message: `${label} (${existingSamePhone.amount?.toFixed(2) || '?'} บาท)`,
           voucherHash,
           amount: existingSamePhone.amount,
+          ...(isCrossAccount && {
+            redeemedByOtherAccount: {
+              amount: existingSamePhone.amount,
+              ownerName: existingSamePhone.ownerName,
+              samePhone: true,
+            },
+          }),
         };
       }
 
@@ -249,6 +261,18 @@ export class AngpaoService implements OnModuleInit {
         result.status = 'error';
         result.message = 'อังเปานี้ไม่มีมูลค่า (0 บาท)';
         this.logger.log(`[ANGPAO] Zero-amount voucher detected for hash`);
+      }
+
+      // ========================================
+      // 5.6. Attach cross-account info when API failed + other account already redeemed
+      // ========================================
+      if (!result.success && existingOtherPhone) {
+        result.redeemedByOtherAccount = {
+          amount: existingOtherPhone.amount,
+          ownerName: existingOtherPhone.ownerName,
+          samePhone: false, // different phone across accounts
+        };
+        this.logger.log(`[ANGPAO] API failed + other account redeemed — attaching cross-account info`);
       }
 
       // ========================================
