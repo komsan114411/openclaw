@@ -478,8 +478,26 @@ export default function LineSessionSettingsPage() {
   const handleSave = async () => {
     setIsSaving(true);
     try {
+      // 1. Save to database (persistent)
       await systemSettingsApi.updateSystemSettings(settings);
-      toast.success('บันทึกการตั้งค่าสำเร็จ');
+
+      // 2. Auto-apply to runtime so settings take effect immediately
+      try {
+        await api.put('/admin/line-session/settings/health-check', {
+          enabled: settings.lineSessionHealthCheckEnabled,
+          intervalMinutes: settings.lineSessionHealthCheckIntervalMinutes,
+          maxConsecutiveFailures: settings.lineSessionMaxConsecutiveFailures,
+          expiryWarningMinutes: settings.lineSessionExpiryWarningMinutes,
+          autoReloginEnabled: settings.lineSessionAutoReloginEnabled,
+          reloginCheckIntervalMinutes: settings.lineSessionReloginCheckIntervalMinutes,
+        });
+        await fetchRuntimeConfig();
+      } catch {
+        // Non-critical — settings are saved to DB even if runtime apply fails
+        console.error('Failed to apply settings to runtime');
+      }
+
+      toast.success('บันทึกและอัปเดตการตั้งค่าสำเร็จ');
     } catch {
       toast.error('ไม่สามารถบันทึกการตั้งค่าได้');
     } finally {

@@ -370,4 +370,37 @@ export class UpdateSystemSettingsDto {
   @IsOptional()
   @IsString()
   siteTagline?: string;
+
+  // LINE Session Settings
+  @IsOptional()
+  @IsBoolean()
+  lineSessionHealthCheckEnabled?: boolean;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(1)
+  @Max(60)
+  lineSessionHealthCheckIntervalMinutes?: number;
+
+  @IsOptional()
+  @IsBoolean()
+  lineSessionAutoReloginEnabled?: boolean;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(5)
+  @Max(60)
+  lineSessionReloginCheckIntervalMinutes?: number;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(1)
+  @Max(10)
+  lineSessionMaxConsecutiveFailures?: number;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(1)
+  @Max(30)
+  lineSessionExpiryWarningMinutes?: number;
 }
