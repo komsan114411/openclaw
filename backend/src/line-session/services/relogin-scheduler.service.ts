@@ -20,6 +20,9 @@ export class ReloginSchedulerService implements OnModuleInit {
   private reloginQueue: ReloginJob[] = [];
   private isProcessing = false;
 
+  // Circuit breaker: stop auto-relogin after too many consecutive failures
+  private readonly MAX_CONSECUTIVE_FAILURES = 10;
+
   // Configuration - Optimized for 100+ users
   private readonly RELOGIN_INTERVAL_MINUTES = 15;
   private readonly MAX_CONCURRENT_RELOGINS = 20; // Increased from 5 to 20 for 100+ users
@@ -115,6 +118,17 @@ export class ReloginSchedulerService implements OnModuleInit {
       return;
     }
 
+    // Circuit breaker: skip auto-relogin if too many consecutive failures
+    if (payload.consecutiveFailures >= this.MAX_CONSECUTIVE_FAILURES) {
+      this.logger.warn(
+        `Session ${payload.lineAccountId} has ${payload.consecutiveFailures} consecutive failures, circuit breaker activated - skipping auto-relogin`,
+      );
+      this.logger.warn(
+        `Admin intervention needed for session ${payload.lineAccountId} - manually trigger relogin or investigate root cause`,
+      );
+      return;
+    }
+
     if (payload.consecutiveFailures >= 3) {
       this.logger.log(
         `Session unhealthy for ${payload.lineAccountId} (${payload.consecutiveFailures} failures), scheduling relogin`,
@@ -138,6 +152,15 @@ export class ReloginSchedulerService implements OnModuleInit {
     for (const session of sessionsNeedingRelogin) {
       // Use session._id if lineAccountId is not set (for Auto-Slip sessions)
       const sessionIdentifier = session.lineAccountId || session._id.toString();
+
+      // Circuit breaker: skip sessions with too many consecutive failures
+      const failures = (session as any).consecutiveFailures || 0;
+      if (failures >= this.MAX_CONSECUTIVE_FAILURES) {
+        this.logger.warn(
+          `Session ${sessionIdentifier} has ${failures} consecutive failures, circuit breaker activated - skipping auto-relogin`,
+        );
+        continue;
+      }
 
       // Check if already in queue
       const alreadyQueued = this.reloginQueue.some(
@@ -336,6 +359,7 @@ export class ReloginSchedulerService implements OnModuleInit {
 
   /**
    * Manual trigger relogin
+   * NOTE: Manual triggers bypass the circuit breaker — admin can always force a relogin
    */
   async triggerRelogin(lineAccountId: string, reason = 'manual'): Promise<void> {
     this.addToQueue({

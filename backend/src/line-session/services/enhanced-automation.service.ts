@@ -457,6 +457,8 @@ export class EnhancedAutomationService implements OnModuleInit, OnModuleDestroy 
     }
 
     let requestId: string | undefined;
+    // Track whether lock responsibility has been transferred to continueLoginInBackground
+    let lockTransferred = false;
 
     try {
       // Step 1: Request approval from coordinator
@@ -501,7 +503,7 @@ export class EnhancedAutomationService implements OnModuleInit, OnModuleDestroy 
         if (existingKeys) {
           this.loginCoordinatorService.markLoginCompleted(lineAccountId);
           this.logger.log(`[Login] Using existing keys for ${lineAccountId} (key copying)`);
-          
+
           // Track recent success for polling fallback and health check grace period
           this.recentLoginSuccess.set(lineAccountId, { timestamp: Date.now() });
           // Auto-clear after health check grace period (5 minutes)
@@ -613,7 +615,7 @@ export class EnhancedAutomationService implements OnModuleInit, OnModuleDestroy 
         if (capturedData) {
           await this.saveKeysToDatabase(lineAccountId, capturedData.keys, capturedData.chatMid, capturedData.cUrlBash);
           this.loginCoordinatorService.markLoginCompleted(lineAccountId);
-          
+
           // Track recent success for polling fallback and health check grace period
           this.recentLoginSuccess.set(lineAccountId, { timestamp: Date.now() });
           // Auto-clear after health check grace period (5 minutes)
@@ -663,6 +665,9 @@ export class EnhancedAutomationService implements OnModuleInit, OnModuleDestroy 
         this.logger.log(`[PIN] pinCode: ${pinCode}`);
         this.logger.log(`[PIN] result: ${JSON.stringify(result)}`);
 
+        // Mark lock as transferred to background process BEFORE starting it
+        lockTransferred = true;
+
         // Start background process AFTER building result (non-blocking with setImmediate)
         setImmediate(() => {
           this.continueLoginInBackground(
@@ -698,7 +703,11 @@ export class EnhancedAutomationService implements OnModuleInit, OnModuleDestroy 
         isCredentialError: credentialErr,
       });
 
-      // Release lock on error (background process releases its own lock)
+      // Close browser worker to prevent zombie processes (Issue C fix)
+      await this.workerPoolService.closeWorker(lineAccountId).catch(() => {});
+
+      // Release lock on error — mark as handled so finally block doesn't double-release
+      lockTransferred = true;
       this.loginLockService.releaseLock(lineAccountId, 'enhanced');
 
       return {
@@ -708,8 +717,13 @@ export class EnhancedAutomationService implements OnModuleInit, OnModuleDestroy 
         error: error.message,
         isCredentialError: credentialErr,
       };
+    } finally {
+      // Release lock if it wasn't transferred to continueLoginInBackground or already released in catch
+      if (!lockTransferred) {
+        this.logger.debug(`[Login] Releasing lock in finally block for ${lineAccountId} (early return path)`);
+        this.loginLockService.releaseLock(lineAccountId, 'enhanced');
+      }
     }
-    // Note: Don't release lock here - if PIN returned, background process handles it
   }
 
   /**
@@ -2409,6 +2423,9 @@ export class EnhancedAutomationService implements OnModuleInit, OnModuleDestroy 
     // GSB-style: Soft cancel - keep browser open, just reset state
     // This allows reusing the same browser for next login attempt
     await this.workerPoolService.softCancelWorker(lineAccountId);
+
+    // Release the login lock so new login attempts can proceed (Issue B fix)
+    this.loginLockService.releaseLock(lineAccountId, 'enhanced');
 
     // Emit cancelled status
     this.emitStatus(lineAccountId, EnhancedLoginStatus.FAILED, { error: 'Login cancelled by user' });

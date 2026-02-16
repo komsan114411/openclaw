@@ -400,8 +400,7 @@ export class WorkerPoolService implements OnModuleDestroy, OnModuleInit {
           '--disable-gpu',
           '--window-size=1280,800',
           '--disable-blink-features=AutomationControlled',
-          `--user-data-dir=${this.config.userDataDir}`,
-          `--profile-directory=${profileDir}`,
+          `--user-data-dir=${path.join(this.config.userDataDir, profileDir)}`,
           // GSB-style: Allow insecure content and disable web security for extension access
           '--allow-running-insecure-content',
           '--disable-web-security',
@@ -452,8 +451,9 @@ export class WorkerPoolService implements OnModuleDestroy, OnModuleInit {
         this.handleBrowserDisconnect(lineAccountId);
       });
 
-      // Create page
-      worker.page = await worker.browser.newPage();
+      // Reuse default page instead of creating new tab (avoids blank tab overhead)
+      const pages = await worker.browser.pages();
+      worker.page = pages[0] || await worker.browser.newPage();
 
       // Setup CDP session for enhanced interception
       worker.cdpClient = await worker.page.target().createCDPSession();
@@ -502,13 +502,35 @@ export class WorkerPoolService implements OnModuleDestroy, OnModuleInit {
 
       const result = await Promise.race([testPromise, timeoutPromise]);
 
-      if (result === 'health-check') {
-        this.logger.log(`[BrowserHealth] Browser healthy for ${worker.lineAccountId}`);
-        return true;
+      if (result !== 'health-check') {
+        this.logger.warn(`[BrowserHealth] Browser health check timed out for ${worker.lineAccountId}`);
+        return false;
       }
 
-      this.logger.warn(`[BrowserHealth] Browser health check timed out for ${worker.lineAccountId}`);
-      return false;
+      this.logger.log(`[BrowserHealth] Basic health check passed for ${worker.lineAccountId}`);
+
+      // Additional check: verify LINE extension is still accessible
+      try {
+        const extensionUrl = `chrome-extension://${this.LINE_EXTENSION_ID}/index.html`;
+        const extCheckPromise = worker.page.goto(extensionUrl, { timeout: 10000, waitUntil: 'domcontentloaded' });
+        const extTimeoutPromise = new Promise<null>((resolve) =>
+          setTimeout(() => resolve(null), 10000),
+        );
+
+        const extResult = await Promise.race([extCheckPromise, extTimeoutPromise]);
+
+        if (!extResult) {
+          this.logger.warn(`[BrowserHealth] Extension accessibility check timed out for ${worker.lineAccountId}`);
+          return false;
+        }
+
+        this.logger.log(`[BrowserHealth] Extension accessible, browser fully healthy for ${worker.lineAccountId}`);
+      } catch (extError: any) {
+        this.logger.warn(`[BrowserHealth] Extension check failed for ${worker.lineAccountId}: ${extError.message}`);
+        return false;
+      }
+
+      return true;
     } catch (error: any) {
       this.logger.warn(`[BrowserHealth] Browser health check failed for ${worker.lineAccountId}: ${error.message}`);
       return false;

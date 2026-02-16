@@ -5,6 +5,7 @@ import { io, Socket } from 'socket.io-client';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import { lineSessionUserApi } from '@/lib/api';
 import toast from 'react-hot-toast';
+import { PIN_EXPIRY_SECONDS } from '@/constants/login';
 import { Card, EmptyState } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
@@ -267,10 +268,19 @@ export default function LineSessionPage() {
   }, []);
   
   // Per-account polling/settingUp helpers
-  const addPolling = useCallback((id: string) => setPollingAccounts(prev => new Set(prev).add(id)), []);
-  const removePolling = useCallback((id: string) => setPollingAccounts(prev => {
-    const next = new Set(prev); next.delete(id); return next;
-  }), []);
+  // [FIX Issue D] Initialize polling counter when adding polling
+  const addPolling = useCallback((id: string) => {
+    if (!pollingAttemptsRef.current.has(id)) {
+      pollingAttemptsRef.current.set(id, 0);
+    }
+    setPollingAccounts(prev => new Set(prev).add(id));
+  }, []);
+  const removePolling = useCallback((id: string) => {
+    pollingAttemptsRef.current.delete(id);
+    setPollingAccounts(prev => {
+      const next = new Set(prev); next.delete(id); return next;
+    });
+  }, []);
   const isPollingAccount = useCallback((id: string) => pollingAccounts.has(id), [pollingAccounts]);
 
   const addSettingUp = useCallback((id: string) => setSettingUpAccounts(prev => new Set(prev).add(id)), []);
@@ -322,6 +332,14 @@ export default function LineSessionPage() {
 
       if (isCompleted) {
         removePolling(accountId);
+        // [FIX Issue A] Clear polling counter on completion
+        pollingAttemptsRef.current.delete(accountId);
+        // [FIX Issue C] Clear PIN expiry timer on completion
+        const existingTimer = pinExpiryTimerRef.current.get(accountId);
+        if (existingTimer) {
+          clearTimeout(existingTimer);
+          pinExpiryTimerRef.current.delete(accountId);
+        }
         if (event.status === 'success') {
           // Clear PIN and login status for this account
           setLoginStatusForAccount(accountId, null);
@@ -404,6 +422,13 @@ export default function LineSessionPage() {
   const [isLoadingAlerts, setIsLoadingAlerts] = useState(false);
   const alertSocketRef = useRef<Socket | null>(null);
 
+  // [FIX Issue A] Max polling attempts counter — prevents polling forever (5 min at 2s intervals = 150)
+  const pollingAttemptsRef = useRef<Map<string, number>>(new Map());
+  const MAX_POLLING_ATTEMPTS = 150;
+
+  // [FIX Issue C] PIN expiry timer — auto-cancel login when PIN expires
+  const pinExpiryTimerRef = useRef<Map<string, NodeJS.Timeout>>(new Map());
+
   // Refresh alert counts
   const refreshAlertCounts = useCallback(async () => {
     try {
@@ -457,7 +482,7 @@ export default function LineSessionPage() {
     return () => clearInterval(interval);
   }, [refreshAlertCounts]);
 
-  // WebSocket for real-time alerts (user)
+  // WebSocket for real-time alerts (user) — cookie-based auth
   useEffect(() => {
     const backendUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
     const wsUrl = backendUrl.replace(/\/api\/?$/, '');
@@ -469,20 +494,35 @@ export default function LineSessionPage() {
     });
 
     alertSocketRef.current = socket;
+    let alertJoinRetryTimer: ReturnType<typeof setTimeout> | null = null;
+
+    // Join room via cookie-based auth with retry (matches useLoginNotifications pattern)
+    const attemptAlertJoin = (sock: Socket, retryCount = 0) => {
+      const MAX_RETRIES = 3;
+      sock.emit('join', {}, (response: { success: boolean; message?: string }) => {
+        if (response?.success) {
+          console.log('[AlertSocket] Join succeeded (cookie auth)');
+        } else {
+          console.warn('[AlertSocket] Join failed:', response?.message || 'unknown');
+          if (retryCount < MAX_RETRIES) {
+            const backoffMs = Math.min(1000 * Math.pow(2, retryCount), 8000);
+            alertJoinRetryTimer = setTimeout(() => {
+              if (sock.connected) attemptAlertJoin(sock, retryCount + 1);
+            }, backoffMs);
+          }
+        }
+      });
+    };
 
     socket.on('connect', () => {
-      // Join as user (not admin) to receive user-specific alerts
-      const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
-      if (token) {
-        try {
-          const payload = JSON.parse(atob(token.split('.')[1]));
-          if (payload.userId) {
-            socket.emit('join', { userId: payload.userId, role: 'user' });
-          }
-        } catch {
-          // ignore parse errors
-        }
-      }
+      console.log('[AlertSocket] Connected:', socket.id);
+      attemptAlertJoin(socket);
+      refreshAlertCounts();
+    });
+
+    socket.on('reconnect', () => {
+      console.log('[AlertSocket] Reconnected:', socket.id);
+      attemptAlertJoin(socket);
       refreshAlertCounts();
     });
 
@@ -500,6 +540,7 @@ export default function LineSessionPage() {
     });
 
     return () => {
+      if (alertJoinRetryTimer) clearTimeout(alertJoinRetryTimer);
       socket.disconnect();
       alertSocketRef.current = null;
     };
@@ -770,12 +811,31 @@ export default function LineSessionPage() {
   }, [fetchSessionStatus, fetchData, setLoginStatusForAccount, setLoginSuccessForAccount]);
 
   // Start polling effect (per-account)
+  // [FIX Issue A] Add max polling attempts — stop after 150 attempts (5 min at 2s intervals)
   useEffect(() => {
     let intervalId: NodeJS.Timeout;
 
     if (selectedSession && pollingAccounts.has(selectedSession._id)) {
       const accountId = selectedSession._id;
       intervalId = setInterval(async () => {
+        // [FIX Issue A] Check polling attempt counter
+        const currentAttempts = pollingAttemptsRef.current.get(accountId) || 0;
+        if (currentAttempts >= MAX_POLLING_ATTEMPTS) {
+          // Timeout — stop polling and set failed status
+          removePolling(accountId);
+          pollingAttemptsRef.current.delete(accountId);
+          setLoginStatusForAccount(accountId, null);
+          // Clear PIN expiry timer on timeout
+          const existingTimer = pinExpiryTimerRef.current.get(accountId);
+          if (existingTimer) {
+            clearTimeout(existingTimer);
+            pinExpiryTimerRef.current.delete(accountId);
+          }
+          toast.error('Login timeout - กรุณาลองใหม่อีกครั้ง');
+          return;
+        }
+        pollingAttemptsRef.current.set(accountId, currentAttempts + 1);
+
         const shouldContinue = await pollLoginStatus(accountId);
         if (!shouldContinue) {
           removePolling(accountId);
@@ -786,7 +846,56 @@ export default function LineSessionPage() {
     return () => {
       if (intervalId) clearInterval(intervalId);
     };
-  }, [pollingAccounts, selectedSession, pollLoginStatus, removePolling]);
+  }, [pollingAccounts, selectedSession, pollLoginStatus, removePolling, setLoginStatusForAccount]);
+
+  // [FIX Issue C] PIN expiry auto-cancel — when PIN is displayed, start a timer
+  // that auto-cancels after PIN_EXPIRY_SECONDS (300s = 5 min)
+  useEffect(() => {
+    if (!selectedSession) return;
+    const accountId = selectedSession._id;
+    const status = getLoginStatus(accountId);
+
+    const pinStatuses = ['pin_displayed', 'waiting_for_pin', 'waiting_pin'];
+    const hasPinDisplayed = status && pinStatuses.includes(status.status || '') && status.pin;
+
+    if (hasPinDisplayed) {
+      // Clear any existing timer for this account first
+      const existing = pinExpiryTimerRef.current.get(accountId);
+      if (existing) {
+        clearTimeout(existing);
+      }
+
+      // Start new PIN expiry timer
+      const timer = setTimeout(() => {
+        // Auto-cancel when PIN expires
+        setLoginStatusForAccount(accountId, null);
+        removePolling(accountId);
+        pollingAttemptsRef.current.delete(accountId);
+        pinExpiryTimerRef.current.delete(accountId);
+        toast.error('PIN หมดอายุ - ยกเลิก Login อัตโนมัติ');
+        // Also cancel on backend (fire-and-forget)
+        lineSessionUserApi.cancelEnhancedLogin(accountId).catch(() => {});
+      }, PIN_EXPIRY_SECONDS * 1000);
+
+      pinExpiryTimerRef.current.set(accountId, timer);
+    } else if (!hasPinDisplayed) {
+      // If status no longer shows PIN, clear the timer
+      const existing = pinExpiryTimerRef.current.get(accountId);
+      if (existing) {
+        clearTimeout(existing);
+        pinExpiryTimerRef.current.delete(accountId);
+      }
+    }
+
+    // Cleanup on unmount
+    return () => {
+      const existing = pinExpiryTimerRef.current.get(accountId);
+      if (existing) {
+        clearTimeout(existing);
+        pinExpiryTimerRef.current.delete(accountId);
+      }
+    };
+  }, [selectedSession, loginStatusMap, getLoginStatus, setLoginStatusForAccount, removePolling]);
 
   // Create new LINE Login
   const handleCreateSession = async () => {
@@ -864,6 +973,8 @@ export default function LineSessionPage() {
     }
 
     addSettingUp(accountId);
+    // [FIX Issue A] Reset polling counter when starting a new login
+    pollingAttemptsRef.current.delete(accountId);
     // Set initial status to show loading state immediately
     setLoginStatusForAccount(accountId, { success: true, status: 'starting', message: 'กำลังเริ่มต้น...' });
 
@@ -905,16 +1016,25 @@ export default function LineSessionPage() {
   };
 
   // Cancel login
+  // [FIX Issue B] Clear state BEFORE API call for responsive UI
   const handleCancelLogin = async () => {
     if (!selectedSession) return;
-
+    const accountId = selectedSession._id;
+    // Clear state FIRST for responsive UI
+    setLoginStatusForAccount(accountId, null);
+    removePolling(accountId);
+    pollingAttemptsRef.current.delete(accountId);
+    // [FIX Issue C] Clear PIN expiry timer on cancel
+    const existingTimer = pinExpiryTimerRef.current.get(accountId);
+    if (existingTimer) {
+      clearTimeout(existingTimer);
+      pinExpiryTimerRef.current.delete(accountId);
+    }
     try {
-      await lineSessionUserApi.cancelEnhancedLogin(selectedSession._id);
-      setLoginStatusForAccount(selectedSession._id, null);
-      removePolling(selectedSession._id);
+      await lineSessionUserApi.cancelEnhancedLogin(accountId);
       toast.success('ยกเลิกแล้ว');
     } catch {
-      toast.error('ไม่สามารถยกเลิกได้');
+      toast.error('ไม่สามารถยกเลิกได้ แต่ยกเลิก UI แล้ว');
     }
   };
 
@@ -924,6 +1044,8 @@ export default function LineSessionPage() {
 
     const accountId = selectedSession._id;
 
+    // [FIX Issue A] Reset polling counter when retrying
+    pollingAttemptsRef.current.delete(accountId);
     try {
       setLoginStatusForAccount(accountId, {
         success: true,
@@ -973,6 +1095,8 @@ export default function LineSessionPage() {
     }
 
     addSettingUp(accountId);
+    // [FIX Issue A] Reset polling counter when starting a new re-login
+    pollingAttemptsRef.current.delete(accountId);
     // Set initial status to show loading state immediately
     setLoginStatusForAccount(accountId, { success: true, status: 'starting', message: 'กำลังเริ่มต้น...' });
 

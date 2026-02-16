@@ -127,6 +127,8 @@ export function useLoginNotifications(options: UseLoginNotificationsOptions = {}
   } = options;
 
   const socketRef = useRef<Socket | null>(null);
+  const joinRetryCountRef = useRef(0);
+  const joinRetryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [state, setState] = useState<LoginNotificationState>({
     isConnected: false,
     lastStatus: null,
@@ -239,38 +241,57 @@ export function useLoginNotifications(options: UseLoginNotificationsOptions = {}
 
     socketRef.current = socket;
 
+    // Helper: attempt to join room via cookie-based auth with retry on failure
+    const attemptJoin = (sock: Socket, retryCount = 0) => {
+      const MAX_RETRIES = 3;
+      // Send empty body — gateway auto-authenticates from session_id cookie
+      sock.emit('join', {}, (response: { success: boolean; verified?: boolean; message?: string }) => {
+        if (response?.success) {
+          console.log('[LoginNotifications] Join succeeded (cookie auth)');
+          joinRetryCountRef.current = 0;
+
+          // Now subscribe to specific line account channel
+          const currentAccountId = lineAccountIdRef.current;
+          if (currentAccountId) {
+            console.log('[LoginNotifications] Subscribing to account on connect:', currentAccountId);
+            sock.emit('subscribe', { channel: `line-account:${currentAccountId}` });
+          } else {
+            console.log('[LoginNotifications] No account selected on connect - will subscribe when account is selected');
+          }
+        } else {
+          console.warn('[LoginNotifications] Join failed:', response?.message || 'unknown reason');
+          if (retryCount < MAX_RETRIES) {
+            const backoffMs = Math.min(1000 * Math.pow(2, retryCount), 8000);
+            console.log(`[LoginNotifications] Retrying join in ${backoffMs}ms (attempt ${retryCount + 1}/${MAX_RETRIES})`);
+            joinRetryTimerRef.current = setTimeout(() => {
+              if (sock.connected) {
+                attemptJoin(sock, retryCount + 1);
+              }
+            }, backoffMs);
+          } else {
+            console.error('[LoginNotifications] Join failed after max retries — WebSocket events may not be received');
+          }
+        }
+      });
+    };
+
     socket.on('connect', () => {
       console.log('[LoginNotifications] Connected:', socket.id);
       setState(prev => ({ ...prev, isConnected: true }));
+      joinRetryCountRef.current = 0;
 
-      // Join admin room to receive notifications (may fail without session)
-      socket.emit('join', { userId: 'admin', role: 'admin' });
-
-      // Subscribe to specific line account channel only (NOT the global login-notifications)
-      // This ensures PIN isolation - only receive events for the account being viewed
-      const currentAccountId = lineAccountIdRef.current;
-      if (currentAccountId) {
-        console.log('[LoginNotifications] Subscribing to account on connect:', currentAccountId);
-        socket.emit('subscribe', { channel: `line-account:${currentAccountId}` });
-      } else {
-        console.log('[LoginNotifications] No account selected on connect - will subscribe when account is selected');
-      }
+      // Join room via cookie-based auth (gateway reads session_id cookie automatically)
+      attemptJoin(socket);
     });
 
     // Handle reconnection
     socket.on('reconnect', () => {
       console.log('[LoginNotifications] Reconnected:', socket.id);
       setState(prev => ({ ...prev, isConnected: true }));
+      joinRetryCountRef.current = 0;
 
-      // Re-join admin room
-      socket.emit('join', { userId: 'admin', role: 'admin' });
-
-      // Re-subscribe to account channel if selected
-      const currentAccountId = lineAccountIdRef.current;
-      if (currentAccountId) {
-        console.log('[LoginNotifications] Re-subscribing to account after reconnect:', currentAccountId);
-        socket.emit('subscribe', { channel: `line-account:${currentAccountId}` });
-      }
+      // Re-join via cookie-based auth (subscribe happens inside attemptJoin on success)
+      attemptJoin(socket);
     });
 
     // Handle connection error
@@ -281,7 +302,24 @@ export function useLoginNotifications(options: UseLoginNotificationsOptions = {}
 
     socket.on('disconnect', () => {
       console.log('[LoginNotifications] Disconnected');
-      setState(prev => ({ ...prev, isConnected: false }));
+      // Clear retry timer on disconnect
+      if (joinRetryTimerRef.current) {
+        clearTimeout(joinRetryTimerRef.current);
+        joinRetryTimerRef.current = null;
+      }
+      // Clear all transient state on disconnect so stale data doesn't persist
+      setState(prev => ({
+        ...prev,
+        isConnected: false,
+        lastStatus: null,
+        lastEvent: null,
+        pinCode: null,
+        pinAccountId: null,
+        pinRequestId: null,
+        pinReceivedAt: null,
+        pinExpiresIn: null,
+        pinStatus: null,
+      }));
     });
 
     // Handle login status updates
@@ -549,6 +587,11 @@ export function useLoginNotifications(options: UseLoginNotificationsOptions = {}
     });
 
     return () => {
+      // Clear any pending join retry timer
+      if (joinRetryTimerRef.current) {
+        clearTimeout(joinRetryTimerRef.current);
+        joinRetryTimerRef.current = null;
+      }
       socket.off('line-session:login-status');
       socket.off('line-session:login-event');
       socket.off('line-session:worker-state');

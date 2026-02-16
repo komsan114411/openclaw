@@ -930,9 +930,9 @@ export const lineSessionUserApi = {
   getSession: (sessionId: string) =>
     api.get(`/user/line-session/${sessionId}`),
 
-  // Start enhanced login
+  // Start enhanced login (uses extended timeout for long-running operation)
   startEnhancedLogin: (sessionId: string, email?: string, password?: string, source?: 'manual' | 'auto' | 'relogin') =>
-    api.post(`/user/line-session/${sessionId}/enhanced-login`, { email, password, source: source || 'manual' }),
+    apiLongRunning.post(`/user/line-session/${sessionId}/enhanced-login`, { email, password, source: source || 'manual' }),
 
   // Get enhanced login status
   getEnhancedLoginStatus: (sessionId: string) =>

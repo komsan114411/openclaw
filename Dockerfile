@@ -68,4 +68,4 @@ HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \
   CMD node -e "const http = require('http'); http.get('http://localhost:4000/api/health', (r) => process.exit(r.statusCode === 200 ? 0 : 1)).on('error', () => process.exit(1))"
 
 # Start xvfb and then node
-CMD Xvfb :99 -screen 0 1280x800x24 & sleep 2 && node dist/main.js
+CMD Xvfb :99 -screen 0 1920x1080x24 -ac +extension GLX +render -noreset & sleep 2 && node dist/main.js

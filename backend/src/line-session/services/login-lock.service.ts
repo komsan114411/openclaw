@@ -15,7 +15,7 @@ export interface LockInfo {
 export class LoginLockService {
   private readonly logger = new Logger(LoginLockService.name);
   private locks: Map<string, LockInfo> = new Map();
-  private readonly LOCK_TIMEOUT_MS = 3 * 60 * 1000; // 3 minutes (reduced for faster recovery)
+  private readonly LOCK_TIMEOUT_MS = 6 * 60 * 1000; // 6 minutes (enough for 5 retries × 30s + overhead + browser recreation)
   private cleanupInterval: NodeJS.Timeout | null = null;
 
   constructor() {

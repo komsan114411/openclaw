@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, OnModuleInit, OnModuleDestroy } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 
 export enum RequestStatus {
@@ -67,7 +67,7 @@ interface CooldownConfig {
  * This is a NEW service that works alongside existing LineAutomationService
  */
 @Injectable()
-export class LoginCoordinatorService {
+export class LoginCoordinatorService implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(LoginCoordinatorService.name);
 
   // Active requests by lineAccountId
@@ -76,8 +76,11 @@ export class LoginCoordinatorService {
   // Request history for cooldown calculation
   private requestHistory: Map<string, LoginHistory[]> = new Map();
 
-  // Pending requests queue
-  private requestQueue: LoginRequest[] = [];
+  // Interval reference for stale request cleanup
+  private staleCleanupInterval: ReturnType<typeof setInterval> | null = null;
+
+  // Interval reference for old history cleanup
+  private historyCleanupInterval: ReturnType<typeof setInterval> | null = null;
 
   // Configuration
   private readonly config: CooldownConfig = {
@@ -89,9 +92,25 @@ export class LoginCoordinatorService {
     maxBackoffMs: 10 * 60 * 1000,         // Max 10 minutes backoff (reduced from 30 min)
   };
 
-  constructor(private eventEmitter: EventEmitter2) {
-    // Cleanup old history periodically
-    setInterval(() => this.cleanupOldHistory(), 60 * 60 * 1000); // Every hour
+  constructor(private eventEmitter: EventEmitter2) {}
+
+  onModuleInit(): void {
+    // Cleanup old history every hour
+    this.historyCleanupInterval = setInterval(() => this.cleanupOldHistory(), 60 * 60 * 1000);
+
+    // Cleanup stale active requests every 60 seconds
+    this.staleCleanupInterval = setInterval(() => this.cleanupStaleRequests(), 60 * 1000);
+  }
+
+  onModuleDestroy(): void {
+    if (this.historyCleanupInterval) {
+      clearInterval(this.historyCleanupInterval);
+      this.historyCleanupInterval = null;
+    }
+    if (this.staleCleanupInterval) {
+      clearInterval(this.staleCleanupInterval);
+      this.staleCleanupInterval = null;
+    }
   }
 
   /**
@@ -135,16 +154,6 @@ export class LoginCoordinatorService {
           message: `Max auto-retry errors (${this.config.maxAutoRetryErrors}) exceeded. Manual login required.`,
         };
       }
-    }
-
-    // Check if higher priority request is queued
-    const queuedRequest = this.requestQueue.find(r => r.lineAccountId === lineAccountId);
-    if (queuedRequest && queuedRequest.priority > priority) {
-      return {
-        approved: false,
-        reason: RejectionReason.RATE_LIMITED,
-        message: 'A higher priority request is already queued',
-      };
     }
 
     // Create and approve request
@@ -327,7 +336,6 @@ export class LoginCoordinatorService {
    */
   cancelRequest(lineAccountId: string): void {
     this.activeRequests.delete(lineAccountId);
-    this.requestQueue = this.requestQueue.filter(r => r.lineAccountId !== lineAccountId);
 
     this.eventEmitter.emit('login.cancelled', { lineAccountId });
   }
@@ -359,6 +367,33 @@ export class LoginCoordinatorService {
         this.requestHistory.delete(lineAccountId);
       } else {
         this.requestHistory.set(lineAccountId, filtered);
+      }
+    }
+  }
+
+  /**
+   * Cleanup stale active requests stuck in APPROVED or IN_PROGRESS for more than 10 minutes
+   */
+  private cleanupStaleRequests(): void {
+    const tenMinutesMs = 10 * 60 * 1000;
+    const now = Date.now();
+
+    for (const [lineAccountId, request] of this.activeRequests) {
+      if (
+        request.status === RequestStatus.APPROVED ||
+        request.status === RequestStatus.IN_PROGRESS
+      ) {
+        const referenceTime = request.startedAt
+          ? request.startedAt.getTime()
+          : request.createdAt.getTime();
+
+        if (now - referenceTime > tenMinutesMs) {
+          this.logger.warn(
+            `Removing stale request ${request.requestId} for ${lineAccountId} ` +
+            `(status: ${request.status}, age: ${Math.round((now - referenceTime) / 1000)}s)`,
+          );
+          this.activeRequests.delete(lineAccountId);
+        }
       }
     }
   }
@@ -435,7 +470,7 @@ export class LoginCoordinatorService {
 
     return {
       activeRequests: this.activeRequests.size,
-      queuedRequests: this.requestQueue.length,
+      queuedRequests: 0,
       totalHistoryEntries: Array.from(this.requestHistory.values())
         .reduce((sum, h) => sum + h.length, 0),
       accountsInCooldown,

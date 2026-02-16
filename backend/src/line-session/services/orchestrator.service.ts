@@ -2,10 +2,11 @@ import { Injectable, Logger, OnModuleInit, OnModuleDestroy } from '@nestjs/commo
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { EventEmitter2 } from '@nestjs/event-emitter';
+import { OnEvent } from '@nestjs/event-emitter';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { LineSession, LineSessionDocument } from '../schemas/line-session.schema';
 import { SystemSettings, SystemSettingsDocument } from '../../database/schemas/system-settings.schema';
-import { EnhancedAutomationService, KeysStatus, isCredentialError } from './enhanced-automation.service';
+import { EnhancedAutomationService, EnhancedLoginStatus, KeysStatus, isCredentialError } from './enhanced-automation.service';
 import { WorkerPoolService } from './worker-pool.service';
 import { KeyStorageService } from './key-storage.service';
 import { EventBusService } from '../../core/events';
@@ -93,6 +94,11 @@ export class OrchestratorService implements OnModuleInit, OnModuleDestroy {
   // Recovery tracking
   private recoveryAttempts: Map<string, { attempts: number; lastAttempt: Date }> = new Map();
 
+  // Login throttling: pause background tasks during active login
+  private isLoginInProgress = false;
+  private loginThrottleTimeout: NodeJS.Timeout | null = null;
+  private readonly LOGIN_THROTTLE_TIMEOUT_MS = 10 * 60 * 1000; // 10 minutes safety reset
+
   constructor(
     @InjectModel(LineSession.name)
     private lineSessionModel: Model<LineSessionDocument>,
@@ -176,6 +182,64 @@ export class OrchestratorService implements OnModuleInit, OnModuleDestroy {
 
   onModuleDestroy() {
     this.stopLoops();
+    if (this.loginThrottleTimeout) {
+      clearTimeout(this.loginThrottleTimeout);
+      this.loginThrottleTimeout = null;
+    }
+  }
+
+  /**
+   * Listen for enhanced-login status events to throttle background tasks during active login.
+   * In-progress statuses pause health checks and auto-fetch; terminal statuses resume them.
+   * A safety timeout (10 minutes) auto-resets in case a status event is lost.
+   */
+  @OnEvent('enhanced-login.status')
+  handleLoginStatusForThrottling(payload: {
+    lineAccountId: string;
+    status: EnhancedLoginStatus;
+  }): void {
+    const inProgressStatuses: EnhancedLoginStatus[] = [
+      EnhancedLoginStatus.REQUESTING,
+      EnhancedLoginStatus.INITIALIZING,
+      EnhancedLoginStatus.LAUNCHING_BROWSER,
+      EnhancedLoginStatus.LOADING_EXTENSION,
+      EnhancedLoginStatus.ENTERING_CREDENTIALS,
+    ];
+
+    const terminalStatuses: EnhancedLoginStatus[] = [
+      EnhancedLoginStatus.SUCCESS,
+      EnhancedLoginStatus.FAILED,
+      EnhancedLoginStatus.CREDENTIAL_ERROR,
+      EnhancedLoginStatus.COOLDOWN,
+    ];
+
+    if (inProgressStatuses.includes(payload.status)) {
+      if (!this.isLoginInProgress) {
+        this.isLoginInProgress = true;
+        this.logger.log(`Throttling background tasks during active login (status: ${payload.status}, account: ${payload.lineAccountId})`);
+      }
+
+      // Reset safety timeout on each in-progress event
+      if (this.loginThrottleTimeout) {
+        clearTimeout(this.loginThrottleTimeout);
+      }
+      this.loginThrottleTimeout = setTimeout(() => {
+        if (this.isLoginInProgress) {
+          this.logger.warn('Login throttle safety timeout reached (10 min) - resuming background tasks');
+          this.isLoginInProgress = false;
+        }
+        this.loginThrottleTimeout = null;
+      }, this.LOGIN_THROTTLE_TIMEOUT_MS);
+    } else if (terminalStatuses.includes(payload.status)) {
+      if (this.isLoginInProgress) {
+        this.isLoginInProgress = false;
+        this.logger.log(`Resuming background tasks after login completed (status: ${payload.status}, account: ${payload.lineAccountId})`);
+      }
+      if (this.loginThrottleTimeout) {
+        clearTimeout(this.loginThrottleTimeout);
+        this.loginThrottleTimeout = null;
+      }
+    }
   }
 
   /**
@@ -349,6 +413,12 @@ export class OrchestratorService implements OnModuleInit, OnModuleDestroy {
    * Perform health check on all sessions
    */
   async performHealthCheck(): Promise<void> {
+    // Throttle during active login to save browser resources
+    if (this.isLoginInProgress) {
+      this.logger.log('[HealthCheck] Throttling background tasks during active login - skipping health check');
+      return;
+    }
+
     this.lastHealthCheck = new Date();
     this.logger.log('[HealthCheck] Starting health check...');
 
@@ -500,6 +570,12 @@ export class OrchestratorService implements OnModuleInit, OnModuleDestroy {
    * Perform relogin check and auto-relogin expired sessions
    */
   async performReloginCheck(): Promise<void> {
+    // Throttle during active login to avoid resource contention
+    if (this.isLoginInProgress) {
+      this.logger.log('[ReloginCheck] Throttling background tasks during active login - skipping relogin check');
+      return;
+    }
+
     this.logger.log(`[ReloginCheck] Auto-relogin enabled: ${this.settings?.lineSessionAutoReloginEnabled !== false}`);
 
     if (this.settings?.lineSessionAutoReloginEnabled === false) {

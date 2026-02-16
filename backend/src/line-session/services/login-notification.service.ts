@@ -106,10 +106,20 @@ export class LoginNotificationService {
 
   /**
    * Get session owner ID
+   * Tries finding by lineAccountId field first, then falls back to _id lookup
+   * (user-created sessions may store lineAccountId as _id)
    */
   private async getSessionOwner(lineAccountId: string): Promise<string | null> {
     try {
-      const session = await this.lineSessionModel.findOne({ lineAccountId }).select('ownerId').lean();
+      let session = await this.lineSessionModel.findOne({ lineAccountId }).select('ownerId').lean();
+      if (!session) {
+        // Fallback: try finding by _id (user-created sessions)
+        try {
+          session = await this.lineSessionModel.findById(lineAccountId).select('ownerId').lean();
+        } catch {
+          // Invalid ObjectId format, ignore
+        }
+      }
       return session?.ownerId?.toString() || null;
     } catch {
       return null;

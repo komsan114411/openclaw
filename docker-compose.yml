@@ -18,6 +18,12 @@ services:
     depends_on:
       - redis
     restart: unless-stopped
+    shm_size: '2gb'
+    deploy:
+      resources:
+        limits:
+          memory: 8g
+          cpus: '4'
 
   frontend:
     build:
