@@ -91,12 +91,28 @@ export class SubscriptionEventHandlers implements OnModuleInit {
                 {
                     userId,
                     status: SubscriptionStatus.ACTIVE,
-                    expiresAt: { $gt: now },
+                    endDate: { $gt: now },
+                    processedPaymentIds: { $nin: [event.paymentId] },
                 },
-                {
-                    $inc: { quota: pkg.slipQuota, remainingQuota: pkg.slipQuota },
-                    $addToSet: { appliedPaymentIds: event.paymentId },
-                },
+                [
+                    {
+                        $set: {
+                            packageId: new Types.ObjectId(event.packageId),
+                            slipsQuota: { $add: ['$slipsQuota', pkg.slipQuota] },
+                            aiQuota: { $add: [{ $ifNull: ['$aiQuota', 0] }, pkg.aiQuota || 0] },
+                            endDate: {
+                                $dateAdd: {
+                                    startDate: '$endDate',
+                                    unit: 'day',
+                                    amount: pkg.durationDays || 30,
+                                },
+                            },
+                            processedPaymentIds: {
+                                $concatArrays: [{ $ifNull: ['$processedPaymentIds', []] }, [event.paymentId]],
+                            },
+                        },
+                    },
+                ],
                 { new: true },
             );
 
@@ -108,18 +124,22 @@ export class SubscriptionEventHandlers implements OnModuleInit {
             }
 
             // Create new subscription
-            const expiresAt = new Date();
-            expiresAt.setDate(expiresAt.getDate() + (pkg.durationDays || 30));
+            const endDate = new Date();
+            endDate.setDate(endDate.getDate() + (pkg.durationDays || 30));
 
             const newSubscription = await this.subscriptionModel.create({
                 userId,
                 packageId: new Types.ObjectId(event.packageId),
                 paymentId: event.paymentId,
-                appliedPaymentIds: [event.paymentId],
-                quota: pkg.slipQuota,
-                remainingQuota: pkg.slipQuota,
+                processedPaymentIds: [event.paymentId],
+                slipsQuota: pkg.slipQuota,
+                slipsUsed: 0,
+                slipsReserved: 0,
+                aiQuota: pkg.aiQuota || 0,
+                aiUsed: 0,
+                aiReserved: 0,
                 startDate: now,
-                expiresAt,
+                endDate,
                 status: SubscriptionStatus.ACTIVE,
             });
 

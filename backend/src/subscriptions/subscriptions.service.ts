@@ -142,6 +142,7 @@ export class SubscriptionsService {
       [
         {
           $set: {
+            packageId,
             slipsQuota: { $add: ['$slipsQuota', pkg.slipQuota] },
             aiQuota: { $add: [{ $ifNull: ['$aiQuota', 0] }, pkg.aiQuota || 0] },
             endDate: {
@@ -560,6 +561,7 @@ export class SubscriptionsService {
 
   async getActiveSubscription(userId: string): Promise<{
     packageName: string;
+    status: string;
     quota: number;
     remainingQuota: number;
     startDate: Date;
@@ -576,9 +578,10 @@ export class SubscriptionsService {
     }
 
     const pkg = await this.packagesService.findById(subscription.packageId);
-    
+
     return {
       packageName: pkg?.name || 'Standard',
+      status: subscription.status,
       quota: subscription.slipsQuota,
       remainingQuota: subscription.slipsQuota - subscription.slipsUsed - subscription.slipsReserved,
       startDate: subscription.startDate,

@@ -242,7 +242,7 @@ export default function UserDashboard() {
                       </h3>
                     </div>
                     <div className="flex items-center gap-2">
-                      {subscription.status === 'active' && (!subscription.expiresAt || new Date(subscription.expiresAt).getTime() > Date.now()) ? (
+                      {subscription.status === 'active' || (!subscription.expiresAt || new Date(subscription.expiresAt).getTime() > Date.now()) ? (
                         <>
                           <div className="w-2 h-2 rounded-full bg-[#06C755] animate-pulse" />
                           <span className="text-xs font-semibold text-[#06C755]">ใช้งานอยู่</span>
