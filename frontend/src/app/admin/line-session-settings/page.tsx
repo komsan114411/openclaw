@@ -150,7 +150,7 @@ export default function LineSessionSettingsPage() {
     setIsLoading(true);
     try {
       const res = await systemSettingsApi.get();
-      const data = res.data;
+      const data = res.data.settings || res.data;
       setSettings({
         lineSessionHealthCheckEnabled: data.lineSessionHealthCheckEnabled ?? true,
         lineSessionHealthCheckIntervalMinutes: data.lineSessionHealthCheckIntervalMinutes ?? 5,
