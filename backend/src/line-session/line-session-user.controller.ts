@@ -268,7 +268,7 @@ export class LineSessionUserController {
   }
 
   /**
-   * ลบ LINE Session (soft delete)
+   * ลบ LINE Session (soft delete) + cascade delete ข้อมูลที่เกี่ยวข้อง
    */
   @Delete(':sessionId')
   @ApiOperation({ summary: 'Delete LINE session' })
@@ -282,6 +282,13 @@ export class LineSessionUserController {
     await this.lineSessionModel.updateOne(
       { _id: sessionId },
       { isActive: false },
+    );
+
+    // Cascade delete messages linked to this session
+    const msgResult = await this.lineMessageModel.deleteMany({ sessionId });
+
+    this.logger.log(
+      `[deleteLineSession] Cascade deleted for session ${sessionId}: ${msgResult.deletedCount} messages`,
     );
 
     return { success: true, message: 'ลบ LINE Session สำเร็จ' };
@@ -740,7 +747,7 @@ export class LineSessionUserController {
     ]);
 
     const withdrawals = await this.lineMessageModel.aggregate([
-      { $match: { sessionId, transactionType: 'withdraw' } },
+      { $match: { sessionId, transactionType: { $in: ['withdraw', 'transfer', 'payment', 'fee', 'bill'] } } },
       { $group: { _id: null, total: { $sum: { $toDouble: '$amount' } }, count: { $sum: 1 } } },
     ]);
 

@@ -6,6 +6,10 @@ import { randomUUID } from 'crypto';
 import { LineAccount, LineAccountDocument } from '../database/schemas/line-account.schema';
 import { ChatMessage, ChatMessageDocument, MessageDirection, MessageType } from '../database/schemas/chat-message.schema';
 import { SlipTemplate, SlipTemplateDocument } from '../database/schemas/slip-template.schema';
+import { LineMessage, LineMessageDocument } from '../line-session/schemas/line-message.schema';
+import { AccountAlert, AccountAlertDocument } from '../line-session/schemas/account-alert.schema';
+import { SlipHistory, SlipHistoryDocument } from '../database/schemas/slip-history.schema';
+import { AngpaoHistory, AngpaoHistoryDocument } from '../angpao/schemas/angpao-history.schema';
 import { CreateLineAccountDto } from './dto/create-line-account.dto';
 import { UpdateLineAccountDto } from './dto/update-line-account.dto';
 import { RedisService } from '../redis/redis.service';
@@ -19,6 +23,10 @@ export class LineAccountsService {
     @InjectModel(LineAccount.name) private lineAccountModel: Model<LineAccountDocument>,
     @InjectModel(ChatMessage.name) private chatMessageModel: Model<ChatMessageDocument>,
     @InjectModel(SlipTemplate.name) private slipTemplateModel: Model<SlipTemplateDocument>,
+    @InjectModel(LineMessage.name) private lineMessageModel: Model<LineMessageDocument>,
+    @InjectModel(AccountAlert.name) private accountAlertModel: Model<AccountAlertDocument>,
+    @InjectModel(SlipHistory.name) private slipHistoryModel: Model<SlipHistoryDocument>,
+    @InjectModel(AngpaoHistory.name) private angpaoHistoryModel: Model<AngpaoHistoryDocument>,
     private redisService: RedisService,
   ) { }
 
@@ -510,7 +518,23 @@ export class LineAccountsService {
     account.isActive = false;
     await account.save();
 
-    await this.redisService.invalidateCache(`line-account:${id}`);
+    // Cascade delete related data
+    const [msgResult, chatResult, alertResult, slipResult, angpaoResult] = await Promise.all([
+      this.lineMessageModel.deleteMany({ lineAccountId: id }),
+      this.chatMessageModel.deleteMany({ lineAccountId: id }),
+      this.accountAlertModel.deleteMany({ lineAccountId: id }),
+      this.slipHistoryModel.deleteMany({ lineAccountId: id }),
+      this.angpaoHistoryModel.deleteMany({ lineAccountId: id }),
+      this.redisService.invalidateCache(`line-account:${id}`),
+      this.redisService.deleteKeysByPattern(`chat:${id}:*`),
+    ]);
+
+    this.logger.log(
+      `[delete] Cascade deleted for account ${id}: ` +
+      `${msgResult.deletedCount} messages, ${chatResult.deletedCount} chats, ` +
+      `${alertResult.deletedCount} alerts, ${slipResult.deletedCount} slips, ` +
+      `${angpaoResult.deletedCount} angpao`,
+    );
   }
 
   async incrementStatistics(id: string, field: string, increment = 1): Promise<void> {

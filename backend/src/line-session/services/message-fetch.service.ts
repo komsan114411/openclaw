@@ -1328,7 +1328,7 @@ export class MessageFetchService implements OnModuleInit, OnModuleDestroy {
     const results = await this.lineMessageModel.aggregate([
       {
         $match: {
-          transactionType: { $in: ['deposit', 'withdraw'] },
+          transactionType: { $in: ['deposit', 'withdraw', 'transfer', 'payment', 'fee', 'bill'] },
           amount: { $exists: true, $nin: [null, ''] },
         },
       },
@@ -1370,8 +1370,9 @@ export class MessageFetchService implements OnModuleInit, OnModuleDestroy {
       const entry = sessionMap.get(lid)!;
       if (row._id.transactionType === 'deposit') {
         entry.deposits = { total: row.total, count: row.count };
-      } else if (row._id.transactionType === 'withdraw') {
-        entry.withdrawals = { total: row.total, count: row.count };
+      } else if (['withdraw', 'transfer', 'payment', 'fee', 'bill'].includes(row._id.transactionType)) {
+        entry.withdrawals.total += row.total;
+        entry.withdrawals.count += row.count;
       }
     }
 
@@ -1521,7 +1522,7 @@ export class MessageFetchService implements OnModuleInit, OnModuleDestroy {
     ]);
 
     const withdrawals = await this.lineMessageModel.aggregate([
-      { $match: { ...query, transactionType: 'withdraw' } },
+      { $match: { ...query, transactionType: { $in: ['withdraw', 'transfer', 'payment', 'fee', 'bill'] } } },
       { $group: { _id: null, total: { $sum: { $toDouble: '$amount' } }, count: { $sum: 1 } } },
     ]);
 
