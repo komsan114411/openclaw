@@ -531,7 +531,7 @@ export default function LineSessionSettingsPage() {
               กำหนดค่าการตรวจสอบ Keys และ Auto Re-login
             </p>
           </div>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             <Button
               variant="outline"
               onClick={applySettingsToRuntime}
@@ -563,7 +563,7 @@ export default function LineSessionSettingsPage() {
 
         {/* Runtime Status Card */}
         <Card className="p-6 bg-gradient-to-br from-indigo-50 to-blue-50 dark:from-indigo-900/20 dark:to-blue-900/20 border-indigo-200 dark:border-indigo-800">
-          <div className="flex items-center justify-between mb-4">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 mb-4">
             <div className="flex items-center gap-3">
               <div className="p-2 bg-indigo-100 dark:bg-indigo-900/50 rounded-lg">
                 <Shield className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
@@ -598,7 +598,7 @@ export default function LineSessionSettingsPage() {
           </div>
 
           {runtimeConfig && (
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 mb-4">
               <div className="p-3 bg-white dark:bg-slate-800 rounded-lg">
                 <p className="text-xs text-slate-400 dark:text-slate-300">Health Check</p>
                 <p className={`text-lg font-bold ${runtimeConfig.enabled ? 'text-emerald-600' : 'text-slate-400'}`}>
@@ -632,7 +632,7 @@ export default function LineSessionSettingsPage() {
                 {healthStatuses.map((status) => (
                   <div
                     key={status.lineAccountId}
-                    className="flex items-center justify-between p-2 bg-white dark:bg-slate-800 rounded-lg text-sm"
+                    className="flex flex-wrap items-center justify-between gap-2 p-2 bg-white dark:bg-slate-800 rounded-lg text-sm"
                   >
                     <div className="flex items-center gap-2">
                       {status.status === 'healthy' ? (
@@ -642,7 +642,7 @@ export default function LineSessionSettingsPage() {
                       ) : (
                         <AlertTriangle className="w-4 h-4 text-amber-500" />
                       )}
-                      <span className="font-mono text-xs truncate max-w-[200px]">
+                      <span className="font-mono text-xs truncate max-w-[120px] sm:max-w-[200px]">
                         {status.lineAccountId}
                       </span>
                     </div>
@@ -861,7 +861,7 @@ export default function LineSessionSettingsPage() {
 
         {/* Auto Message Fetch Settings */}
         <Card className="p-6 bg-gradient-to-br from-violet-50 to-purple-50 dark:from-violet-900/20 dark:to-purple-900/20 border-violet-200 dark:border-violet-800">
-          <div className="flex items-center justify-between mb-6">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 mb-6">
             <div className="flex items-center gap-3">
               <div className="p-2 bg-violet-100 dark:bg-violet-900/50 rounded-lg">
                 <MessageSquare className="w-5 h-5 text-violet-600 dark:text-violet-400" />
@@ -976,8 +976,8 @@ export default function LineSessionSettingsPage() {
           {/* Settings Controls */}
           <div className="space-y-4">
             {/* Enable/Disable Toggle */}
-            <div className="flex items-center justify-between p-4 bg-white dark:bg-slate-800 rounded-xl">
-              <div>
+            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 p-4 bg-white dark:bg-slate-800 rounded-xl">
+              <div className="flex-1">
                 <p className="font-medium text-slate-900 dark:text-white">
                   เปิดใช้งานการดึงอัตโนมัติ
                 </p>
@@ -985,7 +985,7 @@ export default function LineSessionSettingsPage() {
                   ระบบจะดึงข้อความจากทุกบัญชีตามช่วงเวลาที่ตั้งค่า
                 </p>
               </div>
-              <div className="flex gap-2">
+              <div className="flex flex-wrap gap-2">
                 {autoFetchStatus?.isRunning ? (
                   <Button
                     variant="outline"
@@ -1103,7 +1103,7 @@ export default function LineSessionSettingsPage() {
           </div>
 
           {/* Message Stats Summary */}
-          <div className="grid grid-cols-3 gap-4 mb-6">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
             <div className="p-3 bg-white dark:bg-slate-800 rounded-lg">
               <div className="flex items-center gap-2 mb-1">
                 <Database className="w-4 h-4 text-blue-500" />
@@ -1176,7 +1176,7 @@ export default function LineSessionSettingsPage() {
                   <span className="text-sm text-slate-700 dark:text-slate-300">เดือน</span>
                 </label>
               </div>
-              <div className="flex gap-2 items-center">
+              <div className="flex flex-wrap gap-2 items-center">
                 <span className="text-sm text-slate-700 dark:text-slate-300">ลบข้อความเก่ากว่า</span>
                 <Input
                   type="number"
@@ -1377,7 +1377,7 @@ export default function LineSessionSettingsPage() {
           {/* Confirm Modal */}
           {showDeleteConfirm && (
             <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-              <div className="bg-white dark:bg-slate-800 rounded-2xl p-6 max-w-md w-full mx-4 shadow-2xl">
+              <div className="bg-white dark:bg-slate-800 rounded-2xl p-6 max-w-md w-full mx-4 shadow-2xl max-h-[90vh] overflow-y-auto">
                 <div className="flex items-center gap-3 mb-4">
                   <div className="p-2 bg-red-100 dark:bg-red-900/50 rounded-lg">
                     <AlertTriangle className="w-6 h-6 text-red-600 dark:text-red-400" />
@@ -1433,7 +1433,7 @@ export default function LineSessionSettingsPage() {
                 <p className="text-sm text-red-600 dark:text-red-400 font-medium mb-6">
                   การดำเนินการนี้ไม่สามารถย้อนกลับได้
                 </p>
-                <div className="flex gap-3 justify-end">
+                <div className="flex flex-col-reverse sm:flex-row gap-3 sm:justify-end">
                   <Button
                     variant="outline"
                     onClick={() => setShowDeleteConfirm(false)}

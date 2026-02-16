@@ -754,7 +754,7 @@ export default function AdminBankMonitorPage() {
           <select
             value={filterBank}
             onChange={(e) => setFilterBank(e.target.value)}
-            className="px-4 py-3 bg-slate-800/50 border border-slate-700/50 rounded-xl text-white focus:outline-none focus:border-emerald-500/50"
+            className="w-full sm:w-auto px-4 py-3 bg-slate-800/50 border border-slate-700/50 rounded-xl text-white focus:outline-none focus:border-emerald-500/50"
           >
             <option value="">ธนาคารทั้งหมด</option>
             {banks.map((bank: any) => (
@@ -877,7 +877,7 @@ export default function AdminBankMonitorPage() {
                       </div>
                     </div>
                   </div>
-                  <div className="flex items-center justify-between sm:justify-end gap-3 sm:gap-4 pl-13 sm:pl-0">
+                  <div className="flex items-center justify-between sm:justify-end gap-3 sm:gap-4 pl-12 sm:pl-0">
                     {/* Alert Badge */}
                     {alertCounts[session.lineAccountId] > 0 && (
                       <button
@@ -1562,7 +1562,7 @@ export default function AdminBankMonitorPage() {
         size="xl"
       >
         {alertSession && (
-          <div className="space-y-4 pt-4 max-h-[75vh] overflow-y-auto px-2 custom-scrollbar pb-6">
+          <div className="space-y-4 pt-4 pb-6">
             {/* Account info */}
             <div className="p-3 bg-gradient-to-r from-red-500/10 to-orange-500/10 rounded-xl border border-red-500/20">
               <div className="flex items-center gap-3">
@@ -1622,7 +1622,7 @@ export default function AdminBankMonitorPage() {
                         )}
                       </div>
                     </div>
-                    <p className="text-xs text-slate-400 truncate mb-1">
+                    <p className="text-xs text-slate-400 line-clamp-2 break-words mb-1">
                       {alert.text || 'ไม่มีข้อความ'}
                     </p>
                     <p className="text-[10px] text-slate-500">
@@ -1640,7 +1640,7 @@ export default function AdminBankMonitorPage() {
                   onClick={() => fetchAlertPage(alertPage - 1)}
                   disabled={alertPage <= 1}
                   className={cn(
-                    "w-8 h-8 rounded-lg flex items-center justify-center transition-colors",
+                    "w-10 h-10 rounded-lg flex items-center justify-center transition-colors",
                     alertPage <= 1 ? "text-slate-600 cursor-not-allowed" : "text-slate-400 hover:bg-slate-700/50"
                   )}
                 >
@@ -1653,7 +1653,7 @@ export default function AdminBankMonitorPage() {
                   onClick={() => fetchAlertPage(alertPage + 1)}
                   disabled={alertPage >= alertTotalPages}
                   className={cn(
-                    "w-8 h-8 rounded-lg flex items-center justify-center transition-colors",
+                    "w-10 h-10 rounded-lg flex items-center justify-center transition-colors",
                     alertPage >= alertTotalPages ? "text-slate-600 cursor-not-allowed" : "text-slate-400 hover:bg-slate-700/50"
                   )}
                 >

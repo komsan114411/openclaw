@@ -1271,14 +1271,14 @@ export default function LineSessionPage() {
             />
           </Card>
         ) : (
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
             {/* Session Selection */}
             <Card className="p-3 sm:p-4">
               <h2 className="text-base sm:text-lg font-semibold text-slate-900 dark:text-white mb-3 sm:mb-4 flex items-center gap-2">
                 <Smartphone className="w-4 h-4 sm:w-5 sm:h-5 text-emerald-500" />
                 LINE Login ของคุณ
               </h2>
-              <div className="space-y-2">
+              <div className="space-y-2 max-h-[50vh] lg:max-h-none overflow-y-auto">
                 {lineSessions.map((session) => (
                   <div
                     key={session._id}
@@ -1316,7 +1316,7 @@ export default function LineSessionPage() {
                         {alertCounts[session._id] > 0 && (
                           <button
                             onClick={(e) => openAlertModal(session, e)}
-                            className="flex items-center gap-1 px-2 py-1 bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 rounded-lg transition-colors"
+                            className="flex items-center gap-1 px-2 py-1 min-h-[36px] min-w-[36px] bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 rounded-lg transition-colors"
                             title="มีรายการผิดปกติ"
                           >
                             <Bell className="w-3.5 h-3.5 text-red-400 animate-pulse" />
@@ -2254,7 +2254,7 @@ export default function LineSessionPage() {
         size="xl"
       >
         {alertSession && (
-          <div className="space-y-4 pt-4 max-h-[75vh] overflow-y-auto px-2 pb-6">
+          <div className="space-y-4 pt-4 pb-6">
             {/* Account info */}
             <div className="p-3 bg-gradient-to-r from-red-500/10 to-orange-500/10 rounded-xl border border-red-500/20">
               <div className="flex items-center gap-3">
@@ -2309,7 +2309,7 @@ export default function LineSessionPage() {
                         )}
                       </div>
                     </div>
-                    <p className="text-xs text-slate-500 dark:text-slate-400 truncate mb-1">
+                    <p className="text-xs text-slate-500 dark:text-slate-400 line-clamp-2 break-words mb-1">
                       {alert.text || 'ไม่มีข้อความ'}
                     </p>
                     <p className="text-[10px] text-slate-400 dark:text-slate-500">
@@ -2326,7 +2326,7 @@ export default function LineSessionPage() {
                 <button
                   onClick={() => fetchAlertPage(alertPage - 1)}
                   disabled={alertPage <= 1}
-                  className={`w-8 h-8 rounded-lg flex items-center justify-center transition-colors ${
+                  className={`w-10 h-10 rounded-lg flex items-center justify-center transition-colors ${
                     alertPage <= 1 ? "text-slate-400 dark:text-slate-600 cursor-not-allowed" : "text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700/50"
                   }`}
                 >
@@ -2338,7 +2338,7 @@ export default function LineSessionPage() {
                 <button
                   onClick={() => fetchAlertPage(alertPage + 1)}
                   disabled={alertPage >= alertTotalPages}
-                  className={`w-8 h-8 rounded-lg flex items-center justify-center transition-colors ${
+                  className={`w-10 h-10 rounded-lg flex items-center justify-center transition-colors ${
                     alertPage >= alertTotalPages ? "text-slate-400 dark:text-slate-600 cursor-not-allowed" : "text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700/50"
                   }`}
                 >
