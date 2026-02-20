@@ -4,6 +4,7 @@ import { LineAccountsService } from './line-accounts.service';
 import { LineAccountsController } from './line-accounts.controller';
 import { LineWebhookController } from './line-webhook.controller';
 import { LineAccount, LineAccountSchema } from '../database/schemas/line-account.schema';
+import { User, UserSchema } from '../database/schemas/user.schema';
 import { ChatMessage, ChatMessageSchema } from '../database/schemas/chat-message.schema';
 import { SlipTemplate, SlipTemplateSchema } from '../database/schemas/slip-template.schema';
 import { SlipHistory, SlipHistorySchema } from '../database/schemas/slip-history.schema';
@@ -27,6 +28,7 @@ import { AngpaoModule } from '../angpao/angpao.module';
       { name: AccountAlert.name, schema: AccountAlertSchema },
       { name: SlipHistory.name, schema: SlipHistorySchema },
       { name: AngpaoHistory.name, schema: AngpaoHistorySchema },
+      { name: User.name, schema: UserSchema },
     ]),
     SlipVerificationModule,
     ChatbotModule,

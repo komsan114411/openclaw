@@ -13,6 +13,8 @@ import {
 import { ApiTags, ApiOperation } from '@nestjs/swagger';
 import * as crypto from 'crypto';
 import axios from 'axios';
+import { InjectModel } from '@nestjs/mongoose';
+import { Model } from 'mongoose';
 import { LineAccountsService } from './line-accounts.service';
 import { SlipVerificationService } from '../slip-verification/slip-verification.service';
 import { AiQuotaService } from '../chatbot/ai-quota.service';
@@ -20,6 +22,7 @@ import { SmartResponseService } from '../chatbot/smart-response.service';
 import { buildSmartAiSettings } from '../chatbot/types/smart-ai.types';
 import { SubscriptionsService } from '../subscriptions/subscriptions.service';
 import { MessageDirection, MessageType } from '../database/schemas/chat-message.schema';
+import { User, UserDocument, UserRole } from '../database/schemas/user.schema';
 import { RedisService } from '../redis/redis.service';
 import { ConfigurableMessagesService } from '../common/configurable-messages.service';
 import { WebsocketGateway } from '../websocket/websocket.gateway';
@@ -44,6 +47,7 @@ export class LineWebhookController {
     private websocketGateway: WebsocketGateway,
     private systemSettingsService: SystemSettingsService,
     private angpaoService: AngpaoService,
+    @InjectModel(User.name) private userModel: Model<UserDocument>,
   ) { }
 
   @Post(':slug')
@@ -832,29 +836,36 @@ export class LineWebhookController {
       this.logger.log(`[SLIP] Lock acquired for ${messageId}`);
 
       // ============================================
-      // ตรวจสอบโควต้าก่อนส่งตรวจสอบสลิป (ใช้ logic ใหม่ที่เรียบง่าย)
+      // Admin bypass: skip all quota checks
       // ============================================
-      const ownerQuotaDetail = await this.subscriptionsService.checkQuotaDetailed(ownerId);
-      this.logger.log(`[SLIP] Quota check: status=${ownerQuotaDetail.status}, remaining=${ownerQuotaDetail.remainingQuota}`);
-
-      // สถานะ: no_subscription หรือ quota_exhausted = ใช้ template โควต้าหมด
-      if (ownerQuotaDetail.status === 'no_subscription' || ownerQuotaDetail.status === 'quota_exhausted') {
-        this.logger.log(`[SLIP] No quota - sending quota exhausted message`);
-        const quotaMsg = await this.configurableMessagesService.formatQuotaExhaustedResponse({ account });
-        await safeSendMessage([quotaMsg], true);
-        return;
+      const isAdmin = await this.isOwnerAdmin(ownerId);
+      if (isAdmin) {
+        this.logger.log(`[SLIP] Owner ${ownerId} is admin — bypassing quota check`);
       }
 
-      // สถานะ: package_expired = ใช้ template แพ็คเกจหมดอายุ
-      if (ownerQuotaDetail.status === 'package_expired') {
-        this.logger.log(`[SLIP] Package expired - sending expired message`);
-        const expiredMsg = await this.configurableMessagesService.formatPackageExpiredResponse({ account });
-        await safeSendMessage([expiredMsg], true);
-        return;
-      }
+      if (!isAdmin) {
+        // ============================================
+        // ตรวจสอบโควต้าก่อนส่งตรวจสอบสลิป (ใช้ logic ใหม่ที่เรียบง่าย)
+        // ============================================
+        const ownerQuotaDetail = await this.subscriptionsService.checkQuotaDetailed(ownerId);
+        this.logger.log(`[SLIP] Quota check: status=${ownerQuotaDetail.status}, remaining=${ownerQuotaDetail.remainingQuota}`);
 
-      // status is 'has_quota' - proceed with verification
-      const ownerQuota = ownerQuotaDetail;
+        // สถานะ: no_subscription หรือ quota_exhausted = ใช้ template โควต้าหมด
+        if (ownerQuotaDetail.status === 'no_subscription' || ownerQuotaDetail.status === 'quota_exhausted') {
+          this.logger.log(`[SLIP] No quota - sending quota exhausted message`);
+          const quotaMsg = await this.configurableMessagesService.formatQuotaExhaustedResponse({ account });
+          await safeSendMessage([quotaMsg], true);
+          return;
+        }
+
+        // สถานะ: package_expired = ใช้ template แพ็คเกจหมดอายุ
+        if (ownerQuotaDetail.status === 'package_expired') {
+          this.logger.log(`[SLIP] Package expired - sending expired message`);
+          const expiredMsg = await this.configurableMessagesService.formatPackageExpiredResponse({ account });
+          await safeSendMessage([expiredMsg], true);
+          return;
+        }
+      }
 
       // ============================================
       // ส่งข้อความกำลังประมวลผล (ผู้ใช้เลือกได้ว่าจะส่งหรือไม่)
@@ -898,34 +909,39 @@ export class LineWebhookController {
       }
       this.logger.log(`[SLIP] Image validation passed`);
 
-      // Phase 2: Check and reserve quota (atomic operation)
-      if (!ownerQuota.hasQuota) {
-        this.logger.log(`[SLIP] No quota available`);
-        const quotaMsg = await this.configurableMessagesService.formatQuotaExhaustedResponse({ account });
-        await safeSendMessage([quotaMsg]);
-        return;
-      }
+      // Phase 2: Check and reserve quota (atomic operation) — skip for admin
+      if (!isAdmin) {
+        const ownerQuotaDetail = await this.subscriptionsService.checkQuotaDetailed(ownerId);
+        if (!ownerQuotaDetail.hasQuota) {
+          this.logger.log(`[SLIP] No quota available`);
+          const quotaMsg = await this.configurableMessagesService.formatQuotaExhaustedResponse({ account });
+          await safeSendMessage([quotaMsg]);
+          return;
+        }
 
-      subscriptionId = await this.subscriptionsService.reserveQuota(ownerId, 1);
-      if (!subscriptionId) {
-        this.logger.log(`[SLIP] Quota reservation failed`);
-        const quotaMsg = await this.configurableMessagesService.formatQuotaExhaustedResponse({ account });
-        await safeSendMessage([quotaMsg]);
-        return;
-      }
-      this.logger.log(`[SLIP] Quota reserved, subscriptionId=${subscriptionId}`);
+        subscriptionId = await this.subscriptionsService.reserveQuota(ownerId, 1);
+        if (!subscriptionId) {
+          this.logger.log(`[SLIP] Quota reservation failed`);
+          const quotaMsg = await this.configurableMessagesService.formatQuotaExhaustedResponse({ account });
+          await safeSendMessage([quotaMsg]);
+          return;
+        }
+        this.logger.log(`[SLIP] Quota reserved, subscriptionId=${subscriptionId}`);
 
-      // Create reservation record
-      const reservation = await this.slipVerificationService.createReservation({
-        ownerId,
-        subscriptionId,
-        lineAccountId: accountId,
-        lineUserId,
-        messageId,
-        amount: 1,
-      });
-      reservationId = reservation._id.toString();
-      this.logger.log(`[SLIP] Reservation created, starting Thunder API verification...`);
+        // Create reservation record
+        const reservation = await this.slipVerificationService.createReservation({
+          ownerId,
+          subscriptionId,
+          lineAccountId: accountId,
+          lineUserId,
+          messageId,
+          amount: 1,
+        });
+        reservationId = reservation._id.toString();
+        this.logger.log(`[SLIP] Reservation created, starting Thunder API verification...`);
+      } else {
+        this.logger.log(`[SLIP] Admin bypass — skipping quota reservation`);
+      }
 
       // Phase 3: Verify slip with retry (ใช้ template ใหม่เมื่อเกิดข้อผิดพลาด)
       const result = await retryWithBackoff(
@@ -956,24 +972,30 @@ export class LineWebhookController {
       let quotaRemaining: number | undefined;
 
       if (result.status === 'success') {
-        await this.subscriptionsService.confirmReservation(subscriptionId, 1);
-        await this.slipVerificationService.confirmReservation(reservationId);
-
-        // ดึงโควต้าเหลือเพื่อแสดงในบล็อกสลิป
-        const newQuota = await this.subscriptionsService.checkQuota(ownerId);
-        quotaRemaining = newQuota.remainingQuota;
-      } else if (result.status === 'duplicate') {
-        const refund = await this.configurableMessagesService.shouldRefundDuplicate();
-        if (refund) {
-          await this.subscriptionsService.rollbackReservation(subscriptionId, 1);
-          await this.slipVerificationService.rollbackReservation(reservationId, 'duplicate_refunded');
-        } else {
+        if (!isAdmin && subscriptionId && reservationId) {
           await this.subscriptionsService.confirmReservation(subscriptionId, 1);
           await this.slipVerificationService.confirmReservation(reservationId);
         }
 
-        // ตรวจสอบโควต้าเหลือน้อย (แสดงในบล็อกเดียวกับสลิปซ้ำ)
-        const newQuota = await this.subscriptionsService.checkQuota(ownerId);
+        // ดึงโควต้าเหลือเพื่อแสดงในบล็อกสลิป (admin = undefined = ไม่แสดง)
+        if (!isAdmin) {
+          const newQuota = await this.subscriptionsService.checkQuota(ownerId);
+          quotaRemaining = newQuota.remainingQuota;
+        }
+      } else if (result.status === 'duplicate') {
+        if (!isAdmin && subscriptionId && reservationId) {
+          const refund = await this.configurableMessagesService.shouldRefundDuplicate();
+          if (refund) {
+            await this.subscriptionsService.rollbackReservation(subscriptionId, 1);
+            await this.slipVerificationService.rollbackReservation(reservationId, 'duplicate_refunded');
+          } else {
+            await this.subscriptionsService.confirmReservation(subscriptionId, 1);
+            await this.slipVerificationService.confirmReservation(reservationId);
+          }
+        }
+
+        // ตรวจสอบโควต้าเหลือน้อย (แสดงในบล็อกเดียวกับสลิปซ้ำ) — admin ไม่แสดง
+        const newQuota = !isAdmin ? await this.subscriptionsService.checkQuota(ownerId) : null;
 
         // ใช้ Slip Template สำหรับสลิปซ้ำ (ส่ง quota info ไปด้วย)
         try {
@@ -982,7 +1004,7 @@ export class LineWebhookController {
           
           const duplicateMsg = await this.slipVerificationService.formatSlipResponseWithConfig(
             result,
-            { account, quotaRemaining: newQuota.remainingQuota, lineUserId, lineAccountId: accountId }
+            { account, quotaRemaining: newQuota?.remainingQuota, lineUserId, lineAccountId: accountId }
           );
           
           this.logger.log(`[SLIP] Duplicate response generated: type=${duplicateMsg?.type}, hasContents=${!!duplicateMsg?.contents}`);
@@ -1002,9 +1024,11 @@ export class LineWebhookController {
         await this.lineAccountsService.incrementStatistics(accountId, 'totalSlipsVerified');
         return;
       } else {
-        // Error or not_found - rollback
-        await this.subscriptionsService.rollbackReservation(subscriptionId, 1);
-        await this.slipVerificationService.rollbackReservation(reservationId, result.status);
+        // Error or not_found - rollback (skip for admin)
+        if (!isAdmin && subscriptionId && reservationId) {
+          await this.subscriptionsService.rollbackReservation(subscriptionId, 1);
+          await this.slipVerificationService.rollbackReservation(reservationId, result.status);
+        }
         // Clear subscriptionId/reservationId to prevent double rollback in catch block
         subscriptionId = null;
         reservationId = null;
@@ -1111,54 +1135,62 @@ export class LineWebhookController {
 
     try {
       // ============================================
-      // 1. Check AI quota before processing
+      // Admin bypass: skip all AI quota checks
       // ============================================
-      const aiQuotaInfo = await this.subscriptionsService.checkAiQuota(ownerId);
-      this.logger.log(`[AI] Quota check for ${ownerId}: hasQuota=${aiQuotaInfo.hasQuota}, remaining=${aiQuotaInfo.remainingQuota}`);
-
-      if (!aiQuotaInfo.hasQuota) {
-        this.logger.log(`[AI] No AI quota`);
-        // ตรวจสอบว่าต้องส่งข้อความแจ้งเตือนหรือไม่
-        const shouldSendQuotaMsg = await this.configurableMessagesService.shouldSendAiQuotaExhaustedMessage({ account });
-        if (shouldSendQuotaMsg) {
-          this.logger.log(`[AI] Sending quota exhausted message`);
-          const quotaMsg = await this.configurableMessagesService.formatAiQuotaExhaustedResponse({ account });
-          await safeSendAIMessage([quotaMsg]);
-        } else {
-          this.logger.log(`[AI] Quota exhausted message disabled by settings`);
-        }
-        return;
+      const isAdmin = await this.isOwnerAdmin(ownerId);
+      if (isAdmin) {
+        this.logger.log(`[AI] Owner ${ownerId} is admin — bypassing AI quota check`);
       }
 
-      // ============================================
-      // 2. Reserve AI quota (atomic operation)
-      // ============================================
-      subscriptionId = await this.subscriptionsService.reserveAiQuota(ownerId, 1);
-      if (!subscriptionId) {
-        this.logger.log(`[AI] AI quota reservation failed`);
-        // ตรวจสอบว่าต้องส่งข้อความแจ้งเตือนหรือไม่
-        const shouldSendQuotaMsg = await this.configurableMessagesService.shouldSendAiQuotaExhaustedMessage({ account });
-        if (shouldSendQuotaMsg) {
-          const quotaMsg = await this.configurableMessagesService.formatAiQuotaExhaustedResponse({ account });
-          await safeSendAIMessage([quotaMsg]);
-        }
-        return;
-      }
-      this.logger.log(`[AI] AI quota reserved, subscriptionId=${subscriptionId}`);
+      if (!isAdmin) {
+        // ============================================
+        // 1. Check AI quota before processing
+        // ============================================
+        const aiQuotaInfo = await this.subscriptionsService.checkAiQuota(ownerId);
+        this.logger.log(`[AI] Quota check for ${ownerId}: hasQuota=${aiQuotaInfo.hasQuota}, remaining=${aiQuotaInfo.remainingQuota}`);
 
-      // ============================================
-      // 3. Create reservation record
-      // ============================================
-      const reservation = await this.aiQuotaService.createReservation({
-        ownerId,
-        subscriptionId,
-        lineAccountId: accountId,
-        lineUserId,
-        messageId,
-        amount: 1,
-      });
-      reservationId = reservation._id.toString();
-      this.logger.log(`[AI] Reservation created, reservationId=${reservationId}`);
+        if (!aiQuotaInfo.hasQuota) {
+          this.logger.log(`[AI] No AI quota`);
+          const shouldSendQuotaMsg = await this.configurableMessagesService.shouldSendAiQuotaExhaustedMessage({ account });
+          if (shouldSendQuotaMsg) {
+            this.logger.log(`[AI] Sending quota exhausted message`);
+            const quotaMsg = await this.configurableMessagesService.formatAiQuotaExhaustedResponse({ account });
+            await safeSendAIMessage([quotaMsg]);
+          } else {
+            this.logger.log(`[AI] Quota exhausted message disabled by settings`);
+          }
+          return;
+        }
+
+        // ============================================
+        // 2. Reserve AI quota (atomic operation)
+        // ============================================
+        subscriptionId = await this.subscriptionsService.reserveAiQuota(ownerId, 1);
+        if (!subscriptionId) {
+          this.logger.log(`[AI] AI quota reservation failed`);
+          const shouldSendQuotaMsg = await this.configurableMessagesService.shouldSendAiQuotaExhaustedMessage({ account });
+          if (shouldSendQuotaMsg) {
+            const quotaMsg = await this.configurableMessagesService.formatAiQuotaExhaustedResponse({ account });
+            await safeSendAIMessage([quotaMsg]);
+          }
+          return;
+        }
+        this.logger.log(`[AI] AI quota reserved, subscriptionId=${subscriptionId}`);
+
+        // ============================================
+        // 3. Create reservation record
+        // ============================================
+        const reservation = await this.aiQuotaService.createReservation({
+          ownerId,
+          subscriptionId,
+          lineAccountId: accountId,
+          lineUserId,
+          messageId,
+          amount: 1,
+        });
+        reservationId = reservation._id.toString();
+        this.logger.log(`[AI] Reservation created, reservationId=${reservationId}`);
+      }
 
       // ============================================
       // 4. Smart AI or Legacy AI response
@@ -1189,20 +1221,24 @@ export class LineWebhookController {
         this.logger.log(`[AI] Smart AI result: intent=${smartResult.intent}, shouldRespond=${smartResult.shouldRespond}, time=${smartResult.processingTimeMs}ms`);
 
         if (!smartResult.shouldRespond) {
-          if (smartResult.wasSpamDetected || smartResult.wasDuplicateDetected) {
-            // No API calls were made (caught before classification) — rollback quota
-            await this.subscriptionsService.rollbackAiReservation(subscriptionId, 1).catch((e) => {
-              this.logger.error('Failed to rollback AI quota (spam/dup):', e);
-            });
-            await this.aiQuotaService.rollbackReservation(reservationId, 'no_api_call').catch((e) => {
-              this.logger.error('Failed to rollback AI reservation (spam/dup):', e);
-            });
-            this.logger.log(`[AI] Spam/duplicate detected before classification — quota rolled back (intent=${smartResult.intent})`);
-          } else {
-            // Classification API call was made — confirm quota
-            await this.subscriptionsService.confirmAiReservation(subscriptionId, 1);
-            await this.aiQuotaService.confirmReservation(reservationId);
-            this.logger.log(`[AI] Smart AI decided not to respond (intent=${smartResult.intent}), quota confirmed (classification used)`);
+          if (!isAdmin && subscriptionId && reservationId) {
+            if (smartResult.wasSpamDetected || smartResult.wasDuplicateDetected) {
+              // No API calls were made (caught before classification) — rollback quota
+              await this.subscriptionsService.rollbackAiReservation(subscriptionId, 1).catch((e) => {
+                this.logger.error('Failed to rollback AI quota (spam/dup):', e);
+              });
+              await this.aiQuotaService.rollbackReservation(reservationId, 'no_api_call').catch((e) => {
+                this.logger.error('Failed to rollback AI reservation (spam/dup):', e);
+              });
+              this.logger.log(`[AI] Spam/duplicate detected before classification — quota rolled back (intent=${smartResult.intent})`);
+            } else {
+              // Classification API call was made — confirm quota
+              await this.subscriptionsService.confirmAiReservation(subscriptionId, 1);
+              await this.aiQuotaService.confirmReservation(reservationId);
+              this.logger.log(`[AI] Smart AI decided not to respond (intent=${smartResult.intent}), quota confirmed (classification used)`);
+            }
+          }
+          if (!(smartResult.wasSpamDetected || smartResult.wasDuplicateDetected)) {
             await this.lineAccountsService.incrementStatistics(accountId, 'totalAiResponses');
           }
           return;
@@ -1240,14 +1276,16 @@ export class LineWebhookController {
       }
 
       // ============================================
-      // 5. Confirm AI quota
+      // 5. Confirm AI quota (skip for admin)
       // ============================================
-      try {
-        await this.subscriptionsService.confirmAiReservation(subscriptionId, 1);
-        await this.aiQuotaService.confirmReservation(reservationId);
-        this.logger.log(`[AI] AI quota confirmed for ${ownerId}`);
-      } catch (quotaError) {
-        this.logger.error(`[AI] Failed to confirm quota for ${ownerId}:`, quotaError);
+      if (!isAdmin && subscriptionId && reservationId) {
+        try {
+          await this.subscriptionsService.confirmAiReservation(subscriptionId, 1);
+          await this.aiQuotaService.confirmReservation(reservationId);
+          this.logger.log(`[AI] AI quota confirmed for ${ownerId}`);
+        } catch (quotaError) {
+          this.logger.error(`[AI] Failed to confirm quota for ${ownerId}:`, quotaError);
+        }
       }
 
       // Save outgoing message
@@ -1302,6 +1340,15 @@ export class LineWebhookController {
         this.logger.error('Failed to send AI fallback message:', sendError);
       }
     }
+  }
+
+  /**
+   * Check if the owner of a LINE account is an admin user.
+   * Admin owners bypass all quota checks (unlimited usage).
+   */
+  private async isOwnerAdmin(ownerId: string): Promise<boolean> {
+    const user = await this.userModel.findById(ownerId).select('role').lean();
+    return user?.role === UserRole.ADMIN;
   }
 
   /**
