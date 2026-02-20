@@ -99,8 +99,8 @@ export class LineAccountsService {
       }
     }
 
-    // Extract template fields from dto
-    const { slipTemplateId, slipTemplateIds, ...restDto } = dto;
+    // Extract template fields and ownerId from dto (ownerId is resolved by controller)
+    const { slipTemplateId, slipTemplateIds, ownerId: _dtoOwnerId, ...restDto } = dto;
 
     // Build settings with proper slipTemplateIds structure
     const settings: any = {};

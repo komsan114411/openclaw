@@ -45,6 +45,11 @@ export class CreateLineAccountDto {
   @IsNotEmpty()
   accessToken: string;
 
+  @ApiPropertyOptional({ example: '507f1f77bcf86cd799439011', description: 'Owner user ID (admin only, ignored for non-admin)' })
+  @IsOptional()
+  @IsMongoId()
+  ownerId?: string;
+
   @ApiPropertyOptional({ example: 'My business LINE account' })
   @IsOptional()
   @IsString()

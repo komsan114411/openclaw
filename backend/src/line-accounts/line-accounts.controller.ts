@@ -40,7 +40,11 @@ export class LineAccountsController {
     @CurrentUser() user: AuthUser,
     @Body() dto: CreateLineAccountDto,
   ) {
-    const account = await this.lineAccountsService.create(user.userId, dto);
+    // Admin can assign ownerId to another user; non-admin always owns their own account
+    const resolvedOwnerId = (user.role === UserRole.ADMIN && dto.ownerId)
+      ? dto.ownerId
+      : user.userId;
+    const account = await this.lineAccountsService.create(resolvedOwnerId, dto);
     return {
       success: true,
       message: 'สร้างบัญชี LINE สำเร็จ',
@@ -296,9 +300,7 @@ export class LineAccountsController {
   }
 
   @Post('test-connection')
-  @UseGuards(RolesGuard)
-  @Roles(UserRole.ADMIN)
-  @ApiOperation({ summary: 'Test LINE channel connection with access token (Admin only)' })
+  @ApiOperation({ summary: 'Test LINE channel connection with access token' })
   async testConnectionWithToken(
     @Body() body: { accessToken: string },
   ) {
