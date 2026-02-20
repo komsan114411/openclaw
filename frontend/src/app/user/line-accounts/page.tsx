@@ -338,6 +338,7 @@ export default function UserLineAccountsPage() {
 
   const [editAccount, setEditAccount] = useState<LineAccount | null>(null);
   const [selectedAccount, setSelectedAccount] = useState<LineAccount | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const [formData, setFormData] = useState({
     accountName: '',
@@ -620,6 +621,7 @@ export default function UserLineAccountsPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isSubmitting) return;
 
     // Client-side validation with specific messages
     if (!formData.accountName.trim()) {
@@ -639,6 +641,7 @@ export default function UserLineAccountsPage() {
       return;
     }
 
+    setIsSubmitting(true);
     try {
       // Filter out empty template IDs
       const filteredTemplateIds: Record<string, string> = {};
@@ -678,6 +681,8 @@ export default function UserLineAccountsPage() {
       } else {
         toast.error('เกิดข้อผิดพลาดในการสร้างบัญชี กรุณาลองใหม่อีกครั้ง');
       }
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -1505,8 +1510,12 @@ export default function UserLineAccountsPage() {
               <Button type="button" variant="ghost" className="flex-1 h-11 sm:h-14 rounded-xl sm:rounded-2xl font-bold text-xs sm:text-sm border border-white/5 text-slate-500 hover:text-white min-h-[44px]" onClick={() => setShowModal(false)}>
                 ยกเลิก
               </Button>
-              <Button type="submit" variant="primary" className="flex-1 h-11 sm:h-14 rounded-xl sm:rounded-2xl font-bold text-xs sm:text-sm shadow-lg shadow-emerald-500/20 min-h-[44px]">
-                {editAccount ? 'บันทึกการเปลี่ยนแปลง' : 'เพิ่มบัญชี'}
+              <Button type="submit" variant="primary" disabled={isSubmitting} className="flex-1 h-11 sm:h-14 rounded-xl sm:rounded-2xl font-bold text-xs sm:text-sm shadow-lg shadow-emerald-500/20 min-h-[44px]">
+                {isSubmitting ? (
+                  <><Loader2 className="w-4 h-4 animate-spin mr-1.5" />{editAccount ? 'กำลังบันทึก...' : 'กำลังสร้าง...'}</>
+                ) : (
+                  editAccount ? 'บันทึกการเปลี่ยนแปลง' : 'เพิ่มบัญชี'
+                )}
               </Button>
             </div>
           </form>

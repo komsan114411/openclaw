@@ -179,28 +179,16 @@ export const useAuthStore = create<AuthState>()(
         const state = get();
         const now = Date.now();
 
-        // Multiple layers of protection against infinite loops and duplicate calls
-        // 1. Already initialized - skip
-        // 2. Currently loading - skip
-        // 3. Module flag already checked - skip
-        // 4. Check in progress - skip
-        // 5. Recently checked (within cooldown) - skip
-        if (state.isInitialized) {
-          return;
-        }
-
+        // Protection against duplicate/concurrent calls
         if (state.isLoading || _authCheckInProgress) {
           return;
         }
 
-        if (_authChecked) {
-          // Already checked but not initialized - just set initialized
-          set({ isInitialized: true });
-          return;
-        }
-
-        if (state.lastChecked && (now - state.lastChecked) < AUTH_CHECK_COOLDOWN) {
-          set({ isInitialized: true });
+        // Already verified with server recently — skip
+        if (_authChecked && state.lastChecked && (now - state.lastChecked) < AUTH_CHECK_COOLDOWN) {
+          if (!state.isInitialized) {
+            set({ isInitialized: true });
+          }
           return;
         }
 
@@ -256,7 +244,7 @@ export const useAuthStore = create<AuthState>()(
         user: state.user,
         lastChecked: state.lastChecked,
       }),
-      // Handle rehydration carefully to prevent loops
+      // Handle rehydration — do NOT mark as initialized; force server verify
       onRehydrateStorage: () => (state, error) => {
         if (error) {
           console.warn('Auth storage rehydration error:', error);
@@ -264,14 +252,10 @@ export const useAuthStore = create<AuthState>()(
         }
 
         if (state) {
-          // ALWAYS set initialized after rehydration
-          state.isInitialized = true;
+          // Keep isInitialized = false so checkAuth() will verify with server
+          state.isInitialized = false;
           state.isLoading = false;
-
-          // If we had a valid session, mark as checked
-          if (state.user) {
-            _authChecked = true;
-          }
+          // Do NOT set _authChecked — force fresh server verify on every page load
         }
       },
     }

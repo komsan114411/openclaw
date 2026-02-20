@@ -79,22 +79,41 @@ api.interceptors.response.use(
     // Handle 401 Unauthorized or 403 Forbidden (system access disabled)
     if (status === 401 || status === 403) {
       if (typeof window !== 'undefined') {
-        // Clear auth storage to prevent redirect loop (stale session in other tabs)
-        try {
-          localStorage.removeItem('auth-storage');
-        } catch (e) {
-          // Ignore storage errors
+        const requestUrl = error.config?.url || '';
+
+        // /auth/me 401 — let auth store handle it, don't redirect here
+        if (requestUrl.includes('/auth/me')) {
+          return Promise.reject(error);
         }
 
-        const path = window.location.pathname;
-        // Don't redirect if already on login page to avoid refresh loop
-        if (!path.startsWith('/login') && !path.startsWith('/register')) {
-          // For 403, include the error message as a query param
-          if (status === 403 && error.response?.data?.message) {
-            const message = encodeURIComponent(error.response.data.message);
-            window.location.href = `/login?error=${message}`;
-          } else {
-            window.location.href = '/login';
+        const errorMessage = error.response?.data?.message || '';
+        const errorCode = error.response?.data?.error?.code || '';
+
+        // 403 authorization errors (role-based) or CSRF errors should NOT redirect to login
+        const isAuthorizationError =
+          status === 403 &&
+          (errorMessage === 'Insufficient permissions' ||
+           errorMessage.startsWith('ไม่มีสิทธิ์') ||
+           errorCode.startsWith('CSRF'));
+
+        if (!isAuthorizationError) {
+          // Clear auth storage to prevent redirect loop (stale session in other tabs)
+          try {
+            localStorage.removeItem('auth-storage');
+          } catch (e) {
+            // Ignore storage errors
+          }
+
+          const path = window.location.pathname;
+          // Don't redirect if already on login page to avoid refresh loop
+          if (!path.startsWith('/login') && !path.startsWith('/register')) {
+            // For 403 (maintenance mode), include the error message as a query param
+            if (status === 403 && errorMessage) {
+              const msg = encodeURIComponent(errorMessage);
+              window.location.href = `/login?error=${msg}`;
+            } else {
+              window.location.href = '/login';
+            }
           }
         }
       }
