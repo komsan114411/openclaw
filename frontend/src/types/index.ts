@@ -113,6 +113,7 @@ export interface LineAccountSettings {
   // Angpao
   enableAngpao?: boolean;
   angpaoPhoneNumber?: string;
+  angpaoRecipientName?: string;
 }
 
 export interface Package {

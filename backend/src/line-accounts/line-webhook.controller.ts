@@ -373,7 +373,8 @@ export class LineWebhookController {
       });
 
       // Build Flex Message for angpao result
-      const flexMessage = this.buildAngpaoFlexMessage(result);
+      const recipientName = account.settings?.angpaoRecipientName || '';
+      const flexMessage = this.buildAngpaoFlexMessage(result, recipientName);
       const messages = [flexMessage];
       try {
         if (replyToken) {
@@ -433,7 +434,7 @@ export class LineWebhookController {
       ownerName?: string;
       samePhone: boolean;
     };
-  }): Record<string, unknown> {
+  }, recipientName?: string): Record<string, unknown> {
     // Determine header per status
     let icon: string;
     let title: string;
@@ -653,6 +654,10 @@ export class LineWebhookController {
     }
 
     // === FOOTER section (always show reminder) ===
+    const footerText = result.status === 'success' && recipientName?.trim()
+      ? `กรุณาตรวจสอบในลิงก์อีกครั้งว่าผู้รับซองชื่อ «${recipientName.trim()}»`
+      : 'โปรดเปิดซองอังเปาเพื่อตรวจสอบอีกครั้ง';
+
     const footer = {
       type: 'box',
       layout: 'vertical',
@@ -660,7 +665,7 @@ export class LineWebhookController {
         { type: 'separator' },
         {
           type: 'text',
-          text: 'โปรดเปิดซองอังเปาเพื่อตรวจสอบอีกครั้ง',
+          text: footerText,
           size: 'xxs',
           color: '#AAAAAA',
           align: 'center',

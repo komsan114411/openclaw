@@ -183,6 +183,10 @@ export class LineAccountSettings {
   /** Thai mobile number (0xxxxxxxxx) for receiving angpao */
   @Prop()
   angpaoPhoneNumber: string;
+
+  /** ชื่อผู้รับอังเปา — แสดงใน Flex Message ให้ลูกค้าตรวจสอบ */
+  @Prop()
+  angpaoRecipientName: string;
 }
 
 @Schema({ _id: false })

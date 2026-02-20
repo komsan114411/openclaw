@@ -424,7 +424,7 @@ export class LineAccountsService {
     // Quota
     'quotaAlertEnabled', 'quotaAlertThreshold',
     // Angpao
-    'enableAngpao', 'angpaoPhoneNumber',
+    'enableAngpao', 'angpaoPhoneNumber', 'angpaoRecipientName',
   ]);
 
   async updateSettings(id: string, settings: Partial<LineAccountDocument['settings']>): Promise<void> {

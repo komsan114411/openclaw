@@ -473,6 +473,7 @@ export default function AdminLineAccountsPage() {
     // Angpao
     enableAngpao: false,
     angpaoPhoneNumber: '',
+    angpaoRecipientName: '',
   });
 
   // AI Settings from system
@@ -844,6 +845,7 @@ export default function AdminLineAccountsPage() {
       // Angpao
       enableAngpao: (s as Record<string, unknown>).enableAngpao as boolean ?? false,
       angpaoPhoneNumber: (s as Record<string, unknown>).angpaoPhoneNumber as string || '',
+      angpaoRecipientName: (s as Record<string, unknown>).angpaoRecipientName as string || '',
     });
     setActiveSettingsTab('core');
     setShowSettingsModal(true);
@@ -2183,6 +2185,18 @@ export default function AdminLineAccountsPage() {
                     {settingsData.enableAngpao && !settingsData.angpaoPhoneNumber && (
                       <p className="text-xs text-amber-400">กรุณากรอกเบอร์โทรศัพท์เพื่อเปิดใช้งานอังเปา</p>
                     )}
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-xs font-semibold text-white/60">ชื่อผู้รับอังเปา (แสดงให้ลูกค้าตรวจสอบ)</label>
+                    <input
+                      type="text"
+                      placeholder="เช่น สมชาย ใจดี"
+                      maxLength={100}
+                      value={settingsData.angpaoRecipientName}
+                      onChange={(e) => setSettingsData({ ...settingsData, angpaoRecipientName: e.target.value })}
+                      className="w-full px-4 py-3 bg-black/20 border border-white/10 rounded-xl text-sm text-white placeholder-white/30 focus:outline-none focus:ring-2 focus:ring-rose-500/50"
+                    />
+                    <p className="text-[10px] text-white/30">ถ้ากรอก — บอทจะแสดงชื่อนี้ใน Flex Message ให้ลูกค้าตรวจสอบว่าผู้รับตรงกัน</p>
                   </div>
                 </div>
               )}

@@ -373,6 +373,7 @@ export default function UserLineAccountsPage() {
     // Angpao
     enableAngpao: false,
     angpaoPhoneNumber: '',
+    angpaoRecipientName: '',
   });
 
   const [activeSettingsTab, setActiveSettingsTab] = useState<'core' | 'ai'>('core');
@@ -830,6 +831,7 @@ export default function UserLineAccountsPage() {
       // Angpao
       enableAngpao: (s as Record<string, unknown>).enableAngpao as boolean ?? false,
       angpaoPhoneNumber: (s as Record<string, unknown>).angpaoPhoneNumber as string || '',
+      angpaoRecipientName: (s as Record<string, unknown>).angpaoRecipientName as string || '',
     });
     setShowSettingsModal(true);
   };
@@ -1858,6 +1860,18 @@ export default function UserLineAccountsPage() {
                           <p className="text-xs text-amber-400">กรุณากรอกเบอร์โทรศัพท์เพื่อเปิดใช้งานอังเปา</p>
                         )}
                         <p className="text-[10px] text-slate-500 ml-1">แต่ละบัญชีตั้งเบอร์แยกกันได้ เบอร์เดียวกันใช้ซ้ำในบัญชีอื่นไม่ได้</p>
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-xs font-semibold text-white/50 ml-1">ชื่อผู้รับอังเปา (แสดงให้ลูกค้าตรวจสอบ)</label>
+                        <Input
+                          type="text"
+                          placeholder="เช่น สมชาย ใจดี"
+                          maxLength={100}
+                          value={settingsData.angpaoRecipientName}
+                          onChange={(e) => setSettingsData({ ...settingsData, angpaoRecipientName: e.target.value })}
+                          className="bg-slate-950/50 border-white/10 h-12 rounded-xl text-white font-bold text-sm"
+                        />
+                        <p className="text-[10px] text-slate-500 ml-1">ถ้ากรอก — บอทจะแสดงชื่อนี้ใน Flex Message ให้ลูกค้าตรวจสอบว่าผู้รับตรงกัน</p>
                       </div>
                     </div>
                   </div>
