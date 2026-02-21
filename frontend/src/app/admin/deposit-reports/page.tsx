@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import { slipApi, lineAccountsApi } from '@/lib/api';
 import toast from 'react-hot-toast';
@@ -16,6 +17,7 @@ interface CustomerSummary {
   lastSenderName: string;
   lastSenderBank: string;
   senderAccount: string;
+  lastLineAccountId: string;
   firstDeposit: string;
   lastDeposit: string;
   lineDisplayName: string;
@@ -66,6 +68,8 @@ function formatAmount(n: number): string {
 // ─── Component ───────────────────────────────────────────────────────────────
 
 export default function DepositReportsPage() {
+  const router = useRouter();
+
   // Filter state
   const [lineAccounts, setLineAccounts] = useState<LineAccount[]>([]);
   const [selectedAccount, setSelectedAccount] = useState('');
@@ -135,6 +139,17 @@ export default function DepositReportsPage() {
     if (e.key === 'Enter') handleSearch();
   };
 
+  // Navigate to chat with this customer
+  const navigateToChat = (customer: CustomerSummary, e: React.MouseEvent) => {
+    e.stopPropagation();
+    const accountId = selectedAccount || customer.lastLineAccountId;
+    if (!accountId) {
+      toast.error('ไม่พบบัญชี LINE สำหรับลูกค้านี้');
+      return;
+    }
+    router.push(`/admin/chat?accountId=${accountId}&userId=${customer.lineUserId}`);
+  };
+
   // Detail modal
   const openDetail = async (customer: CustomerSummary) => {
     setDetailCustomer(customer);
@@ -195,7 +210,7 @@ export default function DepositReportsPage() {
   const avgPerCustomer = uniqueCustomers > 0 ? grandTotalAmount / uniqueCustomers : 0;
 
   return (
-    <DashboardLayout>
+    <DashboardLayout requiredRole="admin">
       <div className="space-y-6">
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -375,6 +390,7 @@ export default function DepositReportsPage() {
                         <th className="text-right px-4 py-3 text-xs font-bold text-slate-400 uppercase tracking-wider">ยอดรวม</th>
                         <th className="text-left px-4 py-3 text-xs font-bold text-slate-400 uppercase tracking-wider hidden xl:table-cell">แรก</th>
                         <th className="text-left px-4 py-3 text-xs font-bold text-slate-400 uppercase tracking-wider hidden xl:table-cell">ล่าสุด</th>
+                        <th className="text-center px-3 py-3 text-xs font-bold text-slate-400 uppercase tracking-wider"></th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-white/[0.04]">
@@ -401,6 +417,18 @@ export default function DepositReportsPage() {
                           </td>
                           <td className="px-4 py-3 text-slate-500 text-xs hidden xl:table-cell">{formatDate(c.firstDeposit)}</td>
                           <td className="px-4 py-3 text-slate-500 text-xs hidden xl:table-cell">{formatDate(c.lastDeposit)}</td>
+                          <td className="px-3 py-3 text-center">
+                            <button
+                              onClick={(e) => navigateToChat(c, e)}
+                              title="ดูแชท"
+                              className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 rounded-lg text-xs font-medium transition-all border border-blue-500/20 hover:border-blue-500/40"
+                            >
+                              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                              </svg>
+                              <span className="hidden sm:inline">แชท</span>
+                            </button>
+                          </td>
                         </tr>
                       ))}
                     </tbody>

@@ -40,6 +40,7 @@ function AdminChatContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const accountId = searchParams.get('accountId') || '';
+  const deepLinkUserId = searchParams.get('userId') || '';
 
   const [accounts, setAccounts] = useState<LineAccount[]>([]);
   const [selectedAccountId, setSelectedAccountId] = useState(accountId);
@@ -223,9 +224,22 @@ function AdminChatContent() {
 
   useEffect(() => {
     fetchUsers();
-    setSelectedUser(null);
-    setMessages([]);
-  }, [selectedAccountId, fetchUsers]);
+    // Only reset user if not coming from deep link
+    if (!deepLinkUserId) {
+      setSelectedUser(null);
+      setMessages([]);
+    }
+  }, [selectedAccountId, fetchUsers, deepLinkUserId]);
+
+  // Auto-select user from deep link (e.g. from deposit reports page)
+  useEffect(() => {
+    if (deepLinkUserId && users.length > 0 && !selectedUser) {
+      const found = users.find((u) => u.lineUserId === deepLinkUserId);
+      if (found) {
+        setSelectedUser(found);
+      }
+    }
+  }, [deepLinkUserId, users, selectedUser]);
 
   // Fetch messages ONCE when selecting a user (no polling)
   useEffect(() => {
