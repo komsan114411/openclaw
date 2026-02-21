@@ -471,6 +471,19 @@ export const slipApi = {
     api.post('/slip-verification/test-connection', { apiKey }),
   getHistory: (lineAccountId: string, limit?: number) =>
     api.get(`/slip-verification/history/${lineAccountId}`, { params: { limit } }),
+  getCustomerDeposits: (params: {
+    lineAccountId?: string;
+    startDate?: string;
+    endDate?: string;
+    page?: number;
+    limit?: number;
+    search?: string;
+  }) => api.get('/slip-verification/customer-deposits', { params }),
+  getCustomerSlipHistory: (lineUserId: string, params?: {
+    lineAccountId?: string;
+    startDate?: string;
+    endDate?: string;
+  }) => api.get(`/slip-verification/customer-deposits/detail/${lineUserId}`, { params }),
 };
 
 // Chatbot API

@@ -1,9 +1,10 @@
 import { Injectable, Logger, Optional } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model, Types } from 'mongoose';
+import { Model, Types, PipelineStage } from 'mongoose';
 import axios from 'axios';
 import * as FormData from 'form-data';
 import { SlipHistory, SlipHistoryDocument, SlipStatus } from '../database/schemas/slip-history.schema';
+import { escapeRegex } from '../common/utils/validation.util';
 import {
   QuotaReservation,
   QuotaReservationDocument,
@@ -1660,5 +1661,230 @@ export class SlipVerificationService {
       .sort({ createdAt: -1 })
       .limit(limit)
       .exec();
+  }
+
+  /**
+   * Get customer deposit summary with aggregation pipeline
+   * Groups by lineUserId, calculates totals, supports pagination and search
+   */
+  async getCustomerDepositSummary(query: {
+    lineAccountId?: string;
+    startDate?: string;
+    endDate?: string;
+    page?: number;
+    limit?: number;
+    search?: string;
+  }): Promise<{
+    customers: Array<{
+      lineUserId: string;
+      totalCount: number;
+      totalAmount: number;
+      lastSenderName: string;
+      lastSenderBank: string;
+      senderAccount: string;
+      firstDeposit: Date;
+      lastDeposit: Date;
+      lineDisplayName: string;
+    }>;
+    total: number;
+    grandTotalAmount: number;
+    grandTotalCount: number;
+  }> {
+    const page = Math.max(1, query.page || 1);
+    const limit = Math.min(200, Math.max(1, query.limit || 50));
+    const skip = (page - 1) * limit;
+
+    // Build match stage
+    const matchStage: Record<string, unknown> = { status: 'success' };
+
+    if (query.lineAccountId) {
+      matchStage.lineAccountId = query.lineAccountId;
+    }
+
+    if (query.startDate || query.endDate) {
+      const dateFilter: Record<string, Date> = {};
+      if (query.startDate) {
+        dateFilter.$gte = new Date(query.startDate);
+      }
+      if (query.endDate) {
+        // End of the day for endDate
+        const end = new Date(query.endDate);
+        end.setHours(23, 59, 59, 999);
+        dateFilter.$lte = end;
+      }
+      matchStage.createdAt = dateFilter;
+    }
+
+    // Search filter on senderName (applied after group)
+    const searchMatch: PipelineStage | null = query.search
+      ? { $match: { lastSenderName: { $regex: escapeRegex(query.search), $options: 'i' } } }
+      : null;
+
+    const pipeline: PipelineStage[] = [
+      { $match: matchStage },
+      {
+        $sort: { createdAt: -1 as const },
+      },
+      {
+        $group: {
+          _id: '$lineUserId',
+          totalCount: { $sum: 1 },
+          totalAmount: { $sum: '$amount' },
+          lastSenderName: { $first: '$senderName' },
+          lastSenderBank: { $first: '$senderBank' },
+          senderAccount: {
+            $first: {
+              $ifNull: [
+                '$rawData.senderAccount',
+                { $ifNull: ['$rawData.senderProxyAccount', ''] },
+              ],
+            },
+          },
+          firstDeposit: { $last: '$createdAt' },
+          lastDeposit: { $first: '$createdAt' },
+        },
+      },
+    ];
+
+    // Add search filter if provided
+    if (searchMatch) {
+      pipeline.push(searchMatch);
+    }
+
+    // Lookup LINE display name from chat_messages
+    pipeline.push({
+      $lookup: {
+        from: 'chat_messages',
+        let: { uid: '$_id' },
+        pipeline: [
+          { $match: { $expr: { $eq: ['$lineUserId', '$$uid'] } } },
+          { $sort: { createdAt: -1 } },
+          { $limit: 1 },
+          { $project: { lineUserName: 1 } },
+        ],
+        as: '_chatMsg',
+      },
+    });
+
+    pipeline.push({
+      $addFields: {
+        lineDisplayName: {
+          $ifNull: [{ $arrayElemAt: ['$_chatMsg.lineUserName', 0] }, ''],
+        },
+      },
+    });
+
+    pipeline.push({ $project: { _chatMsg: 0 } });
+
+    // Use $facet to get both paginated data and totals in one query
+    pipeline.push({
+      $facet: {
+        data: [
+          { $sort: { totalAmount: -1 as const } },
+          { $skip: skip },
+          { $limit: limit },
+        ],
+        totals: [
+          {
+            $group: {
+              _id: null,
+              total: { $sum: 1 },
+              grandTotalAmount: { $sum: '$totalAmount' },
+              grandTotalCount: { $sum: '$totalCount' },
+            },
+          },
+        ],
+      },
+    });
+
+    const [result] = await this.slipHistoryModel.aggregate(pipeline).exec();
+
+    const totals = result.totals[0] || { total: 0, grandTotalAmount: 0, grandTotalCount: 0 };
+
+    return {
+      customers: result.data.map((d: Record<string, unknown>) => ({
+        lineUserId: d._id as string,
+        totalCount: d.totalCount as number,
+        totalAmount: d.totalAmount as number,
+        lastSenderName: (d.lastSenderName as string) || '',
+        lastSenderBank: (d.lastSenderBank as string) || '',
+        senderAccount: (d.senderAccount as string) || '',
+        firstDeposit: d.firstDeposit as Date,
+        lastDeposit: d.lastDeposit as Date,
+        lineDisplayName: (d.lineDisplayName as string) || '',
+      })),
+      total: totals.total,
+      grandTotalAmount: totals.grandTotalAmount,
+      grandTotalCount: totals.grandTotalCount,
+    };
+  }
+
+  /**
+   * Get individual slip history for a specific LINE user
+   * Used in the detail modal when clicking a customer row
+   */
+  async getCustomerSlipHistory(
+    lineUserId: string,
+    lineAccountId?: string,
+    startDate?: string,
+    endDate?: string,
+  ): Promise<{
+    slips: Array<{
+      transRef: string;
+      amount: number;
+      senderName: string;
+      senderBank: string;
+      receiverName: string;
+      receiverBank: string;
+      createdAt: Date;
+    }>;
+    total: number;
+    totalAmount: number;
+  }> {
+    const filter: Record<string, unknown> = {
+      status: 'success',
+      lineUserId,
+    };
+
+    if (lineAccountId) {
+      filter.lineAccountId = lineAccountId;
+    }
+
+    if (startDate || endDate) {
+      const dateFilter: Record<string, Date> = {};
+      if (startDate) {
+        dateFilter.$gte = new Date(startDate);
+      }
+      if (endDate) {
+        const end = new Date(endDate);
+        end.setHours(23, 59, 59, 999);
+        dateFilter.$lte = end;
+      }
+      filter.createdAt = dateFilter;
+    }
+
+    const slips = await this.slipHistoryModel
+      .find(filter)
+      .sort({ createdAt: -1 })
+      .limit(500)
+      .select('transRef amount senderName senderBank receiverName receiverBank createdAt')
+      .lean()
+      .exec();
+
+    const totalAmount = slips.reduce((sum, s) => sum + (s.amount || 0), 0);
+
+    return {
+      slips: slips.map((s) => ({
+        transRef: s.transRef || '',
+        amount: s.amount || 0,
+        senderName: s.senderName || '',
+        senderBank: s.senderBank || '',
+        receiverName: s.receiverName || '',
+        receiverBank: s.receiverBank || '',
+        createdAt: (s as Record<string, unknown>).createdAt as Date,
+      })),
+      total: slips.length,
+      totalAmount,
+    };
   }
 }

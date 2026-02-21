@@ -18,6 +18,7 @@ import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { UserRole } from '../database/schemas/user.schema';
 import { SystemSettingsService } from '../system-settings/system-settings.service';
+import { CustomerDepositsQueryDto, CustomerSlipHistoryQueryDto } from './dto/customer-deposits.dto';
 
 @ApiTags('Slip Verification')
 @ApiBearerAuth()
@@ -105,5 +106,38 @@ export class SlipVerificationController {
       success: true,
       history,
     };
+  }
+
+  @Get('customer-deposits/detail/:lineUserId')
+  @UseGuards(RolesGuard)
+  @Roles(UserRole.ADMIN)
+  @ApiOperation({ summary: 'Get individual customer slip history (Admin only)' })
+  async getCustomerSlipHistory(
+    @Param('lineUserId') lineUserId: string,
+    @Query() query: CustomerSlipHistoryQueryDto,
+  ) {
+    const result = await this.slipVerificationService.getCustomerSlipHistory(
+      lineUserId,
+      query.lineAccountId,
+      query.startDate,
+      query.endDate,
+    );
+    return { success: true, ...result };
+  }
+
+  @Get('customer-deposits')
+  @UseGuards(RolesGuard)
+  @Roles(UserRole.ADMIN)
+  @ApiOperation({ summary: 'Get customer deposit summary (Admin only)' })
+  async getCustomerDeposits(@Query() query: CustomerDepositsQueryDto) {
+    const result = await this.slipVerificationService.getCustomerDepositSummary({
+      lineAccountId: query.lineAccountId,
+      startDate: query.startDate,
+      endDate: query.endDate,
+      page: query.page ? parseInt(query.page, 10) : 1,
+      limit: query.limit ? parseInt(query.limit, 10) : 50,
+      search: query.search,
+    });
+    return { success: true, ...result };
   }
 }
