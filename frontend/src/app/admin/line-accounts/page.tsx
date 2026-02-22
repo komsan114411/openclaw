@@ -1874,7 +1874,7 @@ export default function AdminLineAccountsPage() {
                         </div>
                       </td>
                       <td className="px-8 py-6 text-right">
-                        <div className="flex gap-2 justify-end opacity-0 group-hover:opacity-100 transition-all duration-300 translate-x-4 group-hover:translate-x-0">
+                        <div className="flex gap-2 justify-end opacity-60 group-hover:opacity-100 transition-all duration-300">
                           <IconButton variant="ghost" size="sm" className="rounded-xl h-10 w-10 text-slate-500 hover:text-white hover:bg-white/5" onClick={() => { setSelectedAccount(account); setShowDetailModal(true); }}><Eye className="w-4 h-4" /></IconButton>
                           <IconButton variant="ghost" size="sm" className="rounded-xl h-10 w-10 text-cyan-400 hover:bg-cyan-400/10" onClick={() => openSessionModal(account)} title="Session & Keys"><Key className="w-4 h-4" /></IconButton>
                           <IconButton variant="ghost" size="sm" className="rounded-xl h-10 w-10 text-emerald-500 hover:bg-emerald-500/10" onClick={() => openSettingsModal(account)}><Settings className="w-4 h-4" /></IconButton>
@@ -2070,7 +2070,7 @@ export default function AdminLineAccountsPage() {
                   if (!isDisabled) setActiveSettingsTab(tab.id);
                 }}
                 className={cn(
-                  'flex-1 relative z-10 flex items-center justify-center gap-2 py-3 px-2 rounded-xl text-xs font-bold transition-all duration-200',
+                  'flex-1 relative z-10 flex items-center justify-center gap-1 sm:gap-2 py-2.5 sm:py-3 px-1 sm:px-2 rounded-xl text-xs font-bold transition-all duration-200',
                   isActive
                     ? 'text-white'
                     : isDisabled
@@ -2092,8 +2092,8 @@ export default function AdminLineAccountsPage() {
                   {tab.icon === 'CRYSTAL' && <span>🔮</span>}
                   {tab.icon === 'MSG' && <MessageSquare size={14} className="inline -mt-0.5" />}
                 </span>
-                <span className="relative z-10 hidden sm:inline">{tab.name}</span>
-                {isDisabled && <span className="relative z-10 hidden md:inline text-[9px] opacity-60">(เปิด AI ก่อน)</span>}
+                <span className="relative z-10 text-[10px] sm:text-xs">{tab.name}</span>
+                {isDisabled && <span className="relative z-10 hidden sm:inline text-[9px] opacity-60">(เปิด AI ก่อน)</span>}
               </button>
             );
           })}
@@ -2106,48 +2106,95 @@ export default function AdminLineAccountsPage() {
             <motion.div key="core" initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 20 }} transition={{ duration: 0.2 }} className="space-y-8">
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
                 {/* Bot Toggle */}
-                <div className={cn("p-6 rounded-2xl flex flex-col items-center text-center gap-4 transition-all border", settingsData.enableBot ? "bg-emerald-500/10 border-emerald-500/20" : "bg-white/[0.02] border-white/5 opacity-60")}>
+                <div
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => setSettingsData({ ...settingsData, enableBot: !settingsData.enableBot })}
+                  onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setSettingsData({ ...settingsData, enableBot: !settingsData.enableBot }); } }}
+                  className={cn("p-6 rounded-2xl flex flex-col items-center text-center gap-4 transition-all border cursor-pointer", settingsData.enableBot ? "bg-emerald-500/10 border-emerald-500/20 hover:border-emerald-500/40" : "bg-white/[0.02] border-white/5 opacity-60 hover:border-white/20 hover:opacity-80")}
+                >
                   <div className={cn("w-12 h-12 rounded-xl flex items-center justify-center text-2xl", settingsData.enableBot ? "bg-emerald-500 text-white shadow-lg shadow-emerald-500/30" : "bg-white/10 text-white/30")}>🤖</div>
                   <div className="space-y-1">
                     <p className="font-black text-sm text-white">Automation Bot</p>
                     <p className="text-xs text-white/40">ระบบตอบกลับอัตโนมัติ เมื่อมีข้อความเข้ามา</p>
                   </div>
-                  <Switch checked={settingsData.enableBot} onChange={(checked) => setSettingsData({ ...settingsData, enableBot: checked })} />
+                  <div onClick={(e) => e.stopPropagation()}>
+                    <Switch checked={settingsData.enableBot} onChange={(checked) => setSettingsData({ ...settingsData, enableBot: checked })} />
+                  </div>
                 </div>
 
                 {/* Slip Toggle */}
-                <div className={cn("p-6 rounded-2xl flex flex-col items-center text-center gap-4 transition-all border", settingsData.enableSlipVerification ? "bg-amber-500/10 border-amber-500/20" : "bg-white/[0.02] border-white/5 opacity-60")}>
+                <div
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => setSettingsData({ ...settingsData, enableSlipVerification: !settingsData.enableSlipVerification })}
+                  onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setSettingsData({ ...settingsData, enableSlipVerification: !settingsData.enableSlipVerification }); } }}
+                  className={cn("p-6 rounded-2xl flex flex-col items-center text-center gap-4 transition-all border cursor-pointer", settingsData.enableSlipVerification ? "bg-amber-500/10 border-amber-500/20 hover:border-amber-500/40" : "bg-white/[0.02] border-white/5 opacity-60 hover:border-white/20 hover:opacity-80")}
+                >
                   <div className={cn("w-12 h-12 rounded-xl flex items-center justify-center text-2xl", settingsData.enableSlipVerification ? "bg-amber-500 text-white shadow-lg shadow-amber-500/30" : "bg-white/10 text-white/30")}>📄</div>
                   <div className="space-y-1">
                     <p className="font-black text-sm text-white">Slip Verifier</p>
                     <p className="text-xs text-white/40">ตรวจสอบสลิปโอนเงินอัตโนมัติผ่าน API</p>
                   </div>
-                  <Switch checked={settingsData.enableSlipVerification} onChange={(checked) => setSettingsData({ ...settingsData, enableSlipVerification: checked })} />
+                  <div onClick={(e) => e.stopPropagation()}>
+                    <Switch checked={settingsData.enableSlipVerification} onChange={(checked) => setSettingsData({ ...settingsData, enableSlipVerification: checked })} />
+                  </div>
                 </div>
 
                 {/* AI Toggle */}
-                <div className={cn("p-6 rounded-2xl flex flex-col items-center text-center gap-4 transition-all border", settingsData.enableAi ? "bg-indigo-500/10 border-indigo-500/20" : "bg-white/[0.02] border-white/5 opacity-60")}>
+                <div
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => {
+                    const newChecked = !settingsData.enableAi;
+                    setSettingsData({ ...settingsData, enableAi: newChecked });
+                    if (!newChecked) {
+                      setActiveSettingsTab(prev => (prev === 'ai' || prev === 'smartai') ? 'core' : prev);
+                    }
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      const newChecked = !settingsData.enableAi;
+                      setSettingsData({ ...settingsData, enableAi: newChecked });
+                      if (!newChecked) {
+                        setActiveSettingsTab(prev => (prev === 'ai' || prev === 'smartai') ? 'core' : prev);
+                      }
+                    }
+                  }}
+                  className={cn("p-6 rounded-2xl flex flex-col items-center text-center gap-4 transition-all border cursor-pointer", settingsData.enableAi ? "bg-indigo-500/10 border-indigo-500/20 hover:border-indigo-500/40" : "bg-white/[0.02] border-white/5 opacity-60 hover:border-white/20 hover:opacity-80")}
+                >
                   <div className={cn("w-12 h-12 rounded-xl flex items-center justify-center text-2xl", settingsData.enableAi ? "bg-indigo-500 text-white shadow-lg shadow-indigo-500/30" : "bg-white/10 text-white/30")}>🧠</div>
                   <div className="space-y-1">
                     <p className="font-black text-sm text-white">Neural Engine</p>
                     <p className="text-xs text-white/40">สมองกลอัจฉริยะ (AI) สำหรับตอบคำถามลูกค้า</p>
                   </div>
-                  <Switch checked={settingsData.enableAi} onChange={(checked) => {
-                    setSettingsData({ ...settingsData, enableAi: checked });
-                    if (!checked) {
-                      setActiveSettingsTab(prev => (prev === 'ai' || prev === 'smartai') ? 'core' : prev);
-                    }
-                  }} />
+                  <div onClick={(e) => e.stopPropagation()}>
+                    <Switch checked={settingsData.enableAi} onChange={(checked) => {
+                      setSettingsData({ ...settingsData, enableAi: checked });
+                      if (!checked) {
+                        setActiveSettingsTab(prev => (prev === 'ai' || prev === 'smartai') ? 'core' : prev);
+                      }
+                    }} />
+                  </div>
                 </div>
 
                 {/* Angpao Toggle */}
-                <div className={cn("p-6 rounded-2xl flex flex-col items-center text-center gap-4 transition-all border", settingsData.enableAngpao ? "bg-rose-500/10 border-rose-500/20" : "bg-white/[0.02] border-white/5 opacity-60")}>
+                <div
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => setSettingsData({ ...settingsData, enableAngpao: !settingsData.enableAngpao })}
+                  onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setSettingsData({ ...settingsData, enableAngpao: !settingsData.enableAngpao }); } }}
+                  className={cn("p-6 rounded-2xl flex flex-col items-center text-center gap-4 transition-all border cursor-pointer", settingsData.enableAngpao ? "bg-rose-500/10 border-rose-500/20 hover:border-rose-500/40" : "bg-white/[0.02] border-white/5 opacity-60 hover:border-white/20 hover:opacity-80")}
+                >
                   <div className={cn("w-12 h-12 rounded-xl flex items-center justify-center text-2xl", settingsData.enableAngpao ? "bg-rose-500 text-white shadow-lg shadow-rose-500/30" : "bg-white/10 text-white/30")}>🧧</div>
                   <div className="space-y-1">
                     <p className="font-black text-sm text-white">Angpao Bot</p>
                     <p className="text-xs text-white/40">รับอังเปา TrueMoney อัตโนมัติจากลูกค้า</p>
                   </div>
-                  <Switch checked={settingsData.enableAngpao} onChange={(checked) => setSettingsData({ ...settingsData, enableAngpao: checked })} />
+                  <div onClick={(e) => e.stopPropagation()}>
+                    <Switch checked={settingsData.enableAngpao} onChange={(checked) => setSettingsData({ ...settingsData, enableAngpao: checked })} />
+                  </div>
                 </div>
               </div>
 

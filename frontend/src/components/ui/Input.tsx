@@ -173,13 +173,13 @@ export function Switch({ checked, onChange, label, description, disabled = false
   return (
     <label className={cn(
       'flex items-center justify-between p-3 sm:p-3 rounded-2xl border-2 transition-all duration-300 group min-h-[48px]',
-      checked ? 'bg-emerald-50/30 border-emerald-100' : 'bg-slate-50 border-slate-100',
-      disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer hover:border-emerald-200'
+      checked ? 'bg-emerald-500/10 border-emerald-500/20' : 'bg-white/5 border-white/10',
+      disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer hover:border-emerald-500/30'
     )}>
       {(label || description) && (
         <div className="mr-4 flex-1">
-          {label && <span className="text-sm font-bold text-slate-900 group-hover:text-emerald-600 transition-colors uppercase tracking-tight">{label}</span>}
-          {description && <p className="text-xs text-slate-400 mt-0.5 font-medium italic">{description}</p>}
+          {label && <span className="text-sm font-bold text-white group-hover:text-emerald-400 transition-colors uppercase tracking-tight">{label}</span>}
+          {description && <p className="text-xs text-white/50 mt-0.5 font-medium italic">{description}</p>}
         </div>
       )}
       <button
@@ -191,7 +191,7 @@ export function Switch({ checked, onChange, label, description, disabled = false
         className={cn(
           'relative inline-flex h-7 w-12 items-center rounded-full transition-all duration-300 ring-offset-4 flex-shrink-0',
           'focus:outline-none focus:ring-2 focus:ring-emerald-500 shadow-inner',
-          checked ? 'bg-emerald-500' : 'bg-slate-300',
+          checked ? 'bg-emerald-500' : 'bg-white/20',
           disabled ? 'cursor-not-allowed' : ''
         )}
       >
