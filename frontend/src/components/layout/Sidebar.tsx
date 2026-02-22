@@ -326,8 +326,8 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
   // STRICT ROLE CHECK: Determine which menu to render based on user role
   const isAdmin = user?.role === 'admin';
 
-  // User chat enabled state (only relevant for non-admin users)
-  const [userChatEnabled, setUserChatEnabled] = useState(true);
+  // User chat enabled state (null = loading, hide chat until known to prevent flicker)
+  const [userChatEnabled, setUserChatEnabled] = useState<boolean | null>(isAdmin ? true : null);
 
   useEffect(() => {
     if (!isAdmin) {
@@ -339,10 +339,10 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
     }
   }, [isAdmin]);
 
-  // Filter out chat menu item for users when disabled
+  // Filter out chat menu item for users when disabled or still loading
   const menuItems = isAdmin
     ? ADMIN_MENU_ITEMS
-    : userChatEnabled
+    : userChatEnabled === true
       ? USER_MENU_ITEMS
       : USER_MENU_ITEMS.filter(item => item.href !== '/user/chat');
 
