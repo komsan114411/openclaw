@@ -240,6 +240,12 @@ export class SystemSettings {
   @Prop({ default: 'ระบบปิดให้บริการเข้าสู่ระบบชั่วคราว กรุณาติดต่อผู้ดูแลระบบ' })
   loginDisabledMessage: string;
 
+  /**
+   * Allow user role to access chat feature
+   */
+  @Prop({ default: true })
+  userChatEnabled: boolean;
+
   // ===============================
   // Quota Reservation Cleanup Settings
   // ===============================

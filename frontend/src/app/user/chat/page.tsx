@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef, useCallback, useLayoutEffect, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import DashboardLayout from '@/components/layout/DashboardLayout';
-import { chatMessagesApi, lineAccountsApi } from '@/lib/api';
+import { chatMessagesApi, lineAccountsApi, systemSettingsApi } from '@/lib/api';
 import { LineAccount } from '@/types';
 import toast from 'react-hot-toast';
 import { io, Socket } from 'socket.io-client';
@@ -129,6 +129,17 @@ function UserChatContent() {
   const [hasNewMessage, setHasNewMessage] = useState(false);
   const hasAutoSelectedRef = useRef(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  // Chat enabled check
+  const [chatEnabled, setChatEnabled] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    systemSettingsApi.getAccessStatus().then(res => {
+      setChatEnabled(res.data?.userChatEnabled ?? true);
+    }).catch(() => {
+      setChatEnabled(true); // default to enabled on error
+    });
+  }, []);
 
   // Update ref when selectedUser changes
   useEffect(() => {
@@ -447,6 +458,31 @@ function UserChatContent() {
     if (!messageSearchTerm) return true;
     return msg.messageText?.toLowerCase().includes(messageSearchTerm.toLowerCase());
   });
+
+  // Chat disabled by admin
+  if (chatEnabled === null) {
+    return (
+      <DashboardLayout>
+        <PageLoading message="กำลังโหลด..." />
+      </DashboardLayout>
+    );
+  }
+
+  if (chatEnabled === false) {
+    return (
+      <DashboardLayout>
+        <div className="h-[calc(100dvh-80px)] flex items-center justify-center">
+          <EmptyState
+            icon={<div className="w-20 h-20 rounded-full bg-slate-500/10 flex items-center justify-center">
+              <MessageCircle className="w-10 h-10 text-slate-500" />
+            </div>}
+            title="ระบบแชทถูกปิดใช้งานชั่วคราว"
+            description="ผู้ดูแลระบบปิดเมนูแชทสำหรับผู้ใช้ กรุณาติดต่อแอดมินหากต้องการใช้งาน"
+          />
+        </div>
+      </DashboardLayout>
+    );
+  }
 
   // Loading state
   if (loadingAccounts) {

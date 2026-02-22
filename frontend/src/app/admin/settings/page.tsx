@@ -127,6 +127,7 @@ export default function SettingsPage() {
     registrationDisabledMessage: 'ระบบปิดรับสมัครสมาชิกใหม่ชั่วคราว กรุณาติดต่อผู้ดูแลระบบ',
     allowLogin: true,
     loginDisabledMessage: 'ระบบปิดให้บริการเข้าสู่ระบบชั่วคราว กรุณาติดต่อผู้ดูแลระบบ',
+    userChatEnabled: true,
   });
 
   // System Control Settings (ควบคุมการทำงานของระบบ)
@@ -271,6 +272,7 @@ export default function SettingsPage() {
         registrationDisabledMessage: data.registrationDisabledMessage || 'ระบบปิดรับสมัครสมาชิกใหม่ชั่วคราว กรุณาติดต่อผู้ดูแลระบบ',
         allowLogin: data.allowLogin ?? true,
         loginDisabledMessage: data.loginDisabledMessage || 'ระบบปิดให้บริการเข้าสู่ระบบชั่วคราว กรุณาติดต่อผู้ดูแลระบบ',
+        userChatEnabled: data.userChatEnabled ?? true,
       });
       setSystemControlSettings({
         globalSlipVerificationEnabled: data.globalSlipVerificationEnabled ?? true,
@@ -2554,10 +2556,40 @@ export default function SettingsPage() {
                       )}
                     </div>
 
+                    {/* User Chat Control */}
+                    <div className="p-4 sm:p-6 rounded-xl sm:rounded-2xl bg-white/[0.02] border border-white/5">
+                      <div className="flex items-center justify-between mb-4 gap-3">
+                        <div className="flex items-center gap-3 sm:gap-4 min-w-0">
+                          <div className="w-10 h-10 sm:w-12 sm:h-12 bg-purple-500/10 rounded-lg sm:rounded-xl flex items-center justify-center shrink-0">
+                            <span className="text-lg sm:text-xl">💬</span>
+                          </div>
+                          <div className="min-w-0">
+                            <h3 className="text-sm sm:text-lg font-bold text-white">เปิดเมนูแชทสำหรับผู้ใช้</h3>
+                            <p className="text-[10px] sm:text-xs text-slate-500">เปิดหรือปิดเมนูแชทในหน้าผู้ใช้ (แอดมินเข้าได้เสมอ)</p>
+                          </div>
+                        </div>
+                        <Switch
+                          checked={accessControlSettings.userChatEnabled}
+                          onChange={(checked) => setAccessControlSettings({
+                            ...accessControlSettings,
+                            userChatEnabled: checked
+                          })}
+                        />
+                      </div>
+                      {!accessControlSettings.userChatEnabled && (
+                        <div className="mt-4 p-3 rounded-lg bg-purple-500/10 border border-purple-500/20">
+                          <p className="text-xs text-purple-400 font-semibold flex items-center gap-2">
+                            <span>💬</span>
+                            <span>ผู้ใช้จะไม่เห็นเมนูแชทและไม่สามารถเข้าถึงหน้าแชทได้ แอดมินยังเข้าได้ตามปกติ</span>
+                          </p>
+                        </div>
+                      )}
+                    </div>
+
                     {/* Current Status */}
                     <div className="p-6 rounded-2xl bg-gradient-to-r from-slate-900/50 to-slate-800/50 border border-white/5">
                       <h3 className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-4">สถานะปัจจุบัน</h3>
-                      <div className="grid grid-cols-2 gap-4">
+                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
                         <div className="flex items-center gap-3">
                           <div className={cn(
                             "w-3 h-3 rounded-full",
@@ -2577,6 +2609,17 @@ export default function SettingsPage() {
                           <span className="text-sm text-slate-300">
                             การเข้าสู่ระบบ: <span className={cn("font-bold", accessControlSettings.allowLogin ? "text-emerald-400" : "text-rose-400")}>
                               {accessControlSettings.allowLogin ? 'เปิด' : 'ปิด'}
+                            </span>
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <div className={cn(
+                            "w-3 h-3 rounded-full",
+                            accessControlSettings.userChatEnabled ? "bg-emerald-500 shadow-emerald-500/50 shadow-lg" : "bg-rose-500 shadow-rose-500/50 shadow-lg"
+                          )} />
+                          <span className="text-sm text-slate-300">
+                            แชทผู้ใช้: <span className={cn("font-bold", accessControlSettings.userChatEnabled ? "text-emerald-400" : "text-rose-400")}>
+                              {accessControlSettings.userChatEnabled ? 'เปิด' : 'ปิด'}
                             </span>
                           </span>
                         </div>

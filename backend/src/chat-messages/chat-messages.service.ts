@@ -11,6 +11,7 @@ import {
 import { LineAccount, LineAccountDocument } from '../database/schemas/line-account.schema';
 import { UserRole } from '../database/schemas/user.schema';
 import { WebsocketGateway } from '../websocket/websocket.gateway';
+import { SystemSettingsService } from '../system-settings/system-settings.service';
 
 export interface ChatUser {
   lineUserId: string;
@@ -43,6 +44,7 @@ export class ChatMessagesService {
     @InjectModel(ChatMessage.name) private chatMessageModel: Model<ChatMessageDocument>,
     @InjectModel(LineAccount.name) private lineAccountModel: Model<LineAccountDocument>,
     private websocketGateway: WebsocketGateway,
+    private systemSettingsService: SystemSettingsService,
   ) { }
 
   /**
@@ -67,8 +69,16 @@ export class ChatMessagesService {
       throw new NotFoundException('LINE Account not found');
     }
 
-    if (user.role !== UserRole.ADMIN && account.ownerId !== user.userId) {
-      throw new ForbiddenException('Access denied');
+    if (user.role !== UserRole.ADMIN) {
+      // Check if user chat is enabled globally
+      const settings = await this.systemSettingsService.getSettings();
+      if (settings?.userChatEnabled === false) {
+        throw new ForbiddenException('ระบบแชทถูกปิดใช้งานชั่วคราว');
+      }
+
+      if (account.ownerId !== user.userId) {
+        throw new ForbiddenException('Access denied');
+      }
     }
   }
 

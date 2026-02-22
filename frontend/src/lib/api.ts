@@ -463,6 +463,8 @@ export const systemSettingsApi = {
     api.post('/system-settings/test-slip-provider', { provider, apiKey }),
   toggleGlobalSlip: (enabled: boolean) =>
     api.put('/system-settings/slip-toggle', { enabled }),
+  toggleUserChat: (enabled: boolean) =>
+    api.put('/system-settings/user-chat-toggle', { enabled }),
 };
 
 // Slip Verification API

@@ -1,11 +1,12 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useAuthStore } from '@/store/auth';
 import { useWalletStore } from '@/store/wallet';
 import { useSiteBranding } from '@/hooks/useSiteBranding';
+import { systemSettingsApi } from '@/lib/api';
 import clsx from 'clsx';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -324,7 +325,26 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
 
   // STRICT ROLE CHECK: Determine which menu to render based on user role
   const isAdmin = user?.role === 'admin';
-  const menuItems = isAdmin ? ADMIN_MENU_ITEMS : USER_MENU_ITEMS;
+
+  // User chat enabled state (only relevant for non-admin users)
+  const [userChatEnabled, setUserChatEnabled] = useState(true);
+
+  useEffect(() => {
+    if (!isAdmin) {
+      systemSettingsApi.getAccessStatus().then(res => {
+        setUserChatEnabled(res.data?.userChatEnabled ?? true);
+      }).catch(() => {
+        setUserChatEnabled(true);
+      });
+    }
+  }, [isAdmin]);
+
+  // Filter out chat menu item for users when disabled
+  const menuItems = isAdmin
+    ? ADMIN_MENU_ITEMS
+    : userChatEnabled
+      ? USER_MENU_ITEMS
+      : USER_MENU_ITEMS.filter(item => item.href !== '/user/chat');
 
   // Wallet balance from global store
   const { balance: walletBalance, fetchBalance } = useWalletStore();

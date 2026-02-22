@@ -67,6 +67,7 @@ export class SystemSettingsController {
       success: true,
       allowRegistration: settings?.allowRegistration ?? true,
       allowLogin: settings?.allowLogin ?? true,
+      userChatEnabled: settings?.userChatEnabled ?? true,
       registrationDisabledMessage: settings?.registrationDisabledMessage || 'ระบบปิดรับสมัครสมาชิกใหม่ชั่วคราว กรุณาติดต่อผู้ดูแลระบบ',
       loginDisabledMessage: settings?.loginDisabledMessage || 'ระบบปิดให้บริการเข้าสู่ระบบชั่วคราว กรุณาติดต่อผู้ดูแลระบบ',
     };
@@ -135,6 +136,7 @@ export class SystemSettingsController {
         registrationDisabledMessage: settings?.registrationDisabledMessage || 'ระบบปิดรับสมัครสมาชิกใหม่ชั่วคราว กรุณาติดต่อผู้ดูแลระบบ',
         allowLogin: settings?.allowLogin ?? true,
         loginDisabledMessage: settings?.loginDisabledMessage || 'ระบบปิดให้บริการเข้าสู่ระบบชั่วคราว กรุณาติดต่อผู้ดูแลระบบ',
+        userChatEnabled: settings?.userChatEnabled ?? true,
       },
     };
   }
@@ -699,6 +701,29 @@ export class SystemSettingsController {
         ? body.enabled
           ? 'เปิดใช้งานตรวจสลิปทั้งระบบแล้ว'
           : 'ปิดใช้งานตรวจสลิปทั้งระบบแล้ว'
+        : 'ไม่สามารถบันทึกการตั้งค่าได้',
+    };
+  }
+
+  @Put('user-chat-toggle')
+  @UseGuards(SessionAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
+  @ApiOperation({ summary: 'Toggle user chat feature (Admin only)' })
+  async toggleUserChat(
+    @Body() body: { enabled: boolean },
+    @CurrentUser() user: AuthUser,
+  ) {
+    const success = await this.settingsService.updateSettings(
+      { userChatEnabled: body.enabled },
+      user.userId,
+    );
+
+    return {
+      success,
+      message: success
+        ? body.enabled
+          ? 'เปิดใช้งานแชทสำหรับผู้ใช้แล้ว'
+          : 'ปิดใช้งานแชทสำหรับผู้ใช้แล้ว'
         : 'ไม่สามารถบันทึกการตั้งค่าได้',
     };
   }
