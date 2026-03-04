@@ -18,15 +18,15 @@ export interface ReloginJob {
 export class ReloginSchedulerService implements OnModuleInit {
   private readonly logger = new Logger(ReloginSchedulerService.name);
   private reloginQueue: ReloginJob[] = [];
-  private isProcessing = false;
+  private processingPromise: Promise<void> | null = null;
 
   // Circuit breaker: stop auto-relogin after too many consecutive failures
   private readonly MAX_CONSECUTIVE_FAILURES = 10;
 
   // Configuration - Optimized for 100+ users
   private readonly RELOGIN_INTERVAL_MINUTES = 15;
-  private readonly MAX_CONCURRENT_RELOGINS = 20; // Increased from 5 to 20 for 100+ users
-  private readonly RELOGIN_COOLDOWN_MS = 5000; // Reduced to 5 seconds for faster processing
+  private readonly MAX_CONCURRENT_RELOGINS = 5; // Reduced from 20 to prevent resource exhaustion
+  private readonly RELOGIN_COOLDOWN_MS = 10000; // 10 seconds between relogins to reduce memory pressure
 
   // Flag to enable/disable auto-relogin globally
   private autoReloginEnabled = false; // Disabled by default - must be enabled manually
@@ -211,60 +211,78 @@ export class ReloginSchedulerService implements OnModuleInit {
   }
 
   /**
-   * ประมวลผล relogin queue
+   * ประมวลผล relogin queue (mutex: callers wait for current batch then continue)
    */
   async processReloginQueue(): Promise<void> {
-    if (this.isProcessing || this.reloginQueue.length === 0) {
-      return;
+    if (this.reloginQueue.length === 0) return;
+
+    // If already processing, wait for the current batch to finish
+    if (this.processingPromise) {
+      await this.processingPromise;
+      // After previous batch is done, check if there are still items
+      if (this.reloginQueue.length === 0) return;
     }
 
-    this.isProcessing = true;
-
+    this.processingPromise = this.doProcessQueue();
     try {
-      while (this.reloginQueue.length > 0) {
-        const job = this.reloginQueue.shift();
-        if (!job) break;
-
-        this.logger.log(`Processing relogin for ${job.lineAccountId}`);
-
-        try {
-          await this.executeRelogin(job);
-
-          // Emit success event
-          this.eventBusService.publish({
-            eventName: 'line-session.relogin-success' as any,
-            occurredAt: new Date(),
-            lineAccountId: job.lineAccountId,
-          });
-        } catch (error) {
-          this.logger.error(
-            `Relogin failed for ${job.lineAccountId}: ${error.message}`,
-          );
-
-          // Emit failure event
-          this.eventBusService.publish({
-            eventName: 'line-session.relogin-failed' as any,
-            occurredAt: new Date(),
-            lineAccountId: job.lineAccountId,
-            error: error.message,
-          });
-        }
-
-        // Cooldown between relogins
-        if (this.reloginQueue.length > 0) {
-          await this.delay(this.RELOGIN_COOLDOWN_MS);
-        }
-      }
+      await this.processingPromise;
     } finally {
-      this.isProcessing = false;
+      this.processingPromise = null;
+    }
+  }
+
+  /**
+   * Internal queue processor — runs as a single batch
+   */
+  private async doProcessQueue(): Promise<void> {
+    while (this.reloginQueue.length > 0) {
+      const job = this.reloginQueue.shift();
+      if (!job) break;
+
+      this.logger.log(`Processing relogin for ${job.lineAccountId}`);
+
+      try {
+        const concurrentLimitHit = await this.executeRelogin(job);
+
+        if (concurrentLimitHit) {
+          // Stop this batch — remaining jobs stay in queue for next cycle
+          this.logger.log(`[ReloginQueue] Concurrent limit hit, pausing batch. ${this.reloginQueue.length} jobs deferred.`);
+          break;
+        }
+
+        // Emit success event
+        this.eventBusService.publish({
+          eventName: 'line-session.relogin-success' as any,
+          occurredAt: new Date(),
+          lineAccountId: job.lineAccountId,
+        });
+      } catch (error: unknown) {
+        const errMsg = error instanceof Error ? error.message : String(error);
+        this.logger.error(
+          `Relogin failed for ${job.lineAccountId}: ${errMsg}`,
+        );
+
+        // Emit failure event
+        this.eventBusService.publish({
+          eventName: 'line-session.relogin-failed' as any,
+          occurredAt: new Date(),
+          lineAccountId: job.lineAccountId,
+          error: errMsg,
+        });
+      }
+
+      // Cooldown between relogins
+      if (this.reloginQueue.length > 0) {
+        await this.delay(this.RELOGIN_COOLDOWN_MS);
+      }
     }
   }
 
   /**
    * Execute relogin สำหรับ LINE Account
-   * ใช้ EnhancedAutomationService สำหรับ Puppeteer login
+   * @returns true if concurrent limit was hit (caller should stop batch)
    */
-  private async executeRelogin(job: ReloginJob): Promise<void> {
+  private async executeRelogin(job: ReloginJob): Promise<boolean> {
     this.logger.log(`Executing relogin for ${job.lineAccountId}, reason: ${job.reason}`);
 
     // Update status to show relogin in progress
@@ -295,7 +313,7 @@ export class ReloginSchedulerService implements OnModuleInit {
           { lineAccountId: job.lineAccountId, isActive: true },
           { status: 'pending_relogin' },
         );
-        return;
+        return false;
       }
 
       // Execute auto login using enhanced service
@@ -333,6 +351,18 @@ export class ReloginSchedulerService implements OnModuleInit {
           { lineAccountId: job.lineAccountId, isActive: true },
           { status: 'waiting_pin' },
         );
+      } else if (result.error?.includes('สูงสุด')) {
+        // Concurrent limit reached — not a real failure, re-queue for later
+        this.logger.warn(`Concurrent limit reached for ${job.lineAccountId}, re-queuing for next cycle`);
+
+        await this.lineSessionModel.updateOne(
+          { lineAccountId: job.lineAccountId, isActive: true },
+          { status: 'pending_relogin' },
+        );
+
+        // Put this job back at the front of the queue
+        this.reloginQueue.unshift(job);
+        return true; // Signal to stop this batch
       } else {
         // Login failed
         this.logger.error(`Auto-relogin failed for ${job.lineAccountId}: ${result.error}`);
@@ -344,6 +374,8 @@ export class ReloginSchedulerService implements OnModuleInit {
 
         throw new Error(result.error || 'Auto-relogin failed');
       }
+
+      return false;
     } catch (error: any) {
       // Ensure status is updated on any exception
       this.logger.error(`Exception during relogin for ${job.lineAccountId}: ${error.message}`);

@@ -89,6 +89,15 @@ export interface NewTransactionEvent {
   timestamp: string;
 }
 
+export interface LoginQueueEvent {
+  type: 'queued' | 'slot_available' | 'queue_update';
+  lineAccountId: string;
+  ownerId: string;
+  position?: number;
+  estimatedWaitSeconds?: number;
+  timestamp: string;
+}
+
 interface UseLoginNotificationsOptions {
   lineAccountId?: string;
   onStatusChange?: (event: LoginStatusEvent) => void;
@@ -96,6 +105,7 @@ interface UseLoginNotificationsOptions {
   onWorkerState?: (event: WorkerStateEvent) => void;
   onKeysCaptured?: (event: KeysCapturedEvent) => void;
   onNewTransaction?: (event: NewTransactionEvent) => void;
+  onQueueEvent?: (event: LoginQueueEvent) => void;
   showToasts?: boolean;
   autoConnect?: boolean;
 }
@@ -112,6 +122,10 @@ interface LoginNotificationState {
   // Server-synced PIN countdown
   pinExpiresIn: number | null;
   pinStatus: 'FRESH' | 'NEW' | 'OLD' | 'NO_PIN' | null;
+  // Login queue tracking
+  queuePosition: number | null;
+  queueEstimatedWait: number | null;
+  isQueued: boolean;
 }
 
 export function useLoginNotifications(options: UseLoginNotificationsOptions = {}) {
@@ -122,6 +136,7 @@ export function useLoginNotifications(options: UseLoginNotificationsOptions = {}
     onWorkerState,
     onKeysCaptured,
     onNewTransaction,
+    onQueueEvent,
     showToasts = true,
     autoConnect = true,
   } = options;
@@ -139,6 +154,9 @@ export function useLoginNotifications(options: UseLoginNotificationsOptions = {}
     pinReceivedAt: null,
     pinExpiresIn: null,
     pinStatus: null,
+    queuePosition: null,
+    queueEstimatedWait: null,
+    isQueued: false,
   });
 
   // Use refs for callbacks and lineAccountId to avoid reconnecting on every render
@@ -147,6 +165,7 @@ export function useLoginNotifications(options: UseLoginNotificationsOptions = {}
   const onWorkerStateRef = useRef(onWorkerState);
   const onKeysCapturedRef = useRef(onKeysCaptured);
   const onNewTransactionRef = useRef(onNewTransaction);
+  const onQueueEventRef = useRef(onQueueEvent);
   const lineAccountIdRef = useRef(lineAccountId);
 
   // Keep refs updated
@@ -169,6 +188,10 @@ export function useLoginNotifications(options: UseLoginNotificationsOptions = {}
   useEffect(() => {
     onNewTransactionRef.current = onNewTransaction;
   }, [onNewTransaction]);
+
+  useEffect(() => {
+    onQueueEventRef.current = onQueueEvent;
+  }, [onQueueEvent]);
 
   useEffect(() => {
     const prevAccountId = lineAccountIdRef.current;
@@ -319,6 +342,9 @@ export function useLoginNotifications(options: UseLoginNotificationsOptions = {}
         pinReceivedAt: null,
         pinExpiresIn: null,
         pinStatus: null,
+        queuePosition: null,
+        queueEstimatedWait: null,
+        isQueued: false,
       }));
     });
 
@@ -586,6 +612,83 @@ export function useLoginNotifications(options: UseLoginNotificationsOptions = {}
       onNewTransactionRef.current?.(data);
     });
 
+    // Handle login queue events
+    socket.on('login:queued', (data: {
+      lineAccountId: string;
+      ownerId: string;
+      position: number;
+      estimatedWaitSeconds: number;
+      timestamp: string;
+    }) => {
+      const currentAccountId = lineAccountIdRef.current;
+      if (currentAccountId && data.lineAccountId !== currentAccountId) return;
+
+      console.log('[LoginNotifications] Login queued:', data);
+
+      setState(prev => ({
+        ...prev,
+        isQueued: true,
+        queuePosition: data.position,
+        queueEstimatedWait: data.estimatedWaitSeconds,
+      }));
+
+      if (showToasts) {
+        const waitMin = Math.ceil(data.estimatedWaitSeconds / 60);
+        toast(`คิวที่ ${data.position} รอประมาณ ${waitMin} นาที`, {
+          icon: '🕐',
+          duration: 8000,
+        });
+      }
+
+      onQueueEventRef.current?.({ ...data, type: 'queued' });
+    });
+
+    socket.on('login:slot_available', (data: {
+      lineAccountId: string;
+      ownerId: string;
+      timestamp: string;
+    }) => {
+      const currentAccountId = lineAccountIdRef.current;
+      if (currentAccountId && data.lineAccountId !== currentAccountId) return;
+
+      console.log('[LoginNotifications] Login slot available:', data);
+
+      setState(prev => ({
+        ...prev,
+        isQueued: false,
+        queuePosition: null,
+        queueEstimatedWait: null,
+      }));
+
+      if (showToasts) {
+        toast.success('ถึงคิวแล้ว! กำลังเริ่มล็อกอินอัตโนมัติ...', {
+          icon: '🔔',
+          duration: 8000,
+        });
+      }
+
+      onQueueEventRef.current?.({ ...data, type: 'slot_available' });
+    });
+
+    socket.on('login:queue_update', (data: {
+      lineAccountId: string;
+      ownerId: string;
+      position: number;
+      estimatedWaitSeconds: number;
+      timestamp: string;
+    }) => {
+      const currentAccountId = lineAccountIdRef.current;
+      if (currentAccountId && data.lineAccountId !== currentAccountId) return;
+
+      setState(prev => ({
+        ...prev,
+        queuePosition: data.position,
+        queueEstimatedWait: data.estimatedWaitSeconds,
+      }));
+
+      onQueueEventRef.current?.({ ...data, type: 'queue_update' });
+    });
+
     return () => {
       // Clear any pending join retry timer
       if (joinRetryTimerRef.current) {
@@ -599,6 +702,9 @@ export function useLoginNotifications(options: UseLoginNotificationsOptions = {}
       socket.off('line-session:pin-countdown');
       socket.off('line-session:pin-expired');
       socket.off('line-session:new-transaction');
+      socket.off('login:queued');
+      socket.off('login:slot_available');
+      socket.off('login:queue_update');
       socket.off('connect');
       socket.off('disconnect');
       socket.off('reconnect');
@@ -634,6 +740,9 @@ export function useLoginNotifications(options: UseLoginNotificationsOptions = {}
       pinReceivedAt: null,
       pinExpiresIn: null,
       pinStatus: null,
+      queuePosition: null,
+      queueEstimatedWait: null,
+      isQueued: false,
     });
   }, [state.isConnected]);
 

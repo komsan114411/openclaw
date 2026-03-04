@@ -149,6 +149,18 @@ export class EnhancedAutomationService implements OnModuleInit, OnModuleDestroy 
   // During this time, health check will trust the keys without LINE API validation
   private readonly HEALTH_CHECK_GRACE_PERIOD_MS = 5 * 60 * 1000; // 5 minutes
 
+  // System-wide concurrent login limit to prevent RAM exhaustion
+  private readonly MAX_CONCURRENT_LOGINS = 3;
+
+  // Global circuit breaker: stop all login attempts when the same infrastructure error
+  // (e.g., Xvfb crash) hits every account consecutively
+  private consecutiveGlobalFailures = 0;
+  private lastGlobalError: string | null = null;
+  private globalCircuitBreakerTripped = false;
+  private globalCircuitBreakerTimer: NodeJS.Timeout | null = null;
+  private readonly GLOBAL_CIRCUIT_BREAKER_THRESHOLD = 3;
+  private readonly GLOBAL_CIRCUIT_BREAKER_COOLDOWN_MS = 5 * 60 * 1000; // 5 minutes
+
   // Encryption
   private readonly ENCRYPTION_KEY: string;
 
@@ -387,6 +399,16 @@ export class EnhancedAutomationService implements OnModuleInit, OnModuleDestroy 
     source: 'manual' | 'auto' | 'relogin' = 'manual',
     forceLogin = false,
   ): Promise<EnhancedLoginResult> {
+    // Global circuit breaker: if infrastructure is broken, fail fast
+    if (this.globalCircuitBreakerTripped) {
+      this.logger.warn(`[Login] Global circuit breaker active — blocking login for ${lineAccountId}`);
+      return {
+        success: false,
+        status: EnhancedLoginStatus.FAILED,
+        error: `ระบบล็อกอินหยุดชั่วคราว: ${this.lastGlobalError}. กรุณารอ 5 นาทีแล้วลองใหม่`,
+      };
+    }
+
     // Step 0: Check if session exists in database - try by _id first, then by lineAccountId
     let existingSession = await this.lineSessionModel.findById(lineAccountId);
 
@@ -406,6 +428,56 @@ export class EnhancedAutomationService implements OnModuleInit, OnModuleDestroy 
       };
     }
 
+    const sessionOwnerId = existingSession.ownerId || 'system';
+
+    // Per-user concurrent limit: prevent one user from hogging all login slots
+    if (source === 'manual' && this.loginLockService.isUserAtLimit(sessionOwnerId)) {
+      const userLocks = this.loginLockService.getLocksForOwner(sessionOwnerId);
+      this.logger.warn(`[Login] Per-user limit reached for owner ${sessionOwnerId} (${userLocks} active)`);
+      return {
+        success: false,
+        status: EnhancedLoginStatus.FAILED,
+        error: `คุณกำลังล็อกอินพร้อมกัน ${userLocks} บัญชี (สูงสุด 2 ต่อผู้ใช้) กรุณารอบัญชีก่อนหน้าเสร็จก่อน`,
+      };
+    }
+
+    // System-wide concurrent login limit: prevent RAM exhaustion from too many browsers
+    const activeLoginCount = this.loginLockService.getAllLocks().length;
+    if (activeLoginCount >= this.MAX_CONCURRENT_LOGINS) {
+      // For manual source: add to queue and return queue info
+      if (source === 'manual') {
+        const queueInfo = this.loginLockService.addToQueue(lineAccountId, sessionOwnerId, source);
+        this.logger.warn(`[Login] Concurrent limit reached, queued ${lineAccountId} (position: ${queueInfo.position})`);
+
+        // Emit queue event for WebSocket
+        this.eventEmitter.emit('login.queued', {
+          lineAccountId,
+          ownerId: sessionOwnerId,
+          position: queueInfo.position,
+          estimatedWaitSeconds: queueInfo.estimatedWaitSeconds,
+          timestamp: new Date(),
+        });
+
+        return {
+          success: false,
+          status: EnhancedLoginStatus.FAILED,
+          error: `ระบบกำลังล็อกอินพร้อมกัน ${activeLoginCount} บัญชี (สูงสุด ${this.MAX_CONCURRENT_LOGINS}) คิวที่ ${queueInfo.position} รอประมาณ ${Math.ceil(queueInfo.estimatedWaitSeconds / 60)} นาที (จะเริ่มอัตโนมัติเมื่อถึงคิว)`,
+          message: `queued:${queueInfo.position}:${queueInfo.estimatedWaitSeconds}`,
+        };
+      }
+
+      // For auto/relogin source: just reject (orchestrator/scheduler will retry)
+      this.logger.warn(`[Login] Concurrent login limit reached (${activeLoginCount}/${this.MAX_CONCURRENT_LOGINS}) — blocking ${lineAccountId}`);
+      return {
+        success: false,
+        status: EnhancedLoginStatus.FAILED,
+        error: `ระบบกำลังล็อกอินพร้อมกัน ${activeLoginCount} บัญชี (สูงสุด ${this.MAX_CONCURRENT_LOGINS}) กรุณารอสักครู่`,
+      };
+    }
+
+    // Remove from queue if was queued (slot now available)
+    this.loginLockService.removeFromQueue(lineAccountId);
+
     // Step 0b: Check if headless mode without virtual display (extension-based login won't work)
     if (this.isHeadlessMode() && !this.hasVirtualDisplay()) {
       this.logger.warn(`Automated login not available: no display for ${lineAccountId}`);
@@ -419,8 +491,8 @@ export class EnhancedAutomationService implements OnModuleInit, OnModuleDestroy 
     // Log display status
     this.logger.log(`Display check: DISPLAY=${process.env.DISPLAY || 'not set'}, HEADLESS=${process.env.PUPPETEER_HEADLESS || 'not set'}`);
 
-    // Step 0b: Acquire global lock (prevent concurrent login from different services)
-    const lockAcquired = this.loginLockService.acquireLock(lineAccountId, 'enhanced');
+    // Acquire global lock (prevent concurrent login from different services)
+    const lockAcquired = this.loginLockService.acquireLock(lineAccountId, 'enhanced', sessionOwnerId);
     if (!lockAcquired) {
       const lockInfo = this.loginLockService.getLockInfo(lineAccountId);
 
@@ -689,6 +761,26 @@ export class EnhancedAutomationService implements OnModuleInit, OnModuleDestroy 
       this.logger.error(`Login failed for ${lineAccountId}: ${error.message}`);
       this.loginCoordinatorService.markLoginFailed(lineAccountId, error.message);
 
+      // Global circuit breaker: track consecutive identical failures
+      if (error.message === this.lastGlobalError) {
+        this.consecutiveGlobalFailures++;
+      } else {
+        this.consecutiveGlobalFailures = 1;
+        this.lastGlobalError = error.message;
+      }
+      if (this.consecutiveGlobalFailures >= this.GLOBAL_CIRCUIT_BREAKER_THRESHOLD) {
+        this.globalCircuitBreakerTripped = true;
+        this.logger.error(
+          `[CircuitBreaker] TRIPPED after ${this.consecutiveGlobalFailures} identical failures: ${this.lastGlobalError}`,
+        );
+        if (this.globalCircuitBreakerTimer) clearTimeout(this.globalCircuitBreakerTimer);
+        this.globalCircuitBreakerTimer = setTimeout(() => {
+          this.globalCircuitBreakerTripped = false;
+          this.consecutiveGlobalFailures = 0;
+          this.logger.log('[CircuitBreaker] Reset — login attempts allowed again');
+        }, this.GLOBAL_CIRCUIT_BREAKER_COOLDOWN_MS);
+      }
+
       // Detect credential errors — these should NOT be retried
       const credentialErr = isCredentialError(error.message);
       const status = credentialErr ? EnhancedLoginStatus.CREDENTIAL_ERROR : EnhancedLoginStatus.FAILED;
@@ -709,6 +801,7 @@ export class EnhancedAutomationService implements OnModuleInit, OnModuleDestroy 
       // Release lock on error — mark as handled so finally block doesn't double-release
       lockTransferred = true;
       this.loginLockService.releaseLock(lineAccountId, 'enhanced');
+      this.processNextInQueue();
 
       return {
         success: false,
@@ -722,6 +815,7 @@ export class EnhancedAutomationService implements OnModuleInit, OnModuleDestroy 
       if (!lockTransferred) {
         this.logger.debug(`[Login] Releasing lock in finally block for ${lineAccountId} (early return path)`);
         this.loginLockService.releaseLock(lineAccountId, 'enhanced');
+        this.processNextInQueue();
       }
     }
   }
@@ -765,6 +859,11 @@ export class EnhancedAutomationService implements OnModuleInit, OnModuleDestroy 
             this.logger.log(`[RecentSuccess] Cleared for ${lineAccountId}`);
           }, this.HEALTH_CHECK_GRACE_PERIOD_MS);
 
+          // Reset global circuit breaker on success
+          this.consecutiveGlobalFailures = 0;
+          this.lastGlobalError = null;
+          this.globalCircuitBreakerTripped = false;
+
           this.emitStatus(lineAccountId, EnhancedLoginStatus.SUCCESS, {
             requestId,
             pinCode,
@@ -789,11 +888,70 @@ export class EnhancedAutomationService implements OnModuleInit, OnModuleDestroy 
       try {
         this.loginLockService.releaseLock(lineAccountId, 'enhanced');
         this.logger.debug(`[BackgroundLogin] Lock released for ${lineAccountId}`);
+
+        // Auto-process next queued login (decoupled to avoid recursion)
+        this.processNextInQueue();
       } catch (lockError: any) {
         this.logger.error(`[BackgroundLogin] Failed to release lock for ${lineAccountId}: ${lockError.message}`);
         // Lock will be auto-released by LoginLockService timeout
       }
     }
+  }
+
+  /**
+   * Auto-process next item in login queue when a slot is freed.
+   * Uses setImmediate to decouple from the releasing call stack (prevent recursion).
+   * If auto-login fails due to concurrent limit, the item is re-queued automatically.
+   */
+  private processNextInQueue(): void {
+    const nextInQueue = this.loginLockService.dequeueNext();
+    if (!nextInQueue) return;
+
+    const { lineAccountId, ownerId } = nextInQueue;
+
+    // Notify user that their queued login is starting automatically
+    this.eventEmitter.emit('login.slot_available', {
+      lineAccountId,
+      ownerId,
+      timestamp: new Date(),
+    });
+
+    this.logger.log(`[Queue] Auto-starting login for queued ${lineAccountId} (owner: ${ownerId})`);
+
+    // Decouple: avoid calling startLogin inside the finally of another startLogin
+    setImmediate(async () => {
+      try {
+        // Emit status so frontend shows "processing" instead of "click again"
+        this.emitStatus(lineAccountId, EnhancedLoginStatus.REQUESTING, {
+          message: 'ถึงคิวแล้ว กำลังเริ่มล็อกอินอัตโนมัติ...',
+        });
+
+        const result = await this.startLogin(lineAccountId, undefined, undefined, 'manual');
+
+        if (!result.success && !result.pinCode) {
+          // Login failed — check if it was concurrent limit (re-queue) vs real error
+          if (result.error?.includes('สูงสุด') || result.error?.includes('ต่อผู้ใช้')) {
+            // Re-queue at front (will be retried when next slot frees)
+            this.loginLockService.addToQueue(lineAccountId, ownerId, 'manual');
+            this.logger.warn(`[Queue] Auto-login for ${lineAccountId} hit limit, re-queued`);
+
+            this.eventEmitter.emit('login.queued', {
+              lineAccountId,
+              ownerId,
+              position: 1,
+              estimatedWaitSeconds: 180,
+              timestamp: new Date(),
+            });
+          } else {
+            // Real failure — notify user
+            this.logger.error(`[Queue] Auto-login failed for ${lineAccountId}: ${result.error}`);
+          }
+        }
+      } catch (error: unknown) {
+        const errMsg = error instanceof Error ? error.message : String(error);
+        this.logger.error(`[Queue] Auto-login error for ${lineAccountId}: ${errMsg}`);
+      }
+    });
   }
 
   /**
@@ -2426,6 +2584,7 @@ export class EnhancedAutomationService implements OnModuleInit, OnModuleDestroy 
 
     // Release the login lock so new login attempts can proceed (Issue B fix)
     this.loginLockService.releaseLock(lineAccountId, 'enhanced');
+    this.processNextInQueue();
 
     // Emit cancelled status
     this.emitStatus(lineAccountId, EnhancedLoginStatus.FAILED, { error: 'Login cancelled by user' });
@@ -2991,6 +3150,7 @@ export class EnhancedAutomationService implements OnModuleInit, OnModuleDestroy 
 
         // Release lock if held
         this.loginLockService.releaseLock(lineAccountId, 'enhanced');
+        this.processNextInQueue();
 
         // Close worker if exists
         await this.workerPoolService.closeWorker(lineAccountId);
@@ -3089,6 +3249,12 @@ export class EnhancedAutomationService implements OnModuleInit, OnModuleDestroy 
     if (this.pinCleanupInterval) {
       clearInterval(this.pinCleanupInterval);
       this.pinCleanupInterval = null;
+    }
+
+    // Clear circuit breaker timer
+    if (this.globalCircuitBreakerTimer) {
+      clearTimeout(this.globalCircuitBreakerTimer);
+      this.globalCircuitBreakerTimer = null;
     }
 
     // Securely clear all PINs

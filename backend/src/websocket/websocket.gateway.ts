@@ -535,6 +535,46 @@ export class WebsocketGateway implements OnGatewayConnection, OnGatewayDisconnec
   }
 
   // ============================================
+  // Login Queue Events
+  // ============================================
+
+  @OnEvent('login.queued')
+  handleLoginQueued(payload: {
+    lineAccountId: string;
+    ownerId: string;
+    position: number;
+    estimatedWaitSeconds: number;
+    timestamp: Date;
+  }) {
+    this.logger.log(`[LoginQueue] ${payload.lineAccountId} queued at position ${payload.position}`);
+    this.broadcastToAdmins('login:queued', payload);
+    this.broadcastToUser(payload.ownerId, 'login:queued', payload);
+  }
+
+  @OnEvent('login.slot_available')
+  handleLoginSlotAvailable(payload: {
+    lineAccountId: string;
+    ownerId: string;
+    timestamp: Date;
+  }) {
+    this.logger.log(`[LoginQueue] Slot available for ${payload.lineAccountId}`);
+    this.broadcastToAdmins('login:slot_available', payload);
+    this.broadcastToUser(payload.ownerId, 'login:slot_available', payload);
+  }
+
+  @OnEvent('login.queue_update')
+  handleLoginQueueUpdate(payload: {
+    lineAccountId: string;
+    ownerId: string;
+    position: number;
+    estimatedWaitSeconds: number;
+    timestamp: Date;
+  }) {
+    this.broadcastToAdmins('login:queue_update', payload);
+    this.broadcastToUser(payload.ownerId, 'login:queue_update', payload);
+  }
+
+  // ============================================
   // Account Alert Events
   // ============================================
 

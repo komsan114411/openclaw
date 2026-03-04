@@ -2090,7 +2090,7 @@ export class LineSessionController {
         results.push({
           sessionId,
           success: true,
-          message: 'Relogin triggered',
+          message: 'Relogin queued',
         });
       } catch (error: any) {
         results.push({

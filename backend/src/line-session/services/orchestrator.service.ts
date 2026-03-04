@@ -94,9 +94,14 @@ export class OrchestratorService implements OnModuleInit, OnModuleDestroy {
   // Recovery tracking
   private recoveryAttempts: Map<string, { attempts: number; lastAttempt: Date }> = new Map();
 
-  // Login throttling: pause background tasks during active login
-  private isLoginInProgress = false;
-  private loginThrottleTimeout: NodeJS.Timeout | null = null;
+  // Startup warmup: suppress event emission during first health check
+  private isStartupPhase = true;
+  private readonly STARTUP_RELOGIN_DELAY_MS = 60 * 1000; // 60 seconds after startup before relogin
+  private readonly RELOGIN_STAGGER_DELAY_MS = 5 * 1000; // 5 seconds between each login attempt
+
+  // Login throttling: per-account tracking instead of global flag
+  private loginsInProgress: Set<string> = new Set();
+  private loginThrottleTimeouts: Map<string, NodeJS.Timeout> = new Map();
   private readonly LOGIN_THROTTLE_TIMEOUT_MS = 10 * 60 * 1000; // 10 minutes safety reset
 
   constructor(
@@ -182,10 +187,11 @@ export class OrchestratorService implements OnModuleInit, OnModuleDestroy {
 
   onModuleDestroy() {
     this.stopLoops();
-    if (this.loginThrottleTimeout) {
-      clearTimeout(this.loginThrottleTimeout);
-      this.loginThrottleTimeout = null;
+    for (const timeout of this.loginThrottleTimeouts.values()) {
+      clearTimeout(timeout);
     }
+    this.loginThrottleTimeouts.clear();
+    this.loginsInProgress.clear();
   }
 
   /**
@@ -213,31 +219,35 @@ export class OrchestratorService implements OnModuleInit, OnModuleDestroy {
       EnhancedLoginStatus.COOLDOWN,
     ];
 
+    const accountId = payload.lineAccountId;
+
     if (inProgressStatuses.includes(payload.status)) {
-      if (!this.isLoginInProgress) {
-        this.isLoginInProgress = true;
-        this.logger.log(`Throttling background tasks during active login (status: ${payload.status}, account: ${payload.lineAccountId})`);
+      if (!this.loginsInProgress.has(accountId)) {
+        this.loginsInProgress.add(accountId);
+        this.logger.log(`Throttling background tasks for account ${accountId} (status: ${payload.status})`);
       }
 
-      // Reset safety timeout on each in-progress event
-      if (this.loginThrottleTimeout) {
-        clearTimeout(this.loginThrottleTimeout);
+      // Reset per-account safety timeout on each in-progress event
+      const existingTimeout = this.loginThrottleTimeouts.get(accountId);
+      if (existingTimeout) {
+        clearTimeout(existingTimeout);
       }
-      this.loginThrottleTimeout = setTimeout(() => {
-        if (this.isLoginInProgress) {
-          this.logger.warn('Login throttle safety timeout reached (10 min) - resuming background tasks');
-          this.isLoginInProgress = false;
+      this.loginThrottleTimeouts.set(accountId, setTimeout(() => {
+        if (this.loginsInProgress.has(accountId)) {
+          this.logger.warn(`Login throttle safety timeout reached (10 min) for account ${accountId} - resuming`);
+          this.loginsInProgress.delete(accountId);
         }
-        this.loginThrottleTimeout = null;
-      }, this.LOGIN_THROTTLE_TIMEOUT_MS);
+        this.loginThrottleTimeouts.delete(accountId);
+      }, this.LOGIN_THROTTLE_TIMEOUT_MS));
     } else if (terminalStatuses.includes(payload.status)) {
-      if (this.isLoginInProgress) {
-        this.isLoginInProgress = false;
-        this.logger.log(`Resuming background tasks after login completed (status: ${payload.status}, account: ${payload.lineAccountId})`);
+      if (this.loginsInProgress.has(accountId)) {
+        this.loginsInProgress.delete(accountId);
+        this.logger.log(`Resuming background tasks for account ${accountId} (status: ${payload.status})`);
       }
-      if (this.loginThrottleTimeout) {
-        clearTimeout(this.loginThrottleTimeout);
-        this.loginThrottleTimeout = null;
+      const existingTimeout = this.loginThrottleTimeouts.get(accountId);
+      if (existingTimeout) {
+        clearTimeout(existingTimeout);
+        this.loginThrottleTimeouts.delete(accountId);
       }
     }
   }
@@ -309,11 +319,12 @@ export class OrchestratorService implements OnModuleInit, OnModuleDestroy {
     this.logger.log('[Orchestrator] Running initial checks...');
     await this.performHealthCheck();
 
-    // Run initial relogin check after a short delay
+    // Run initial relogin check after startup warmup (staggered to avoid stampede)
     setTimeout(async () => {
-      this.logger.log('[Orchestrator] Running initial relogin check...');
+      this.isStartupPhase = false;
+      this.logger.log('[Orchestrator] Startup warmup complete, running initial relogin check...');
       await this.performReloginCheck();
-    }, 10000); // 10 seconds after startup
+    }, this.STARTUP_RELOGIN_DELAY_MS);
   }
 
   /**
@@ -413,12 +424,6 @@ export class OrchestratorService implements OnModuleInit, OnModuleDestroy {
    * Perform health check on all sessions
    */
   async performHealthCheck(): Promise<void> {
-    // Throttle during active login to save browser resources
-    if (this.isLoginInProgress) {
-      this.logger.log('[HealthCheck] Throttling background tasks during active login - skipping health check');
-      return;
-    }
-
     this.lastHealthCheck = new Date();
     this.logger.log('[HealthCheck] Starting health check...');
 
@@ -435,6 +440,12 @@ export class OrchestratorService implements OnModuleInit, OnModuleDestroy {
 
           // Use session._id as the primary identifier (lineAccountId might be empty)
           const sessionId = session._id.toString();
+
+          // Per-account throttle: skip only this account if login in progress
+          if (this.loginsInProgress.has(sessionId) || this.loginsInProgress.has(session.lineAccountId)) {
+            this.logger.log(`[HealthCheck] Skipping ${session.name} - login in progress`);
+            continue;
+          }
 
           // Try to fix corrupted sessions
           if (!session.name || !session.ownerId) {
@@ -531,14 +542,19 @@ export class OrchestratorService implements OnModuleInit, OnModuleDestroy {
                 sessionId: session._id,
                 name: session.name,
               });
-              // Also publish to EventBusService for ReloginScheduler
-              this.eventBusService.publish({
-                eventName: 'line-session.expired' as any,
-                occurredAt: new Date(),
-                lineAccountId: sessionIdStr,
-                sessionId: sessionIdStr,
-                name: session.name,
-              });
+              // Publish to EventBusService for ReloginScheduler
+              // SKIP during startup to prevent event storm — performReloginCheck() handles it
+              if (!this.isStartupPhase) {
+                this.eventBusService.publish({
+                  eventName: 'line-session.expired' as any,
+                  occurredAt: new Date(),
+                  lineAccountId: sessionIdStr,
+                  sessionId: sessionIdStr,
+                  name: session.name,
+                });
+              } else {
+                this.logger.log(`[HealthCheck] Startup phase: skipping relogin event for ${session.name} (will be handled by performReloginCheck)`);
+              }
             }
           } catch (updateError: any) {
             this.logger.warn(`[HealthCheck] Failed to update session ${session.name}: ${updateError.message}`);
@@ -570,12 +586,6 @@ export class OrchestratorService implements OnModuleInit, OnModuleDestroy {
    * Perform relogin check and auto-relogin expired sessions
    */
   async performReloginCheck(): Promise<void> {
-    // Throttle during active login to avoid resource contention
-    if (this.isLoginInProgress) {
-      this.logger.log('[ReloginCheck] Throttling background tasks during active login - skipping relogin check');
-      return;
-    }
-
     this.logger.log(`[ReloginCheck] Auto-relogin enabled: ${this.settings?.lineSessionAutoReloginEnabled !== false}`);
 
     if (this.settings?.lineSessionAutoReloginEnabled === false) {
@@ -605,7 +615,9 @@ export class OrchestratorService implements OnModuleInit, OnModuleDestroy {
           { xLineAccess: null },
           { xLineAccess: '' },
         ],
-      });
+      })
+        .sort({ lastCheckedAt: 1 })
+        .limit(5);
 
       this.logger.log(`[ReloginCheck] Found ${sessions.length} sessions needing relogin`);
 
@@ -618,6 +630,12 @@ export class OrchestratorService implements OnModuleInit, OnModuleDestroy {
         try {
           // Use session._id as the primary identifier
           const sessionId = session._id.toString();
+
+          // Per-account throttle: skip only this account if login in progress
+          if (this.loginsInProgress.has(sessionId) || this.loginsInProgress.has(session.lineAccountId)) {
+            this.logger.log(`[ReloginCheck] Skipping ${session.name} - login in progress`);
+            continue;
+          }
 
           // Try to fix corrupted sessions instead of just skipping
           if (!session.name || !session.ownerId) {
@@ -744,6 +762,12 @@ export class OrchestratorService implements OnModuleInit, OnModuleDestroy {
             this.logger.log(`[ReloginCheck] Keys confirmed expired for ${session.name}, proceeding with relogin`);
           }
 
+          // Stagger: wait between login attempts to avoid RAM spike
+          if (this.reloginAttempts > 0) {
+            this.logger.log(`[ReloginCheck] Stagger delay ${this.RELOGIN_STAGGER_DELAY_MS / 1000}s before next login...`);
+            await new Promise(resolve => setTimeout(resolve, this.RELOGIN_STAGGER_DELAY_MS));
+          }
+
           // Update status to show relogin in progress
           await this.lineSessionModel.updateOne(
             { _id: session._id },
@@ -760,6 +784,12 @@ export class OrchestratorService implements OnModuleInit, OnModuleDestroy {
             undefined,
             'auto',
           );
+
+          // Concurrent limit reached — don't count as failure, just skip remaining sessions
+          if (!result.success && result.error?.includes('สูงสุด')) {
+            this.logger.log(`[ReloginCheck] Concurrent login limit reached, deferring ${session.name} to next cycle`);
+            break; // No point trying more sessions this cycle
+          }
 
           if (result.success || result.pinCode) {
             this.reloginSuccesses++;

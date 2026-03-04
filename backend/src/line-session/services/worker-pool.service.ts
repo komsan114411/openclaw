@@ -3,6 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import * as path from 'path';
 import * as fs from 'fs';
+import { execSync } from 'child_process';
 
 // Types
 type Browser = any;
@@ -302,6 +303,33 @@ export class WorkerPoolService implements OnModuleDestroy, OnModuleInit {
   }
 
   /**
+   * Ensure Xvfb (virtual display) is running before launching headful browser.
+   * If Xvfb crashed, attempt to restart it automatically.
+   */
+  private async ensureXvfbRunning(): Promise<boolean> {
+    try {
+      execSync('pgrep -x Xvfb', { timeout: 5000 });
+      return true;
+    } catch {
+      this.logger.warn('[WorkerPool] Xvfb not running, attempting restart...');
+      try {
+        execSync(
+          'Xvfb :99 -screen 0 1920x1080x24 -ac +extension GLX +render -noreset &',
+          { timeout: 10000, shell: '/bin/sh' },
+        );
+        await new Promise(resolve => setTimeout(resolve, 2000));
+        // Verify it started
+        execSync('pgrep -x Xvfb', { timeout: 5000 });
+        this.logger.log('[WorkerPool] Xvfb restarted successfully');
+        return true;
+      } catch (restartError) {
+        this.logger.error('[WorkerPool] Failed to restart Xvfb — headful browser unavailable');
+        return false;
+      }
+    }
+  }
+
+  /**
    * Initialize a new worker
    */
   async initializeWorker(lineAccountId: string, email: string): Promise<Worker> {
@@ -309,6 +337,17 @@ export class WorkerPoolService implements OnModuleDestroy, OnModuleInit {
       throw new Error('WorkerPool not available');
     }
 
+    // Acquire per-account lock to prevent concurrent initialization
+    if (!this.acquireLock(lineAccountId)) {
+      // Lock held = another initialization in progress, return existing worker if usable
+      const existing = this.workers.get(lineAccountId);
+      if (existing && existing.state !== WorkerState.ERROR && existing.state !== WorkerState.CLOSED) {
+        return existing;
+      }
+      throw new Error(`Worker initialization already in progress for ${lineAccountId}`);
+    }
+
+    try {
     // Check existing worker
     const existing = this.workers.get(lineAccountId);
     if (existing && existing.state !== WorkerState.ERROR && existing.state !== WorkerState.CLOSED) {
@@ -325,9 +364,9 @@ export class WorkerPoolService implements OnModuleDestroy, OnModuleInit {
         existing.lastActivityAt = new Date();
         return existing;
       } else {
-        // Browser is stale/crashed - close and create new one
+        // Browser is stale/crashed - close and create new one (internal: don't release lock)
         this.logger.warn(`Worker browser is stale for ${lineAccountId}, creating new worker`);
-        await this.closeWorker(lineAccountId);
+        await this.closeWorkerInternal(lineAccountId);
       }
     }
 
@@ -379,6 +418,14 @@ export class WorkerPoolService implements OnModuleDestroy, OnModuleInit {
       // 2. DISPLAY is set (Xvfb or real display)
       const isHeadless = headlessEnv !== 'false' && !displayEnv;
 
+      // Xvfb health check: if running headful, ensure Xvfb is alive
+      if (!isHeadless) {
+        const xvfbReady = await this.ensureXvfbRunning();
+        if (!xvfbReady) {
+          throw new Error('Xvfb is not available and could not be restarted');
+        }
+      }
+
       // Debug logging
       this.logger.log(`[WorkerPool] ========== BROWSER LAUNCH DEBUG ==========`);
       this.logger.log(`[WorkerPool] lineAccountId: ${lineAccountId}`);
@@ -404,6 +451,15 @@ export class WorkerPoolService implements OnModuleDestroy, OnModuleInit {
           // GSB-style: Allow insecure content and disable web security for extension access
           '--allow-running-insecure-content',
           '--disable-web-security',
+          // Memory-saving flags
+          '--disable-background-networking',
+          '--disable-default-apps',
+          '--disable-sync',
+          '--disable-translate',
+          '--no-first-run',
+          '--disable-backgrounding-occluded-windows',
+          '--disable-renderer-backgrounding',
+          '--disable-ipc-flooding-protection',
         ],
         defaultViewport: { width: 1280, height: 800 },
         // GSB-style: Allow extensions to load by ignoring default args that disable them
@@ -472,6 +528,9 @@ export class WorkerPoolService implements OnModuleDestroy, OnModuleInit {
       worker.error = error.message;
       this.emitWorkerStateChanged(worker);
       throw error;
+    }
+    } finally {
+      this.releaseLock(lineAccountId);
     }
   }
 
@@ -1169,13 +1228,23 @@ export class WorkerPoolService implements OnModuleDestroy, OnModuleInit {
   /**
    * Close worker (completely close browser)
    */
-  async closeWorker(lineAccountId: string): Promise<void> {
+  /**
+   * Internal close: cleanup worker without releasing the pool lock.
+   * Used inside initializeWorker() where the caller already holds the lock.
+   */
+  private async closeWorkerInternal(lineAccountId: string): Promise<void> {
     const worker = this.workers.get(lineAccountId);
     if (!worker) return;
 
     await this.cleanupWorkerResources(worker);
     worker.state = WorkerState.CLOSED;
     this.workers.delete(lineAccountId);
+
+    this.logger.log(`Worker internally closed for ${lineAccountId}`);
+  }
+
+  async closeWorker(lineAccountId: string): Promise<void> {
+    await this.closeWorkerInternal(lineAccountId);
     this.releaseLock(lineAccountId);
 
     this.logger.log(`Worker closed for ${lineAccountId}`);
