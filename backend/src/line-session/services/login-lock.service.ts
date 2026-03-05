@@ -10,6 +10,7 @@ export interface LoginQueueItem {
   lineAccountId: string;
   ownerId: string;
   source: string;
+  priority: number; // 1=manual, 2=relogin, 3=auto
   queuedAt: Date;
   position: number;
 }
@@ -23,7 +24,8 @@ export interface LoginQueueItem {
  * Features:
  * - Per-account lock
  * - Per-user concurrent limit (MAX_PER_USER = 2)
- * - Login queue with position tracking
+ * - Priority login queue (manual > relogin > auto)
+ * - Stale queue cleanup
  * - Auto-cleanup expired locks
  */
 @Injectable()
@@ -38,7 +40,15 @@ export class LoginLockService {
 
   // Login queue for when concurrent limit is reached
   private loginQueue: LoginQueueItem[] = [];
-  private queueListeners: Map<string, (item: LoginQueueItem) => void> = new Map();
+
+  // Priority constants
+  static readonly PRIORITY_MANUAL = 1;
+  static readonly PRIORITY_RELOGIN = 2;
+  static readonly PRIORITY_AUTO = 3;
+
+  // Queue limits
+  private readonly MAX_QUEUE_SIZE = 20;
+  private readonly QUEUE_STALE_TIMEOUT_MS = 10 * 60 * 1000; // 10 minutes
 
   constructor() {
     // Start periodic cleanup every 30 seconds
@@ -48,7 +58,7 @@ export class LoginLockService {
   }
 
   /**
-   * Cleanup all expired locks
+   * Cleanup all expired locks + stale queue items
    */
   private cleanupAllExpiredLocks(): void {
     const now = Date.now();
@@ -64,9 +74,10 @@ export class LoginLockService {
 
     if (cleanedCount > 0) {
       this.logger.log(`[Cleanup] Released ${cleanedCount} expired locks`);
-      // Notify queued items that slots may be available
-      this.notifyQueueOnSlotFreed();
     }
+
+    // Also cleanup stale queue items
+    this.cleanupStaleQueueItems();
   }
 
   /**
@@ -106,8 +117,6 @@ export class LoginLockService {
     if (lockInfo && lockInfo.source === source) {
       this.locks.delete(lineAccountId);
       this.logger.log(`Lock released for ${lineAccountId} (source: ${source})`);
-      // Notify queued items
-      this.notifyQueueOnSlotFreed();
     }
   }
 
@@ -129,6 +138,20 @@ export class LoginLockService {
   }
 
   /**
+   * Refresh lock timestamp to prevent auto-expiry during long-running operations
+   * (e.g., waiting for user to verify PIN on mobile)
+   */
+  refreshLock(lineAccountId: string, source: string): boolean {
+    const lockInfo = this.locks.get(lineAccountId);
+    if (lockInfo && lockInfo.source === source) {
+      lockInfo.lockedAt = new Date();
+      this.logger.log(`Lock refreshed for ${lineAccountId} (source: ${source})`);
+      return true;
+    }
+    return false;
+  }
+
+  /**
    * Force release the lock regardless of source
    */
   forceRelease(lineAccountId: string): void {
@@ -136,7 +159,6 @@ export class LoginLockService {
     if (lockInfo) {
       this.locks.delete(lineAccountId);
       this.logger.warn(`Lock force released for ${lineAccountId} (was: ${lockInfo.source})`);
-      this.notifyQueueOnSlotFreed();
     }
   }
 
@@ -176,18 +198,25 @@ export class LoginLockService {
     return this.getLocksForOwner(ownerId) >= this.MAX_PER_USER;
   }
 
+  /**
+   * Get number of available login slots
+   */
+  getAvailableSlots(maxConcurrent: number): number {
+    return Math.max(0, maxConcurrent - this.locks.size);
+  }
+
   // ================================
   // LOGIN QUEUE
   // ================================
 
   /**
-   * Add a login request to the queue
-   * @returns queue position (1-based) and estimated wait time in seconds
+   * Add a login request to the queue (sorted by priority)
+   * @returns queue position and estimated wait time, or null if queue is full
    */
   addToQueue(lineAccountId: string, ownerId: string, source: string): {
     position: number;
     estimatedWaitSeconds: number;
-  } {
+  } | null {
     // Check if already in queue
     const existing = this.loginQueue.findIndex(q => q.lineAccountId === lineAccountId);
     if (existing !== -1) {
@@ -197,16 +226,26 @@ export class LoginLockService {
       };
     }
 
+    // Check max queue size
+    if (this.loginQueue.length >= this.MAX_QUEUE_SIZE) {
+      this.logger.warn(`[Queue] Queue full (${this.loginQueue.length}/${this.MAX_QUEUE_SIZE}), rejecting ${lineAccountId}`);
+      return null;
+    }
+
+    const priority = this.getPriorityForSource(source);
     const item: LoginQueueItem = {
       lineAccountId,
       ownerId,
       source,
+      priority,
       queuedAt: new Date(),
-      position: this.loginQueue.length + 1,
+      position: 0, // will be set by insertByPriority
     };
 
-    this.loginQueue.push(item);
-    this.logger.log(`[Queue] Added ${lineAccountId} to login queue (position: ${item.position}, owner: ${ownerId})`);
+    this.insertByPriority(item);
+    this.recalculatePositions();
+
+    this.logger.log(`[Queue] Added ${lineAccountId} to login queue (position: ${item.position}, priority: ${priority}, source: ${source}, owner: ${ownerId})`);
 
     return {
       position: item.position,
@@ -256,13 +295,6 @@ export class LoginLockService {
   }
 
   /**
-   * Register a callback for when a queue slot becomes available
-   */
-  onSlotAvailable(lineAccountId: string, callback: (item: LoginQueueItem) => void): void {
-    this.queueListeners.set(lineAccountId, callback);
-  }
-
-  /**
    * Dequeue the next item when a slot becomes available
    * @returns the dequeued item, or null if queue is empty
    */
@@ -271,10 +303,36 @@ export class LoginLockService {
 
     const item = this.loginQueue.shift()!;
     this.recalculatePositions();
-    this.queueListeners.delete(item.lineAccountId);
 
-    this.logger.log(`[Queue] Dequeued ${item.lineAccountId} (remaining: ${this.loginQueue.length})`);
+    this.logger.log(`[Queue] Dequeued ${item.lineAccountId} (source: ${item.source}, priority: ${item.priority}, remaining: ${this.loginQueue.length})`);
     return item;
+  }
+
+  /**
+   * Cleanup stale queue items (older than QUEUE_STALE_TIMEOUT_MS)
+   * @returns removed items so caller can emit failure events
+   */
+  cleanupStaleQueueItems(): LoginQueueItem[] {
+    const now = Date.now();
+    const staleItems: LoginQueueItem[] = [];
+    const remaining: LoginQueueItem[] = [];
+
+    for (const item of this.loginQueue) {
+      if (now - item.queuedAt.getTime() >= this.QUEUE_STALE_TIMEOUT_MS) {
+        staleItems.push(item);
+        this.logger.warn(`[Queue] Removing stale item ${item.lineAccountId} (queued ${Math.round((now - item.queuedAt.getTime()) / 1000)}s ago)`);
+      } else {
+        remaining.push(item);
+      }
+    }
+
+    if (staleItems.length > 0) {
+      this.loginQueue = remaining;
+      this.recalculatePositions();
+      this.logger.log(`[Queue] Cleaned up ${staleItems.length} stale queue items`);
+    }
+
+    return staleItems;
   }
 
   /**
@@ -295,21 +353,27 @@ export class LoginLockService {
   }
 
   /**
-   * Notify queued items when a login slot is freed
+   * Insert item into queue sorted by priority (lower number = higher priority)
+   * Same priority → FIFO (append after existing same-priority items)
    */
-  private notifyQueueOnSlotFreed(): void {
-    if (this.loginQueue.length === 0) return;
+  private insertByPriority(item: LoginQueueItem): void {
+    const insertIdx = this.loginQueue.findIndex(q => q.priority > item.priority);
+    if (insertIdx === -1) {
+      this.loginQueue.push(item);
+    } else {
+      this.loginQueue.splice(insertIdx, 0, item);
+    }
+  }
 
-    // Notify all queue listeners about updated positions
-    for (const [lineAccountId, callback] of this.queueListeners.entries()) {
-      const item = this.loginQueue.find(q => q.lineAccountId === lineAccountId);
-      if (item) {
-        try {
-          callback(item);
-        } catch {
-          // Ignore callback errors
-        }
-      }
+  /**
+   * Map source string to priority number
+   */
+  private getPriorityForSource(source: string): number {
+    switch (source) {
+      case 'manual': return LoginLockService.PRIORITY_MANUAL;
+      case 'relogin': return LoginLockService.PRIORITY_RELOGIN;
+      case 'auto': return LoginLockService.PRIORITY_AUTO;
+      default: return LoginLockService.PRIORITY_AUTO;
     }
   }
 
@@ -326,7 +390,6 @@ export class LoginLockService {
       if (now - lockedAt >= this.LOCK_TIMEOUT_MS) {
         this.locks.delete(lineAccountId);
         this.logger.warn(`Lock expired and auto-released for ${lineAccountId}`);
-        this.notifyQueueOnSlotFreed();
       }
     }
   }

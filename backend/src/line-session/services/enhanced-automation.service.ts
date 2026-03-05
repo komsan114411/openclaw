@@ -161,6 +161,9 @@ export class EnhancedAutomationService implements OnModuleInit, OnModuleDestroy 
   private readonly GLOBAL_CIRCUIT_BREAKER_THRESHOLD = 3;
   private readonly GLOBAL_CIRCUIT_BREAKER_COOLDOWN_MS = 5 * 60 * 1000; // 5 minutes
 
+  // Queue processing guard (prevent concurrent processNextInQueue calls)
+  private processingQueue = false;
+
   // Encryption
   private readonly ENCRYPTION_KEY: string;
 
@@ -185,9 +188,10 @@ export class EnhancedAutomationService implements OnModuleInit, OnModuleDestroy 
   onModuleInit(): void {
     this.logger.log('[PIN Security] Starting internal PIN cleanup interval (every 30 seconds)');
 
-    // Start cleanup interval
+    // Start cleanup interval (PINs + stale queue items)
     this.pinCleanupInterval = setInterval(() => {
       this.cleanupExpiredPinsSecure();
+      this.cleanupStaleQueuedItems();
     }, this.PIN_CLEANUP_INTERVAL_MS);
   }
 
@@ -442,36 +446,38 @@ export class EnhancedAutomationService implements OnModuleInit, OnModuleDestroy 
     }
 
     // System-wide concurrent login limit: prevent RAM exhaustion from too many browsers
+    // All sources (manual, relogin, auto) enter queue with priority
     const activeLoginCount = this.loginLockService.getAllLocks().length;
     if (activeLoginCount >= this.MAX_CONCURRENT_LOGINS) {
-      // For manual source: add to queue and return queue info
-      if (source === 'manual') {
-        const queueInfo = this.loginLockService.addToQueue(lineAccountId, sessionOwnerId, source);
-        this.logger.warn(`[Login] Concurrent limit reached, queued ${lineAccountId} (position: ${queueInfo.position})`);
+      const queueInfo = this.loginLockService.addToQueue(lineAccountId, sessionOwnerId, source);
 
-        // Emit queue event for WebSocket
-        this.eventEmitter.emit('login.queued', {
-          lineAccountId,
-          ownerId: sessionOwnerId,
-          position: queueInfo.position,
-          estimatedWaitSeconds: queueInfo.estimatedWaitSeconds,
-          timestamp: new Date(),
-        });
-
+      // Queue is full
+      if (!queueInfo) {
+        this.logger.warn(`[Login] Queue full, rejecting ${lineAccountId} (source: ${source})`);
         return {
           success: false,
           status: EnhancedLoginStatus.FAILED,
-          error: `ระบบกำลังล็อกอินพร้อมกัน ${activeLoginCount} บัญชี (สูงสุด ${this.MAX_CONCURRENT_LOGINS}) คิวที่ ${queueInfo.position} รอประมาณ ${Math.ceil(queueInfo.estimatedWaitSeconds / 60)} นาที (จะเริ่มอัตโนมัติเมื่อถึงคิว)`,
-          message: `queued:${queueInfo.position}:${queueInfo.estimatedWaitSeconds}`,
+          error: 'คิวล็อกอินเต็ม กรุณารอสักครู่แล้วลองใหม่',
         };
       }
 
-      // For auto/relogin source: just reject (orchestrator/scheduler will retry)
-      this.logger.warn(`[Login] Concurrent login limit reached (${activeLoginCount}/${this.MAX_CONCURRENT_LOGINS}) — blocking ${lineAccountId}`);
+      this.logger.warn(`[Login] Concurrent limit reached, queued ${lineAccountId} (position: ${queueInfo.position}, source: ${source})`);
+
+      // Emit queue event for WebSocket
+      this.eventEmitter.emit('login.queued', {
+        lineAccountId,
+        ownerId: sessionOwnerId,
+        position: queueInfo.position,
+        estimatedWaitSeconds: queueInfo.estimatedWaitSeconds,
+        source,
+        timestamp: new Date(),
+      });
+
       return {
         success: false,
         status: EnhancedLoginStatus.FAILED,
-        error: `ระบบกำลังล็อกอินพร้อมกัน ${activeLoginCount} บัญชี (สูงสุด ${this.MAX_CONCURRENT_LOGINS}) กรุณารอสักครู่`,
+        error: `ระบบกำลังล็อกอินพร้อมกัน ${activeLoginCount} บัญชี (สูงสุด ${this.MAX_CONCURRENT_LOGINS}) คิวที่ ${queueInfo.position} รอประมาณ ${Math.ceil(queueInfo.estimatedWaitSeconds / 60)} นาที (จะเริ่มอัตโนมัติเมื่อถึงคิว)`,
+        message: `queued:${queueInfo.position}:${queueInfo.estimatedWaitSeconds}`,
       };
     }
 
@@ -832,6 +838,10 @@ export class EnhancedAutomationService implements OnModuleInit, OnModuleDestroy 
     pinCode: string,
   ): Promise<void> {
     try {
+      // Refresh lock timestamp — lock was acquired minutes ago during browser setup + PIN wait.
+      // Without refresh, LOCK_TIMEOUT (4 min) could expire during waitForLoginComplete (3 min).
+      this.loginLockService.refreshLock(lineAccountId, 'enhanced');
+
       // Wait for login completion (user enters PIN on mobile)
       this.emitStatus(lineAccountId, EnhancedLoginStatus.VERIFYING, { requestId });
       const loginSuccess = await this.waitForLoginComplete(worker.page);
@@ -899,59 +909,136 @@ export class EnhancedAutomationService implements OnModuleInit, OnModuleDestroy 
   }
 
   /**
-   * Auto-process next item in login queue when a slot is freed.
+   * Auto-process queued items when slots are freed.
+   * Dequeues multiple items if multiple slots are available.
    * Uses setImmediate to decouple from the releasing call stack (prevent recursion).
-   * If auto-login fails due to concurrent limit, the item is re-queued automatically.
+   * Preserves original source for correct priority on re-queue.
    */
   private processNextInQueue(): void {
-    const nextInQueue = this.loginLockService.dequeueNext();
-    if (!nextInQueue) return;
+    if (this.processingQueue) return;
+    this.processingQueue = true;
 
-    const { lineAccountId, ownerId } = nextInQueue;
+    try {
+      const availableSlots = this.loginLockService.getAvailableSlots(this.MAX_CONCURRENT_LOGINS);
+      if (availableSlots <= 0) return;
 
-    // Notify user that their queued login is starting automatically
-    this.eventEmitter.emit('login.slot_available', {
-      lineAccountId,
-      ownerId,
-      timestamp: new Date(),
-    });
+      const itemsToProcess: { lineAccountId: string; ownerId: string; source: 'manual' | 'auto' | 'relogin' }[] = [];
 
-    this.logger.log(`[Queue] Auto-starting login for queued ${lineAccountId} (owner: ${ownerId})`);
+      for (let i = 0; i < availableSlots; i++) {
+        const nextInQueue = this.loginLockService.dequeueNext();
+        if (!nextInQueue) break;
+        const validSource = (['manual', 'auto', 'relogin'] as const).includes(
+          nextInQueue.source as 'manual' | 'auto' | 'relogin',
+        ) ? nextInQueue.source as 'manual' | 'auto' | 'relogin' : 'manual' as const;
+        itemsToProcess.push({
+          lineAccountId: nextInQueue.lineAccountId,
+          ownerId: nextInQueue.ownerId,
+          source: validSource,
+        });
+      }
 
-    // Decouple: avoid calling startLogin inside the finally of another startLogin
-    setImmediate(async () => {
-      try {
-        // Emit status so frontend shows "processing" instead of "click again"
-        this.emitStatus(lineAccountId, EnhancedLoginStatus.REQUESTING, {
-          message: 'ถึงคิวแล้ว กำลังเริ่มล็อกอินอัตโนมัติ...',
+      if (itemsToProcess.length === 0) return;
+
+      // Emit queue position updates for remaining items
+      this.emitQueueUpdates();
+
+      // Start each dequeued item in a decoupled context
+      for (const item of itemsToProcess) {
+        const { lineAccountId, ownerId, source } = item;
+
+        // Notify user that their queued login is starting automatically
+        this.eventEmitter.emit('login.slot_available', {
+          lineAccountId,
+          ownerId,
+          timestamp: new Date(),
         });
 
-        const result = await this.startLogin(lineAccountId, undefined, undefined, 'manual');
+        this.logger.log(`[Queue] Auto-starting login for queued ${lineAccountId} (owner: ${ownerId}, source: ${source})`);
 
-        if (!result.success && !result.pinCode) {
-          // Login failed — check if it was concurrent limit (re-queue) vs real error
-          if (result.error?.includes('สูงสุด') || result.error?.includes('ต่อผู้ใช้')) {
-            // Re-queue at front (will be retried when next slot frees)
-            this.loginLockService.addToQueue(lineAccountId, ownerId, 'manual');
-            this.logger.warn(`[Queue] Auto-login for ${lineAccountId} hit limit, re-queued`);
+        // Decouple: avoid calling startLogin inside the finally of another startLogin
+        setImmediate(async () => {
+          try {
+            // Validate session still exists before auto-starting
+            const sessionExists = await this.lineSessionModel.exists({ lineAccountId });
+            if (!sessionExists) {
+              this.logger.warn(`[Queue] Session no longer exists for ${lineAccountId}, skipping`);
+              return;
+            }
 
-            this.eventEmitter.emit('login.queued', {
-              lineAccountId,
-              ownerId,
-              position: 1,
-              estimatedWaitSeconds: 180,
-              timestamp: new Date(),
+            // Emit status so frontend shows "processing" instead of "click again"
+            this.emitStatus(lineAccountId, EnhancedLoginStatus.REQUESTING, {
+              message: 'ถึงคิวแล้ว กำลังเริ่มล็อกอินอัตโนมัติ...',
             });
-          } else {
-            // Real failure — notify user
-            this.logger.error(`[Queue] Auto-login failed for ${lineAccountId}: ${result.error}`);
+
+            const result = await this.startLogin(lineAccountId, undefined, undefined, source);
+
+            if (!result.success && !result.pinCode) {
+              // Login failed — check if it was concurrent limit (re-queue) vs real error
+              if (result.error?.includes('สูงสุด') || result.error?.includes('ต่อผู้ใช้') || result.error?.includes('คิวที่')) {
+                // Re-queue with original source (preserves priority)
+                const reQueueInfo = this.loginLockService.addToQueue(lineAccountId, ownerId, source);
+                if (reQueueInfo) {
+                  this.logger.warn(`[Queue] Auto-login for ${lineAccountId} hit limit, re-queued at position ${reQueueInfo.position}`);
+
+                  this.eventEmitter.emit('login.queued', {
+                    lineAccountId,
+                    ownerId,
+                    position: reQueueInfo.position,
+                    estimatedWaitSeconds: reQueueInfo.estimatedWaitSeconds,
+                    source,
+                    timestamp: new Date(),
+                  });
+
+                  this.emitQueueUpdates();
+                }
+              } else {
+                // Real failure — notify user
+                this.logger.error(`[Queue] Auto-login failed for ${lineAccountId}: ${result.error}`);
+              }
+            }
+          } catch (error: unknown) {
+            const errMsg = error instanceof Error ? error.message : String(error);
+            this.logger.error(`[Queue] Auto-login error for ${lineAccountId}: ${errMsg}`);
           }
-        }
-      } catch (error: unknown) {
-        const errMsg = error instanceof Error ? error.message : String(error);
-        this.logger.error(`[Queue] Auto-login error for ${lineAccountId}: ${errMsg}`);
+        });
       }
-    });
+    } finally {
+      this.processingQueue = false;
+    }
+  }
+
+  /**
+   * Emit queue position updates to all remaining items in queue via WebSocket
+   */
+  private emitQueueUpdates(): void {
+    const { items } = this.loginLockService.getQueueStatus();
+    for (const item of items) {
+      this.eventEmitter.emit('login.queue_update', {
+        lineAccountId: item.lineAccountId,
+        ownerId: item.ownerId,
+        position: item.position,
+        estimatedWaitSeconds: Math.ceil(item.position / this.MAX_CONCURRENT_LOGINS) * 180,
+        timestamp: new Date(),
+      });
+    }
+  }
+
+  /**
+   * Cleanup stale queue items and notify frontend of failures
+   */
+  private cleanupStaleQueuedItems(): void {
+    const staleItems = this.loginLockService.cleanupStaleQueueItems();
+
+    for (const item of staleItems) {
+      this.emitStatus(item.lineAccountId, EnhancedLoginStatus.FAILED, {
+        error: 'คิวหมดเวลา กรุณากดล็อกอินใหม่',
+        ownerId: item.ownerId,
+      });
+    }
+
+    if (staleItems.length > 0) {
+      this.emitQueueUpdates();
+    }
   }
 
   /**
