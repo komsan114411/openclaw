@@ -253,8 +253,10 @@ export default function AdminLineAccountsPage() {
           };
         }
 
-        // Clear queue message when login actually starts processing (slot opened)
-        if (isInProgress) {
+        // Only clear queueMessage on terminal statuses (success/failed)
+        // Do NOT clear on in-progress statuses — that caused premature disappearance
+        // The primary clear trigger is the slot_available event in onQueueEvent
+        if (isCompleted) {
           setQueueMessage(null);
         }
 
@@ -317,6 +319,13 @@ export default function AdminLineAccountsPage() {
         const waitMin = event.estimatedWaitSeconds ? Math.ceil(event.estimatedWaitSeconds / 60) : null;
         toast(`คิวที่ ${event.position ?? '?'}${waitMin ? ` — รอประมาณ ${waitMin} นาที` : ''}`, { icon: '⏳', duration: 4000 });
       } else if (event.type === 'slot_available') {
+        // Clear queue message — login is about to start
+        setQueueMessage(null);
+        // Restart polling for the auto-started login
+        if (selectedAccount?._id) {
+          pollingCancelledRef.current = false;
+          pollLoginStatus(selectedAccount._id);
+        }
         toast.success('ถึงคิวแล้ว! กำลังเริ่มล็อกอิน...', { icon: '🚀', duration: 5000 });
       }
     },
@@ -1540,6 +1549,8 @@ export default function AdminLineAccountsPage() {
       // Store queue message in separate state (immune to WebSocket/polling overwrites)
       if (isQueued && data.error) {
         setQueueMessage(data.error);
+        // Cancel polling — no worker exists for queued accounts, polling is useless
+        pollingCancelledRef.current = true;
       }
 
       // Update state with response
@@ -1551,7 +1562,7 @@ export default function AdminLineAccountsPage() {
         requestId: data.requestId,
         chatMid: data.chatMid,
         sessionReused: data.sessionReused,
-        isLoading: isQueued || (!data.success && data.status !== 'failed'),
+        isLoading: isQueued ? false : (!data.success && data.status !== 'failed'),
       }));
 
       // Handle success
