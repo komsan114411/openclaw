@@ -231,6 +231,179 @@ export class LineWebhookController {
       };
       this.websocketGateway.broadcastToRoom(`chat:${accountId}`, 'message_received', imageMessageData);
       this.websocketGateway.broadcastToAdmins('message_received', imageMessageData);
+    } else if (message.type === 'sticker') {
+      await this.lineAccountsService.saveChatMessage(
+        accountId,
+        lineUserId,
+        MessageDirection.IN,
+        MessageType.STICKER,
+        '[สติกเกอร์]',
+        message.id,
+        replyToken,
+        event,
+        lineUserName,
+        lineUserPicture,
+      );
+
+      const stickerMessageData = {
+        _id: message.id,
+        lineAccountId: accountId,
+        lineUserId,
+        lineUserName,
+        lineUserPicture,
+        direction: 'in',
+        messageType: 'sticker',
+        messageText: '[สติกเกอร์]',
+        messageId: message.id,
+        stickerPackageId: message.packageId,
+        stickerId: message.stickerId,
+        createdAt: new Date().toISOString(),
+      };
+      this.websocketGateway.broadcastToRoom(`chat:${accountId}`, 'message_received', stickerMessageData);
+      this.websocketGateway.broadcastToAdmins('message_received', stickerMessageData);
+    } else if (message.type === 'video') {
+      await this.lineAccountsService.saveChatMessage(
+        accountId,
+        lineUserId,
+        MessageDirection.IN,
+        MessageType.VIDEO,
+        '[วิดีโอ]',
+        message.id,
+        replyToken,
+        event,
+        lineUserName,
+        lineUserPicture,
+      );
+
+      const videoMessageData = {
+        _id: message.id,
+        lineAccountId: accountId,
+        lineUserId,
+        lineUserName,
+        lineUserPicture,
+        direction: 'in',
+        messageType: 'video',
+        messageText: '[วิดีโอ]',
+        messageId: message.id,
+        createdAt: new Date().toISOString(),
+      };
+      this.websocketGateway.broadcastToRoom(`chat:${accountId}`, 'message_received', videoMessageData);
+      this.websocketGateway.broadcastToAdmins('message_received', videoMessageData);
+    } else if (message.type === 'audio') {
+      await this.lineAccountsService.saveChatMessage(
+        accountId,
+        lineUserId,
+        MessageDirection.IN,
+        MessageType.AUDIO,
+        '[เสียง]',
+        message.id,
+        replyToken,
+        event,
+        lineUserName,
+        lineUserPicture,
+      );
+
+      const audioMessageData = {
+        _id: message.id,
+        lineAccountId: accountId,
+        lineUserId,
+        lineUserName,
+        lineUserPicture,
+        direction: 'in',
+        messageType: 'audio',
+        messageText: '[เสียง]',
+        messageId: message.id,
+        createdAt: new Date().toISOString(),
+      };
+      this.websocketGateway.broadcastToRoom(`chat:${accountId}`, 'message_received', audioMessageData);
+      this.websocketGateway.broadcastToAdmins('message_received', audioMessageData);
+    } else if (message.type === 'file') {
+      const fileName = message.fileName || 'ไฟล์';
+      await this.lineAccountsService.saveChatMessage(
+        accountId,
+        lineUserId,
+        MessageDirection.IN,
+        MessageType.FILE,
+        `[ไฟล์] ${fileName}`,
+        message.id,
+        replyToken,
+        event,
+        lineUserName,
+        lineUserPicture,
+      );
+
+      const fileMessageData = {
+        _id: message.id,
+        lineAccountId: accountId,
+        lineUserId,
+        lineUserName,
+        lineUserPicture,
+        direction: 'in',
+        messageType: 'file',
+        messageText: `[ไฟล์] ${fileName}`,
+        messageId: message.id,
+        createdAt: new Date().toISOString(),
+      };
+      this.websocketGateway.broadcastToRoom(`chat:${accountId}`, 'message_received', fileMessageData);
+      this.websocketGateway.broadcastToAdmins('message_received', fileMessageData);
+    } else if (message.type === 'location') {
+      const address = message.address || 'ตำแหน่งที่ตั้ง';
+      await this.lineAccountsService.saveChatMessage(
+        accountId,
+        lineUserId,
+        MessageDirection.IN,
+        MessageType.LOCATION,
+        `[ตำแหน่ง] ${address}`,
+        message.id,
+        replyToken,
+        event,
+        lineUserName,
+        lineUserPicture,
+      );
+
+      const locationMessageData = {
+        _id: message.id,
+        lineAccountId: accountId,
+        lineUserId,
+        lineUserName,
+        lineUserPicture,
+        direction: 'in',
+        messageType: 'location',
+        messageText: `[ตำแหน่ง] ${address}`,
+        messageId: message.id,
+        createdAt: new Date().toISOString(),
+      };
+      this.websocketGateway.broadcastToRoom(`chat:${accountId}`, 'message_received', locationMessageData);
+      this.websocketGateway.broadcastToAdmins('message_received', locationMessageData);
+    } else if (message.type && message.type !== 'text' && message.type !== 'image') {
+      // Save other unsupported message types
+      await this.lineAccountsService.saveChatMessage(
+        accountId,
+        lineUserId,
+        MessageDirection.IN,
+        MessageType.OTHER,
+        `[${message.type}]`,
+        message.id,
+        replyToken,
+        event,
+        lineUserName,
+        lineUserPicture,
+      );
+
+      const otherMessageData = {
+        _id: message.id,
+        lineAccountId: accountId,
+        lineUserId,
+        lineUserName,
+        lineUserPicture,
+        direction: 'in',
+        messageType: 'other',
+        messageText: `[${message.type}]`,
+        messageId: message.id,
+        createdAt: new Date().toISOString(),
+      };
+      this.websocketGateway.broadcastToRoom(`chat:${accountId}`, 'message_received', otherMessageData);
+      this.websocketGateway.broadcastToAdmins('message_received', otherMessageData);
     }
 
     // Check if bot is enabled (ผู้ใช้เลือกได้ว่าจะส่งข้อความหรือไม่)

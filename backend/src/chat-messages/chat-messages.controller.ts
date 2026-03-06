@@ -213,6 +213,29 @@ export class ChatMessagesController {
   }
 
   /**
+   * Get LINE content (audio/video/file) with proper content-type
+   */
+  @Get(':accountId/content/:messageId')
+  async getLineContent(
+    @Param('accountId', ParseObjectIdPipe) accountId: string,
+    @Param('messageId') messageId: string,
+    @Res() res: Response,
+    @CurrentUser() user: AuthUser,
+  ) {
+    await this.chatMessagesService.ensureAccountAccess(accountId, user);
+    const result = await this.chatMessagesService.getLineContent(accountId, messageId);
+
+    if (!result) {
+      res.status(404).json({ success: false, message: 'Content not found' });
+      return;
+    }
+
+    res.set('Content-Type', result.contentType);
+    res.set('Cache-Control', 'public, max-age=86400');
+    res.send(result.buffer);
+  }
+
+  /**
    * Get LINE user profile
    */
   @Get(':accountId/profile/:userId')

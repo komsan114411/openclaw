@@ -191,10 +191,9 @@ export class ChatMessagesService {
       {
         $group: {
           _id: '$lineUserId',
-          // Collect all names and pictures to find the latest non-null one
-          names: { $push: '$lineUserName' },
-          pictures: { $push: '$lineUserPicture' },
-
+          // Data is sorted by createdAt desc, so $first = latest non-null value
+          lineUserName: { $first: '$lineUserName' },
+          lineUserPicture: { $first: '$lineUserPicture' },
           lastMessage: { $first: '$messageText' },
           lastMessageTime: { $first: '$createdAt' },
           lastDirection: { $first: '$direction' },
@@ -209,28 +208,10 @@ export class ChatMessagesService {
           },
         },
       },
-      {
-        $addFields: {
-          lineUserName: {
-            $reduce: {
-              input: '$names',
-              initialValue: null,
-              in: { $ifNull: ['$$value', '$$this'] },
-            },
-          },
-          lineUserPicture: {
-            $reduce: {
-              input: '$pictures',
-              initialValue: null,
-              in: { $ifNull: ['$$value', '$$this'] },
-            },
-          },
-        },
-      },
       { $sort: { lastMessageTime: -1 } },
     ];
 
-    const results = await this.chatMessageModel.aggregate(pipeline);
+    const results = await this.chatMessageModel.aggregate(pipeline).allowDiskUse(true);
 
     return results.map((r) => ({
       lineUserId: r._id,
@@ -474,6 +455,35 @@ export class ChatMessagesService {
       return Buffer.from(response.data);
     } catch (error: any) {
       this.logger.error('Failed to get LINE image:', error.message);
+      return null;
+    }
+  }
+
+  /**
+   * Get content (audio/video/file) from LINE with content-type
+   */
+  async getLineContent(lineAccountId: string, messageId: string): Promise<{ buffer: Buffer; contentType: string } | null> {
+    const lineAccount = await this.lineAccountModel.findById(lineAccountId);
+    if (!lineAccount || !lineAccount.accessToken) {
+      return null;
+    }
+
+    try {
+      const response = await axios.get(
+        `https://api-data.line.me/v2/bot/message/${messageId}/content`,
+        {
+          headers: {
+            Authorization: `Bearer ${lineAccount.accessToken}`,
+          },
+          responseType: 'arraybuffer',
+        },
+      );
+
+      const contentType = response.headers['content-type'] || 'application/octet-stream';
+      return { buffer: Buffer.from(response.data), contentType };
+    } catch (error: unknown) {
+      const errMsg = error instanceof Error ? error.message : String(error);
+      this.logger.error('Failed to get LINE content:', errMsg);
       return null;
     }
   }

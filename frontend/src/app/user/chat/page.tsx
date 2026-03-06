@@ -43,6 +43,10 @@ interface ChatMessage {
   messageText?: string;
   createdAt: string;
   sentBy?: string;
+  rawMessage?: Record<string, unknown>;
+  content?: Record<string, unknown>;
+  stickerPackageId?: string;
+  stickerId?: string;
 }
 
 // Format relative time like LINE
@@ -888,40 +892,195 @@ function UserChatContent() {
                                 isOut ? "items-end" : "items-start"
                               )}>
                                 {/* Message Bubble */}
-                                <div className={cn(
-                                  "relative px-3 lg:px-4 py-2 lg:py-2.5 rounded-2xl",
-                                  isOut
-                                    ? "bg-[#06C755] text-white rounded-br-md"
-                                    : "bg-[#1a1a1a] text-white rounded-bl-md"
-                                )}>
-                                  {msg.messageType === 'image' ? (
-                                    imageUrl ? (
-                                      <img
-                                        src={imageUrl}
-                                        alt="รูปภาพ"
-                                        className="max-w-[200px] lg:max-w-[240px] rounded-lg cursor-pointer hover:opacity-90 transition-opacity"
-                                        onClick={() => window.open(imageUrl, '_blank')}
-                                        onLoad={() => {
-                                          if (isAtBottomRef.current) scrollToBottom();
-                                        }}
-                                      />
-                                    ) : (
-                                      <div className="flex items-center gap-2 text-white/60">
-                                        <ImageIcon className="w-4 h-4" />
-                                        <span className="text-sm">[รูปภาพ]</span>
+                                {msg.messageType === 'sticker' ? (
+                                  (() => {
+                                    const raw = msg.rawMessage as Record<string, unknown> | undefined;
+                                    const rawMsg = raw?.message as Record<string, unknown> | undefined;
+                                    const sId = msg.stickerId || (rawMsg?.stickerId as string | undefined);
+                                    return sId ? (
+                                      <div className="p-1">
+                                        <img
+                                          src={`https://stickershop.line-scdn.net/stickershop/v1/sticker/${sId}/iPhone/sticker.png`}
+                                          alt="sticker"
+                                          className="w-24 h-24 object-contain"
+                                          onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                                        />
                                       </div>
-                                    )
-                                  ) : msg.messageType === 'sticker' ? (
-                                    <div className="flex items-center gap-2 text-white/60">
-                                      <Smile className="w-4 h-4" />
-                                      <span className="text-sm">[สติกเกอร์]</span>
-                                    </div>
-                                  ) : (
-                                    <p className="text-sm lg:text-[15px] leading-relaxed whitespace-pre-wrap break-words">
-                                      {highlightText(msg.messageText || '')}
-                                    </p>
-                                  )}
-                                </div>
+                                    ) : (
+                                      <div className={cn(
+                                        "relative px-3 lg:px-4 py-2 lg:py-2.5 rounded-2xl",
+                                        isOut ? "bg-[#06C755] text-white rounded-br-md" : "bg-[#1a1a1a] text-white rounded-bl-md"
+                                      )}>
+                                        <div className="flex items-center gap-2 text-white/60">
+                                          <Smile className="w-4 h-4" />
+                                          <span className="text-sm">สติกเกอร์</span>
+                                        </div>
+                                      </div>
+                                    );
+                                  })()
+                                ) : msg.messageType === 'video' && msg.messageId ? (
+                                  <div className={cn(
+                                    "overflow-hidden rounded-2xl max-w-[220px] lg:max-w-[260px]",
+                                    isOut ? "rounded-br-md" : "rounded-bl-md"
+                                  )}>
+                                    <video
+                                      controls
+                                      preload="metadata"
+                                      className="w-full rounded-lg"
+                                      src={chatMessagesApi.getContent(activeAccountId, msg.messageId)}
+                                    />
+                                  </div>
+                                ) : msg.messageType === 'audio' && msg.messageId ? (
+                                  <div className={cn(
+                                    "relative px-3 lg:px-4 py-2 lg:py-2.5 rounded-2xl",
+                                    isOut ? "bg-[#06C755] text-white rounded-br-md" : "bg-[#1a1a1a] text-white rounded-bl-md"
+                                  )}>
+                                    <audio controls preload="metadata" className="max-w-[200px] lg:max-w-[240px]">
+                                      <source src={chatMessagesApi.getContent(activeAccountId, msg.messageId)} />
+                                    </audio>
+                                  </div>
+                                ) : msg.messageType === 'file' && msg.messageId ? (
+                                  <a
+                                    href={chatMessagesApi.getContent(activeAccountId, msg.messageId)}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className={cn(
+                                      "flex items-center gap-2 px-3 lg:px-4 py-2.5 rounded-2xl transition-opacity hover:opacity-80",
+                                      isOut ? "bg-[#06C755] text-white rounded-br-md" : "bg-[#1a1a1a] text-white rounded-bl-md"
+                                    )}
+                                  >
+                                    <svg className="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+                                    <span className="text-sm font-medium truncate">{msg.messageText?.replace('[ไฟล์] ', '') || 'ดาวน์โหลดไฟล์'}</span>
+                                  </a>
+                                ) : msg.messageType === 'location' ? (
+                                  (() => {
+                                    const raw = msg.rawMessage as Record<string, unknown> | undefined;
+                                    const rawMsg = raw?.message as Record<string, unknown> | undefined;
+                                    const lat = rawMsg?.latitude as number | undefined;
+                                    const lng = rawMsg?.longitude as number | undefined;
+                                    const addr = rawMsg?.address as string | undefined;
+                                    return lat && lng ? (
+                                      <a
+                                        href={`https://www.google.com/maps?q=${lat},${lng}`}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className={cn(
+                                          "block overflow-hidden rounded-2xl max-w-[220px] lg:max-w-[260px] transition-opacity hover:opacity-80",
+                                          isOut ? "rounded-br-md" : "rounded-bl-md"
+                                        )}
+                                      >
+                                        <div className={cn(
+                                          "px-3 py-2 text-sm font-medium",
+                                          isOut ? "bg-[#06C755] text-white" : "bg-[#1a1a1a] text-white"
+                                        )}>
+                                          📍 {addr || 'ดูตำแหน่งบนแผนที่'}
+                                        </div>
+                                      </a>
+                                    ) : (
+                                      <div className={cn(
+                                        "relative px-3 lg:px-4 py-2 lg:py-2.5 rounded-2xl",
+                                        isOut ? "bg-[#06C755] text-white rounded-br-md" : "bg-[#1a1a1a] text-white rounded-bl-md"
+                                      )}>
+                                        <p className="text-sm">📍 {msg.messageText || 'ตำแหน่งที่ตั้ง'}</p>
+                                      </div>
+                                    );
+                                  })()
+                                ) : msg.messageType === 'flex' && msg.content ? (
+                                  (() => {
+                                    const extractTexts = (obj: unknown): string[] => {
+                                      if (!obj || typeof obj !== 'object') return [];
+                                      const o = obj as Record<string, unknown>;
+                                      const texts: string[] = [];
+                                      if (o.type === 'text' && typeof o.text === 'string') texts.push(o.text);
+                                      if (Array.isArray(o.contents)) {
+                                        for (const child of o.contents) texts.push(...extractTexts(child));
+                                      }
+                                      if (o.body && typeof o.body === 'object') texts.push(...extractTexts(o.body));
+                                      if (o.header && typeof o.header === 'object') texts.push(...extractTexts(o.header));
+                                      if (o.footer && typeof o.footer === 'object') texts.push(...extractTexts(o.footer));
+                                      return texts;
+                                    };
+
+                                    const flexContent = msg.content;
+                                    const headerTexts = extractTexts((flexContent as Record<string, unknown>).header);
+                                    const bodyTexts = extractTexts((flexContent as Record<string, unknown>).body);
+                                    const footerTexts = extractTexts((flexContent as Record<string, unknown>).footer);
+                                    const headerText = headerTexts[0];
+                                    const hasContent = headerTexts.length > 0 || bodyTexts.length > 0;
+
+                                    return hasContent ? (
+                                      <div className={cn(
+                                        "overflow-hidden rounded-2xl max-w-[240px] lg:max-w-[280px] border",
+                                        isOut ? "border-[#06C755]/30 rounded-br-md" : "border-white/10 rounded-bl-md"
+                                      )}>
+                                        {headerText && (
+                                          <div className={cn(
+                                            "px-3 py-2 text-sm font-bold border-b border-white/5",
+                                            isOut ? "bg-[#06C755] text-white" : "bg-white/[0.12] text-white"
+                                          )}>
+                                            {headerText}
+                                          </div>
+                                        )}
+                                        <div className={cn(
+                                          "px-3 py-2 space-y-0.5",
+                                          isOut ? "bg-[#059445] text-white/90" : "bg-[#1a1a1a] text-slate-300"
+                                        )}>
+                                          {bodyTexts.slice(0, 8).map((t, i) => (
+                                            <p key={i} className="text-xs leading-relaxed truncate">{t}</p>
+                                          ))}
+                                          {bodyTexts.length > 8 && (
+                                            <p className="text-[10px] text-white/40">...อีก {bodyTexts.length - 8} รายการ</p>
+                                          )}
+                                        </div>
+                                        {footerTexts.length > 0 && (
+                                          <div className={cn(
+                                            "px-3 py-1.5 border-t border-white/5 text-[10px]",
+                                            isOut ? "bg-[#048a3e] text-white/60" : "bg-[#151515] text-slate-500"
+                                          )}>
+                                            {footerTexts[0]}
+                                          </div>
+                                        )}
+                                      </div>
+                                    ) : (
+                                      <div className={cn(
+                                        "relative px-3 lg:px-4 py-2 lg:py-2.5 rounded-2xl",
+                                        isOut ? "bg-[#06C755] text-white rounded-br-md" : "bg-[#1a1a1a] text-white rounded-bl-md"
+                                      )}>
+                                        <p className="text-sm">{msg.messageText || '[Flex Message]'}</p>
+                                      </div>
+                                    );
+                                  })()
+                                ) : (
+                                  <div className={cn(
+                                    "relative px-3 lg:px-4 py-2 lg:py-2.5 rounded-2xl",
+                                    isOut
+                                      ? "bg-[#06C755] text-white rounded-br-md"
+                                      : "bg-[#1a1a1a] text-white rounded-bl-md"
+                                  )}>
+                                    {msg.messageType === 'image' ? (
+                                      imageUrl ? (
+                                        <img
+                                          src={imageUrl}
+                                          alt="รูปภาพ"
+                                          className="max-w-[200px] lg:max-w-[240px] rounded-lg cursor-pointer hover:opacity-90 transition-opacity"
+                                          onClick={() => window.open(imageUrl, '_blank')}
+                                          onLoad={() => {
+                                            if (isAtBottomRef.current) scrollToBottom();
+                                          }}
+                                        />
+                                      ) : (
+                                        <div className="flex items-center gap-2 text-white/60">
+                                          <ImageIcon className="w-4 h-4" />
+                                          <span className="text-sm">[รูปภาพ]</span>
+                                        </div>
+                                      )
+                                    ) : (
+                                      <p className="text-sm lg:text-[15px] leading-relaxed whitespace-pre-wrap break-words">
+                                        {highlightText(msg.messageText || '')}
+                                      </p>
+                                    )}
+                                  </div>
+                                )}
 
                                 {/* Time & Read status */}
                                 {isLastInGroup && (

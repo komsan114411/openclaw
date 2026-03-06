@@ -519,6 +519,10 @@ export const chatMessagesApi = {
   },
   getUserProfile: (accountId: string, userId: string) =>
     api.get(`/chat-messages/${accountId}/profile/${userId}`),
+  getContent: (accountId: string, messageId: string) => {
+    const base = (process.env.NEXT_PUBLIC_API_URL || '/api').replace(/\/+$/, '');
+    return `${base}/chat-messages/${accountId}/content/${messageId}`;
+  },
 };
 
 // Slip Template data types
