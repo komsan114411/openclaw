@@ -562,6 +562,18 @@ export function useLoginNotifications(options: UseLoginNotificationsOptions = {}
         pinExpiresIn: data.expiresIn,
         pinStatus: data.status,
       }));
+
+      // Notify page so PIN displays even if user connected after pin_displayed event
+      if (data.pinCode && data.isUsable) {
+        onStatusChangeRef.current?.({
+          lineAccountId: data.lineAccountId,
+          status: 'pin_displayed',
+          pinCode: data.pinCode,
+          message: `PIN: ${data.pinCode} (เหลือ ${data.expiresIn}s)`,
+          timestamp: data.timestamp,
+          type: 'login_status',
+        });
+      }
     });
 
     // Handle PIN expired event
