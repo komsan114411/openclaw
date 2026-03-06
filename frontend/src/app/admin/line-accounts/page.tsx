@@ -162,6 +162,9 @@ export default function AdminLineAccountsPage() {
     pinStatus: undefined,
   });
 
+  // Queue message stored separately — immune to WebSocket/polling state overwrites
+  const [queueMessage, setQueueMessage] = useState<string | null>(null);
+
   // Bank configuration state
   const [bankData, setBankData] = useState<{
     banks: any[];
@@ -250,16 +253,16 @@ export default function AdminLineAccountsPage() {
           };
         }
 
-        // Preserve error during progress events (e.g. queue message stays visible until replaced)
-        // Clear error only on terminal states (success/idle) or when new error is explicitly set
-        const shouldClearError = ['success', 'idle'].includes(event.status);
-        const resolvedError = shouldClearError ? undefined : (event.error ?? prev.error);
+        // Clear queue message when login actually starts processing (slot opened)
+        if (isInProgress) {
+          setQueueMessage(null);
+        }
 
         const newState = {
           ...prev,
           status: event.status,
           pinCode: event.pinCode || prev.pinCode,
-          error: resolvedError,
+          error: event.error,
           workerState: event.status,
           pinStatus: newPinStatus,
           // CRITICAL: Update isLoading based on status
@@ -424,6 +427,7 @@ export default function AdminLineAccountsPage() {
     console.log('[Account Changed] Resetting login state for account:', selectedAccount?._id);
     // Clear WebSocket state
     loginNotifications.clearState();
+    setQueueMessage(null);
     // Clear local login status
     setLoginStatus({
       status: 'idle',
@@ -1317,6 +1321,7 @@ export default function AdminLineAccountsPage() {
     setShowSessionModal(true);
     
     // Reset login status to prevent showing stale PIN from previous session
+    setQueueMessage(null);
     setLoginStatus({
       status: 'idle',
       pinCode: undefined,
@@ -1329,7 +1334,7 @@ export default function AdminLineAccountsPage() {
       workerState: undefined,
       pinStatus: undefined,
     });
-    
+
     // Clear WebSocket notification state as well
     loginNotifications.clearState();
     
@@ -1468,6 +1473,7 @@ export default function AdminLineAccountsPage() {
       await new Promise(resolve => setTimeout(resolve, 200));
     }
 
+    setQueueMessage(null); // Clear previous queue message
     setLoginStatus(prev => ({
       ...prev,
       isLoading: true,
@@ -1549,12 +1555,17 @@ export default function AdminLineAccountsPage() {
       // Detect queued response (login entered queue instead of starting immediately)
       const isQueued = typeof data.message === 'string' && data.message.startsWith('queued:');
 
+      // Store queue message in separate state (immune to WebSocket/polling overwrites)
+      if (isQueued && data.error) {
+        setQueueMessage(data.error);
+      }
+
       // Update state with response
       setLoginStatus(prev => ({
         ...prev,
         status: isQueued ? 'requesting' : (data.status || prev.status),
-        pinCode: pinCodeValue || prev.pinCode, // Keep existing PIN if response doesn't have one
-        error: data.error,
+        pinCode: pinCodeValue || prev.pinCode,
+        error: isQueued ? undefined : data.error, // Queue msg stored separately
         requestId: data.requestId,
         chatMid: data.chatMid,
         sessionReused: data.sessionReused,
@@ -1567,7 +1578,7 @@ export default function AdminLineAccountsPage() {
         await fetchSessionData(accountId);
         await fetchBankData(accountId);
       } else if (isQueued) {
-        // Queue message shown inline — no toast.error (it auto-dismisses too quickly)
+        // Queue message shown via dedicated queueMessage state — no toast needed
       } else if (data.error && data.status === 'failed') {
         toast.error(data.error);
       }
@@ -1736,6 +1747,7 @@ export default function AdminLineAccountsPage() {
     // Clear local state IMMEDIATELY (before API call)
     // This ensures UI is responsive even if API is slow
     loginNotifications.clearState();
+    setQueueMessage(null);
     setLoginStatus({
       status: 'idle',
       pinCode: undefined,
@@ -3811,21 +3823,27 @@ export default function AdminLineAccountsPage() {
                   {loginNotifications.isConnected ? 'Real-time เชื่อมต่อแล้ว' : 'Real-time ไม่ได้เชื่อมต่อ'}
                 </div>
 
-                {/* Queue Banner */}
-                {loginNotifications.isQueued && (
+                {/* Queue Banner — shown via dedicated queueMessage state (immune to overwrites) */}
+                {(queueMessage || loginNotifications.isQueued) && (
                   <div className="p-4 bg-amber-50 rounded-xl border border-amber-200">
-                    <div className="flex items-center gap-3">
-                      <Clock className="w-5 h-5 text-amber-500 animate-pulse" />
+                    <div className="flex items-start gap-3">
+                      <Clock className="w-5 h-5 text-amber-500 animate-pulse mt-0.5 flex-shrink-0" />
                       <div>
-                        <p className="text-sm font-bold text-amber-700">
-                          อยู่ในคิวที่ {loginNotifications.queuePosition ?? '?'}
-                        </p>
-                        <p className="text-xs text-amber-600">
-                          {loginNotifications.queueEstimatedWait
-                            ? `รอประมาณ ${Math.ceil(loginNotifications.queueEstimatedWait / 60)} นาที — `
-                            : ''}
-                          จะเริ่มอัตโนมัติเมื่อถึงคิว
-                        </p>
+                        {queueMessage ? (
+                          <p className="text-sm text-amber-700 whitespace-pre-line">{queueMessage}</p>
+                        ) : (
+                          <>
+                            <p className="text-sm font-bold text-amber-700">
+                              อยู่ในคิวที่ {loginNotifications.queuePosition ?? '?'}
+                            </p>
+                            <p className="text-xs text-amber-600">
+                              {loginNotifications.queueEstimatedWait
+                                ? `รอประมาณ ${Math.ceil(loginNotifications.queueEstimatedWait / 60)} นาที — `
+                                : ''}
+                              จะเริ่มอัตโนมัติเมื่อถึงคิว
+                            </p>
+                          </>
+                        )}
                       </div>
                     </div>
                   </div>
