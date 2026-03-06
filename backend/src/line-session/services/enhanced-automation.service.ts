@@ -485,23 +485,31 @@ export class EnhancedAutomationService implements OnModuleInit, OnModuleDestroy 
         };
       }
 
-      // Login in progress but no PIN yet
-      this.logger.log(`[Login] Account ${lineAccountId} already locked by ${lockInfo?.source || 'unknown'} — returning in-progress`);
+      // Login in progress but no PIN yet — show current stage
+      const stage = lockInfo?.stage || 'กำลังดำเนินการ';
+      this.logger.log(`[Login] Account ${lineAccountId} already locked by ${lockInfo?.source || 'unknown'} (stage: ${stage}) — returning in-progress`);
       return {
         success: false,
         status: EnhancedLoginStatus.VERIFYING,
-        message: `บัญชีนี้กำลังล็อกอินอยู่แล้ว (${lockInfo?.source === 'enhanced' ? 'อัตโนมัติ' : lockInfo?.source || 'ไม่ทราบ'}) กรุณารอสักครู่`,
+        message: `บัญชีนี้กำลังล็อกอินอยู่แล้ว — ${stage}\nกรุณารอสักครู่`,
       };
     }
 
     // Per-user concurrent limit: prevent one user from hogging all login slots
     if (source === 'manual' && this.loginLockService.isUserAtLimit(sessionOwnerId)) {
-      const userLocks = this.loginLockService.getLocksForOwner(sessionOwnerId);
-      this.logger.warn(`[Login] Per-user limit reached for owner ${sessionOwnerId} (${userLocks} active)`);
+      const grouped = this.loginLockService.getLocksGroupedByOwner(sessionOwnerId);
+      this.logger.warn(`[Login] Per-user limit reached for owner ${sessionOwnerId} (${grouped.ownLocks.length} active)`);
+
+      const ownDetails = grouped.ownLocks.map(l => {
+        const name = l.info.accountName || 'บัญชี';
+        const stage = l.info.stage || 'กำลังดำเนินการ';
+        return `${name} (${stage})`;
+      }).join(', ');
+
       return {
         success: false,
         status: EnhancedLoginStatus.FAILED,
-        error: `คุณกำลังล็อกอิน ${userLocks} บัญชีพร้อมกัน (สูงสุด 2 บัญชีต่อผู้ใช้)\nกรุณารอบัญชีก่อนหน้าเสร็จก่อนแล้วลองใหม่`,
+        error: `คุณกำลังล็อกอิน ${grouped.ownLocks.length} บัญชีพร้อมกัน (สูงสุด 2 บัญชีต่อผู้ใช้)\nกำลังทำงาน: ${ownDetails}\nกรุณารอบัญชีก่อนหน้าเสร็จก่อนแล้วลองใหม่`,
       };
     }
 
@@ -533,15 +541,32 @@ export class EnhancedAutomationService implements OnModuleInit, OnModuleDestroy 
         timestamp: new Date(),
       });
 
-      // Build detail of which accounts are currently logging in (show account names)
-      const activeLocks = this.loginLockService.getAllLocks();
-      const activeNames = activeLocks.map(l => l.info.accountName || 'ไม่ทราบชื่อ').join(', ');
+      // Build privacy-safe detail: show own accounts with stage, mask others
+      const grouped = this.loginLockService.getLocksGroupedByOwner(sessionOwnerId);
       const waitMinutes = Math.ceil(queueInfo.estimatedWaitSeconds / 60);
+
+      // Build status lines
+      const lines: string[] = [];
+      lines.push(`ระบบกำลังล็อกอิน ${activeLoginCount} บัญชีพร้อมกัน (สูงสุด ${this.MAX_CONCURRENT_LOGINS} บัญชี)`);
+
+      if (grouped.ownLocks.length > 0) {
+        const ownDetails = grouped.ownLocks.map(l => {
+          const name = l.info.accountName || 'บัญชี';
+          const stage = l.info.stage || 'กำลังดำเนินการ';
+          return `${name} (${stage})`;
+        }).join(', ');
+        lines.push(`บัญชีของคุณ: ${ownDetails}`);
+      }
+      if (grouped.othersCount > 0) {
+        lines.push(`บัญชีผู้ใช้อื่น: ${grouped.othersCount} บัญชี`);
+      }
+
+      lines.push(`คิวที่ ${queueInfo.position} — รอประมาณ ${waitMinutes} นาที จะเริ่มอัตโนมัติเมื่อถึงคิว`);
 
       return {
         success: false,
         status: EnhancedLoginStatus.FAILED,
-        error: `ระบบกำลังล็อกอิน ${activeLoginCount} บัญชีพร้อมกัน (สูงสุด ${this.MAX_CONCURRENT_LOGINS} บัญชี)\nกำลังทำงาน: ${activeNames}\nคิวที่ ${queueInfo.position} — รอประมาณ ${waitMinutes} นาที จะเริ่มอัตโนมัติเมื่อถึงคิว`,
+        error: lines.join('\n'),
         message: `queued:${queueInfo.position}:${queueInfo.estimatedWaitSeconds}`,
       };
     }
@@ -3393,6 +3418,39 @@ export class EnhancedAutomationService implements OnModuleInit, OnModuleDestroy 
     };
     this.logger.log(`[EnhancedAutomation] Emitting status: ${status} for ${lineAccountId}${data?.pinCode ? ` with PIN ${data.pinCode}` : ''}`);
     this.eventEmitter.emit('enhanced-login.status', eventData);
+
+    // Sync stage to lock for queue visibility
+    const stageLabel = this.getStageLabel(status);
+    if (stageLabel) {
+      this.loginLockService.updateLockStage(lineAccountId, stageLabel);
+    }
+  }
+
+  /** Map EnhancedLoginStatus → Thai label for lock stage display */
+  private getStageLabel(status: EnhancedLoginStatus): string | null {
+    switch (status) {
+      case EnhancedLoginStatus.REQUESTING:
+      case EnhancedLoginStatus.INITIALIZING:
+        return 'กำลังเริ่มต้น';
+      case EnhancedLoginStatus.LAUNCHING_BROWSER:
+        return 'กำลังเปิดเบราว์เซอร์';
+      case EnhancedLoginStatus.LOADING_EXTENSION:
+      case EnhancedLoginStatus.CHECKING_SESSION:
+        return 'กำลังโหลด LINE';
+      case EnhancedLoginStatus.ENTERING_CREDENTIALS:
+        return 'กำลังกรอกข้อมูล';
+      case EnhancedLoginStatus.WAITING_PIN:
+      case EnhancedLoginStatus.PIN_DISPLAYED:
+        return 'รอยืนยัน PIN';
+      case EnhancedLoginStatus.VERIFYING:
+        return 'กำลังตรวจสอบ';
+      case EnhancedLoginStatus.EXTRACTING_KEYS:
+        return 'กำลังดึง Keys';
+      case EnhancedLoginStatus.TRIGGERING_MESSAGES:
+        return 'กำลังดึงข้อมูล Chat';
+      default:
+        return null;
+    }
   }
 
   /**

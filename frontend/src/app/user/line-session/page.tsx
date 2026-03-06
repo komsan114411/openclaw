@@ -1115,7 +1115,9 @@ export default function LineSessionPage() {
       } else if (data.message?.startsWith('queued:')) {
         setLoginStatusForAccount(accountId, { success: false, status: 'queued', message: data.error });
         addPolling(accountId);
-        toast(data.error || 'อยู่ในคิวรอล็อกอิน', { icon: '⏳', duration: 5000 });
+        // Toast: show only first line for brevity
+        const shortMsg = (data.error || 'อยู่ในคิวรอล็อกอิน').split('\n')[0];
+        toast(shortMsg, { icon: '⏳', duration: 5000 });
       } else {
         // Error from API
         setLoginStatusForAccount(accountId, null);
@@ -1248,7 +1250,9 @@ export default function LineSessionPage() {
         // Queued — show queue position
         setLoginStatusForAccount(accountId, { success: false, status: 'queued', message: data.error });
         addPolling(accountId);
-        toast(data.error || 'อยู่ในคิวรอล็อกอิน', { icon: '⏳', duration: 5000 });
+        // Toast: show only first line for brevity
+        const shortMsg = (data.error || 'อยู่ในคิวรอล็อกอิน').split('\n')[0];
+        toast(shortMsg, { icon: '⏳', duration: 5000 });
       } else {
         // Error from API — show detailed message
         setLoginStatusForAccount(accountId, null);
@@ -1710,8 +1714,24 @@ export default function LineSessionPage() {
                     </div>
                   )}
 
-                  {/* Queue Banner */}
-                  {loginNotifications.isQueued && (
+                  {/* Queued Status — show detailed multi-line message from backend */}
+                  {loginStatus?.status === 'queued' && loginStatus.message && (
+                    <div className="p-4 bg-amber-50 dark:bg-amber-900/20 rounded-xl border border-amber-200 dark:border-amber-700">
+                      <div className="flex items-start gap-3">
+                        <Clock className="w-5 h-5 text-amber-500 animate-pulse mt-0.5 flex-shrink-0" />
+                        <div className="space-y-1">
+                          {loginStatus.message.split('\n').map((line, i) => (
+                            <p key={i} className={`text-sm ${i === 0 ? 'font-bold text-amber-700 dark:text-amber-300' : 'text-amber-600 dark:text-amber-400'}`}>
+                              {line}
+                            </p>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Queue Banner (from WebSocket) — fallback when no loginStatus queued message */}
+                  {loginNotifications.isQueued && loginStatus?.status !== 'queued' && (
                     <div className="p-4 bg-amber-50 dark:bg-amber-900/20 rounded-xl border border-amber-200 dark:border-amber-700">
                       <div className="flex items-center gap-3">
                         <Clock className="w-5 h-5 text-amber-500 animate-pulse" />

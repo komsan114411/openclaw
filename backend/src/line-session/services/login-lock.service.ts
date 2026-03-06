@@ -5,6 +5,14 @@ export interface LockInfo {
   lockedAt: Date;
   ownerId?: string; // User who initiated the login
   accountName?: string; // ชื่อบัญชีที่กำลัง login
+  stage?: string; // สถานะปัจจุบัน เช่น 'กำลังเปิดเบราว์เซอร์', 'รอยืนยัน PIN'
+}
+
+/** สถานะ lock ที่แยก own vs others สำหรับ privacy */
+export interface GroupedLockSummary {
+  ownLocks: Array<{ lineAccountId: string; info: LockInfo }>;
+  othersCount: number;
+  totalActive: number;
 }
 
 export interface LoginQueueItem {
@@ -137,6 +145,40 @@ export class LoginLockService {
     this.cleanupExpiredLock(lineAccountId);
     const lockInfo = this.locks.get(lineAccountId);
     return lockInfo ? { ...lockInfo } : null;
+  }
+
+  /**
+   * Update the stage of an active lock (e.g., 'รอยืนยัน PIN', 'กำลังดึง Keys')
+   */
+  updateLockStage(lineAccountId: string, stage: string): void {
+    const lockInfo = this.locks.get(lineAccountId);
+    if (lockInfo) {
+      lockInfo.stage = stage;
+    }
+  }
+
+  /**
+   * Get locks grouped by owner — own accounts show names+stages, others show only count
+   * ป้องกัน privacy: ผู้ใช้คนอื่นจะไม่เห็นชื่อบัญชีของเรา
+   */
+  getLocksGroupedByOwner(ownerId: string): GroupedLockSummary {
+    // Cleanup expired first
+    for (const lineAccountId of this.locks.keys()) {
+      this.cleanupExpiredLock(lineAccountId);
+    }
+
+    const ownLocks: Array<{ lineAccountId: string; info: LockInfo }> = [];
+    let othersCount = 0;
+
+    for (const [lineAccountId, info] of this.locks.entries()) {
+      if (info.ownerId === ownerId) {
+        ownLocks.push({ lineAccountId, info: { ...info } });
+      } else {
+        othersCount++;
+      }
+    }
+
+    return { ownLocks, othersCount, totalActive: this.locks.size };
   }
 
   /**
