@@ -456,6 +456,44 @@ export class EnhancedAutomationService implements OnModuleInit, OnModuleDestroy 
 
     const sessionOwnerId = existingSession.ownerId || 'system';
 
+    // Check if THIS account already has a lock (login in progress)
+    // Must come BEFORE concurrent limit check to prevent false queueing
+    if (this.loginLockService.isLocked(lineAccountId)) {
+      const lockInfo = this.loginLockService.getLockInfo(lineAccountId);
+
+      // Check if there's an active worker with PIN
+      const worker = this.workerPoolService.getWorker(lineAccountId);
+      if (worker && worker.pinCode) {
+        this.logger.log(`[Login] Account ${lineAccountId} already has PIN ${worker.pinCode} — returning existing PIN`);
+        return {
+          success: false,
+          status: EnhancedLoginStatus.PIN_DISPLAYED,
+          pinCode: worker.pinCode,
+          message: 'กำลังรอยืนยัน PIN อยู่แล้ว กรุณากรอก PIN ที่โทรศัพท์',
+        };
+      }
+
+      // Check PIN store as fallback
+      const pinStatus = this.getPinStatus(lineAccountId);
+      if (pinStatus.pinCode && pinStatus.isUsable) {
+        this.logger.log(`[Login] Account ${lineAccountId} has stored PIN ${pinStatus.pinCode} — returning`);
+        return {
+          success: false,
+          status: EnhancedLoginStatus.PIN_DISPLAYED,
+          pinCode: pinStatus.pinCode,
+          message: 'กำลังรอยืนยัน PIN อยู่แล้ว กรุณากรอก PIN ที่โทรศัพท์',
+        };
+      }
+
+      // Login in progress but no PIN yet
+      this.logger.log(`[Login] Account ${lineAccountId} already locked by ${lockInfo?.source || 'unknown'} — returning in-progress`);
+      return {
+        success: false,
+        status: EnhancedLoginStatus.VERIFYING,
+        message: `บัญชีนี้กำลังล็อกอินอยู่แล้ว (${lockInfo?.source === 'enhanced' ? 'อัตโนมัติ' : lockInfo?.source || 'ไม่ทราบ'}) กรุณารอสักครู่`,
+      };
+    }
+
     // Per-user concurrent limit: prevent one user from hogging all login slots
     if (source === 'manual' && this.loginLockService.isUserAtLimit(sessionOwnerId)) {
       const userLocks = this.loginLockService.getLocksForOwner(sessionOwnerId);
@@ -495,10 +533,14 @@ export class EnhancedAutomationService implements OnModuleInit, OnModuleDestroy 
         timestamp: new Date(),
       });
 
+      // Build detail of which accounts are currently logging in
+      const activeLocks = this.loginLockService.getAllLocks();
+      const lockDetails = activeLocks.map(l => l.info.source).join(', ');
+
       return {
         success: false,
         status: EnhancedLoginStatus.FAILED,
-        error: `ระบบกำลังล็อกอินพร้อมกัน ${activeLoginCount} บัญชี (สูงสุด ${this.MAX_CONCURRENT_LOGINS}) คิวที่ ${queueInfo.position} รอประมาณ ${Math.ceil(queueInfo.estimatedWaitSeconds / 60)} นาที (จะเริ่มอัตโนมัติเมื่อถึงคิว)`,
+        error: `ระบบกำลังล็อกอินพร้อมกัน ${activeLoginCount} บัญชี (สูงสุด ${this.MAX_CONCURRENT_LOGINS}) คิวที่ ${queueInfo.position} รอประมาณ ${Math.ceil(queueInfo.estimatedWaitSeconds / 60)} นาที (จะเริ่มอัตโนมัติเมื่อถึงคิว) [active: ${lockDetails}]`,
         message: `queued:${queueInfo.position}:${queueInfo.estimatedWaitSeconds}`,
       };
     }

@@ -777,6 +777,49 @@ export default function LineSessionPage() {
   useEffect(() => {
     if (selectedSession) {
       fetchSessionStatus(selectedSession._id);
+
+      // [FIX] Restore PIN/login status from backend on page load/session change
+      // This prevents PIN from disappearing after page refresh
+      (async () => {
+        try {
+          const res = await lineSessionUserApi.getEnhancedLoginStatus(selectedSession._id);
+          const data = res.data;
+          const currentPin = data.pin || data.worker?.pinCode;
+          const pinUsable = data.pinStatus?.isUsable;
+
+          if (currentPin && pinUsable) {
+            // Restore PIN display
+            setLoginStatusForAccount(selectedSession._id, {
+              success: false,
+              status: data.status || 'pin_displayed',
+              pin: currentPin,
+              message: data.message,
+              stage: data.stage || data.status,
+            });
+            addPolling(selectedSession._id);
+          } else if (data.status && !['idle', 'success', 'completed'].includes(data.status)) {
+            // Restore in-progress status (no PIN yet)
+            const inProgressStatuses = [
+              'requesting', 'initializing', 'launching_browser', 'loading_extension',
+              'checking_session', 'entering_credentials', 'waiting_pin', 'waiting_for_pin',
+              'pin_displayed', 'verifying', 'extracting_keys', 'triggering_messages',
+            ];
+            if (inProgressStatuses.includes(data.status)) {
+              setLoginStatusForAccount(selectedSession._id, {
+                success: false,
+                status: data.status,
+                pin: currentPin || undefined,
+                message: data.message,
+                stage: data.stage || data.status,
+              });
+              addPolling(selectedSession._id);
+            }
+          }
+        } catch {
+          // Ignore — status fetch is best-effort
+        }
+      })();
+
       // Reset search/filter/page when switching sessions
       setSearchQuery('');
       setFilterType('');
@@ -793,6 +836,7 @@ export default function LineSessionPage() {
       // ไม่ต้อง clear loginStatus และ loginSuccess เพราะ track แยกตามบัญชีแล้ว
       setSetupForm({ email: '', password: '', bankCode: '' });
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedSession, fetchSessionStatus, fetchTransactions]);
 
   // Poll login status
@@ -1028,26 +1072,40 @@ export default function LineSessionPage() {
         bankCode: setupForm.bankCode,
       });
 
+      const data = res.data;
+
       // Check for PIN in response (from API directly, not WebSocket)
-      if (res.data.pinCode) {
-        // PIN received directly from API response!
+      if (data.pinCode) {
         setLoginStatusForAccount(accountId, {
           success: true,
-          status: 'waiting_for_pin',
-          pin: res.data.pinCode,
-          message: 'รอยืนยัน PIN บนมือถือ',
+          status: data.status === 'pin_displayed' ? 'pin_displayed' : 'waiting_for_pin',
+          pin: data.pinCode,
+          message: data.message || 'รอยืนยัน PIN บนมือถือ',
         });
-        toast.success(`PIN: ${res.data.pinCode}`, { duration: 60000, icon: '🔑' });
+        toast.success(`PIN: ${data.pinCode}`, { duration: 60000, icon: '🔑' });
         addPolling(accountId);
-      } else if (res.data.success !== false) {
+      } else if (data.status === 'verifying' || data.status === 'pin_displayed') {
+        // Login already in progress
+        setLoginStatusForAccount(accountId, {
+          success: false,
+          status: data.status,
+          message: data.message,
+        });
+        addPolling(accountId);
+        toast(data.message || 'บัญชีนี้กำลังล็อกอินอยู่แล้ว', { icon: '⏳' });
+      } else if (data.success !== false) {
         // No PIN yet, start polling
-        setLoginStatusForAccount(accountId, res.data);
+        setLoginStatusForAccount(accountId, data);
         addPolling(accountId);
         toast.success('เริ่มกระบวนการ Login แล้ว');
+      } else if (data.message?.startsWith('queued:')) {
+        setLoginStatusForAccount(accountId, { success: false, status: 'queued', message: data.error });
+        addPolling(accountId);
+        toast(data.error || 'อยู่ในคิวรอล็อกอิน', { icon: '⏳', duration: 5000 });
       } else {
         // Error from API
         setLoginStatusForAccount(accountId, null);
-        toast.error(res.data.message || 'เกิดข้อผิดพลาด');
+        toast.error(data.error || data.message || 'เกิดข้อผิดพลาด');
       }
     } catch (err: unknown) {
       const error = err as { response?: { data?: { message?: string } } };
@@ -1145,27 +1203,42 @@ export default function LineSessionPage() {
 
     try {
       const res = await lineSessionUserApi.startEnhancedLogin(accountId, undefined, undefined, 'relogin');
+      const data = res.data;
 
       // Check for PIN in response (from API directly, not WebSocket)
-      if (res.data.pinCode) {
-        // PIN received directly from API response!
+      if (data.pinCode) {
+        // PIN received — either new or existing
         setLoginStatusForAccount(accountId, {
           success: true,
-          status: 'waiting_for_pin',
-          pin: res.data.pinCode,
-          message: 'รอยืนยัน PIN บนมือถือ',
+          status: data.status === 'pin_displayed' ? 'pin_displayed' : 'waiting_for_pin',
+          pin: data.pinCode,
+          message: data.message || 'รอยืนยัน PIN บนมือถือ',
         });
-        toast.success(`PIN: ${res.data.pinCode}`, { duration: 60000, icon: '🔑' });
+        toast.success(`PIN: ${data.pinCode}`, { duration: 60000, icon: '🔑' });
         addPolling(accountId);
-      } else if (res.data.success !== false) {
+      } else if (data.status === 'verifying' || data.status === 'pin_displayed') {
+        // Login already in progress (no new PIN but status tells us it's working)
+        setLoginStatusForAccount(accountId, {
+          success: false,
+          status: data.status,
+          message: data.message,
+        });
+        addPolling(accountId);
+        toast(data.message || 'บัญชีนี้กำลังล็อกอินอยู่แล้ว', { icon: '⏳' });
+      } else if (data.success !== false) {
         // No PIN yet, start polling
-        setLoginStatusForAccount(accountId, res.data);
+        setLoginStatusForAccount(accountId, data);
         addPolling(accountId);
         toast.success('เริ่มกระบวนการ Re-login แล้ว');
+      } else if (data.message?.startsWith('queued:')) {
+        // Queued — show queue position
+        setLoginStatusForAccount(accountId, { success: false, status: 'queued', message: data.error });
+        addPolling(accountId);
+        toast(data.error || 'อยู่ในคิวรอล็อกอิน', { icon: '⏳', duration: 5000 });
       } else {
-        // Error from API
+        // Error from API — show detailed message
         setLoginStatusForAccount(accountId, null);
-        toast.error(res.data.message || 'เกิดข้อผิดพลาด');
+        toast.error(data.error || data.message || 'เกิดข้อผิดพลาด');
       }
     } catch (err: unknown) {
       const error = err as { response?: { data?: { message?: string } } };
