@@ -250,11 +250,16 @@ export default function AdminLineAccountsPage() {
           };
         }
 
+        // Preserve error during progress events (e.g. queue message stays visible until replaced)
+        // Clear error only on terminal states (success/idle) or when new error is explicitly set
+        const shouldClearError = ['success', 'idle'].includes(event.status);
+        const resolvedError = shouldClearError ? undefined : (event.error ?? prev.error);
+
         const newState = {
           ...prev,
           status: event.status,
           pinCode: event.pinCode || prev.pinCode,
-          error: event.error,
+          error: resolvedError,
           workerState: event.status,
           pinStatus: newPinStatus,
           // CRITICAL: Update isLoading based on status
@@ -303,6 +308,14 @@ export default function AdminLineAccountsPage() {
       }
       // Switch to CURL tab to show the captured command
       setSessionTab('curl');
+    },
+    onQueueEvent: (event) => {
+      if (event.type === 'queued' || event.type === 'queue_update') {
+        const waitMin = event.estimatedWaitSeconds ? Math.ceil(event.estimatedWaitSeconds / 60) : null;
+        toast(`คิวที่ ${event.position ?? '?'}${waitMin ? ` — รอประมาณ ${waitMin} นาที` : ''}`, { icon: '⏳', duration: 4000 });
+      } else if (event.type === 'slot_available') {
+        toast.success('ถึงคิวแล้ว! กำลังเริ่มล็อกอิน...', { icon: '🚀', duration: 5000 });
+      }
     },
   });
 
@@ -1434,16 +1447,19 @@ export default function AdminLineAccountsPage() {
         toast.success(`PIN: ${pinCodeValue} - Enter on LINE app (5 min)`, { duration: PIN_EXPIRY_SECONDS * 1000 });
       }
 
+      // Detect queued response (login entered queue instead of starting immediately)
+      const isQueued = typeof data.message === 'string' && data.message.startsWith('queued:');
+
       // Update state with response
       setLoginStatus(prev => ({
         ...prev,
-        status: data.status || prev.status,
+        status: isQueued ? 'requesting' : (data.status || prev.status),
         pinCode: pinCodeValue || prev.pinCode, // Keep existing PIN if response doesn't have one
         error: data.error,
         requestId: data.requestId,
         chatMid: data.chatMid,
         sessionReused: data.sessionReused,
-        isLoading: !data.success && data.status !== 'failed',
+        isLoading: isQueued || (!data.success && data.status !== 'failed'),
       }));
 
       // Handle success
@@ -1451,6 +1467,8 @@ export default function AdminLineAccountsPage() {
         toast.success(data.sessionReused ? 'Session reused - Keys copied' : 'Login successful - Keys captured');
         await fetchSessionData(accountId);
         await fetchBankData(accountId);
+      } else if (isQueued) {
+        // Queue message shown inline — no toast.error (it auto-dismisses too quickly)
       } else if (data.error && data.status === 'failed') {
         toast.error(data.error);
       }
@@ -1677,6 +1695,8 @@ export default function AdminLineAccountsPage() {
       case 'waiting_pin':
       case 'pin_displayed':
         return <Badge className="bg-amber-500/10 text-amber-400 border-amber-500/20">Waiting PIN</Badge>;
+      case 'queued':
+        return <Badge className="bg-amber-500/10 text-amber-400 border-amber-500/20">Queued</Badge>;
       case 'requesting':
       case 'initializing':
       case 'launching_browser':
@@ -2050,13 +2070,21 @@ export default function AdminLineAccountsPage() {
           </>
         }
       >
+        {/* Account Badge */}
+        <div className="flex items-center gap-2 mb-4 px-1">
+          <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+          <span className="text-[10px] font-bold text-white/40 uppercase tracking-widest">กำลังตั้งค่าบัญชี:</span>
+          <span className="text-xs font-black text-emerald-400">{selectedAccount?.accountName}</span>
+          <span className="text-[10px] text-white/20 ml-auto">แต่ละบัญชีตั้งค่าแยกกัน</span>
+        </div>
+
         {/* Tab Bar */}
         <div className="flex gap-1 p-1 bg-white/5 rounded-2xl mb-6 relative">
           {([
             { id: 'core' as const, name: 'ระบบหลัก', icon: 'ZAP' },
             { id: 'knowledge' as const, name: 'คลังความรู้', icon: 'BOOK' },
-            { id: 'ai' as const, name: 'AI', icon: 'BRAIN' },
-            { id: 'smartai' as const, name: 'Smart AI', icon: 'CRYSTAL' },
+            { id: 'ai' as const, name: 'AI ตอบแชท', icon: 'BRAIN' },
+            { id: 'smartai' as const, name: 'AI อัจฉริยะ', icon: 'CRYSTAL' },
             { id: 'messages' as const, name: 'ข้อความ', icon: 'MSG' },
           ]).map((tab) => {
             const isDisabled = (tab.id === 'ai' || tab.id === 'smartai') && !settingsData.enableAi;
@@ -2399,12 +2427,28 @@ export default function AdminLineAccountsPage() {
           {/* ===== TAB 2: AI ตอบกลับ ===== */}
           {activeSettingsTab === 'ai' && settingsData.enableAi && (
             <motion.div key="ai" initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 20 }} transition={{ duration: 0.2 }} className="space-y-6">
+              {/* Mode comparison */}
+              <div className="bg-indigo-500/5 border border-indigo-500/15 rounded-xl p-4 space-y-3 mb-2">
+                <p className="text-xs font-bold text-indigo-300">AI มี 2 โหมด:</p>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <div className="bg-white/[0.03] rounded-lg p-3 border border-white/5">
+                    <p className="text-xs font-bold text-white flex items-center gap-1.5">🧠 AI ตอบแชท <span className="text-[9px] text-indigo-400 font-normal">(แท็บนี้)</span></p>
+                    <p className="text-[10px] text-white/40 mt-1">AI ตอบทุกข้อความเหมือนกัน ใช้ System Prompt + คลังความรู้</p>
+                  </div>
+                  <div className="bg-white/[0.03] rounded-lg p-3 border border-white/5">
+                    <p className="text-xs font-bold text-white flex items-center gap-1.5">🔮 AI อัจฉริยะ <span className="text-[9px] text-violet-400 font-normal">(แท็บถัดไป)</span></p>
+                    <p className="text-[10px] text-white/40 mt-1">วิเคราะห์ประเภทข้อความก่อน แล้วตอบตามกฎที่ตั้งไว้</p>
+                  </div>
+                </div>
+                <p className="text-[10px] text-white/30">เปิด AI อัจฉริยะ = ใช้โหมดอัจฉริยะ, ปิด = ใช้โหมดธรรมดา (ตั้งค่าในแท็บนี้)</p>
+              </div>
+
               <div className="p-6 bg-slate-900 rounded-2xl text-white space-y-6 relative overflow-hidden">
                 <div className="absolute top-0 right-0 w-72 h-72 bg-indigo-500/10 rounded-full blur-[80px] -mr-32 -mt-32 pointer-events-none" />
                 <div className="flex items-center gap-3 relative z-10">
                   <span className="w-1 h-6 bg-indigo-500 rounded-full" />
-                  <h3 className="text-lg font-black text-indigo-400">การตั้งค่า AI</h3>
-                  <Badge className="bg-white/10 text-white border-none font-black text-[9px] px-3 py-1 uppercase tracking-widest rounded-lg ml-auto">GEN-2</Badge>
+                  <h3 className="text-lg font-black text-indigo-400">ตั้งค่า AI พื้นฐาน</h3>
+                  <Badge className="bg-white/10 text-white border-none font-black text-[9px] px-3 py-1 uppercase tracking-widest rounded-lg ml-auto">ใช้ทั้ง 2 โหมด</Badge>
                 </div>
 
                 {/* Global AI Warning */}
@@ -2439,7 +2483,7 @@ export default function AdminLineAccountsPage() {
 
                   {/* System Prompt */}
                   <div className="space-y-2">
-                    <label className="text-xs font-bold text-white/50">System Prompt (คำสั่งพื้นฐานให้ AI)</label>
+                    <label className="text-xs font-bold text-white/50">คำสั่งพื้นฐานให้ AI (System Prompt)</label>
                     <Textarea variant="glass" value={settingsData.aiSystemPrompt} onChange={(e) => setSettingsData({ ...settingsData, aiSystemPrompt: e.target.value })} placeholder="กำหนดบทบาท, เงื่อนไข และพฤติกรรมของ AI..." rows={5} className="bg-white/5 border-white/10 text-white p-5 rounded-xl font-medium leading-relaxed" />
                     <p className="text-[10px] text-white/30 px-1">เขียนบทบาทของ AI เช่น &quot;คุณเป็นพนักงานบริการลูกค้า ตอบสุภาพ กระชับ&quot;</p>
                   </div>
@@ -2452,7 +2496,7 @@ export default function AdminLineAccountsPage() {
                       <p className="text-[10px] text-white/30 px-1">0 = ตอบตรงๆ, 1 = สร้างสรรค์สุด แนะนำ 0.7</p>
                     </div>
                     <div className="space-y-2">
-                      <label className="text-xs font-bold text-white/50">Fallback Message (เมื่อ AI ขัดข้อง)</label>
+                      <label className="text-xs font-bold text-white/50">ข้อความสำรอง (เมื่อ AI ตอบไม่ได้)</label>
                       <Input variant="glass" value={settingsData.aiFallbackMessage} onChange={(e) => setSettingsData({ ...settingsData, aiFallbackMessage: e.target.value })} className="bg-white/5 border-white/10 text-white h-12 rounded-xl" />
                       <p className="text-[10px] text-white/30 px-1">ข้อความที่ส่งเมื่อ AI ไม่สามารถตอบได้</p>
                     </div>
@@ -2482,11 +2526,22 @@ export default function AdminLineAccountsPage() {
                 {settingsData.enableSmartAi && (
                   <div className="space-y-6 relative z-10">
 
+                    {/* Mode explanation */}
+                    <div className="bg-violet-500/10 border border-violet-500/20 rounded-xl p-4 space-y-2">
+                      <p className="text-xs font-bold text-violet-300">Smart AI ทำงานอย่างไร?</p>
+                      <div className="text-[11px] text-white/50 space-y-1">
+                        <p>1. เมื่อลูกค้าส่งข้อความ → AI จะ<span className="text-violet-300 font-bold">วิเคราะห์เจตนา</span> (เช่น ถามฝาก/ถอน, ขอลิงก์, หงุดหงิด)</p>
+                        <p>2. จากนั้นจะ<span className="text-violet-300 font-bold">ตอบตามกฎ</span>ที่ตั้งไว้สำหรับแต่ละประเภท</p>
+                        <p>3. ตรวจจับสแปมและข้อความซ้ำอัตโนมัติ</p>
+                      </div>
+                      <p className="text-[10px] text-white/30 pt-1">💡 ถ้าปิด Smart AI ระบบจะใช้ AI แบบธรรมดา (ตอบทุกข้อความเหมือนกัน ไม่แยกประเภท)</p>
+                    </div>
+
                     {/* 1. Classification Engine */}
                     <div className="space-y-4 bg-white/5 rounded-xl p-5 border border-white/10">
-                      <h4 className="text-xs font-black text-violet-300 uppercase tracking-[0.15em]">1. Classification Engine</h4>
+                      <h4 className="text-xs font-black text-violet-300 uppercase tracking-[0.15em]">1. ระบบจำแนกข้อความ</h4>
                       <div className="space-y-2">
-                        <label className="text-xs font-bold text-white/50">Classifier Model (Stage 1)</label>
+                        <label className="text-xs font-bold text-white/50">โมเดลจำแนก (ขั้นที่ 1)</label>
                         <Select
                           value={settingsData.smartAiClassifierModel}
                           onChange={(e) => setSettingsData({ ...settingsData, smartAiClassifierModel: e.target.value })}
@@ -2495,10 +2550,10 @@ export default function AdminLineAccountsPage() {
                           <option value="gpt-3.5-turbo">gpt-3.5-turbo (เร็ว/ถูก)</option>
                           <option value="gpt-4o-mini">gpt-4o-mini (สมดุล)</option>
                         </Select>
-                        <p className="text-[10px] text-white/30 px-1">Model สำหรับจำแนกประเภทข้อความ ใช้ token น้อย ไม่ต้องใช้ตัวแพง</p>
+                        <p className="text-[10px] text-white/30 px-1">AI ตัวเล็กสำหรับจำแนกประเภทข้อความ (ใช้ token น้อย ไม่ต้องใช้ตัวแพง)</p>
                       </div>
                       <div className="space-y-2">
-                        <label className="text-xs font-bold text-white/50">Global Confidence Threshold</label>
+                        <label className="text-xs font-bold text-white/50">ความมั่นใจขั้นต่ำ</label>
                         <div className="flex items-center gap-4">
                           <input
                             type="range"
@@ -2509,13 +2564,13 @@ export default function AdminLineAccountsPage() {
                           />
                           <span className="text-sm font-black text-violet-300 w-12 text-center">{settingsData.smartAiConfidenceThreshold.toFixed(2)}</span>
                         </div>
-                        <p className="text-[10px] text-white/30 px-1">ค่าต่ำสุดที่ AI ต้องมั่นใจก่อนจะใช้กฎ intent (ต่ำกว่า = fallback เป็น general)</p>
+                        <p className="text-[10px] text-white/30 px-1">ค่าต่ำสุดที่ AI ต้องมั่นใจก่อนจะใช้กฎประเภทนั้น (ต่ำกว่า = ตอบแบบทั่วไปแทน)</p>
                       </div>
                     </div>
 
                     {/* 2. Detection & Protection */}
                     <div className="space-y-4 bg-white/5 rounded-xl p-5 border border-white/10">
-                      <h4 className="text-xs font-black text-violet-300 uppercase tracking-[0.15em]">2. Detection & Protection</h4>
+                      <h4 className="text-xs font-black text-violet-300 uppercase tracking-[0.15em]">2. ป้องกันสแปม & ข้อความซ้ำ</h4>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                         <div className="space-y-2">
                           <label className="text-xs font-bold text-white/50">ตรวจจับข้อความซ้ำ (นาที)</label>
@@ -2532,37 +2587,37 @@ export default function AdminLineAccountsPage() {
 
                     {/* 3. AI Response Settings */}
                     <div className="space-y-4 bg-white/5 rounded-xl p-5 border border-white/10">
-                      <h4 className="text-xs font-black text-violet-300 uppercase tracking-[0.15em]">3. AI Response Settings</h4>
+                      <h4 className="text-xs font-black text-violet-300 uppercase tracking-[0.15em]">3. ตั้งค่าการตอบ AI</h4>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                         <div className="space-y-2">
-                          <label className="text-xs font-bold text-white/50">Max Tokens (100-4000)</label>
+                          <label className="text-xs font-bold text-white/50">ความยาวคำตอบสูงสุด (100-4000)</label>
                           <Input variant="glass" type="number" min="100" max="4000" step="50" value={settingsData.smartAiMaxTokens} onChange={(e) => setSettingsData({ ...settingsData, smartAiMaxTokens: parseInt(e.target.value) || 500 })} className="bg-white/5 border-white/10 text-white h-12 rounded-xl font-black text-center" />
-                          <p className="text-[10px] text-white/30 px-1">จำนวน token สูงสุดต่อคำตอบ มาก = ตอบยาวขึ้น แต่ช้าและแพงขึ้น</p>
+                          <p className="text-[10px] text-white/30 px-1">ยิ่งมาก AI ตอบได้ยาวขึ้น แต่ช้าและเสียค่าใช้จ่ายมากขึ้น (แนะนำ 500)</p>
                         </div>
                         <div className="space-y-2">
-                          <label className="text-xs font-bold text-white/50">Response Delay (ms)</label>
+                          <label className="text-xs font-bold text-white/50">หน่วงเวลาก่อนตอบ (มิลลิวินาที)</label>
                           <Input variant="glass" type="number" min="0" max="5000" step="100" value={settingsData.smartAiResponseDelayMs} onChange={(e) => setSettingsData({ ...settingsData, smartAiResponseDelayMs: parseInt(e.target.value) || 0 })} className="bg-white/5 border-white/10 text-white h-12 rounded-xl font-black text-center" />
-                          <p className="text-[10px] text-white/30 px-1">หน่วงเวลาก่อนส่งคำตอบ จำลองการพิมพ์ (0 = ส่งทันที)</p>
+                          <p className="text-[10px] text-white/30 px-1">จำลองการพิมพ์ เช่น 1000 = รอ 1 วินาที (0 = ส่งทันที)</p>
                         </div>
                       </div>
                     </div>
 
                     {/* 4. Retry & Fallback */}
                     <div className="space-y-4 bg-white/5 rounded-xl p-5 border border-white/10">
-                      <h4 className="text-xs font-black text-violet-300 uppercase tracking-[0.15em]">4. Retry & Fallback</h4>
+                      <h4 className="text-xs font-black text-violet-300 uppercase tracking-[0.15em]">4. ลองใหม่ & สำรอง</h4>
                       <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
                         <div className="space-y-2">
-                          <label className="text-xs font-bold text-white/50">Max Retries (0-5)</label>
+                          <label className="text-xs font-bold text-white/50">จำนวนครั้งลองใหม่ (0-5)</label>
                           <Input variant="glass" type="number" min="0" max="5" value={settingsData.smartAiMaxRetries} onChange={(e) => setSettingsData({ ...settingsData, smartAiMaxRetries: parseInt(e.target.value) || 0 })} className="bg-white/5 border-white/10 text-white h-12 rounded-xl font-black text-center" />
-                          <p className="text-[10px] text-white/30 px-1">จำนวนครั้งที่ลองใหม่เมื่อ AI error</p>
+                          <p className="text-[10px] text-white/30 px-1">เมื่อ AI ตอบไม่ได้ จะลองใหม่กี่ครั้ง</p>
                         </div>
                         <div className="space-y-2">
-                          <label className="text-xs font-bold text-white/50">Retry Delay (ms)</label>
+                          <label className="text-xs font-bold text-white/50">รอก่อนลองใหม่ (มิลลิวินาที)</label>
                           <Input variant="glass" type="number" min="500" max="10000" step="500" value={settingsData.smartAiRetryDelayMs} onChange={(e) => setSettingsData({ ...settingsData, smartAiRetryDelayMs: parseInt(e.target.value) || 1000 })} className="bg-white/5 border-white/10 text-white h-12 rounded-xl font-black text-center" />
-                          <p className="text-[10px] text-white/30 px-1">รอนานแค่ไหนก่อนลองใหม่</p>
+                          <p className="text-[10px] text-white/30 px-1">รอนานเท่าไหร่ก่อนลองใหม่ (1000 = 1 วินาที)</p>
                         </div>
                         <div className="space-y-2">
-                          <label className="text-xs font-bold text-white/50">Fallback Action</label>
+                          <label className="text-xs font-bold text-white/50">เมื่อลองหมดแล้วยัง error</label>
                           <Select
                             value={settingsData.smartAiFallbackAction}
                             onChange={(e) => setSettingsData({ ...settingsData, smartAiFallbackAction: e.target.value })}
@@ -2572,24 +2627,24 @@ export default function AdminLineAccountsPage() {
                             <option value="legacy_ai">ใช้ AI แบบเดิม</option>
                             <option value="no_response">ไม่ตอบ</option>
                           </Select>
-                          <p className="text-[10px] text-white/30 px-1">ทำอะไรเมื่อ retry หมดแล้วยัง error</p>
+                          <p className="text-[10px] text-white/30 px-1">ทำอะไรเมื่อลองหมดแล้วยังตอบไม่ได้</p>
                         </div>
                       </div>
                     </div>
 
                     {/* 5. Intent Rules */}
                     <div className="space-y-4 bg-white/5 rounded-xl p-5 border border-white/10">
-                      <h4 className="text-xs font-black text-violet-300 uppercase tracking-[0.15em]">5. Intent Rules (กฎตอบตามเจตนา)</h4>
+                      <h4 className="text-xs font-black text-violet-300 uppercase tracking-[0.15em]">5. กฎตอบตามประเภทข้อความ</h4>
                       <p className="text-[10px] text-white/30">กำหนดวิธีตอบสำหรับแต่ละประเภทข้อความที่ AI จำแนกได้</p>
                       <div className="space-y-3">
                         {([
-                          { key: 'deposit_issue', label: 'ปัญหาการฝากเงิน', desc: 'AI ขอสลิป+แจ้งแอดมินตรวจ' },
-                          { key: 'duplicate_request', label: 'ส่งซ้ำ/ถามซ้ำ', desc: 'Template: "แอดมินกำลังตรวจสอบ"' },
-                          { key: 'frustrated', label: 'หงุดหงิด/ผิดหวัง', desc: 'AI ให้กำลังใจ' },
-                          { key: 'abusive', label: 'ก้าวร้าว/สแปม', desc: 'ไม่ตอบ' },
-                          { key: 'ask_link', label: 'ขอลิงก์เข้าเล่น', desc: 'ส่งลิงก์ที่ตั้งค่า' },
-                          { key: 'ask_game_recommend', label: 'แนะนำเกม', desc: 'AI + Web Search' },
-                          { key: 'general', label: 'ทั่วไป', desc: 'AI ตอบปกติ' },
+                          { key: 'deposit_issue', label: 'ปัญหาการฝากเงิน', desc: 'ลูกค้าถามเรื่องฝากเงิน โอนเงิน เครดิตไม่เข้า', emoji: '💰' },
+                          { key: 'duplicate_request', label: 'ส่งซ้ำ / ถามซ้ำ', desc: 'ลูกค้าส่งข้อความเดิมซ้ำภายในเวลาที่กำหนด', emoji: '🔁' },
+                          { key: 'frustrated', label: 'หงุดหงิด / ผิดหวัง', desc: 'ลูกค้าดูไม่พอใจ ต้องการความช่วยเหลือเร่งด่วน', emoji: '😤' },
+                          { key: 'abusive', label: 'ก้าวร้าว / สแปม', desc: 'ข้อความหยาบคาย ส่งรัวๆ', emoji: '🚫' },
+                          { key: 'ask_link', label: 'ขอลิงก์เข้าเล่น', desc: 'ลูกค้าขอลิงก์เข้าเว็บ/เกม', emoji: '🔗' },
+                          { key: 'ask_game_recommend', label: 'แนะนำเกม', desc: 'ลูกค้าอยากรู้ว่ามีเกมอะไรบ้าง', emoji: '🎮' },
+                          { key: 'general', label: 'ทั่วไป', desc: 'ข้อความอื่นๆ ที่ไม่ตรงประเภทข้างบน', emoji: '💬' },
                         ] as const).map((item) => {
                           const rule = settingsData.intentRules[item.key] || { enabled: true, useAi: true, customPrompt: '', responseTemplate: '' };
                           const updateRule = (field: string, value: boolean | string | number | undefined) => {
@@ -2601,36 +2656,104 @@ export default function AdminLineAccountsPage() {
                               },
                             });
                           };
+
+                          // Determine response mode from rule state
+                          const getResponseMode = (): string => {
+                            if (!rule.useAi && rule.responseTemplate === '__NO_RESPONSE__') return 'no_response';
+                            if (!rule.useAi && rule.responseTemplate === '__SEND_LINKS__') return 'send_links';
+                            if (!rule.useAi) return 'custom_template';
+                            return 'ai';
+                          };
+                          const responseMode = getResponseMode();
+
+                          const setResponseMode = (mode: string) => {
+                            switch (mode) {
+                              case 'ai':
+                                updateRule('useAi', true);
+                                // Clear template when switching to AI
+                                setSettingsData(prev => ({
+                                  ...prev,
+                                  intentRules: {
+                                    ...prev.intentRules,
+                                    [item.key]: { ...rule, useAi: true, responseTemplate: '' },
+                                  },
+                                }));
+                                break;
+                              case 'no_response':
+                                setSettingsData(prev => ({
+                                  ...prev,
+                                  intentRules: {
+                                    ...prev.intentRules,
+                                    [item.key]: { ...rule, useAi: false, responseTemplate: '__NO_RESPONSE__' },
+                                  },
+                                }));
+                                break;
+                              case 'send_links':
+                                setSettingsData(prev => ({
+                                  ...prev,
+                                  intentRules: {
+                                    ...prev.intentRules,
+                                    [item.key]: { ...rule, useAi: false, responseTemplate: '__SEND_LINKS__' },
+                                  },
+                                }));
+                                break;
+                              case 'custom_template':
+                                setSettingsData(prev => ({
+                                  ...prev,
+                                  intentRules: {
+                                    ...prev.intentRules,
+                                    [item.key]: { ...rule, useAi: false, responseTemplate: rule.responseTemplate === '__NO_RESPONSE__' || rule.responseTemplate === '__SEND_LINKS__' ? '' : rule.responseTemplate },
+                                  },
+                                }));
+                                break;
+                            }
+                          };
+
                           return (
                             <div key={item.key} className="bg-white/5 rounded-xl p-4 space-y-3 border border-white/10">
                               <div className="flex items-center justify-between">
-                                <div>
-                                  <p className="text-sm font-bold text-white">{item.label}</p>
-                                  <p className="text-[10px] text-white/40">{item.desc}</p>
+                                <div className="flex items-center gap-2">
+                                  <span className="text-base">{item.emoji}</span>
+                                  <div>
+                                    <p className="text-sm font-bold text-white">{item.label}</p>
+                                    <p className="text-[10px] text-white/40">{item.desc}</p>
+                                  </div>
                                 </div>
                                 <Switch checked={rule.enabled} onChange={(checked) => updateRule('enabled', checked)} />
                               </div>
                               {rule.enabled && (
-                                <div className="space-y-2 pt-2 border-t border-white/5">
-                                  <div className="flex items-center gap-3">
-                                    <label className="text-[10px] text-white/40 uppercase tracking-widest w-20">ใช้ AI</label>
-                                    <Switch checked={rule.useAi} onChange={(checked) => updateRule('useAi', checked)} />
+                                <div className="space-y-3 pt-2 border-t border-white/5">
+                                  <div className="space-y-1">
+                                    <label className="text-[10px] text-white/40">วิธีตอบกลับ</label>
+                                    <Select
+                                      value={responseMode}
+                                      onChange={(e) => setResponseMode(e.target.value)}
+                                      className="bg-white/5 border-white/5 text-white h-10 rounded-xl text-xs"
+                                    >
+                                      <option value="ai">ให้ AI ตอบ (อัจฉริยะ)</option>
+                                      <option value="custom_template">ข้อความกำหนดเอง</option>
+                                      <option value="send_links">ส่งลิงก์เกมอัตโนมัติ</option>
+                                      <option value="no_response">ไม่ตอบ (เงียบ)</option>
+                                    </Select>
                                   </div>
-                                  {!rule.useAi && (
+                                  {responseMode === 'custom_template' && (
                                     <div className="space-y-1">
-                                      <label className="text-[10px] text-white/40">ข้อความตอบกลับ</label>
-                                      <Input variant="glass" value={rule.responseTemplate} onChange={(e) => updateRule('responseTemplate', e.target.value)} placeholder="__NO_RESPONSE__ = ไม่ตอบ, __SEND_LINKS__ = ส่งลิงก์" className="bg-white/5 border-white/5 text-white h-10 rounded-xl text-xs" />
+                                      <label className="text-[10px] text-white/40">ข้อความที่จะส่ง</label>
+                                      <Input variant="glass" value={rule.responseTemplate === '__NO_RESPONSE__' || rule.responseTemplate === '__SEND_LINKS__' ? '' : rule.responseTemplate} onChange={(e) => updateRule('responseTemplate', e.target.value)} placeholder="พิมพ์ข้อความที่ต้องการส่งให้ลูกค้า..." className="bg-white/5 border-white/5 text-white h-10 rounded-xl text-xs" />
                                     </div>
                                   )}
-                                  {rule.useAi && (
+                                  {responseMode === 'ai' && (
                                     <div className="space-y-1">
-                                      <label className="text-[10px] text-white/40">Custom Prompt (เพิ่มเติม)</label>
-                                      <Input variant="glass" value={rule.customPrompt} onChange={(e) => updateRule('customPrompt', e.target.value)} placeholder="บริบทเพิ่มเติมสำหรับ AI..." className="bg-white/5 border-white/5 text-white h-10 rounded-xl text-xs" />
+                                      <label className="text-[10px] text-white/40">คำสั่งเพิ่มเติมให้ AI (ไม่ใส่ก็ได้)</label>
+                                      <Input variant="glass" value={rule.customPrompt} onChange={(e) => updateRule('customPrompt', e.target.value)} placeholder="เช่น ให้ถามชื่อบัญชีก่อนช่วยเหลือ..." className="bg-white/5 border-white/5 text-white h-10 rounded-xl text-xs" />
                                     </div>
+                                  )}
+                                  {responseMode === 'send_links' && settingsData.gameLinks.length === 0 && (
+                                    <p className="text-[10px] text-amber-400">ยังไม่มีลิงก์ — ตั้งค่าลิงก์ในส่วน &quot;ลิงก์เกม&quot; ด้านล่าง</p>
                                   )}
                                   {item.key !== 'general' && (
                                     <div className="space-y-1">
-                                      <label className="text-[10px] text-white/40">Confidence Threshold (ว่าง = ใช้ global {settingsData.smartAiConfidenceThreshold})</label>
+                                      <label className="text-[10px] text-white/40">ความมั่นใจขั้นต่ำ (ว่าง = ใช้ค่ากลาง {settingsData.smartAiConfidenceThreshold})</label>
                                       <Input
                                         variant="glass"
                                         type="number"
@@ -2657,8 +2780,8 @@ export default function AdminLineAccountsPage() {
                     <div className="space-y-4 bg-white/5 rounded-xl p-5 border border-white/10">
                       <div className="flex items-center justify-between">
                         <div>
-                          <h4 className="text-xs font-black text-violet-300 uppercase tracking-[0.15em]">6. Game Links</h4>
-                          <p className="text-[10px] text-white/30 mt-1">ลิงก์ที่จะส่งเมื่อ intent = ask_link</p>
+                          <h4 className="text-xs font-black text-violet-300 uppercase tracking-[0.15em]">6. ลิงก์เกม</h4>
+                          <p className="text-[10px] text-white/30 mt-1">ลิงก์ที่จะส่งเมื่อลูกค้าขอลิงก์เข้าเล่น</p>
                         </div>
                         <button
                           type="button"
@@ -2712,7 +2835,7 @@ export default function AdminLineAccountsPage() {
                     {/* 7. Test Classification */}
                     <div className="space-y-4 bg-white/5 rounded-xl p-5 border border-violet-500/30">
                       <h4 className="text-xs font-black text-violet-300 uppercase tracking-[0.15em] flex items-center gap-2">
-                        <FlaskConical size={14} /> 7. ทดสอบ Classification
+                        <FlaskConical size={14} /> 7. ทดสอบจำแนกข้อความ
                       </h4>
                       <p className="text-[10px] text-white/30">พิมพ์ข้อความเพื่อทดสอบว่า AI จะจำแนกเป็น intent อะไร</p>
                       <div className="flex gap-3">
@@ -2765,13 +2888,13 @@ export default function AdminLineAccountsPage() {
                               {testResult.intent}
                             </Badge>
                             {testResult.fellBelowThreshold && (
-                              <span className="text-[10px] text-amber-400 font-bold">BELOW THRESHOLD</span>
+                              <span className="text-[10px] text-amber-400 font-bold">ต่ำกว่าเกณฑ์ → ใช้กฎทั่วไปแทน</span>
                             )}
                             <span className="text-[10px] text-white/40 ml-auto">{testResult.processingTimeMs}ms</span>
                           </div>
                           <div className="space-y-1">
                             <div className="flex justify-between text-[10px]">
-                              <span className="text-white/40">Confidence</span>
+                              <span className="text-white/40">ความมั่นใจ</span>
                               <span className={cn('font-black', testResult.confidence >= testResult.thresholdUsed ? 'text-emerald-400' : 'text-rose-400')}>
                                 {(testResult.confidence * 100).toFixed(1)}%
                               </span>
@@ -3474,6 +3597,26 @@ export default function AdminLineAccountsPage() {
                   }`} />
                   {loginNotifications.isConnected ? 'Real-time เชื่อมต่อแล้ว' : 'Real-time ไม่ได้เชื่อมต่อ'}
                 </div>
+
+                {/* Queue Banner */}
+                {loginNotifications.isQueued && (
+                  <div className="p-4 bg-amber-50 rounded-xl border border-amber-200">
+                    <div className="flex items-center gap-3">
+                      <Clock className="w-5 h-5 text-amber-500 animate-pulse" />
+                      <div>
+                        <p className="text-sm font-bold text-amber-700">
+                          อยู่ในคิวที่ {loginNotifications.queuePosition ?? '?'}
+                        </p>
+                        <p className="text-xs text-amber-600">
+                          {loginNotifications.queueEstimatedWait
+                            ? `รอประมาณ ${Math.ceil(loginNotifications.queueEstimatedWait / 60)} นาที — `
+                            : ''}
+                          จะเริ่มอัตโนมัติเมื่อถึงคิว
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
 
                 {/* Error Display */}
                 {loginStatus.error && loginStatus.status !== 'cooldown' && (

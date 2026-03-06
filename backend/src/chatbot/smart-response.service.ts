@@ -108,10 +108,21 @@ export class SmartResponseService {
         settings.duplicateDetectionWindowMinutes,
       );
 
-      // 4. Stage 1: Intent Classification
+      // 4. Stage 1: Intent Classification (with conversation context)
+      let recentContext: string[] = [];
+      try {
+        recentContext = await this.chatbotService.getRecentUserMessages(
+          userId,
+          lineAccountId,
+          3,
+        );
+      } catch {
+        // Proceed without context
+      }
       const classificationResult = await this.intentClassifier.classifyIntent(
         message,
         settings.smartAiClassifierModel || 'gpt-3.5-turbo',
+        recentContext.length > 0 ? recentContext : undefined,
       );
       intent = classificationResult.intent;
       confidence = classificationResult.confidence;
@@ -277,7 +288,19 @@ export class SmartResponseService {
           maxTokens,
           temperature,
         );
-        return makeResult(true, aiResponse);
+
+        // Validate response quality
+        if (this.isValidResponse(aiResponse)) {
+          return makeResult(true, aiResponse);
+        }
+
+        this.logger.warn(
+          `[SMART-AI] AI attempt ${attempt}/${maxRetries} returned invalid response: "${aiResponse?.substring(0, 50)}"`,
+        );
+        lastError = new Error('Invalid AI response');
+        if (attempt < maxRetries) {
+          await sleep(retryDelay);
+        }
       } catch (error) {
         lastError = error as Error;
         this.logger.warn(`[SMART-AI] AI attempt ${attempt}/${maxRetries} failed:`, error);
@@ -302,6 +325,32 @@ export class SmartResponseService {
         // Return null to let caller use the aiFallbackMessage
         return makeResult(true, null);
     }
+  }
+
+  /**
+   * Validate that an AI response is meaningful and not garbage
+   */
+  private isValidResponse(response: string | null | undefined): boolean {
+    if (!response) return false;
+
+    const trimmed = response.trim();
+
+    // Too short (less than 2 characters)
+    if (trimmed.length < 2) return false;
+
+    // Known error patterns from OpenAI that shouldn't be sent to users
+    const errorPatterns = [
+      /^ขออภัย ไม่สามารถตอบได้$/,
+      /^I'm sorry/i,
+      /^As an AI/i,
+      /^I cannot/i,
+    ];
+
+    for (const pattern of errorPatterns) {
+      if (pattern.test(trimmed)) return false;
+    }
+
+    return true;
   }
 
   /**

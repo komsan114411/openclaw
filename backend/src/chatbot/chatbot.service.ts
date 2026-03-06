@@ -4,6 +4,15 @@ import { SystemSettingsService } from '../system-settings/system-settings.servic
 import { RedisService } from '../redis/redis.service';
 import { DEFAULT_SYSTEM_PROMPT } from './prompt-builder';
 
+/** How many recent messages to send to the AI as conversation context */
+const CONTEXT_MESSAGE_COUNT = 20;
+
+/** Max messages to store in Redis history */
+const MAX_HISTORY_SIZE = 40;
+
+/** Redis TTL for chat history: 24 hours */
+const HISTORY_TTL_SECONDS = 86400;
+
 @Injectable()
 export class ChatbotService {
   private readonly logger = new Logger(ChatbotService.name);
@@ -49,6 +58,26 @@ export class ChatbotService {
     this.logger.log('OpenAI client cache invalidated');
   }
 
+  /**
+   * Get recent user messages from history for classification context
+   */
+  async getRecentUserMessages(
+    userId: string,
+    lineAccountId: string,
+    count = 3,
+  ): Promise<string[]> {
+    const historyKey = `chat:${lineAccountId}:${userId}`;
+    try {
+      const history = (await this.redisService.getJson<Array<{ role: string; content: string }>>(historyKey)) || [];
+      return history
+        .filter((m) => m.role === 'user')
+        .slice(-count)
+        .map((m) => m.content);
+    } catch {
+      return [];
+    }
+  }
+
   async getResponse(
     message: string,
     userId: string,
@@ -80,18 +109,18 @@ export class ChatbotService {
 
       // Get chat history from Redis
       const historyKey = `chat:${lineAccountId}:${userId}`;
-      let history: any[] = [];
+      let history: Array<{ role: string; content: string }> = [];
       try {
-        history = (await this.redisService.getJson<any[]>(historyKey)) || [];
+        history = (await this.redisService.getJson<Array<{ role: string; content: string }>>(historyKey)) || [];
       } catch (cacheError) {
         this.logger.warn('Failed to get chat history from cache:', cacheError);
         // Continue without history
       }
 
-      // Build messages
+      // Build messages with more context
       const messages: OpenAI.Chat.ChatCompletionMessageParam[] = [
         { role: 'system', content: defaultPrompt },
-        ...history.slice(-10), // Last 10 messages
+        ...(history.slice(-CONTEXT_MESSAGE_COUNT) as OpenAI.Chat.ChatCompletionMessageParam[]),
         { role: 'user', content: sanitizedMessage },
       ];
 
@@ -115,18 +144,19 @@ export class ChatbotService {
       });
 
       return response;
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const err = error as Record<string, unknown>;
       this.logger.error('ChatBot error:', error);
 
-      if (error.status === 401) {
+      if (err.status === 401) {
         return 'API Key ไม่ถูกต้อง กรุณาตรวจสอบการตั้งค่า';
-      } else if (error.status === 429) {
+      } else if (err.status === 429) {
         return 'ขออภัย ระบบ AI ไม่สามารถตอบได้ในขณะนี้ กรุณาลองใหม่ในภายหลัง';
-      } else if (error.code === 'ECONNABORTED' || error.code === 'ETIMEDOUT') {
+      } else if (err.code === 'ECONNABORTED' || err.code === 'ETIMEDOUT') {
         return 'ขออภัย ระบบ AI ตอบช้าเกินไป กรุณาลองใหม่อีกครั้ง';
-      } else if (error.status === 400) {
+      } else if (err.status === 400) {
         return 'ขออภัย ข้อความไม่ถูกต้อง กรุณาลองใหม่';
-      } else if (error.status === 500 || error.status === 502 || error.status === 503) {
+      } else if (err.status === 500 || err.status === 502 || err.status === 503) {
         return 'ขออภัย ระบบ AI ไม่พร้อมใช้งานชั่วคราว กรุณาลองใหม่ในภายหลัง';
       }
 
@@ -141,14 +171,14 @@ export class ChatbotService {
     historyKey: string,
     userMessage: string,
     assistantResponse: string,
-    existingHistory: any[],
+    existingHistory: Array<{ role: string; content: string }>,
   ): Promise<void> {
     const history = [
       ...existingHistory,
       { role: 'user', content: userMessage },
       { role: 'assistant', content: assistantResponse },
     ];
-    await this.redisService.setJson(historyKey, history.slice(-20), 3600);
+    await this.redisService.setJson(historyKey, history.slice(-MAX_HISTORY_SIZE), HISTORY_TTL_SECONDS);
   }
 
   async testConnection(apiKey: string): Promise<{
@@ -157,7 +187,7 @@ export class ChatbotService {
   }> {
     try {
       const client = new OpenAI({ apiKey });
-      
+
       const completion = await client.chat.completions.create({
         model: 'gpt-3.5-turbo',
         messages: [
@@ -170,10 +200,11 @@ export class ChatbotService {
         success: true,
         message: completion.choices[0]?.message?.content || 'Connected',
       };
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const err = error as { message?: string };
       return {
         success: false,
-        message: error.message || 'Connection failed',
+        message: err.message || 'Connection failed',
       };
     }
   }
