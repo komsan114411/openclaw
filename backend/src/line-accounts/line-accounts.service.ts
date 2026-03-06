@@ -502,9 +502,13 @@ export class LineAccountsService {
     const aiRelatedKeys = ['enableAi', 'enableSmartAi', 'knowledgeBase', 'aiSystemPrompt', 'aiModel', 'intentRules', 'gameLinks', 'aiTemperature', 'aiFallbackMessage'];
     const hasAiSettingsChanged = aiRelatedKeys.some((key) => key in (settings as Record<string, unknown>));
     if (hasAiSettingsChanged) {
+      this.logger.log(`[updateSettings] AI settings changed for account ${id}, clearing chat history...`);
       const deletedCount = await this.redisService.deleteKeysByPattern(`chat:${id}:*`);
-      if (deletedCount > 0) {
-        this.logger.log(`[updateSettings] Cleared ${deletedCount} chat history entries for account ${id} (AI settings changed)`);
+      this.logger.log(`[updateSettings] Cleared ${deletedCount} chat history entries for account ${id}`);
+      // Also clear duplicate detection cache so AI starts fresh
+      const dupDeleted = await this.redisService.deleteKeysByPattern(`dup:${id}:*`);
+      if (dupDeleted > 0) {
+        this.logger.log(`[updateSettings] Cleared ${dupDeleted} duplicate detection entries for account ${id}`);
       }
     }
   }

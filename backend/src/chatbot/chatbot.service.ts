@@ -4,14 +4,15 @@ import { SystemSettingsService } from '../system-settings/system-settings.servic
 import { RedisService } from '../redis/redis.service';
 import { DEFAULT_SYSTEM_PROMPT } from './prompt-builder';
 
-/** How many recent messages to send to the AI as conversation context */
-const CONTEXT_MESSAGE_COUNT = 20;
+/** How many recent messages to send to the AI as conversation context.
+ * Keep low (5) so old AI responses don't override new knowledge base data. */
+const CONTEXT_MESSAGE_COUNT = 5;
 
 /** Max messages to store in Redis history */
-const MAX_HISTORY_SIZE = 40;
+const MAX_HISTORY_SIZE = 20;
 
-/** Redis TTL for chat history: 24 hours */
-const HISTORY_TTL_SECONDS = 86400;
+/** Redis TTL for chat history: 6 hours (shorter to prevent stale data) */
+const HISTORY_TTL_SECONDS = 21600;
 
 @Injectable()
 export class ChatbotService {

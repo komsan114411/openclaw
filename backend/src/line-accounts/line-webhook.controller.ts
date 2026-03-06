@@ -1382,9 +1382,11 @@ export class LineWebhookController {
       const isSmartAiEnabled = rawSettings.enableSmartAi === true;
 
       // Debug: log settings being used for AI response
-      const kbCount = Array.isArray(rawSettings.knowledgeBase) ? rawSettings.knowledgeBase.filter((k: any) => k.enabled).length : 0;
+      const kbEntries = Array.isArray(rawSettings.knowledgeBase) ? rawSettings.knowledgeBase.filter((k: any) => k.enabled) : [];
+      const kbTopics = kbEntries.map((k: any) => k.topic).join(', ');
       const rulesCount = rawSettings.intentRules ? Object.keys(rawSettings.intentRules).length : 0;
-      this.logger.log(`[AI] Settings: smartAi=${isSmartAiEnabled}, knowledgeBase=${kbCount} entries, intentRules=${rulesCount} rules, model=${rawSettings.aiModel || 'system-default'}`);
+      const hasPrompt = !!rawSettings.aiSystemPrompt;
+      this.logger.log(`[AI] Settings: smartAi=${isSmartAiEnabled}, kb=${kbEntries.length} [${kbTopics}], prompt=${hasPrompt}, rules=${rulesCount}, model=${rawSettings.aiModel || 'system-default'}`);
 
       if (isSmartAiEnabled) {
         // ---- Smart AI Pipeline ----
