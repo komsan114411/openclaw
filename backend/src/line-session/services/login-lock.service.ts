@@ -4,6 +4,7 @@ export interface LockInfo {
   source: string;
   lockedAt: Date;
   ownerId?: string; // User who initiated the login
+  accountName?: string; // ชื่อบัญชีที่กำลัง login
 }
 
 export interface LoginQueueItem {
@@ -87,7 +88,7 @@ export class LoginLockService {
    * @param ownerId - The user who initiated the login
    * @returns true if lock acquired successfully, false if already locked
    */
-  acquireLock(lineAccountId: string, source: string, ownerId?: string): boolean {
+  acquireLock(lineAccountId: string, source: string, ownerId?: string, accountName?: string): boolean {
     this.cleanupExpiredLock(lineAccountId);
 
     if (this.locks.has(lineAccountId)) {
@@ -102,6 +103,7 @@ export class LoginLockService {
       source,
       lockedAt: new Date(),
       ownerId,
+      accountName,
     });
 
     this.logger.log(`Lock acquired for ${lineAccountId} (source: ${source}, owner: ${ownerId || 'system'})`);

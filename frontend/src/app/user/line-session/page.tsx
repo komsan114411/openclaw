@@ -780,6 +780,13 @@ export default function LineSessionPage() {
 
       // [FIX] Restore PIN/login status from backend on page load/session change
       // This prevents PIN from disappearing after page refresh
+      // Set temporary 'checking' status to disable Re-login button during fetch
+      setLoginStatusForAccount(selectedSession._id, {
+        success: false,
+        status: 'checking',
+        message: 'กำลังตรวจสอบสถานะ...',
+      });
+
       (async () => {
         try {
           const res = await lineSessionUserApi.getEnhancedLoginStatus(selectedSession._id);
@@ -813,10 +820,17 @@ export default function LineSessionPage() {
                 stage: data.stage || data.status,
               });
               addPolling(selectedSession._id);
+            } else {
+              // Status is idle/completed — clear checking status
+              setLoginStatusForAccount(selectedSession._id, null);
             }
+          } else {
+            // No active status — clear checking status
+            setLoginStatusForAccount(selectedSession._id, null);
           }
         } catch {
-          // Ignore — status fetch is best-effort
+          // Fetch failed — clear checking status so user can interact
+          setLoginStatusForAccount(selectedSession._id, null);
         }
       })();
 
@@ -1339,6 +1353,8 @@ export default function LineSessionPage() {
         return { text: 'อีเมลหรือรหัสผ่านไม่ถูกต้อง', color: 'text-red-500' };
       case 'queued':
         return { text: 'อยู่ในคิวรอล็อกอิน...', color: 'text-amber-500' };
+      case 'checking':
+        return { text: 'กำลังตรวจสอบสถานะ...', color: 'text-slate-500' };
       default:
         return { text: status || 'ไม่ทราบ', color: 'text-slate-500' };
     }
@@ -1715,7 +1731,7 @@ export default function LineSessionPage() {
                   )}
 
                   {/* Setup Form */}
-                  {(!loginStatus || loginStatus.status === 'completed' || loginStatus.status === 'success' || loginStatus.status === 'failed' || loginStatus.status === 'error' || loginStatus.status === 'credential_error') && (
+                  {(!loginStatus || ['completed', 'success', 'failed', 'error', 'credential_error'].includes(loginStatus.status || '')) && (
                     <div className="space-y-4">
                       <h4 className="font-medium text-slate-900 dark:text-white flex items-center gap-2">
                         <LogIn className="w-4 h-4" />
@@ -1731,11 +1747,11 @@ export default function LineSessionPage() {
                             variant="primary"
                             size="sm"
                             onClick={handleRelogin}
-                            disabled={isSettingUp}
+                            disabled={isSettingUp || isPolling || (loginStatus != null && !['completed', 'success', 'failed', 'error', 'credential_error'].includes(loginStatus.status || ''))}
                             className="mt-2 gap-2"
                           >
-                            {isSettingUp ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
-                            Re-login ด้วยข้อมูลเดิม
+                            {(isSettingUp || loginStatus?.status === 'checking') ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
+                            {loginStatus?.status === 'checking' ? 'กำลังตรวจสอบ...' : 'Re-login ด้วยข้อมูลเดิม'}
                           </Button>
                         </div>
                       )}

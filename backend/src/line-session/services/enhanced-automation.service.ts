@@ -501,7 +501,7 @@ export class EnhancedAutomationService implements OnModuleInit, OnModuleDestroy 
       return {
         success: false,
         status: EnhancedLoginStatus.FAILED,
-        error: `คุณกำลังล็อกอินพร้อมกัน ${userLocks} บัญชี (สูงสุด 2 ต่อผู้ใช้) กรุณารอบัญชีก่อนหน้าเสร็จก่อน`,
+        error: `คุณกำลังล็อกอิน ${userLocks} บัญชีพร้อมกัน (สูงสุด 2 บัญชีต่อผู้ใช้)\nกรุณารอบัญชีก่อนหน้าเสร็จก่อนแล้วลองใหม่`,
       };
     }
 
@@ -533,14 +533,15 @@ export class EnhancedAutomationService implements OnModuleInit, OnModuleDestroy 
         timestamp: new Date(),
       });
 
-      // Build detail of which accounts are currently logging in
+      // Build detail of which accounts are currently logging in (show account names)
       const activeLocks = this.loginLockService.getAllLocks();
-      const lockDetails = activeLocks.map(l => l.info.source).join(', ');
+      const activeNames = activeLocks.map(l => l.info.accountName || 'ไม่ทราบชื่อ').join(', ');
+      const waitMinutes = Math.ceil(queueInfo.estimatedWaitSeconds / 60);
 
       return {
         success: false,
         status: EnhancedLoginStatus.FAILED,
-        error: `ระบบกำลังล็อกอินพร้อมกัน ${activeLoginCount} บัญชี (สูงสุด ${this.MAX_CONCURRENT_LOGINS}) คิวที่ ${queueInfo.position} รอประมาณ ${Math.ceil(queueInfo.estimatedWaitSeconds / 60)} นาที (จะเริ่มอัตโนมัติเมื่อถึงคิว) [active: ${lockDetails}]`,
+        error: `ระบบกำลังล็อกอิน ${activeLoginCount} บัญชีพร้อมกัน (สูงสุด ${this.MAX_CONCURRENT_LOGINS} บัญชี)\nกำลังทำงาน: ${activeNames}\nคิวที่ ${queueInfo.position} — รอประมาณ ${waitMinutes} นาที จะเริ่มอัตโนมัติเมื่อถึงคิว`,
         message: `queued:${queueInfo.position}:${queueInfo.estimatedWaitSeconds}`,
       };
     }
@@ -562,7 +563,8 @@ export class EnhancedAutomationService implements OnModuleInit, OnModuleDestroy 
     this.logger.log(`Display check: DISPLAY=${process.env.DISPLAY || 'not set'}, HEADLESS=${process.env.PUPPETEER_HEADLESS || 'not set'}`);
 
     // Acquire global lock (prevent concurrent login from different services)
-    const lockAcquired = this.loginLockService.acquireLock(lineAccountId, 'enhanced', sessionOwnerId);
+    const accountName = existingSession.name || existingSession.lineEmail?.split('@')[0] || 'บัญชี';
+    const lockAcquired = this.loginLockService.acquireLock(lineAccountId, 'enhanced', sessionOwnerId, accountName);
     if (!lockAcquired) {
       const lockInfo = this.loginLockService.getLockInfo(lineAccountId);
 
