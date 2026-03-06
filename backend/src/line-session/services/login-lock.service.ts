@@ -44,7 +44,7 @@ export class LoginLockService {
   private readonly LOCK_TIMEOUT_MS = 8 * 60 * 1000; // 8 minutes (LOGIN_TIMEOUT 5 min + sequential wait buffer)
   private cleanupInterval: NodeJS.Timeout | null = null;
 
-  // Per-user limit: prevent one user from occupying all slots
+  // Per-user limit default (can be overridden via parameter)
   private readonly MAX_PER_USER = 2;
 
   // Login queue for when concurrent limit is reached
@@ -238,8 +238,8 @@ export class LoginLockService {
   /**
    * Check if user has reached their per-user concurrent limit
    */
-  isUserAtLimit(ownerId: string): boolean {
-    return this.getLocksForOwner(ownerId) >= this.MAX_PER_USER;
+  isUserAtLimit(ownerId: string, maxPerUser: number = this.MAX_PER_USER): boolean {
+    return this.getLocksForOwner(ownerId) >= maxPerUser;
   }
 
   /**
@@ -257,7 +257,7 @@ export class LoginLockService {
    * Add a login request to the queue (sorted by priority)
    * @returns queue position and estimated wait time, or null if queue is full
    */
-  addToQueue(lineAccountId: string, ownerId: string, source: string): {
+  addToQueue(lineAccountId: string, ownerId: string, source: string, maxConcurrent: number = 3): {
     position: number;
     estimatedWaitSeconds: number;
   } | null {
@@ -266,7 +266,7 @@ export class LoginLockService {
     if (existing !== -1) {
       return {
         position: existing + 1,
-        estimatedWaitSeconds: this.estimateWaitTime(existing + 1),
+        estimatedWaitSeconds: this.estimateWaitTime(existing + 1, maxConcurrent),
       };
     }
 
@@ -293,7 +293,7 @@ export class LoginLockService {
 
     return {
       position: item.position,
-      estimatedWaitSeconds: this.estimateWaitTime(item.position),
+      estimatedWaitSeconds: this.estimateWaitTime(item.position, maxConcurrent),
     };
   }
 
@@ -308,7 +308,7 @@ export class LoginLockService {
   /**
    * Get queue info for a specific account
    */
-  getQueueInfo(lineAccountId: string): {
+  getQueueInfo(lineAccountId: string, maxConcurrent: number = 3): {
     inQueue: boolean;
     position: number;
     estimatedWaitSeconds: number;
@@ -319,7 +319,7 @@ export class LoginLockService {
     return {
       inQueue: true,
       position: idx + 1,
-      estimatedWaitSeconds: this.estimateWaitTime(idx + 1),
+      estimatedWaitSeconds: this.estimateWaitTime(idx + 1, maxConcurrent),
     };
   }
 
@@ -383,9 +383,8 @@ export class LoginLockService {
    * Estimate wait time based on queue position
    * Each login takes ~3-4 minutes (browser launch + PIN wait + cleanup)
    */
-  private estimateWaitTime(position: number): number {
+  estimateWaitTime(position: number, maxConcurrent: number = 3): number {
     const avgLoginTimeSec = 180; // 3 minutes average per login
-    const maxConcurrent = 3; // MAX_CONCURRENT_LOGINS from enhanced-automation
     const batchesAhead = Math.ceil(position / maxConcurrent);
     return batchesAhead * avgLoginTimeSec;
   }

@@ -398,6 +398,8 @@ interface UpdateSystemSettingsData {
   lineSessionReloginCheckIntervalMinutes?: number;
   lineSessionMaxConsecutiveFailures?: number;
   lineSessionExpiryWarningMinutes?: number;
+  maxConcurrentLogins?: number;
+  maxLoginPerUser?: number;
 }
 
 interface AddBankAccountData {

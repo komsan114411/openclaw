@@ -403,4 +403,16 @@ export class UpdateSystemSettingsDto {
   @Min(1)
   @Max(30)
   lineSessionExpiryWarningMinutes?: number;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(1)
+  @Max(10)
+  maxConcurrentLogins?: number;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(1)
+  @Max(5)
+  maxLoginPerUser?: number;
 }

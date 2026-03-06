@@ -475,6 +475,18 @@ export class SystemSettings {
   @Prop({ default: 5 })
   lineSessionExpiryWarningMinutes: number;
 
+  /**
+   * Max concurrent logins system-wide (default: 3)
+   */
+  @Prop({ default: 3 })
+  maxConcurrentLogins: number;
+
+  /**
+   * Max concurrent logins per user (default: 2)
+   */
+  @Prop({ default: 2 })
+  maxLoginPerUser: number;
+
   // ===============================
   // Auto Message Fetch Settings
   // ===============================

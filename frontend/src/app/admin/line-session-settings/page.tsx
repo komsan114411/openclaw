@@ -37,6 +37,8 @@ interface LineSessionSettings {
   lineSessionReloginCheckIntervalMinutes: number;
   lineSessionMaxConsecutiveFailures: number;
   lineSessionExpiryWarningMinutes: number;
+  maxConcurrentLogins: number;
+  maxLoginPerUser: number;
 }
 
 interface HealthCheckConfig {
@@ -144,6 +146,8 @@ export default function LineSessionSettingsPage() {
     lineSessionReloginCheckIntervalMinutes: 10,
     lineSessionMaxConsecutiveFailures: 3,
     lineSessionExpiryWarningMinutes: 5,
+    maxConcurrentLogins: 3,
+    maxLoginPerUser: 2,
   });
 
   const fetchSettings = async () => {
@@ -158,6 +162,8 @@ export default function LineSessionSettingsPage() {
         lineSessionReloginCheckIntervalMinutes: data.lineSessionReloginCheckIntervalMinutes ?? 10,
         lineSessionMaxConsecutiveFailures: data.lineSessionMaxConsecutiveFailures ?? 3,
         lineSessionExpiryWarningMinutes: data.lineSessionExpiryWarningMinutes ?? 5,
+        maxConcurrentLogins: data.maxConcurrentLogins ?? 3,
+        maxLoginPerUser: data.maxLoginPerUser ?? 2,
       });
     } catch {
       toast.error('ไม่สามารถโหลดการตั้งค่าได้');
@@ -854,6 +860,69 @@ export default function LineSessionSettingsPage() {
                     </p>
                   </div>
                 </div>
+              </div>
+            </div>
+          </Card>
+
+          {/* Login Queue Settings */}
+          <Card className="p-6">
+            <div className="flex items-center gap-3 mb-6">
+              <div className="p-2 bg-purple-100 dark:bg-purple-900/30 rounded-lg">
+                <Shield className="w-5 h-5 text-purple-600 dark:text-purple-400" />
+              </div>
+              <div>
+                <h2 className="text-lg font-semibold text-slate-900 dark:text-white">
+                  ตั้งค่า Login Queue
+                </h2>
+                <p className="text-sm text-slate-400 dark:text-slate-300">
+                  จำกัดจำนวนการล็อกอินพร้อมกัน
+                </p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+              <div>
+                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+                  <Activity className="w-4 h-4 inline mr-2" />
+                  ล็อกอินพร้อมกันได้สูงสุด (ระบบ)
+                </label>
+                <Input
+                  type="number"
+                  min={1}
+                  max={10}
+                  value={settings.maxConcurrentLogins}
+                  onChange={(e) =>
+                    setSettings((prev) => ({
+                      ...prev,
+                      maxConcurrentLogins: parseInt(e.target.value) || 3,
+                    }))
+                  }
+                />
+                <p className="text-xs text-slate-400 mt-1">
+                  จำนวนบัญชีที่สามารถล็อกอินพร้อมกันได้ทั้งระบบ (1-10)
+                </p>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+                  <Shield className="w-4 h-4 inline mr-2" />
+                  ล็อกอินพร้อมกันต่อผู้ใช้
+                </label>
+                <Input
+                  type="number"
+                  min={1}
+                  max={5}
+                  value={settings.maxLoginPerUser}
+                  onChange={(e) =>
+                    setSettings((prev) => ({
+                      ...prev,
+                      maxLoginPerUser: parseInt(e.target.value) || 2,
+                    }))
+                  }
+                />
+                <p className="text-xs text-slate-400 mt-1">
+                  จำนวนบัญชีที่ผู้ใช้แต่ละคนสามารถล็อกอินพร้อมกันได้ (1-5)
+                </p>
               </div>
             </div>
           </Card>
