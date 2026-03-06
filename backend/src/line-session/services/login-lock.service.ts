@@ -32,7 +32,7 @@ export interface LoginQueueItem {
 export class LoginLockService {
   private readonly logger = new Logger(LoginLockService.name);
   private locks: Map<string, LockInfo> = new Map();
-  private readonly LOCK_TIMEOUT_MS = 4 * 60 * 1000; // 4 minutes (reduced from 6)
+  private readonly LOCK_TIMEOUT_MS = 8 * 60 * 1000; // 8 minutes (LOGIN_TIMEOUT 5 min + sequential wait buffer)
   private cleanupInterval: NodeJS.Timeout | null = null;
 
   // Per-user limit: prevent one user from occupying all slots

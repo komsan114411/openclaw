@@ -292,12 +292,15 @@ export default function LineSessionPage() {
   // Current account status (for backward compatibility)
   const loginStatus = selectedSession ? getLoginStatus(selectedSession._id) : null;
   const loginSuccess = selectedSession ? getLoginSuccess(selectedSession._id) : { show: false };
+
+  // PIN countdown timer
+  const [pinCountdown, setPinCountdown] = useState<number | null>(null);
   const isSettingUp = selectedSession ? isSettingUpAccount(selectedSession._id) : false;
   const isPolling = selectedSession ? isPollingAccount(selectedSession._id) : false;
 
   // WebSocket login notifications (real-time status + PIN clear)
   // [FIX] ใช้ event.lineAccountId เพื่อ track status แยกตามบัญชี
-  useLoginNotifications({
+  const loginNotifications = useLoginNotifications({
     lineAccountId: selectedSession?._id,
     showToasts: false,
     onStatusChange: (event) => {
@@ -323,10 +326,33 @@ export default function LineSessionPage() {
         error: event.error,
       });
 
-      // แสดง toast เฉพาะบัญชีที่เลือก
+      // แสดง toast เฉพาะบัญชีที่เลือก + beep + notification
       if (accountId === selectedSession?._id) {
         if (event.pinCode) {
           toast.success(`PIN: ${event.pinCode}`, { duration: 60000, icon: '🔑' });
+
+          // Play beep sound when PIN is displayed
+          try {
+            const audioCtx = new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)();
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.frequency.value = 800;
+            gain.gain.value = 0.3;
+            osc.start();
+            osc.stop(audioCtx.currentTime + 0.3);
+          } catch { /* audio not available */ }
+
+          // Browser notification (if tab is not focused)
+          if (document.hidden && 'Notification' in window && Notification.permission === 'granted') {
+            new Notification('PIN สำหรับ LINE Login', {
+              body: `กรุณากรอก PIN: ${event.pinCode} ที่โทรศัพท์`,
+              icon: '/favicon.ico',
+            });
+          } else if ('Notification' in window && Notification.permission === 'default') {
+            Notification.requestPermission();
+          }
         }
       }
 
@@ -378,6 +404,14 @@ export default function LineSessionPage() {
         toast.success(`ดึงรายการใหม่ ${event.newCount} รายการ`, { icon: '📥' });
         // Refresh transactions list (keep current search/filter/page)
         fetchTransactions(selectedSession._id, false, currentPage, searchQuery, filterType);
+      }
+    },
+    onQueueEvent: (event) => {
+      if (event.type === 'queued' || event.type === 'queue_update') {
+        const waitMin = event.estimatedWaitSeconds ? Math.ceil(event.estimatedWaitSeconds / 60) : null;
+        toast(`คิวที่ ${event.position ?? '?'}${waitMin ? ` — รอประมาณ ${waitMin} นาที` : ''}`, { icon: '⏳', duration: 4000 });
+      } else if (event.type === 'slot_available') {
+        toast.success('ถึงคิวแล้ว! กำลังเริ่มล็อกอิน...', { icon: '🚀', duration: 5000 });
       }
     },
   });
@@ -481,6 +515,15 @@ export default function LineSessionPage() {
     }, 30000);
     return () => clearInterval(interval);
   }, [refreshAlertCounts]);
+
+  // Sync PIN countdown from hook
+  useEffect(() => {
+    if (loginNotifications.pinExpiresIn != null && loginNotifications.pinExpiresIn > 0) {
+      setPinCountdown(loginNotifications.pinExpiresIn);
+    } else if (!loginStatus?.pin) {
+      setPinCountdown(null);
+    }
+  }, [loginNotifications.pinExpiresIn, loginStatus?.pin]);
 
   // WebSocket for real-time alerts (user) — cookie-based auth
   useEffect(() => {
@@ -1221,6 +1264,8 @@ export default function LineSessionPage() {
         return { text: 'ล้มเหลว', color: 'text-red-500' };
       case 'credential_error':
         return { text: 'อีเมลหรือรหัสผ่านไม่ถูกต้อง', color: 'text-red-500' };
+      case 'queued':
+        return { text: 'อยู่ในคิวรอล็อกอิน...', color: 'text-amber-500' };
       default:
         return { text: status || 'ไม่ทราบ', color: 'text-slate-500' };
     }
@@ -1529,19 +1574,26 @@ export default function LineSessionPage() {
                       </div>
 
                       {loginStatus.pin && (
-                        <div className="p-3 sm:p-4 bg-white dark:bg-slate-800 rounded-lg text-center">
+                        <div className="p-3 sm:p-4 bg-blue-50 dark:bg-blue-900/30 rounded-lg text-center border border-blue-200 dark:border-blue-700">
                           <div className="flex items-center justify-center gap-2 mb-2">
-                            <Smartphone className="w-4 h-4 sm:w-5 sm:h-5 text-emerald-500" />
-                            <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-300">
-                              ยืนยัน PIN บนมือถือ
+                            <Clock className="w-4 h-4 sm:w-5 sm:h-5 text-blue-500 animate-pulse" />
+                            <p className="text-xs sm:text-sm font-medium text-blue-700 dark:text-blue-300">
+                              กรุณากรอก PIN ที่โทรศัพท์
                             </p>
                           </div>
-                          <p className="text-3xl sm:text-4xl font-bold tracking-[0.3em] sm:tracking-[0.5em] text-emerald-600 dark:text-emerald-400">
+                          <p className="text-3xl sm:text-4xl font-bold tracking-[0.3em] sm:tracking-[0.5em] text-emerald-600 dark:text-emerald-400 my-2">
                             {loginStatus.pin}
                           </p>
-                          <p className="text-[10px] sm:text-xs text-slate-400 dark:text-slate-500 mt-2">
-                            เปิดแอป LINE บนมือถือแล้วกดยืนยันตัวเลขนี้
-                          </p>
+                          {pinCountdown != null && (
+                            <p className={`text-xs sm:text-sm font-medium ${pinCountdown <= 60 ? 'text-red-500' : 'text-blue-500'}`}>
+                              เหลือเวลา {Math.floor(pinCountdown / 60)}:{String(pinCountdown % 60).padStart(2, '0')} นาที
+                            </p>
+                          )}
+                          <div className="text-[10px] sm:text-xs text-slate-500 dark:text-slate-400 mt-2 space-y-0.5">
+                            <p>1. เปิดแอป LINE บนโทรศัพท์</p>
+                            <p>2. ระบบจะแสดงช่องกรอก PIN อัตโนมัติ</p>
+                            <p>3. กรอกตัวเลข {loginStatus.pin} แล้วกดยืนยัน</p>
+                          </div>
                         </div>
                       )}
 
@@ -1565,6 +1617,26 @@ export default function LineSessionPage() {
                         >
                           ยกเลิก
                         </Button>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Queue Banner */}
+                  {loginNotifications.isQueued && (
+                    <div className="p-4 bg-amber-50 dark:bg-amber-900/20 rounded-xl border border-amber-200 dark:border-amber-700">
+                      <div className="flex items-center gap-3">
+                        <Clock className="w-5 h-5 text-amber-500 animate-pulse" />
+                        <div>
+                          <p className="text-sm font-bold text-amber-700 dark:text-amber-300">
+                            อยู่ในคิวที่ {loginNotifications.queuePosition ?? '?'}
+                          </p>
+                          <p className="text-xs text-amber-600 dark:text-amber-400">
+                            {loginNotifications.queueEstimatedWait
+                              ? `รอประมาณ ${Math.ceil(loginNotifications.queueEstimatedWait / 60)} นาที — `
+                              : ''}
+                            จะเริ่มอัตโนมัติเมื่อถึงคิว
+                          </p>
+                        </div>
                       </div>
                     </div>
                   )}

@@ -121,7 +121,7 @@ export class EnhancedAutomationService implements OnModuleInit, OnModuleDestroy 
   private readonly logger = new Logger(EnhancedAutomationService.name);
 
   private readonly LINE_EXTENSION_ID = 'ophjlpahpchlmihnnnihgmmeilfjmjjc';
-  private readonly LOGIN_TIMEOUT = 180000; // 3 minutes (GSB-style)
+  private readonly LOGIN_TIMEOUT = 300000; // 5 minutes — match PIN_EXPIRY_MINUTES
   private readonly PIN_TIMEOUT = 180000; // 3 minutes (GSB-style, was 90 seconds)
   private readonly DIALOG_TIMEOUT = 10000; // 10 seconds to wait for dialog after login
   private readonly MESSAGE_TRIGGER_ATTEMPTS = 10; // [FIX] Increased from 6 to 10 attempts
@@ -164,6 +164,9 @@ export class EnhancedAutomationService implements OnModuleInit, OnModuleDestroy 
   // Queue processing guard (prevent concurrent processNextInQueue calls)
   private processingQueue = false;
 
+  // Track background login promises for sequential relogin (prevent multiple PINs at once)
+  private backgroundLoginPromises: Map<string, Promise<void>> = new Map();
+
   // Encryption
   private readonly ENCRYPTION_KEY: string;
 
@@ -193,6 +196,25 @@ export class EnhancedAutomationService implements OnModuleInit, OnModuleDestroy 
       this.cleanupExpiredPinsSecure();
       this.cleanupStaleQueuedItems();
     }, this.PIN_CLEANUP_INTERVAL_MS);
+  }
+
+  /**
+   * Wait for a background login (PIN verification) to complete.
+   * Used by orchestrator to ensure sequential relogin — no overlapping PINs.
+   */
+  async waitForBackgroundLogin(lineAccountId: string, timeoutMs = 480000): Promise<void> {
+    const promise = this.backgroundLoginPromises.get(lineAccountId);
+    if (!promise) return;
+    try {
+      await Promise.race([
+        promise,
+        new Promise<void>((_, reject) => setTimeout(() => reject(new Error('timeout')), timeoutMs)),
+      ]);
+    } catch {
+      // timeout or error — continue
+    } finally {
+      this.backgroundLoginPromises.delete(lineAccountId);
+    }
   }
 
   /**
@@ -747,15 +769,25 @@ export class EnhancedAutomationService implements OnModuleInit, OnModuleDestroy 
         lockTransferred = true;
 
         // Start background process AFTER building result (non-blocking with setImmediate)
-        setImmediate(() => {
-          this.continueLoginInBackground(
-            worker,
-            keyCapturedPromise,
-            requestId!,
-            lineAccountId,
-            pinCode,
-          );
+        // Wrap in tracked promise so orchestrator can await sequential relogin
+        const bgPromise = new Promise<void>((resolve) => {
+          setImmediate(async () => {
+            try {
+              await this.continueLoginInBackground(
+                worker,
+                keyCapturedPromise,
+                requestId!,
+                lineAccountId,
+                pinCode,
+              );
+            } finally {
+              resolve();
+            }
+          });
         });
+        this.backgroundLoginPromises.set(lineAccountId, bgPromise);
+        // Self-cleanup: remove from Map after promise resolves (prevents leak for manual logins)
+        bgPromise.then(() => { this.backgroundLoginPromises.delete(lineAccountId); });
 
         this.logger.log(`[PIN] === RETURNING NOW ===`);
         return result;
@@ -839,7 +871,7 @@ export class EnhancedAutomationService implements OnModuleInit, OnModuleDestroy 
   ): Promise<void> {
     try {
       // Refresh lock timestamp — lock was acquired minutes ago during browser setup + PIN wait.
-      // Without refresh, LOCK_TIMEOUT (4 min) could expire during waitForLoginComplete (3 min).
+      // Without refresh, LOCK_TIMEOUT (8 min) could expire during waitForLoginComplete (5 min).
       this.loginLockService.refreshLock(lineAccountId, 'enhanced');
 
       // Wait for login completion (user enters PIN on mobile)

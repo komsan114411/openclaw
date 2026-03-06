@@ -809,6 +809,14 @@ export class OrchestratorService implements OnModuleInit, OnModuleDestroy {
               name: session.name,
               pinCode: result.pinCode,
             });
+
+            // Wait for PIN verification before continuing next account relogin
+            // This prevents multiple PINs being displayed simultaneously
+            if (result.pinCode) {
+              this.logger.log(`[ReloginCheck] Waiting for PIN verification: ${session.name}`);
+              await this.enhancedAutomationService.waitForBackgroundLogin(sessionId);
+              this.logger.log(`[ReloginCheck] PIN verification done: ${session.name}`);
+            }
           } else {
             this.reloginFailures++;
             const errorMsg = result.error || 'เข้าสู่ระบบไม่สำเร็จ';
