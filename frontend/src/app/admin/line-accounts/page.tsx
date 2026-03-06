@@ -868,20 +868,13 @@ export default function AdminLineAccountsPage() {
     setShowSettingsModal(true);
   };
 
-  // Validation for settings
-  const getSettingsWarnings = useCallback((): string[] => {
+  // Validation for AI settings only
+  const getAiWarnings = useCallback((): string[] => {
+    if (!settingsData.enableAi) return [];
     const warnings: string[] = [];
 
-    // Angpao enabled but no phone
-    if (settingsData.enableAngpao && !settingsData.angpaoPhoneNumber) {
-      warnings.push('เปิดอังเปาแต่ยังไม่กรอกเบอร์โทรศัพท์');
-    }
-    if (settingsData.enableAngpao && settingsData.angpaoPhoneNumber && !/^0[0-9]{9}$/.test(settingsData.angpaoPhoneNumber)) {
-      warnings.push('เบอร์โทรศัพท์อังเปาไม่ถูกต้อง (ต้อง 10 หลัก เริ่มด้วย 0)');
-    }
-
     // AI enabled but no system prompt and no knowledge
-    if (settingsData.enableAi && !settingsData.aiSystemPrompt && settingsData.knowledgeBase.length === 0) {
+    if (!settingsData.aiSystemPrompt && settingsData.knowledgeBase.length === 0) {
       warnings.push('เปิด AI แต่ยังไม่ตั้ง System Prompt และไม่มีคลังความรู้ — AI อาจตอบไม่ตรงประเด็น');
     }
 
@@ -892,39 +885,29 @@ export default function AdminLineAccountsPage() {
     }
 
     // Smart AI: ask_link uses send_links but no game links
-    if (settingsData.enableSmartAi && settingsData.enableAi) {
+    if (settingsData.enableSmartAi) {
       const askLinkRule = settingsData.intentRules['ask_link'];
       if (askLinkRule?.enabled && !askLinkRule.useAi && askLinkRule.responseTemplate === '__SEND_LINKS__' && settingsData.gameLinks.length === 0) {
         warnings.push('กฎ "ขอลิงก์" ตั้งเป็น "ส่งลิงก์เกม" แต่ยังไม่มีลิงก์');
       }
-      // Game links with empty name/url
       const emptyLinks = settingsData.gameLinks.filter(l => !l.name.trim() || !l.url.trim());
       if (emptyLinks.length > 0) {
         warnings.push(`ลิงก์เกมมี ${emptyLinks.length} รายการที่ข้อมูลไม่ครบ`);
       }
     }
 
-    // Temperature out of range
-    if (settingsData.aiTemperature < 0 || settingsData.aiTemperature > 1) {
-      warnings.push('ความสร้างสรรค์ (Temperature) ต้องอยู่ระหว่าง 0-1');
-    }
-
     return warnings;
   }, [settingsData]);
 
-  const getSettingsErrors = useCallback((): string[] => {
+  const getAiErrors = useCallback((): string[] => {
+    if (!settingsData.enableAi) return [];
     const errors: string[] = [];
 
-    // Hard errors that should block save
-    if (settingsData.enableAngpao && settingsData.angpaoPhoneNumber && !/^0[0-9]{9}$/.test(settingsData.angpaoPhoneNumber)) {
-      errors.push('เบอร์โทรศัพท์อังเปาไม่ถูกต้อง');
+    if (isNaN(settingsData.aiTemperature) || settingsData.aiTemperature < 0 || settingsData.aiTemperature > 1) {
+      errors.push('ความสร้างสรรค์ต้องอยู่ระหว่าง 0-1');
     }
 
-    if (settingsData.aiTemperature < 0 || settingsData.aiTemperature > 1) {
-      errors.push('Temperature ต้องอยู่ระหว่าง 0-1');
-    }
-
-    if (settingsData.smartAiMaxTokens < 100 || settingsData.smartAiMaxTokens > 4000) {
+    if (settingsData.enableSmartAi && (settingsData.smartAiMaxTokens < 100 || settingsData.smartAiMaxTokens > 4000)) {
       errors.push('ความยาวคำตอบต้องอยู่ระหว่าง 100-4000');
     }
 
@@ -934,18 +917,18 @@ export default function AdminLineAccountsPage() {
   const handleSaveSettings = async () => {
     if (!selectedAccount) return;
 
-    // Block save if hard errors
-    const errors = getSettingsErrors();
+    // Block save if AI has hard errors
+    const errors = getAiErrors();
     if (errors.length > 0) {
       toast.error(errors[0]);
       return;
     }
 
-    // Warn but allow save
-    const warnings = getSettingsWarnings();
+    // Warn about AI config issues but allow save
+    const warnings = getAiWarnings();
     if (warnings.length > 0) {
       const proceed = window.confirm(
-        `พบข้อสังเกต ${warnings.length} รายการ:\n\n${warnings.map((w, i) => `${i + 1}. ${w}`).join('\n')}\n\nต้องการบันทึกต่อหรือไม่?`
+        `พบข้อสังเกต AI ${warnings.length} รายการ:\n\n${warnings.map((w, i) => `${i + 1}. ${w}`).join('\n')}\n\nต้องการบันทึกต่อหรือไม่?`
       );
       if (!proceed) return;
     }
@@ -957,7 +940,7 @@ export default function AdminLineAccountsPage() {
         return val === 'true';
       };
 
-      // Clamp numeric values before save
+      // Clamp AI numeric values before save
       const clampedData = {
         ...settingsData,
         aiTemperature: Math.max(0, Math.min(1, settingsData.aiTemperature)),
@@ -968,9 +951,8 @@ export default function AdminLineAccountsPage() {
         smartAiRetryDelayMs: Math.max(500, Math.min(10000, settingsData.smartAiRetryDelayMs)),
         duplicateDetectionWindowMinutes: Math.max(1, Math.min(60, settingsData.duplicateDetectionWindowMinutes)),
         spamThresholdMessagesPerMinute: Math.max(2, Math.min(30, settingsData.spamThresholdMessagesPerMinute)),
-        // Clean empty knowledge base entries before save
+        // Clean empty AI entries before save
         knowledgeBase: settingsData.knowledgeBase.filter(k => k.topic.trim() || k.answer.trim()),
-        // Clean empty game links before save
         gameLinks: settingsData.gameLinks.filter(l => l.name.trim() || l.url.trim()),
       };
 
@@ -2176,10 +2158,10 @@ export default function AdminLineAccountsPage() {
         size="xl"
         footer={
           <div className="w-full space-y-3">
-            {/* Validation summary */}
+            {/* AI validation summary */}
             {(() => {
-              const errors = getSettingsErrors();
-              const warnings = getSettingsWarnings();
+              const errors = getAiErrors();
+              const warnings = getAiWarnings();
               if (errors.length === 0 && warnings.length === 0) return null;
               return (
                 <div className="space-y-1.5">
@@ -2202,13 +2184,13 @@ export default function AdminLineAccountsPage() {
                 variant="primary"
                 className={cn(
                   "flex-[2] h-12 rounded-2xl font-black uppercase tracking-widest text-[10px] shadow-xl",
-                  getSettingsErrors().length > 0 ? "opacity-50 cursor-not-allowed shadow-none" : "shadow-emerald-500/20"
+                  getAiErrors().length > 0 ? "opacity-50 cursor-not-allowed shadow-none" : "shadow-emerald-500/20"
                 )}
                 onClick={handleSaveSettings}
                 isLoading={isProcessing}
-                disabled={getSettingsErrors().length > 0}
+                disabled={getAiErrors().length > 0}
               >
-                {getSettingsErrors().length > 0 ? 'แก้ไขข้อผิดพลาดก่อนบันทึก' : getSettingsWarnings().length > 0 ? `บันทึก (${getSettingsWarnings().length} ข้อสังเกต)` : 'บันทึกการตั้งค่า'}
+                {getAiErrors().length > 0 ? 'แก้ไขค่า AI ก่อนบันทึก' : getAiWarnings().length > 0 ? `บันทึก (${getAiWarnings().length} ข้อสังเกต AI)` : 'บันทึกการตั้งค่า'}
               </Button>
             </div>
           </div>
@@ -2420,77 +2402,40 @@ export default function AdminLineAccountsPage() {
                 </div>
               )}
 
-              {/* Config Status Summary */}
-              <div className="bg-white/[0.02] border border-white/5 rounded-2xl p-5 space-y-3">
-                <p className="text-[10px] font-bold text-white/30 uppercase tracking-widest">สถานะการตั้งค่า</p>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                  <div className={cn("rounded-xl p-3 text-center border", settingsData.enableBot ? "border-emerald-500/20 bg-emerald-500/5" : "border-white/5 bg-white/[0.02]")}>
-                    <p className="text-lg">{settingsData.enableBot ? '✅' : '⏸️'}</p>
-                    <p className="text-[10px] font-bold text-white/50">บอท</p>
+              {/* AI Quick Setup — show when AI is on but not configured */}
+              {settingsData.enableAi && settingsData.knowledgeBase.length === 0 && !settingsData.aiSystemPrompt && (
+                <div className="bg-indigo-500/5 border border-indigo-500/15 rounded-2xl p-4 space-y-3">
+                  <div className="flex items-center gap-2">
+                    <AlertCircle size={14} className="text-indigo-400 shrink-0" />
+                    <p className="text-xs font-bold text-indigo-300">AI เปิดแล้ว แต่ยังไม่มีข้อมูลให้ใช้ตอบ</p>
                   </div>
-                  <div className={cn("rounded-xl p-3 text-center border", settingsData.enableSlipVerification ? "border-amber-500/20 bg-amber-500/5" : "border-white/5 bg-white/[0.02]")}>
-                    <p className="text-lg">{settingsData.enableSlipVerification ? '✅' : '⏸️'}</p>
-                    <p className="text-[10px] font-bold text-white/50">สลิป</p>
-                  </div>
-                  <div className={cn("rounded-xl p-3 text-center border",
-                    settingsData.enableAi && !globalAiEnabled ? "border-rose-500/20 bg-rose-500/5" :
-                    settingsData.enableAi ? "border-indigo-500/20 bg-indigo-500/5" : "border-white/5 bg-white/[0.02]"
-                  )}>
-                    <p className="text-lg">{!settingsData.enableAi ? '⏸️' : !globalAiEnabled ? '⚠️' : settingsData.enableSmartAi ? '🔮' : '🧠'}</p>
-                    <p className="text-[10px] font-bold text-white/50">{settingsData.enableSmartAi ? 'AI อัจฉริยะ' : 'AI'}</p>
-                  </div>
-                  <div className={cn("rounded-xl p-3 text-center border",
-                    settingsData.enableAngpao && !settingsData.angpaoPhoneNumber ? "border-rose-500/20 bg-rose-500/5" :
-                    settingsData.enableAngpao ? "border-rose-500/20 bg-rose-500/5" : "border-white/5 bg-white/[0.02]"
-                  )}>
-                    <p className="text-lg">{!settingsData.enableAngpao ? '⏸️' : !settingsData.angpaoPhoneNumber ? '⚠️' : '✅'}</p>
-                    <p className="text-[10px] font-bold text-white/50">อังเปา</p>
-                  </div>
+                  <p className="text-[10px] text-white/30">เพิ่มคลังความรู้เพื่อให้ AI ตอบลูกค้าได้ตรงจุด</p>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSettingsData(prev => ({
+                        ...prev,
+                        enableSmartAi: true,
+                        aiTemperature: prev.aiTemperature || 0.7,
+                        smartAiConfidenceThreshold: prev.smartAiConfidenceThreshold || 0.6,
+                        smartAiMaxTokens: prev.smartAiMaxTokens || 500,
+                        aiFallbackMessage: prev.aiFallbackMessage || 'ขออภัย ระบบไม่สามารถตอบคำถามได้ในขณะนี้',
+                        knowledgeBase: [
+                          { topic: 'ฝากขั้นต่ำ', answer: '', enabled: true },
+                          { topic: 'ถอนขั้นต่ำ', answer: '', enabled: true },
+                          { topic: 'โปรโมชั่น', answer: '', enabled: true },
+                          { topic: 'ช่องทางติดต่อแอดมิน', answer: '', enabled: true },
+                        ],
+                      }));
+                      setActiveSettingsTab('knowledge');
+                      toast.success('เพิ่มคลังความรู้ตัวอย่าง 4 หัวข้อ — กรอกคำตอบแล้วบันทึก');
+                    }}
+                    className="w-full py-2.5 bg-indigo-500/10 border border-indigo-500/20 rounded-xl text-xs font-bold text-indigo-400 hover:bg-indigo-500/20 transition-colors"
+                  >
+                    เปิด AI อัจฉริยะ + เพิ่มคลังความรู้ตัวอย่าง
+                  </button>
                 </div>
-                {settingsData.enableAi && settingsData.knowledgeBase.filter(k => k.enabled).length === 0 && (
-                  <div className="flex items-center gap-2 text-[10px] text-amber-400 bg-amber-500/10 rounded-lg px-3 py-2">
-                    <AlertCircle size={12} className="shrink-0" />
-                    <span>ยังไม่มีคลังความรู้ — ไปที่แท็บ &quot;คลังความรู้&quot; เพื่อเพิ่มข้อมูลให้ AI ตอบได้ตรงจุด</span>
-                  </div>
-                )}
-
-                {/* Quick preset */}
-                {!settingsData.enableAi && settingsData.knowledgeBase.length === 0 && (
-                  <div className="border border-dashed border-white/10 rounded-xl p-4 space-y-3">
-                    <p className="text-xs font-bold text-white/40">เริ่มต้นเร็ว</p>
-                    <p className="text-[10px] text-white/25">กดปุ่มด้านล่างเพื่อเปิดฟีเจอร์แนะนำทั้งหมดในคลิกเดียว</p>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setSettingsData(prev => ({
-                          ...prev,
-                          enableBot: true,
-                          enableAi: true,
-                          enableSmartAi: true,
-                          aiTemperature: 0.7,
-                          smartAiConfidenceThreshold: 0.6,
-                          smartAiMaxTokens: 500,
-                          smartAiMaxRetries: 2,
-                          smartAiRetryDelayMs: 1000,
-                          smartAiFallbackAction: 'fallback_message',
-                          aiFallbackMessage: prev.aiFallbackMessage || 'ขออภัย ระบบไม่สามารถตอบคำถามได้ในขณะนี้',
-                          knowledgeBase: [
-                            { topic: 'ฝากขั้นต่ำ', answer: '', enabled: true },
-                            { topic: 'ถอนขั้นต่ำ', answer: '', enabled: true },
-                            { topic: 'โปรโมชั่น', answer: '', enabled: true },
-                            { topic: 'ช่องทางติดต่อแอดมิน', answer: '', enabled: true },
-                          ],
-                        }));
-                        setActiveSettingsTab('knowledge');
-                        toast.success('เปิดฟีเจอร์แนะนำแล้ว — กรอกข้อมูลคลังความรู้เพื่อให้ AI ตอบได้ดี');
-                      }}
-                      className="w-full py-3 bg-emerald-500/10 border border-emerald-500/20 rounded-xl text-xs font-bold text-emerald-400 hover:bg-emerald-500/20 transition-colors"
-                    >
-                      เปิดบอท + AI อัจฉริยะ + เพิ่มคลังความรู้ตัวอย่าง
-                    </button>
-                  </div>
-                )}
-              </div>
+              )}
 
               {/* Global AI Warning */}
               {!globalAiEnabled && settingsData.enableAi && (
