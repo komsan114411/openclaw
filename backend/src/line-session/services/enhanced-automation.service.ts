@@ -791,7 +791,19 @@ export class EnhancedAutomationService implements OnModuleInit, OnModuleDestroy 
         // Ignore screenshot errors
       }
 
-      // Step 7: Check if already logged in
+      // Step 7: Verify page is still valid after browser setup/recovery
+      if (!worker.page) {
+        this.logger.error(`[Login] Page is null after browser setup — browser recovery may have failed for ${lineAccountId}`);
+        this.loginCoordinatorService.markLoginFailed(lineAccountId, 'Browser page lost during setup');
+        return {
+          success: false,
+          status: EnhancedLoginStatus.FAILED,
+          requestId,
+          error: 'เบราว์เซอร์เกิดปัญหาระหว่างเตรียมตัว กรุณาลองใหม่',
+        };
+      }
+
+      // Step 8: Check if already logged in
       this.emitStatus(lineAccountId, EnhancedLoginStatus.CHECKING_SESSION, { requestId });
       const isLoggedIn = await this.checkLoggedIn(worker.page);
       this.logger.log(`[Login] Already logged in: ${isLoggedIn}`);
@@ -2145,6 +2157,10 @@ export class EnhancedAutomationService implements OnModuleInit, OnModuleDestroy 
    */
   private async checkLoggedIn(page: any): Promise<boolean> {
     try {
+      if (!page) {
+        this.logger.warn(`[CheckLoggedIn] Page is null — browser may have been closed during recovery`);
+        return false;
+      }
       const url = page.url();
 
       // Check URL patterns that indicate logged in
@@ -2205,6 +2221,10 @@ export class EnhancedAutomationService implements OnModuleInit, OnModuleDestroy 
    */
   private async navigateToExtension(worker: Worker): Promise<boolean> {
     const page = worker.page;
+    if (!page) {
+      this.logger.error(`[Extension] Page is null — cannot navigate to extension`);
+      return false;
+    }
     const extensionUrl = `chrome-extension://${this.LINE_EXTENSION_ID}/index.html`;
     const maxRetries = 5; // Reduced from 15 to fail faster
 
@@ -2373,6 +2393,10 @@ export class EnhancedAutomationService implements OnModuleInit, OnModuleDestroy 
    * Perform login (GSB-style - simple form submission)
    */
   private async performLogin(page: any, email: string, password: string): Promise<void> {
+    if (!page) {
+      throw new Error('Browser page is null — cannot perform login');
+    }
+
     this.logger.log(`[Login] ========== STARTING LOGIN PROCESS ==========`);
     this.logger.log(`[Login] Waiting for email input field...`);
 
@@ -2381,14 +2405,18 @@ export class EnhancedAutomationService implements OnModuleInit, OnModuleDestroy 
       this.logger.log(`[Login] Found email input, entering credentials`);
     } catch (e: any) {
       this.logger.error(`[Login] Email input not found: ${e.message}`);
-      const currentUrl = page.url();
-      this.logger.error(`[Login] Current URL: ${currentUrl}`);
-
-      // Take screenshot of current state for debugging
-      const pageContent = await page.content();
-      this.logger.error(`[Login] Page content length: ${pageContent.length}`);
-      this.logger.error(`[Login] Page contains 'email': ${pageContent.includes('email')}`);
-      this.logger.error(`[Login] Page contains 'login': ${pageContent.includes('login')}`);
+      try {
+        const currentUrl = page.url?.();
+        this.logger.error(`[Login] Current URL: ${currentUrl}`);
+        const pageContent = await page.content?.();
+        if (pageContent) {
+          this.logger.error(`[Login] Page content length: ${pageContent.length}`);
+          this.logger.error(`[Login] Page contains 'email': ${pageContent.includes('email')}`);
+          this.logger.error(`[Login] Page contains 'login': ${pageContent.includes('login')}`);
+        }
+      } catch (debugErr) {
+        this.logger.error(`[Login] Could not get debug info: page may be destroyed`);
+      }
       throw e;
     }
 
