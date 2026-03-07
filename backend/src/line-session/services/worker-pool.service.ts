@@ -79,6 +79,9 @@ export class WorkerPoolService implements OnModuleDestroy, OnModuleInit {
   // [FIX Issue #5] Cleanup interval reference
   private cleanupInterval: NodeJS.Timeout | null = null;
 
+  // Tracks intentional closures — prevents disconnect handler from starting recovery
+  private closingIntentionally: Set<string> = new Set();
+
   constructor(
     private configService: ConfigService,
     private eventEmitter: EventEmitter2,
@@ -571,6 +574,14 @@ export class WorkerPoolService implements OnModuleDestroy, OnModuleInit {
       this.logger.log(`[BrowserHealth] Basic health check passed for ${worker.lineAccountId}`);
 
       // Additional check: verify LINE extension is still accessible
+      // SKIP if worker is in active login state — page.goto navigates away from current page
+      // and destroys the ongoing login flow (causes "Page is null" errors)
+      const activeStates = [WorkerState.BUSY, WorkerState.WAITING_PIN, WorkerState.RECOVERING];
+      if (activeStates.includes(worker.state)) {
+        this.logger.log(`[BrowserHealth] Skipping extension check for ${worker.lineAccountId} — worker is in active state: ${worker.state}`);
+        return true; // Basic check passed, that's enough for active workers
+      }
+
       try {
         const extensionUrl = `chrome-extension://${this.LINE_EXTENSION_ID}/index.html`;
         const extCheckPromise = worker.page.goto(extensionUrl, { timeout: 10000, waitUntil: 'domcontentloaded' });
@@ -603,12 +614,18 @@ export class WorkerPoolService implements OnModuleDestroy, OnModuleInit {
    * [FIX Issue #5] Improved to properly clean up worker entry on max retries
    */
   private async handleBrowserDisconnect(lineAccountId: string, disconnectedBrowser?: Browser) {
+    // Guard 1: Intentional closure — closeWorker/closeWorkerInternal set this flag
+    // to prevent recovery from racing with the next startLogin
+    if (this.closingIntentionally.has(lineAccountId)) {
+      this.logger.log(`[BrowserDisconnect] Ignoring disconnect for ${lineAccountId} — intentional closure`);
+      return;
+    }
+
     const worker = this.workers.get(lineAccountId);
     if (!worker) return;
 
-    // Guard: If the disconnected browser is NOT the current worker's browser,
+    // Guard 2: If the disconnected browser is NOT the current worker's browser,
     // this is a stale disconnect event from a previously closed browser — ignore it.
-    // This prevents the recovery logic from corrupting a freshly created worker.
     if (disconnectedBrowser && worker.browser && disconnectedBrowser !== worker.browser) {
       this.logger.warn(`[BrowserDisconnect] Ignoring stale disconnect for ${lineAccountId} — browser instance doesn't match current worker`);
       return;
@@ -1246,11 +1263,17 @@ export class WorkerPoolService implements OnModuleDestroy, OnModuleInit {
     const worker = this.workers.get(lineAccountId);
     if (!worker) return;
 
-    await this.cleanupWorkerResources(worker);
-    worker.state = WorkerState.CLOSED;
-    this.workers.delete(lineAccountId);
-
-    this.logger.log(`Worker internally closed for ${lineAccountId}`);
+    // Flag intentional closure BEFORE closing browser — prevents disconnect handler
+    // from starting recovery which would race with the next startLogin
+    this.closingIntentionally.add(lineAccountId);
+    try {
+      await this.cleanupWorkerResources(worker);
+      worker.state = WorkerState.CLOSED;
+      this.workers.delete(lineAccountId);
+      this.logger.log(`Worker internally closed for ${lineAccountId}`);
+    } finally {
+      this.closingIntentionally.delete(lineAccountId);
+    }
   }
 
   async closeWorker(lineAccountId: string): Promise<void> {
