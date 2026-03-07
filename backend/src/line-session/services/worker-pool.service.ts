@@ -503,8 +503,10 @@ export class WorkerPoolService implements OnModuleDestroy, OnModuleInit {
       worker.browser = await this.puppeteer.launch(launchOptions);
 
       // Setup disconnect handler for recovery
+      // Capture browser reference in closure to detect stale disconnects
+      const currentBrowser = worker.browser;
       worker.browser.on('disconnected', () => {
-        this.handleBrowserDisconnect(lineAccountId);
+        this.handleBrowserDisconnect(lineAccountId, currentBrowser);
       });
 
       // Reuse default page instead of creating new tab (avoids blank tab overhead)
@@ -600,9 +602,17 @@ export class WorkerPoolService implements OnModuleDestroy, OnModuleInit {
    * Handle browser disconnect (crash recovery)
    * [FIX Issue #5] Improved to properly clean up worker entry on max retries
    */
-  private async handleBrowserDisconnect(lineAccountId: string) {
+  private async handleBrowserDisconnect(lineAccountId: string, disconnectedBrowser?: Browser) {
     const worker = this.workers.get(lineAccountId);
     if (!worker) return;
+
+    // Guard: If the disconnected browser is NOT the current worker's browser,
+    // this is a stale disconnect event from a previously closed browser — ignore it.
+    // This prevents the recovery logic from corrupting a freshly created worker.
+    if (disconnectedBrowser && worker.browser && disconnectedBrowser !== worker.browser) {
+      this.logger.warn(`[BrowserDisconnect] Ignoring stale disconnect for ${lineAccountId} — browser instance doesn't match current worker`);
+      return;
+    }
 
     this.logger.warn(`[BrowserDisconnect] Browser disconnected for ${lineAccountId}`);
 

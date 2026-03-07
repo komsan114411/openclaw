@@ -168,6 +168,9 @@ export class EnhancedAutomationService implements OnModuleInit, OnModuleDestroy 
   // Track background login promises for sequential relogin (prevent multiple PINs at once)
   private backgroundLoginPromises: Map<string, Promise<void>> = new Map();
 
+  // Abort signals for waitForLoginComplete — prevents detached frame spam after forceCloseBrowser
+  private loginAbortSignals: Map<string, boolean> = new Map();
+
   // Encryption
   private readonly ENCRYPTION_KEY: string;
 
@@ -662,6 +665,10 @@ export class EnhancedAutomationService implements OnModuleInit, OnModuleDestroy 
       }
 
       requestId = requestResult.requestId!;
+
+      // Clear any previous abort signal from forceCloseBrowser/cancelLogin
+      this.loginAbortSignals.delete(lineAccountId);
+
       this.emitStatus(lineAccountId, EnhancedLoginStatus.REQUESTING, { requestId });
 
       // Step 2: Get credentials
@@ -976,7 +983,7 @@ export class EnhancedAutomationService implements OnModuleInit, OnModuleDestroy 
 
       // Wait for login completion (user enters PIN on mobile)
       this.emitStatus(lineAccountId, EnhancedLoginStatus.VERIFYING, { requestId });
-      const loginSuccess = await this.waitForLoginComplete(worker.page);
+      const loginSuccess = await this.waitForLoginComplete(worker.page, lineAccountId);
 
       if (loginSuccess) {
         // Extract keys with multiple attempts
@@ -1091,6 +1098,10 @@ export class EnhancedAutomationService implements OnModuleInit, OnModuleDestroy 
           // Decouple: avoid calling startLogin inside the finally of another startLogin
           setImmediate(async () => {
             try {
+              // Reset cooldown for dequeued items — they already waited in queue,
+              // so the old cooldown should not block them
+              this.loginCoordinatorService.resetCooldown(lineAccountId);
+
               // Validate session still exists before auto-starting
               const sessionExists = await this.lineSessionModel.exists({ lineAccountId });
               if (!sessionExists) {
@@ -2705,7 +2716,7 @@ export class EnhancedAutomationService implements OnModuleInit, OnModuleDestroy 
    * Wait for login to complete (GSB-style with navigation wait)
    * This waits for user to verify PIN on mobile app
    */
-  private async waitForLoginComplete(page: any): Promise<boolean> {
+  private async waitForLoginComplete(page: any, lineAccountId?: string): Promise<boolean> {
     const startTime = Date.now();
     let checkCount = 0;
 
@@ -2714,10 +2725,31 @@ export class EnhancedAutomationService implements OnModuleInit, OnModuleDestroy 
     // GSB-style: Try to wait for navigation first
     try {
       this.logger.log(`[LoginComplete] Waiting for page navigation after PIN verification...`);
-      await page.waitForNavigation({
+
+      // Race navigation against abort signal
+      const navPromise = page.waitForNavigation({
         waitUntil: 'load',
         timeout: this.LOGIN_TIMEOUT,
       });
+
+      // Check abort every 500ms during navigation wait
+      const abortCheckPromise = new Promise<'aborted'>((resolve) => {
+        const interval = setInterval(() => {
+          if (lineAccountId && this.loginAbortSignals.get(lineAccountId)) {
+            clearInterval(interval);
+            resolve('aborted');
+          }
+        }, 500);
+        // Clean up on nav completion
+        navPromise.then(() => clearInterval(interval)).catch(() => clearInterval(interval));
+      });
+
+      const navResult = await Promise.race([navPromise, abortCheckPromise]);
+      if (navResult === 'aborted') {
+        this.logger.warn(`[LoginComplete] Aborted during navigation wait for ${lineAccountId}`);
+        return false;
+      }
+
       this.logger.log(`[LoginComplete] Navigation completed!`);
 
       // After navigation, check if logged in
@@ -2727,12 +2759,23 @@ export class EnhancedAutomationService implements OnModuleInit, OnModuleDestroy 
         return true;
       }
     } catch (navError: any) {
+      // Check abort before falling through to polling
+      if (lineAccountId && this.loginAbortSignals.get(lineAccountId)) {
+        this.logger.warn(`[LoginComplete] Aborted after navigation error for ${lineAccountId}`);
+        return false;
+      }
       // Navigation timeout - fall back to polling
       this.logger.log(`[LoginComplete] Navigation wait ended, falling back to polling...`);
     }
 
     // Fallback: Poll for login completion
     while (Date.now() - startTime < this.LOGIN_TIMEOUT) {
+      // Check abort signal BEFORE each poll iteration
+      if (lineAccountId && this.loginAbortSignals.get(lineAccountId)) {
+        this.logger.warn(`[LoginComplete] Aborted polling for ${lineAccountId} (abort signal received)`);
+        return false;
+      }
+
       checkCount++;
       try {
         const isLoggedIn = await this.checkLoggedIn(page);
@@ -2750,11 +2793,22 @@ export class EnhancedAutomationService implements OnModuleInit, OnModuleDestroy 
         // Log progress every 15 seconds
         if (checkCount % 8 === 0) {
           const elapsed = Math.floor((Date.now() - startTime) / 1000);
-          const currentUrl = page.url();
-          this.logger.log(`[LoginComplete] Still waiting... ${elapsed}s elapsed, URL: ${currentUrl}`);
+          try {
+            const currentUrl = page.url();
+            this.logger.log(`[LoginComplete] Still waiting... ${elapsed}s elapsed, URL: ${currentUrl}`);
+          } catch {
+            this.logger.log(`[LoginComplete] Still waiting... ${elapsed}s elapsed (page detached)`);
+          }
         }
       } catch (e: any) {
         if (e.message.includes('Login error')) throw e;
+        // If page is detached, check abort before continuing
+        if (e.message.includes('detached') || e.message.includes('Protocol error')) {
+          if (lineAccountId && this.loginAbortSignals.get(lineAccountId)) {
+            this.logger.warn(`[LoginComplete] Aborted polling for ${lineAccountId} (page detached + abort signal)`);
+            return false;
+          }
+        }
       }
 
       await this.delay(2000);
@@ -2817,6 +2871,8 @@ export class EnhancedAutomationService implements OnModuleInit, OnModuleDestroy 
    * This allows faster re-login using the same browser session and profile
    */
   async cancelLogin(lineAccountId: string): Promise<void> {
+    // Signal waitForLoginComplete to abort immediately
+    this.loginAbortSignals.set(lineAccountId, true);
     this.loginCoordinatorService.cancelRequest(lineAccountId);
 
     // Securely clear active PIN tracking
@@ -2840,6 +2896,8 @@ export class EnhancedAutomationService implements OnModuleInit, OnModuleDestroy 
    * Force close browser - Use this when you want to completely close the browser
    */
   async forceCloseBrowser(lineAccountId: string): Promise<void> {
+    // Signal waitForLoginComplete to abort immediately (prevents detached frame spam)
+    this.loginAbortSignals.set(lineAccountId, true);
     this.loginCoordinatorService.cancelRequest(lineAccountId);
     this.secureClearPin(lineAccountId);
     await this.workerPoolService.closeWorker(lineAccountId);
