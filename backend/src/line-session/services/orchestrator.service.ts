@@ -1043,6 +1043,16 @@ export class OrchestratorService implements OnModuleInit, OnModuleDestroy {
         'manual',
       );
 
+      // Handle KEYS_STILL_VALID — keys are valid, pass status to caller
+      if (result.status === 'keys_still_valid') {
+        return {
+          success: true,
+          message: result.message || 'Keys ยังใช้งานได้ ต้องการ Re-login ใหม่หรือไม่?',
+          pinCode: undefined,
+          status: 'keys_still_valid',
+        } as any;
+      }
+
       if (result.success || result.pinCode) {
         return {
           success: true,

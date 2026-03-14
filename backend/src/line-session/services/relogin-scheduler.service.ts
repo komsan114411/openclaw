@@ -317,12 +317,14 @@ export class ReloginSchedulerService implements OnModuleInit {
       }
 
       // Execute auto login using enhanced service
+      // Use source='auto' so Step 2.5 silently succeeds if keys are valid
+      // (relogin scheduler has no user to ask "confirm re-login?")
       this.logger.log(`Starting auto-relogin for ${job.lineAccountId}`);
       const result = await this.enhancedAutomationService.startLogin(
         job.lineAccountId,
         undefined, // Use saved credentials
         undefined,
-        'relogin',
+        'auto',
       );
 
       if (result.success) {
