@@ -692,13 +692,18 @@ export class EnhancedAutomationService implements OnModuleInit, OnModuleDestroy 
       }
 
       // Step 2.5: Check if THIS session already has valid keys (self-check)
+      // Re-fetch session to get fresh keys — existingSession was read at top of startLogin
+      // and keys may have been updated by another process (health check, auto-relogin, etc.)
       // This prevents unnecessary browser launch + PIN when keys are still valid
-      if (!forceLogin && existingSession.xLineAccess && existingSession.xHmac) {
+      const freshSession = await this.lineSessionModel.findById(existingSession._id).lean();
+      const currentKeys = freshSession || existingSession;
+
+      if (!forceLogin && currentKeys.xLineAccess && currentKeys.xHmac) {
         this.logger.log(`[Login] Account ${lineAccountId} has own keys, validating before browser launch...`);
         try {
           const ownKeysValid = await this.validateKeys(
-            existingSession.xLineAccess,
-            existingSession.xHmac,
+            currentKeys.xLineAccess,
+            currentKeys.xHmac,
           );
 
           if (ownKeysValid) {
@@ -710,15 +715,15 @@ export class EnhancedAutomationService implements OnModuleInit, OnModuleDestroy 
             setTimeout(() => this.recentLoginSuccess.delete(lineAccountId), this.HEALTH_CHECK_GRACE_PERIOD_MS);
 
             const ownKeys = {
-              xLineAccess: existingSession.xLineAccess,
-              xHmac: existingSession.xHmac,
+              xLineAccess: currentKeys.xLineAccess,
+              xHmac: currentKeys.xHmac,
             };
 
             // Emit success event so WebSocket notifies frontend immediately
             this.emitStatus(lineAccountId, EnhancedLoginStatus.SUCCESS, {
               requestId,
               keys: ownKeys,
-              chatMid: existingSession.chatMid,
+              chatMid: currentKeys.chatMid,
             });
 
             return {
@@ -726,7 +731,7 @@ export class EnhancedAutomationService implements OnModuleInit, OnModuleDestroy 
               status: EnhancedLoginStatus.SUCCESS,
               requestId,
               keys: ownKeys,
-              chatMid: existingSession.chatMid,
+              chatMid: currentKeys.chatMid,
               sessionReused: true,
             };
           }
@@ -902,7 +907,10 @@ export class EnhancedAutomationService implements OnModuleInit, OnModuleDestroy 
         }
       }
 
-      // Step 8: Perform login
+      // Step 8b: Perform login — verify page is still alive after checkLoggedIn
+      if (!worker.page) {
+        throw new Error('Browser page lost before login — browser may have crashed during session check');
+      }
       this.emitStatus(lineAccountId, EnhancedLoginStatus.ENTERING_CREDENTIALS, { requestId });
       await this.performLogin(worker.page, credentials.email, credentials.password);
 
@@ -1326,6 +1334,21 @@ export class EnhancedAutomationService implements OnModuleInit, OnModuleDestroy 
       this.logger.warn(`[ValidateKeys] Keys validation unclear: status=${response.status}, code=${errorCode}`);
       return false;
     } catch (error: any) {
+      // Distinguish network/timeout errors from actual key validation failures
+      // Network errors should NOT mark keys as expired — API might just be down
+      const isNetworkError = error.code === 'ECONNREFUSED' ||
+        error.code === 'ECONNRESET' ||
+        error.code === 'ETIMEDOUT' ||
+        error.code === 'ENOTFOUND' ||
+        error.message?.includes('timeout') ||
+        error.message?.includes('socket hang up') ||
+        error.response?.status >= 500;
+
+      if (isNetworkError) {
+        this.logger.warn(`[ValidateKeys] Network/server error (assuming keys VALID): ${error.message}`);
+        return true; // Don't invalidate keys due to API outage
+      }
+
       this.logger.error(`[ValidateKeys] Error validating keys: ${error.message}`);
       return false;
     }
@@ -1339,14 +1362,25 @@ export class EnhancedAutomationService implements OnModuleInit, OnModuleDestroy 
     lineAccountId: string,
     email: string,
   ): Promise<{ keys: { xLineAccess: string; xHmac: string }; chatMid?: string } | null> {
-    // Find another account with same email that has keys
-    const existingSession = await this.lineSessionModel.findOne({
-      _id: { $ne: lineAccountId },
+    // Build query — only use $ne if lineAccountId is valid ObjectId
+    // Invalid ObjectId in $ne causes unpredictable Mongoose behavior
+    const { Types } = require('mongoose');
+    const query: Record<string, unknown> = {
       lineEmail: email,
       isActive: true,
       xLineAccess: { $exists: true, $ne: null },
       $expr: { $gt: [{ $strLenCP: '$xLineAccess' }, 0] },
-    });
+    };
+
+    if (Types.ObjectId.isValid(lineAccountId)) {
+      query._id = { $ne: new Types.ObjectId(lineAccountId) };
+    } else {
+      // Fallback: exclude by lineAccountId field instead
+      query.lineAccountId = { $ne: lineAccountId };
+    }
+
+    // Find another account with same email that has keys
+    const existingSession = await this.lineSessionModel.findOne(query);
 
     if (existingSession?.xLineAccess && existingSession?.xHmac) {
       this.logger.log(`[KeyCopy] Found keys for email ${email}, validating before copy...`);
@@ -3113,6 +3147,7 @@ export class EnhancedAutomationService implements OnModuleInit, OnModuleDestroy 
     this.logger.log(`[RetryWrongPin] Starting quick retry for ${lineAccountId}`);
 
     // Step 1: Force close browser (NOT soft cancel - reused browser gets stuck)
+    // This also sets abort signal → background login will exit waitForLoginComplete
     try {
       await this.forceCloseBrowser(lineAccountId);
       this.logger.log(`[RetryWrongPin] Force closed browser for ${lineAccountId}`);
@@ -3121,18 +3156,27 @@ export class EnhancedAutomationService implements OnModuleInit, OnModuleDestroy 
       this.logger.warn(`[RetryWrongPin] Force close failed (may already be idle): ${error.message}`);
     }
 
-    // Step 2: Wait 2 seconds for browser process cleanup
+    // Step 2: Wait for background login to finish (abort signal makes it exit quickly)
+    // Without this, two login processes race on the same account → PIN mixing
+    try {
+      await this.waitForBackgroundLogin(lineAccountId, 10000); // 10s timeout — abort signal should end it fast
+      this.logger.log(`[RetryWrongPin] Background login finished for ${lineAccountId}`);
+    } catch {
+      this.logger.warn(`[RetryWrongPin] Background login wait timed out for ${lineAccountId} — proceeding anyway`);
+    }
+
+    // Step 3: Wait 2 seconds for browser process cleanup
     await new Promise(resolve => setTimeout(resolve, 2000));
 
-    // Step 3: Reset cooldown to bypass wait
+    // Step 4: Reset cooldown to bypass wait
     this.loginCoordinatorService.resetCooldown(lineAccountId);
 
-    // Step 4: Release login lock so startLogin can acquire it
+    // Step 5: Release login lock so startLogin can acquire it
     this.loginLockService.releaseLock(lineAccountId, 'enhanced');
 
     this.logger.log(`[RetryWrongPin] Cooldown reset and lock released for ${lineAccountId}`);
 
-    // Step 5: Start fresh login with saved credentials (source = 'manual', forceLogin = true)
+    // Step 6: Start fresh login with saved credentials (source = 'manual', forceLogin = true)
     // forceLogin = true → skip key copying from other sessions, always do browser login for new PIN
     const result = await this.startLogin(lineAccountId, undefined, undefined, 'manual', true);
 
