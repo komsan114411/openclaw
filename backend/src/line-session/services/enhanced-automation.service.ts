@@ -765,6 +765,47 @@ export class EnhancedAutomationService implements OnModuleInit, OnModuleDestroy 
         }
       }
 
+      // Step 2.6: Pre-check Xvfb availability before attempting browser operations
+      // If Xvfb is down (e.g. after server restart) and keys are still valid → use existing keys
+      // This prevents "Xvfb is not available" error when user force re-logins after deploy
+      if (forceLogin && !this.isHeadlessMode() && currentKeys.xLineAccess && currentKeys.xHmac) {
+        try {
+          const { execSync: execSyncCheck } = require('child_process');
+          execSyncCheck('pgrep -x Xvfb', { timeout: 3000 });
+        } catch {
+          // Xvfb is down — check if keys are still valid, if so use them
+          this.logger.warn(`[Login] Xvfb not running — checking if existing keys can be used for ${lineAccountId}`);
+          try {
+            const keysStillWork = await this.validateKeys(currentKeys.xLineAccess, currentKeys.xHmac);
+            if (keysStillWork) {
+              this.loginCoordinatorService.markLoginCompleted(lineAccountId);
+              this.logger.log(`[Login] ✅ Xvfb down but keys valid — using existing keys for ${lineAccountId}`);
+
+              this.recentLoginSuccess.set(lineAccountId, { timestamp: Date.now() });
+              setTimeout(() => this.recentLoginSuccess.delete(lineAccountId), this.HEALTH_CHECK_GRACE_PERIOD_MS);
+
+              const fallbackKeys = { xLineAccess: currentKeys.xLineAccess, xHmac: currentKeys.xHmac };
+              this.emitStatus(lineAccountId, EnhancedLoginStatus.SUCCESS, {
+                requestId, keys: fallbackKeys, chatMid: currentKeys.chatMid,
+              });
+
+              return {
+                success: true,
+                status: EnhancedLoginStatus.SUCCESS,
+                requestId,
+                keys: fallbackKeys,
+                chatMid: currentKeys.chatMid,
+                sessionReused: true,
+                message: 'ระบบ Display ไม่พร้อม แต่ Keys ยังใช้ได้ — ใช้ Keys เดิม',
+              };
+            }
+          } catch {
+            // validateKeys failed — will fall through to browser launch which will fail with clear error
+          }
+          this.logger.warn(`[Login] Xvfb down and keys expired — browser launch will likely fail for ${lineAccountId}`);
+        }
+      }
+
       // Step 2.7: Smart browser check — reuse existing browser or clean up before new one
       // Handles 4 cases: (1) browser open+logged in → capture keys, (2) browser open+not logged in → close first,
       // (3) browser hibernated → wake up and check, (4) browser disconnected → clean up
