@@ -121,4 +121,25 @@ async function bootstrap() {
   }
 }
 
+// Global error handlers — prevent Puppeteer/CDP unhandled errors from crashing the server
+process.on('uncaughtException', (error) => {
+  const msg = error?.message || String(error);
+  // Puppeteer "Request is already handled!" is non-fatal — log and continue
+  if (msg.includes('Request is already handled') || msg.includes('Protocol error')) {
+    console.error(`[UncaughtException] Non-fatal Puppeteer error (ignored): ${msg}`);
+    return;
+  }
+  console.error(`[UncaughtException] Fatal error:`, error);
+  process.exit(1);
+});
+
+process.on('unhandledRejection', (reason: any) => {
+  const msg = reason?.message || String(reason);
+  if (msg.includes('Request is already handled') || msg.includes('Protocol error') || msg.includes('Target closed')) {
+    console.error(`[UnhandledRejection] Non-fatal Puppeteer error (ignored): ${msg}`);
+    return;
+  }
+  console.error(`[UnhandledRejection]`, reason);
+});
+
 bootstrap();

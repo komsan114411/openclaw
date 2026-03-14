@@ -1102,6 +1102,9 @@ export class WorkerPoolService implements OnModuleDestroy, OnModuleInit {
   /**
    * Also setup Puppeteer request interception (dual-layer)
    */
+  // Track which workers already have Puppeteer interception to prevent double-setup crash
+  private puppeteerInterceptionSetup: Set<string> = new Set();
+
   async setupPuppeteerInterception(
     worker: Worker,
     onKeyCaptured: (keys: { xLineAccess: string; xHmac: string }, chatMid?: string) => void,
@@ -1109,6 +1112,14 @@ export class WorkerPoolService implements OnModuleDestroy, OnModuleInit {
     if (!worker.page) {
       throw new Error('Page not initialized');
     }
+
+    // Prevent double-setup: registering 'request' handler twice causes
+    // "Request is already handled!" crash when both handlers call request.continue()
+    if (this.puppeteerInterceptionSetup.has(worker.lineAccountId)) {
+      this.logger.log(`[Puppeteer] Interception already setup for ${worker.lineAccountId} — skipping`);
+      return;
+    }
+    this.puppeteerInterceptionSetup.add(worker.lineAccountId);
 
     await worker.page.setRequestInterception(true);
 
@@ -1318,7 +1329,14 @@ export class WorkerPoolService implements OnModuleDestroy, OnModuleInit {
         }
       }
 
-      request.continue();
+      // Safely continue — prevent "Request is already handled!" crash
+      try {
+        if (!request.isInterceptResolutionHandled?.()) {
+          request.continue();
+        }
+      } catch {
+        // Request already handled by another handler — ignore
+      }
     });
 
     this.logger.log(`[Puppeteer] ✅ Request interception setup for ${worker.lineAccountId}`);
@@ -1328,6 +1346,9 @@ export class WorkerPoolService implements OnModuleDestroy, OnModuleInit {
    * Cleanup worker resources
    */
   private async cleanupWorkerResources(worker: Worker): Promise<void> {
+    // Clear interception tracking so next setup works correctly
+    this.puppeteerInterceptionSetup.delete(worker.lineAccountId);
+
     try {
       if (worker.cdpClient) {
         await worker.cdpClient.detach().catch(() => { });
