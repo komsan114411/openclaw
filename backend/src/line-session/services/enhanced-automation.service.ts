@@ -1233,6 +1233,11 @@ export class EnhancedAutomationService implements OnModuleInit, OnModuleDestroy 
 
           // Securely clear PIN from store after successful login to stop PIN countdown broadcasts
           this.secureClearPin(lineAccountId);
+          // Clear worker PIN state so getWorkerStatus() doesn't return stale PIN after refresh
+          this.workerPoolService.updateWorkerState(lineAccountId, WorkerState.IDLE, {
+            pinCode: undefined,
+            capturedKeys: capturedData.keys,
+          });
           this.logger.log(`[PIN Security] Securely cleared PIN for ${lineAccountId} after successful login`);
 
           // Track recent success for health check grace period (5 minutes)
@@ -3265,11 +3270,17 @@ export class EnhancedAutomationService implements OnModuleInit, OnModuleDestroy 
     // Get PIN status with GSB-style tracking
     const pinStatus = this.getPinStatus(lineAccountId);
 
+    // Don't return stale PIN if login already succeeded
+    // Worker may still have pinCode set but login is complete
+    if (status === 'success' || status === 'idle') {
+      pin = undefined;
+    }
+
     return {
       success: true,
       // Frontend-expected format
       status,
-      pin: pin || pinStatus.pinCode,
+      pin: pin || (pinStatus.isUsable ? pinStatus.pinCode : undefined),
       message,
       error,
       stage: status,
