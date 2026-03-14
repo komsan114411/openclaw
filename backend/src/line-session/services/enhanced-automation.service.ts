@@ -765,6 +765,76 @@ export class EnhancedAutomationService implements OnModuleInit, OnModuleDestroy 
         }
       }
 
+      // Step 2.7: Check if existing browser is still alive and logged in
+      // If browser is open → reuse it to capture fresh keys without creating a new browser
+      // This prevents RAM exhaustion from multiple browsers and avoids unnecessary PIN
+      const existingWorker = this.workerPoolService.getWorker(lineAccountId);
+      if (existingWorker && existingWorker.browser && existingWorker.page) {
+        this.logger.log(`[Login] Found existing browser for ${lineAccountId}, checking if still logged in...`);
+        try {
+          const browserConnected = existingWorker.browser.isConnected();
+          if (browserConnected) {
+            const stillLoggedIn = await this.checkLoggedIn(existingWorker.page);
+            this.logger.log(`[Login] Existing browser logged in: ${stillLoggedIn}`);
+
+            if (stillLoggedIn) {
+              this.logger.log(`[Login] ✅ Reusing existing browser to capture fresh keys for ${lineAccountId}`);
+
+              // Setup interception on existing browser
+              const reuseKeyCapturedPromise = new Promise<{ keys: any; chatMid?: string }>((resolve) => {
+                const onKeyCaptured = (keys: any, chatMid?: string) => resolve({ keys, chatMid });
+                this.workerPoolService.setupCDPInterception(existingWorker, onKeyCaptured);
+                this.workerPoolService.setupPuppeteerInterception(existingWorker, onKeyCaptured);
+              });
+
+              const capturedData = await this.triggerAndCaptureKeys(
+                existingWorker, reuseKeyCapturedPromise, requestId!, lineAccountId,
+              );
+
+              if (capturedData) {
+                await this.saveKeysToDatabase(lineAccountId, capturedData.keys, capturedData.chatMid, capturedData.cUrlBash);
+                this.loginCoordinatorService.markLoginCompleted(lineAccountId);
+
+                this.recentLoginSuccess.set(lineAccountId, { timestamp: Date.now() });
+                setTimeout(() => this.recentLoginSuccess.delete(lineAccountId), this.HEALTH_CHECK_GRACE_PERIOD_MS);
+
+                this.emitStatus(lineAccountId, EnhancedLoginStatus.SUCCESS, {
+                  requestId,
+                  keys: capturedData.keys,
+                  chatMid: capturedData.chatMid,
+                  cUrlBash: capturedData.cUrlBash,
+                });
+
+                this.logger.log(`[Login] ✅ Fresh keys captured from existing browser for ${lineAccountId} — no new browser needed`);
+
+                return {
+                  success: true,
+                  status: EnhancedLoginStatus.SUCCESS,
+                  requestId,
+                  keys: capturedData.keys,
+                  chatMid: capturedData.chatMid,
+                  sessionReused: true,
+                };
+              }
+
+              this.logger.warn(`[Login] Failed to capture keys from existing browser for ${lineAccountId} — will create new browser`);
+            } else {
+              this.logger.log(`[Login] Existing browser not logged in for ${lineAccountId} — closing old browser first`);
+              // Close old browser to free RAM before creating new one
+              await this.workerPoolService.closeWorker(lineAccountId);
+            }
+          } else {
+            this.logger.warn(`[Login] Existing browser disconnected for ${lineAccountId} — cleaning up`);
+            await this.workerPoolService.closeWorker(lineAccountId);
+          }
+        } catch (reuseError: unknown) {
+          const errMsg = reuseError instanceof Error ? reuseError.message : String(reuseError);
+          this.logger.warn(`[Login] Error checking existing browser for ${lineAccountId}: ${errMsg} — will create new browser`);
+          // Try to close the broken browser
+          try { await this.workerPoolService.closeWorker(lineAccountId); } catch { /* ignore */ }
+        }
+      }
+
       // Step 3: Check for existing keys from same email (key copying)
       // Skip if forceLogin is true (for testing browser login)
       if (!forceLogin) {
