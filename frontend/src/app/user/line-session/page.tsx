@@ -2401,7 +2401,8 @@ export default function LineSessionPage() {
             </p>
           </div>
           <p className="text-slate-600 dark:text-slate-400 text-sm">
-            หากต้องการ Re-login ใหม่จริงๆ ระบบจะเปิด Browser ใหม่และต้องกรอก PIN อีกครั้ง
+            หากต้องการ Re-login ใหม่ ระบบจะใช้ Browser โปรไฟล์เดิมเพื่อดึง Keys ใหม่
+            โดยไม่ต้องกรอก PIN ซ้ำ (หาก Session ยังอยู่)
           </p>
           <div className="flex flex-col-reverse sm:flex-row gap-2 sm:gap-3 sm:justify-end">
             <Button
@@ -2417,7 +2418,6 @@ export default function LineSessionPage() {
             <Button
               variant="primary"
               onClick={() => {
-                const accountId = keysValidConfirm.accountId;
                 setKeysValidConfirm({ show: false, accountId: '' });
                 handleRelogin(true);
               }}
