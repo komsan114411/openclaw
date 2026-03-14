@@ -765,72 +765,106 @@ export class EnhancedAutomationService implements OnModuleInit, OnModuleDestroy 
         }
       }
 
-      // Step 2.7: Check if existing browser is still alive and logged in
-      // If browser is open → reuse it to capture fresh keys without creating a new browser
-      // This prevents RAM exhaustion from multiple browsers and avoids unnecessary PIN
+      // Step 2.7: Smart browser check — reuse existing browser or clean up before new one
+      // Handles 4 cases: (1) browser open+logged in → capture keys, (2) browser open+not logged in → close first,
+      // (3) browser hibernated → wake up and check, (4) browser disconnected → clean up
       const existingWorker = this.workerPoolService.getWorker(lineAccountId);
-      if (existingWorker && existingWorker.browser && existingWorker.page) {
-        this.logger.log(`[Login] Found existing browser for ${lineAccountId}, checking if still logged in...`);
+      if (existingWorker?.browser) {
+        this.logger.log(`[Login] Found existing browser for ${lineAccountId} (page: ${existingWorker.page ? 'yes' : 'no'}, state: ${existingWorker.state})`);
         try {
           const browserConnected = existingWorker.browser.isConnected();
-          if (browserConnected) {
-            const stillLoggedIn = await this.checkLoggedIn(existingWorker.page);
-            this.logger.log(`[Login] Existing browser logged in: ${stillLoggedIn}`);
 
-            if (stillLoggedIn) {
-              this.logger.log(`[Login] ✅ Reusing existing browser to capture fresh keys for ${lineAccountId}`);
+          if (!browserConnected) {
+            // Case 4: Browser crashed/disconnected → clean up
+            this.logger.warn(`[Login] Browser disconnected for ${lineAccountId} — cleaning up`);
+            await this.workerPoolService.closeWorker(lineAccountId);
+          } else {
+            // Browser is connected — need a page to check login status
+            let page = existingWorker.page;
 
-              // Setup interception on existing browser
-              const reuseKeyCapturedPromise = new Promise<{ keys: any; chatMid?: string }>((resolve) => {
-                const onKeyCaptured = (keys: any, chatMid?: string) => resolve({ keys, chatMid });
-                this.workerPoolService.setupCDPInterception(existingWorker, onKeyCaptured);
-                this.workerPoolService.setupPuppeteerInterception(existingWorker, onKeyCaptured);
-              });
+            // Case 3: Hibernated (page=null but browser alive) → wake up
+            if (!page) {
+              this.logger.log(`[Login] Waking up hibernated browser for ${lineAccountId}...`);
+              try {
+                const pages = await existingWorker.browser.pages();
+                page = pages[0] || await existingWorker.browser.newPage();
+                existingWorker.page = page;
+                existingWorker.cdpClient = await page.target().createCDPSession();
+                await existingWorker.cdpClient.send('Network.enable');
+                this.logger.log(`[Login] ✅ Browser woke up for ${lineAccountId}`);
+              } catch (wakeErr: unknown) {
+                const errMsg = wakeErr instanceof Error ? wakeErr.message : String(wakeErr);
+                this.logger.warn(`[Login] Wake-up failed for ${lineAccountId}: ${errMsg} — closing`);
+                await this.workerPoolService.closeWorker(lineAccountId);
+                page = null;
+              }
+            }
 
-              const capturedData = await this.triggerAndCaptureKeys(
-                existingWorker, reuseKeyCapturedPromise, requestId!, lineAccountId,
-              );
-
-              if (capturedData) {
-                await this.saveKeysToDatabase(lineAccountId, capturedData.keys, capturedData.chatMid, capturedData.cUrlBash);
-                this.loginCoordinatorService.markLoginCompleted(lineAccountId);
-
-                this.recentLoginSuccess.set(lineAccountId, { timestamp: Date.now() });
-                setTimeout(() => this.recentLoginSuccess.delete(lineAccountId), this.HEALTH_CHECK_GRACE_PERIOD_MS);
-
-                this.emitStatus(lineAccountId, EnhancedLoginStatus.SUCCESS, {
-                  requestId,
-                  keys: capturedData.keys,
-                  chatMid: capturedData.chatMid,
-                  cUrlBash: capturedData.cUrlBash,
-                });
-
-                this.logger.log(`[Login] ✅ Fresh keys captured from existing browser for ${lineAccountId} — no new browser needed`);
-
-                return {
-                  success: true,
-                  status: EnhancedLoginStatus.SUCCESS,
-                  requestId,
-                  keys: capturedData.keys,
-                  chatMid: capturedData.chatMid,
-                  sessionReused: true,
-                };
+            if (page) {
+              // Navigate to extension first to check login status
+              const extensionUrl = `chrome-extension://ophjlpahpchlmihnnnihgmmeilfjmjjc/index.html`;
+              try {
+                const currentUrl = page.url?.() || '';
+                if (!currentUrl.includes('ophjlpahpchlmihnnnihgmmeilfjmjjc')) {
+                  await page.goto(extensionUrl, { timeout: 15000, waitUntil: 'domcontentloaded' });
+                }
+              } catch {
+                // Navigation may fail if already on extension page — ignore
               }
 
-              this.logger.warn(`[Login] Failed to capture keys from existing browser for ${lineAccountId} — will create new browser`);
-            } else {
-              this.logger.log(`[Login] Existing browser not logged in for ${lineAccountId} — closing old browser first`);
-              // Close old browser to free RAM before creating new one
-              await this.workerPoolService.closeWorker(lineAccountId);
+              const stillLoggedIn = await this.checkLoggedIn(page);
+              this.logger.log(`[Login] Existing browser logged in: ${stillLoggedIn}`);
+
+              if (stillLoggedIn) {
+                // Case 1: Browser open + logged in → capture fresh keys
+                this.logger.log(`[Login] ✅ Reusing existing browser to capture fresh keys for ${lineAccountId}`);
+
+                const reuseKeyCapturedPromise = new Promise<{ keys: any; chatMid?: string }>((resolve) => {
+                  const onKeyCaptured = (keys: any, chatMid?: string) => resolve({ keys, chatMid });
+                  this.workerPoolService.setupCDPInterception(existingWorker, onKeyCaptured);
+                  this.workerPoolService.setupPuppeteerInterception(existingWorker, onKeyCaptured);
+                });
+
+                const capturedData = await this.triggerAndCaptureKeys(
+                  existingWorker, reuseKeyCapturedPromise, requestId!, lineAccountId,
+                );
+
+                if (capturedData) {
+                  await this.saveKeysToDatabase(lineAccountId, capturedData.keys, capturedData.chatMid, capturedData.cUrlBash);
+                  this.loginCoordinatorService.markLoginCompleted(lineAccountId);
+
+                  this.recentLoginSuccess.set(lineAccountId, { timestamp: Date.now() });
+                  setTimeout(() => this.recentLoginSuccess.delete(lineAccountId), this.HEALTH_CHECK_GRACE_PERIOD_MS);
+
+                  this.emitStatus(lineAccountId, EnhancedLoginStatus.SUCCESS, {
+                    requestId,
+                    keys: capturedData.keys,
+                    chatMid: capturedData.chatMid,
+                    cUrlBash: capturedData.cUrlBash,
+                  });
+
+                  this.logger.log(`[Login] ✅ Fresh keys captured from existing browser for ${lineAccountId}`);
+                  return {
+                    success: true,
+                    status: EnhancedLoginStatus.SUCCESS,
+                    requestId,
+                    keys: capturedData.keys,
+                    chatMid: capturedData.chatMid,
+                    sessionReused: true,
+                  };
+                }
+
+                this.logger.warn(`[Login] Key capture failed from existing browser for ${lineAccountId} — will create new`);
+              } else {
+                // Case 2: Browser open but not logged in → close to free RAM
+                this.logger.log(`[Login] Browser not logged in for ${lineAccountId} — closing to free RAM`);
+                await this.workerPoolService.closeWorker(lineAccountId);
+              }
             }
-          } else {
-            this.logger.warn(`[Login] Existing browser disconnected for ${lineAccountId} — cleaning up`);
-            await this.workerPoolService.closeWorker(lineAccountId);
           }
         } catch (reuseError: unknown) {
           const errMsg = reuseError instanceof Error ? reuseError.message : String(reuseError);
-          this.logger.warn(`[Login] Error checking existing browser for ${lineAccountId}: ${errMsg} — will create new browser`);
-          // Try to close the broken browser
+          this.logger.warn(`[Login] Browser check error for ${lineAccountId}: ${errMsg} — cleaning up`);
           try { await this.workerPoolService.closeWorker(lineAccountId); } catch { /* ignore */ }
         }
       }
