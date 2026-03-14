@@ -708,8 +708,6 @@ export class EnhancedAutomationService implements OnModuleInit, OnModuleDestroy 
           );
 
           if (ownKeysValid) {
-            this.loginCoordinatorService.markLoginCompleted(lineAccountId);
-
             const ownKeys = {
               xLineAccess: currentKeys.xLineAccess,
               xHmac: currentKeys.xHmac,
@@ -717,12 +715,14 @@ export class EnhancedAutomationService implements OnModuleInit, OnModuleDestroy 
 
             // For manual/relogin: return KEYS_STILL_VALID so frontend can ask user
             // "Keys ยังใช้ได้ ต้องการ re-login ใหม่จริงๆ ไหม?"
+            // DON'T markLoginCompleted here — no cooldown, so user can immediately
+            // confirm and force re-login without "Please wait X seconds" error
             // For auto source: silently succeed (no user to ask)
             if (source === 'manual' || source === 'relogin') {
               this.logger.log(`[Login] ✅ Own keys still valid for ${lineAccountId} — asking user to confirm re-login`);
 
-              this.recentLoginSuccess.set(lineAccountId, { timestamp: Date.now() });
-              setTimeout(() => this.recentLoginSuccess.delete(lineAccountId), this.HEALTH_CHECK_GRACE_PERIOD_MS);
+              // Reset coordinator — cancel the request so it doesn't block next attempt
+              this.loginCoordinatorService.cancelRequest(lineAccountId);
 
               return {
                 success: true,
