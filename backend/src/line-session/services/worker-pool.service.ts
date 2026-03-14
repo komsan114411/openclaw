@@ -131,6 +131,21 @@ export class WorkerPoolService implements OnModuleDestroy, OnModuleInit {
     for (const [lineAccountId, worker] of this.workers) {
       const timeSinceLastActivity = now - worker.lastActivityAt.getTime();
 
+      // Skip hibernated workers — they are managed by cleanupIdleWorkers (30-min full close)
+      // Without this guard, testBrowserHealth returns false (page=null) and hibernate is killed prematurely
+      if (worker.state === WorkerState.IDLE && worker.browser && !worker.page) {
+        // Still check if browser actually crashed during hibernation
+        try {
+          if (!worker.browser.isConnected()) {
+            staleCandidates.push(lineAccountId);
+            this.logger.warn(`[StaleCleanup] Hibernated worker ${lineAccountId} browser disconnected — cleaning up`);
+          }
+        } catch {
+          staleCandidates.push(lineAccountId);
+        }
+        continue;
+      }
+
       // Check if worker is stale (no activity for too long)
       if (timeSinceLastActivity > this.config.staleWorkerTimeoutMs) {
         // Additional check: is the browser still connected?
@@ -265,6 +280,29 @@ export class WorkerPoolService implements OnModuleDestroy, OnModuleInit {
   }
 
   /**
+   * Find existing profile directory for a lineAccountId on disk.
+   * Handles edge case where email changed but profile folder from old email still exists.
+   * Returns the existing profile dir name if found, otherwise null.
+   */
+  private findExistingProfileOnDisk(lineAccountId: string): string | null {
+    try {
+      if (!fs.existsSync(this.config.userDataDir)) return null;
+
+      const suffix = `_account_${lineAccountId}`;
+      const entries = fs.readdirSync(this.config.userDataDir, { withFileTypes: true });
+
+      for (const entry of entries) {
+        if (entry.isDirectory() && entry.name.endsWith(suffix)) {
+          return entry.name;
+        }
+      }
+    } catch {
+      // Filesystem error — not critical, caller will create new profile
+    }
+    return null;
+  }
+
+  /**
    * Ensure user data directory exists
    */
   private ensureUserDataDir(): void {
@@ -354,22 +392,55 @@ export class WorkerPoolService implements OnModuleDestroy, OnModuleInit {
     // Check existing worker
     const existing = this.workers.get(lineAccountId);
     if (existing && existing.state !== WorkerState.ERROR && existing.state !== WorkerState.CLOSED) {
-      // Test if browser is still responsive before reusing
-      const browserHealthy = await this.testBrowserHealth(existing);
 
-      if (browserHealthy) {
-        // CRITICAL: Clear old state to prevent PIN mixing with previous login
-        this.logger.log(`Reusing existing worker for ${lineAccountId}, browser is healthy`);
-        existing.pinCode = undefined;
-        existing.capturedKeys = undefined;
-        existing.capturedChatMid = undefined;
-        existing.error = undefined;
-        existing.lastActivityAt = new Date();
-        return existing;
-      } else {
-        // Browser is stale/crashed - close and create new one (internal: don't release lock)
-        this.logger.warn(`Worker browser is stale for ${lineAccountId}, creating new worker`);
-        await this.closeWorkerInternal(lineAccountId);
+      // Case 1: Hibernated worker — browser alive but page closed
+      // Wake up by creating new page, preserving LINE extension auth state
+      if (existing.browser && !existing.page) {
+        try {
+          const isBrowserConnected = existing.browser.isConnected();
+          if (isBrowserConnected) {
+            this.logger.log(`[WakeUp] Waking hibernated worker for ${lineAccountId}`);
+            const pages = await existing.browser.pages();
+            existing.page = pages[0] || await existing.browser.newPage();
+            existing.cdpClient = await existing.page.target().createCDPSession();
+            await existing.cdpClient.send('Network.enable');
+            // Clear old login state to prevent PIN mixing
+            existing.pinCode = undefined;
+            existing.capturedKeys = undefined;
+            existing.capturedChatMid = undefined;
+            existing.error = undefined;
+            existing.state = WorkerState.READY;
+            existing.lastActivityAt = new Date();
+            existing.recoveryAttempts = 0;
+            this.logger.log(`[WakeUp] ✅ Worker woke up for ${lineAccountId} (browser session preserved)`);
+            return existing;
+          }
+        } catch (wakeError: unknown) {
+          const errMsg = wakeError instanceof Error ? wakeError.message : String(wakeError);
+          this.logger.warn(`[WakeUp] Failed to wake hibernated worker for ${lineAccountId}: ${errMsg} — recreating`);
+          await this.closeWorkerInternal(lineAccountId);
+        }
+      }
+
+      // Case 2: Normal active worker — test browser health
+      if (this.workers.has(lineAccountId)) {
+        const current = this.workers.get(lineAccountId)!;
+        const browserHealthy = await this.testBrowserHealth(current);
+
+        if (browserHealthy) {
+          // CRITICAL: Clear old state to prevent PIN mixing with previous login
+          this.logger.log(`Reusing existing worker for ${lineAccountId}, browser is healthy`);
+          current.pinCode = undefined;
+          current.capturedKeys = undefined;
+          current.capturedChatMid = undefined;
+          current.error = undefined;
+          current.lastActivityAt = new Date();
+          return current;
+        } else {
+          // Browser is stale/crashed - close and create new one (internal: don't release lock)
+          this.logger.warn(`Worker browser is stale for ${lineAccountId}, creating new worker`);
+          await this.closeWorkerInternal(lineAccountId);
+        }
       }
     }
 
@@ -380,12 +451,27 @@ export class WorkerPoolService implements OnModuleDestroy, OnModuleInit {
 
     this.ensureUserDataDir();
 
-    const profileDir = this.getProfileDir(email, lineAccountId);
-    const profilePath = path.join(this.config.userDataDir, profileDir);
+    // Determine profile directory — prefer existing profile on disk (preserves session data)
+    // This handles edge cases like email change: old profile folder still has valid session
+    let profileDir = this.getProfileDir(email, lineAccountId);
+    let profilePath = path.join(this.config.userDataDir, profileDir);
+    let profileReused = false;
 
-    // Ensure profile directory exists
     if (!fs.existsSync(profilePath)) {
-      fs.mkdirSync(profilePath, { recursive: true });
+      // Check if a profile exists from a previous email (email changed scenario)
+      const existingDir = this.findExistingProfileOnDisk(lineAccountId);
+      if (existingDir && existingDir !== profileDir) {
+        this.logger.log(`[Profile] Found existing profile from previous email: ${existingDir} → reusing instead of creating new`);
+        profileDir = existingDir;
+        profilePath = path.join(this.config.userDataDir, profileDir);
+        profileReused = true;
+      } else {
+        fs.mkdirSync(profilePath, { recursive: true });
+        this.logger.log(`[Profile] Created new profile directory: ${profileDir}`);
+      }
+    } else {
+      profileReused = true;
+      this.logger.log(`[Profile] Reusing existing profile: ${profileDir}`);
     }
 
     const worker: Worker = {
@@ -544,9 +630,17 @@ export class WorkerPoolService implements OnModuleDestroy, OnModuleInit {
    */
   private async testBrowserHealth(worker: Worker): Promise<boolean> {
     try {
-      if (!worker.browser || !worker.page) {
-        this.logger.warn(`[BrowserHealth] No browser or page for ${worker.lineAccountId}`);
+      if (!worker.browser) {
+        this.logger.warn(`[BrowserHealth] No browser for ${worker.lineAccountId}`);
         return false;
+      }
+
+      // Hibernated worker: page is null but browser may still be alive
+      // Return false so initializeWorker handles wake-up via the hibernate path
+      if (!worker.page) {
+        const connected = worker.browser.isConnected();
+        this.logger.log(`[BrowserHealth] Hibernated worker ${worker.lineAccountId} — browser connected: ${connected}`);
+        return false; // Let initializeWorker wake it up properly
       }
 
       // Check if browser is connected
@@ -1353,8 +1447,17 @@ export class WorkerPoolService implements OnModuleDestroy, OnModuleInit {
     });
   }
 
+  // How long to keep browser alive after idle before full close (30 minutes)
+  private readonly HIBERNATE_CLOSE_TIMEOUT_MS = 30 * 60 * 1000;
+
   /**
-   * Cleanup idle workers
+   * Cleanup idle workers — uses hibernate to keep browser session alive
+   *
+   * Idle > idleTimeoutMs (3 min):  hibernate (close page, keep browser → LINE session preserved)
+   * Idle > 30 min:                 full close (release RAM)
+   *
+   * This prevents PIN re-entry on re-login because the browser process
+   * retains LINE extension's internal auth state.
    */
   async cleanupIdleWorkers(): Promise<void> {
     const now = Date.now();
@@ -1362,12 +1465,66 @@ export class WorkerPoolService implements OnModuleDestroy, OnModuleInit {
     for (const [lineAccountId, worker] of this.workers) {
       const idleTime = now - worker.lastActivityAt.getTime();
 
-      if (idleTime > this.config.idleTimeoutMs &&
-        (worker.state === WorkerState.IDLE || worker.state === WorkerState.READY)) {
-        this.logger.log(`Closing idle worker: ${lineAccountId}`);
+      if (!(worker.state === WorkerState.IDLE || worker.state === WorkerState.READY)) {
+        continue; // Only clean up idle/ready workers
+      }
+
+      // Long idle → full close to free RAM
+      if (idleTime > this.HIBERNATE_CLOSE_TIMEOUT_MS) {
+        this.logger.log(`[IdleCleanup] Full close worker (idle ${Math.round(idleTime / 60000)}min): ${lineAccountId}`);
         await this.closeWorker(lineAccountId);
+        continue;
+      }
+
+      // Short idle → hibernate (keep browser, close page to save memory)
+      // Skip if already hibernated (page already null)
+      if (idleTime > this.config.idleTimeoutMs && worker.page) {
+        this.logger.log(`[IdleCleanup] Hibernating worker (idle ${Math.round(idleTime / 1000)}s): ${lineAccountId}`);
+        await this.hibernateWorker(lineAccountId);
       }
     }
+  }
+
+  /**
+   * Hibernate worker — close page & CDP to save memory, but keep browser process alive.
+   * LINE extension's internal auth state is preserved in the browser process,
+   * so re-login can skip PIN by reusing the same browser.
+   */
+  async hibernateWorker(lineAccountId: string): Promise<void> {
+    const worker = this.workers.get(lineAccountId);
+    if (!worker || !worker.browser) return;
+
+    // Don't hibernate if browser is already disconnected
+    try {
+      if (!worker.browser.isConnected()) {
+        this.logger.warn(`[Hibernate] Browser already disconnected for ${lineAccountId}, closing instead`);
+        await this.closeWorker(lineAccountId);
+        return;
+      }
+    } catch {
+      await this.closeWorker(lineAccountId);
+      return;
+    }
+
+    // Detach CDP session
+    if (worker.cdpClient) {
+      try {
+        await worker.cdpClient.detach();
+      } catch { /* ignore */ }
+      worker.cdpClient = null;
+    }
+
+    // Close page to free renderer memory, but keep browser process
+    if (worker.page) {
+      try {
+        await worker.page.close();
+      } catch { /* ignore */ }
+      worker.page = null;
+    }
+
+    worker.state = WorkerState.IDLE;
+    // Don't update lastActivityAt — preserve original idle timestamp for 30-min full close
+    this.logger.log(`[Hibernate] Worker hibernated for ${lineAccountId} (browser kept alive, page closed)`);
   }
 
   /**

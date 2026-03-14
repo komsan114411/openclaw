@@ -691,6 +691,54 @@ export class EnhancedAutomationService implements OnModuleInit, OnModuleDestroy 
         await this.saveCredentials(lineAccountId, email, password);
       }
 
+      // Step 2.5: Check if THIS session already has valid keys (self-check)
+      // This prevents unnecessary browser launch + PIN when keys are still valid
+      if (!forceLogin && existingSession.xLineAccess && existingSession.xHmac) {
+        this.logger.log(`[Login] Account ${lineAccountId} has own keys, validating before browser launch...`);
+        try {
+          const ownKeysValid = await this.validateKeys(
+            existingSession.xLineAccess,
+            existingSession.xHmac,
+          );
+
+          if (ownKeysValid) {
+            this.loginCoordinatorService.markLoginCompleted(lineAccountId);
+            this.logger.log(`[Login] ✅ Own keys still valid for ${lineAccountId} — skipping login (no PIN needed)`);
+
+            // Track recent success for polling fallback and health check grace period
+            this.recentLoginSuccess.set(lineAccountId, { timestamp: Date.now() });
+            setTimeout(() => this.recentLoginSuccess.delete(lineAccountId), this.HEALTH_CHECK_GRACE_PERIOD_MS);
+
+            const ownKeys = {
+              xLineAccess: existingSession.xLineAccess,
+              xHmac: existingSession.xHmac,
+            };
+
+            // Emit success event so WebSocket notifies frontend immediately
+            this.emitStatus(lineAccountId, EnhancedLoginStatus.SUCCESS, {
+              requestId,
+              keys: ownKeys,
+              chatMid: existingSession.chatMid,
+            });
+
+            return {
+              success: true,
+              status: EnhancedLoginStatus.SUCCESS,
+              requestId,
+              keys: ownKeys,
+              chatMid: existingSession.chatMid,
+              sessionReused: true,
+            };
+          }
+
+          this.logger.warn(`[Login] Own keys EXPIRED for ${lineAccountId} — will try key copying or browser login`);
+        } catch (validateError: unknown) {
+          const errMsg = validateError instanceof Error ? validateError.message : String(validateError);
+          // Validation error (e.g. network timeout) — don't block login, continue to next step
+          this.logger.warn(`[Login] Own keys validation error for ${lineAccountId}: ${errMsg} — proceeding with login`);
+        }
+      }
+
       // Step 3: Check for existing keys from same email (key copying)
       // Skip if forceLogin is true (for testing browser login)
       if (!forceLogin) {
@@ -703,6 +751,13 @@ export class EnhancedAutomationService implements OnModuleInit, OnModuleDestroy 
           this.recentLoginSuccess.set(lineAccountId, { timestamp: Date.now() });
           // Auto-clear after health check grace period (5 minutes)
           setTimeout(() => this.recentLoginSuccess.delete(lineAccountId), this.HEALTH_CHECK_GRACE_PERIOD_MS);
+
+          // Emit success event so WebSocket notifies frontend immediately
+          this.emitStatus(lineAccountId, EnhancedLoginStatus.SUCCESS, {
+            requestId,
+            keys: existingKeys.keys,
+            chatMid: existingKeys.chatMid,
+          });
 
           return {
             success: true,
@@ -827,6 +882,14 @@ export class EnhancedAutomationService implements OnModuleInit, OnModuleDestroy 
           this.recentLoginSuccess.set(lineAccountId, { timestamp: Date.now() });
           // Auto-clear after health check grace period (5 minutes)
           setTimeout(() => this.recentLoginSuccess.delete(lineAccountId), this.HEALTH_CHECK_GRACE_PERIOD_MS);
+
+          // Emit success event so WebSocket notifies frontend immediately
+          this.emitStatus(lineAccountId, EnhancedLoginStatus.SUCCESS, {
+            requestId,
+            keys: capturedData.keys,
+            chatMid: capturedData.chatMid,
+            cUrlBash: capturedData.cUrlBash,
+          });
 
           return {
             success: true,
