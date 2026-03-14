@@ -216,6 +216,9 @@ export default function LineSessionPage() {
   const [newSessionName, setNewSessionName] = useState('');
   const [isCreating, setIsCreating] = useState(false);
 
+  // Keys still valid confirmation
+  const [keysValidConfirm, setKeysValidConfirm] = useState<{ show: boolean; accountId: string }>({ show: false, accountId: '' });
+
   // Delete confirm
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [sessionToDelete, setSessionToDelete] = useState<LineLogin | null>(null);
@@ -1199,8 +1202,8 @@ export default function LineSessionPage() {
     }
   };
 
-  // Re-login (use saved credentials)
-  const handleRelogin = async () => {
+  // Re-login (use saved credentials) — with optional force flag
+  const handleRelogin = async (forceLogin = false) => {
     if (!selectedSession) return;
 
     const accountId = selectedSession._id;
@@ -1218,8 +1221,15 @@ export default function LineSessionPage() {
     setLoginStatusForAccount(accountId, { success: true, status: 'starting', message: 'กำลังเริ่มต้น...' });
 
     try {
-      const res = await lineSessionUserApi.startEnhancedLogin(accountId, undefined, undefined, 'relogin');
+      const res = await lineSessionUserApi.startEnhancedLogin(accountId, undefined, undefined, 'relogin', forceLogin);
       const data = res.data;
+
+      // Keys still valid — ask user to confirm re-login
+      if (data.status === 'keys_still_valid') {
+        setLoginStatusForAccount(accountId, null);
+        setKeysValidConfirm({ show: true, accountId });
+        return;
+      }
 
       // Check for PIN in response (from API directly, not WebSocket)
       if (data.pinCode) {
@@ -1766,7 +1776,7 @@ export default function LineSessionPage() {
                           <Button
                             variant="primary"
                             size="sm"
-                            onClick={handleRelogin}
+                            onClick={() => handleRelogin()}
                             disabled={isSettingUp || isPolling || (loginStatus != null && !['completed', 'success', 'failed', 'error', 'credential_error'].includes(loginStatus.status || ''))}
                             className="mt-2 gap-2"
                           >
@@ -2373,6 +2383,48 @@ export default function LineSessionPage() {
                   สร้าง
                 </>
               )}
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Keys Still Valid — Confirm Re-login Modal */}
+      <Modal
+        isOpen={keysValidConfirm.show}
+        onClose={() => setKeysValidConfirm({ show: false, accountId: '' })}
+        title="Keys ยังใช้งานได้"
+      >
+        <div className="space-y-4">
+          <div className="p-4 bg-green-50 dark:bg-green-900/20 rounded-lg">
+            <p className="text-green-700 dark:text-green-300 font-medium">
+              Keys ของบัญชีนี้ยังใช้งานได้ปกติ ไม่จำเป็นต้อง Re-login
+            </p>
+          </div>
+          <p className="text-slate-600 dark:text-slate-400 text-sm">
+            หากต้องการ Re-login ใหม่จริงๆ ระบบจะเปิด Browser ใหม่และต้องกรอก PIN อีกครั้ง
+          </p>
+          <div className="flex flex-col-reverse sm:flex-row gap-2 sm:gap-3 sm:justify-end">
+            <Button
+              variant="secondary"
+              onClick={() => {
+                setKeysValidConfirm({ show: false, accountId: '' });
+                toast.success('ใช้ Keys เดิมต่อ');
+              }}
+              className="w-full sm:w-auto min-h-[44px]"
+            >
+              ใช้ Keys เดิม
+            </Button>
+            <Button
+              variant="primary"
+              onClick={() => {
+                const accountId = keysValidConfirm.accountId;
+                setKeysValidConfirm({ show: false, accountId: '' });
+                handleRelogin(true);
+              }}
+              className="gap-2"
+            >
+              <RefreshCw className="w-4 h-4" />
+              Re-login ใหม่
             </Button>
           </div>
         </div>

@@ -28,6 +28,7 @@ export enum EnhancedLoginStatus {
   FAILED = 'failed',
   CREDENTIAL_ERROR = 'credential_error',
   COOLDOWN = 'cooldown',
+  KEYS_STILL_VALID = 'keys_still_valid',
 }
 
 /**
@@ -708,18 +709,38 @@ export class EnhancedAutomationService implements OnModuleInit, OnModuleDestroy 
 
           if (ownKeysValid) {
             this.loginCoordinatorService.markLoginCompleted(lineAccountId);
-            this.logger.log(`[Login] ✅ Own keys still valid for ${lineAccountId} — skipping login (no PIN needed)`);
-
-            // Track recent success for polling fallback and health check grace period
-            this.recentLoginSuccess.set(lineAccountId, { timestamp: Date.now() });
-            setTimeout(() => this.recentLoginSuccess.delete(lineAccountId), this.HEALTH_CHECK_GRACE_PERIOD_MS);
 
             const ownKeys = {
               xLineAccess: currentKeys.xLineAccess,
               xHmac: currentKeys.xHmac,
             };
 
-            // Emit success event so WebSocket notifies frontend immediately
+            // For manual/relogin: return KEYS_STILL_VALID so frontend can ask user
+            // "Keys ยังใช้ได้ ต้องการ re-login ใหม่จริงๆ ไหม?"
+            // For auto source: silently succeed (no user to ask)
+            if (source === 'manual' || source === 'relogin') {
+              this.logger.log(`[Login] ✅ Own keys still valid for ${lineAccountId} — asking user to confirm re-login`);
+
+              this.recentLoginSuccess.set(lineAccountId, { timestamp: Date.now() });
+              setTimeout(() => this.recentLoginSuccess.delete(lineAccountId), this.HEALTH_CHECK_GRACE_PERIOD_MS);
+
+              return {
+                success: true,
+                status: EnhancedLoginStatus.KEYS_STILL_VALID,
+                requestId,
+                keys: ownKeys,
+                chatMid: currentKeys.chatMid,
+                sessionReused: true,
+                message: 'Keys ยังใช้งานได้ ต้องการ Re-login ใหม่หรือไม่?',
+              };
+            }
+
+            // Auto source: silently succeed
+            this.logger.log(`[Login] ✅ Own keys still valid for ${lineAccountId} — skipping login (auto, no PIN needed)`);
+
+            this.recentLoginSuccess.set(lineAccountId, { timestamp: Date.now() });
+            setTimeout(() => this.recentLoginSuccess.delete(lineAccountId), this.HEALTH_CHECK_GRACE_PERIOD_MS);
+
             this.emitStatus(lineAccountId, EnhancedLoginStatus.SUCCESS, {
               requestId,
               keys: ownKeys,

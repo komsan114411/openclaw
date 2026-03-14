@@ -413,7 +413,7 @@ export class LineSessionUserController {
   @ApiOperation({ summary: 'Start enhanced login' })
   async startEnhancedLoginById(
     @Param('sessionId', ParseObjectIdPipe) sessionId: string,
-    @Body() body: { email?: string; password?: string; source?: 'manual' | 'auto' | 'relogin' },
+    @Body() body: { email?: string; password?: string; source?: 'manual' | 'auto' | 'relogin'; forceLogin?: boolean },
     @CurrentUser() user: AuthUser,
   ) {
     await this.validateSessionOwnership(sessionId, user.userId);
@@ -423,6 +423,7 @@ export class LineSessionUserController {
       body.email,
       body.password,
       body.source || 'manual',
+      body.forceLogin || false,
     );
 
     return result;
